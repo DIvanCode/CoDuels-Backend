@@ -1,0 +1,20 @@
+volumes:
+  postgres:
+
+services:
+  postgres:
+    image: postgres
+    container_name: exesh_postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: coordinator
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: exesh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coordinator"]
+      interval: 1s
+      timeout: 0s
+      retries: 30
+    volumes:
+      - postgres:/var/lib/postgresql/data

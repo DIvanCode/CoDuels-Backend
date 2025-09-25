@@ -1,0 +1,47 @@
+﻿volumes:
+  duely-postgres:
+
+services:
+  postgres:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: duely
+      POSTGRES_USER: duely
+      POSTGRES_PASSWORD: secret
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1s
+      timeout: 0s
+      retries: 30
+    volumes:
+      - duely-postgres:/var/lib/postgresql/data
+  
+  migration:
+    build: .
+    environment:
+      DbConnection__ConnectionString: Server=postgres:5432;Database=duely;Username=duely;Password=secret
+    command: |
+      bash -c '/root/.dotnet/tools/dotnet-ef database update \
+        --connection "$$DbConnection__ConnectionString" \
+        --startup-project /Source/src/Duely \
+        --project /Source/src/Duely.Infrastructure.DataAccess.EntityFramework'
+    depends_on:
+      postgres:
+        condition: service_healthy
+  
+  app:
+    build: .
+    ports:
+      - "5001:5001"
+    volumes:
+      - .:/App:ro
+    environment:
+      DbConnection__ConnectionString: Server=postgres:5432;Database=duely;Username=duely;Password=secret
+      ASPNETCORE_ENVIRONMENT: Development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully

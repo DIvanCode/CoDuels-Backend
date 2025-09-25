@@ -1,0 +1,6 @@
+env: dev
+http_server:
+  addr: localhost:5253
+storage:
+  connection_string: host=localhost port=5433 database=exesh user=coordinator password=secret
+  init_timeout: 60s
