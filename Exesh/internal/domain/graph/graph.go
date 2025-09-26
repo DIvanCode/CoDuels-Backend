@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"fmt"
 	"slices"
 	"sync"
 
@@ -48,10 +47,6 @@ func NewGraph(jobs []Job) *Graph {
 			}
 			graph.succJobs[dep] = append(graph.succJobs[dep], job)
 		}
-	}
-
-	for _, job := range jobs {
-		fmt.Printf("%v\n", job)
 	}
 
 	graph.topSort(jobs)
