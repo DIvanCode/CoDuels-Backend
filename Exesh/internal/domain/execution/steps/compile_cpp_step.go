@@ -3,30 +3,34 @@ package steps
 import (
 	"encoding/json"
 	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/sources"
+	"exesh/internal/domain/execution/inputs"
 	"fmt"
 )
 
 type CompileCppStep struct {
 	execution.StepDetails
-	CodeSource execution.Source `json:"code_source"`
+	Code execution.Input `json:"code"`
 }
 
-func (s *CompileCppStep) UnmarshalJSON(data []byte) error {
+func (step CompileCppStep) GetAttributes() map[string]any {
+	return map[string]any{}
+}
+
+func (step *CompileCppStep) UnmarshalJSON(data []byte) error {
 	var err error
-	if err = json.Unmarshal(data, &s.StepDetails); err != nil {
+	if err = json.Unmarshal(data, &step.StepDetails); err != nil {
 		return fmt.Errorf("failed to unmarshal step details: %w", err)
 	}
 
 	attributes := struct {
-		CodeSource json.RawMessage `json:"code_source"`
+		Code json.RawMessage `json:"code"`
 	}{}
 	if err = json.Unmarshal(data, &attributes); err != nil {
-		return fmt.Errorf("failed to unmarshal %s step attributes: %w", s.Type, err)
+		return fmt.Errorf("failed to unmarshal %s step attributes: %w", step.Type, err)
 	}
 
-	if s.CodeSource, err = sources.UnmarshalSourceJSON(attributes.CodeSource); err != nil {
-		return fmt.Errorf("failed to unmarshal code source: %w", err)
+	if step.Code, err = inputs.UnmarshalInputJSON(attributes.Code); err != nil {
+		return fmt.Errorf("failed to unmarshal code input: %w", err)
 	}
 
 	return nil

@@ -4,6 +4,10 @@ import (
 	"context"
 	executeAPI "exesh/internal/api/execute"
 	"exesh/internal/config"
+	"exesh/internal/factory"
+	"exesh/internal/provider"
+	"exesh/internal/provider/providers"
+	schedule "exesh/internal/scheduler"
 	"exesh/internal/storage/postgres"
 	executeUC "exesh/internal/usecase/execute"
 	"fmt"
@@ -14,10 +18,14 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	cfg := config.MustLoadCoordinatorConfig()
 
 	log, err := setupLogger(cfg.Env)
@@ -39,13 +47,27 @@ func main() {
 		return
 	}
 
+	filestorage, err := filestorage.New(log, cfg.FileStorage, mux)
+	if err != nil {
+		log.Error("failed to create filestorage", slog.String("error", err.Error()))
+		return
+	}
+
+	inputProvider := setupInputProvider(cfg.InputProvider, filestorage)
+
+	graphFactory := factory.NewGraphFactory(log, cfg.GraphFactory, inputProvider)
+
+	scheduler := schedule.NewScheduler(log, cfg.Scheduler, unitOfWork, executionStorage, graphFactory)
+
+	scheduler.Start(ctx)
+
 	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage)
 	executeAPI.NewHandler(log, executeUseCase).Register(mux)
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	srv := &http.Server{
 		Addr:    cfg.HttpServer.Addr,
@@ -58,11 +80,8 @@ func main() {
 
 	log.Info("server started")
 
-	<-done
+	<-stop
 	log.Info("stopping server")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Error("failed to stop server", slog.Any("error", err))
@@ -83,10 +102,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 	return
 }
 
-func setupStorage(
-	log *slog.Logger,
-	cfg config.StorageConfig,
-) (
+func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	unitOfWork *postgres.UnitOfWork,
 	executionStorage *postgres.ExecutionStorage,
 	err error,
@@ -108,4 +124,10 @@ func setupStorage(
 	})
 
 	return
+}
+
+func setupInputProvider(cfg config.InputProviderConfig, filestorage filestorage.FileStorage) *provider.InputProvider {
+	filestorageBucketInputProvider := providers.NewFilestorageBucketInputProvider(filestorage, cfg.FilestorageBucketTTL)
+	inlineInputProvider := providers.NewInlineInputProvider()
+	return provider.NewInputProvider(filestorageBucketInputProvider, inlineInputProvider)
 }

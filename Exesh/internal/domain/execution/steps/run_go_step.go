@@ -3,45 +3,53 @@ package steps
 import (
 	"encoding/json"
 	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/sources"
+	"exesh/internal/domain/execution/inputs"
 	"fmt"
 )
 
 type RunGoStep struct {
 	execution.StepDetails
-	CodeSource  execution.Source `json:"code_source"`
-	InputSource execution.Source `json:"input_source"`
-	TimeLimit   int              `json:"time_limit"`
-	MemoryLimit int              `json:"memory_limit"`
-	ShowOutput  bool             `json:"show_output"`
+	Code        execution.Input `json:"code"`
+	RunInput    execution.Input `json:"run_input"`
+	TimeLimit   int             `json:"time_limit"`
+	MemoryLimit int             `json:"memory_limit"`
+	ShowOutput  bool            `json:"show_output"`
 }
 
-func (s *RunGoStep) UnmarshalJSON(data []byte) error {
+func (step RunGoStep) GetAttributes() map[string]any {
+	return map[string]any{
+		"time_limit":   step.TimeLimit,
+		"memory_limit": step.MemoryLimit,
+		"show_output":  step.ShowOutput,
+	}
+}
+
+func (step *RunGoStep) UnmarshalJSON(data []byte) error {
 	var err error
-	if err = json.Unmarshal(data, &s.StepDetails); err != nil {
+	if err = json.Unmarshal(data, &step.StepDetails); err != nil {
 		return fmt.Errorf("failed to unmarshal step details: %w", err)
 	}
 
 	attributes := struct {
-		CodeSource  json.RawMessage `json:"code_source"`
-		InputSource json.RawMessage `json:"input_source"`
+		Code        json.RawMessage `json:"code"`
+		RunInput    json.RawMessage `json:"run_input"`
 		TimeLimit   int             `json:"time_limit"`
 		MemoryLimit int             `json:"memory_limit"`
 		ShowOutput  bool            `json:"show_output"`
 	}{}
 	if err = json.Unmarshal(data, &attributes); err != nil {
-		return fmt.Errorf("failed to unmarshal %s step attributes: %w", s.Type, err)
+		return fmt.Errorf("failed to unmarshal %s step attributes: %w", step.Type, err)
 	}
 
-	if s.CodeSource, err = sources.UnmarshalSourceJSON(attributes.CodeSource); err != nil {
-		return fmt.Errorf("failed to unmarshal code source: %w", err)
+	if step.Code, err = inputs.UnmarshalInputJSON(attributes.Code); err != nil {
+		return fmt.Errorf("failed to unmarshal code input: %w", err)
 	}
-	if s.InputSource, err = sources.UnmarshalSourceJSON(attributes.InputSource); err != nil {
-		return fmt.Errorf("failed to unmarshal input source: %w", err)
+	if step.RunInput, err = inputs.UnmarshalInputJSON(attributes.RunInput); err != nil {
+		return fmt.Errorf("failed to unmarshal run_input input: %w", err)
 	}
-	s.TimeLimit = attributes.TimeLimit
-	s.MemoryLimit = attributes.MemoryLimit
-	s.ShowOutput = attributes.ShowOutput
+	step.TimeLimit = attributes.TimeLimit
+	step.MemoryLimit = attributes.MemoryLimit
+	step.ShowOutput = attributes.ShowOutput
 
 	return nil
 }

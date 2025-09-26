@@ -4,6 +4,7 @@ type (
 	Step interface {
 		GetName() string
 		GetType() StepType
+		GetAttributes() map[string]any
 	}
 
 	StepDetails struct {
@@ -22,10 +23,10 @@ const (
 	CheckCppStepType   StepType = "check_cpp"
 )
 
-func (s StepDetails) GetName() string {
-	return s.Name
+func (step StepDetails) GetName() string {
+	return step.Name
 }
 
-func (s StepDetails) GetType() StepType {
-	return s.Type
+func (step StepDetails) GetType() StepType {
+	return step.Type
 }
