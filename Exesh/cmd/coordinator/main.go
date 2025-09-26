@@ -52,6 +52,7 @@ func main() {
 		log.Error("failed to create filestorage", slog.String("error", err.Error()))
 		return
 	}
+	defer filestorage.Shutdown()
 
 	inputProvider := setupInputProvider(cfg.InputProvider, filestorage)
 
