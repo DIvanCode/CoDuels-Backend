@@ -1,0 +1,20 @@
+volumes:
+  postgres:
+
+services:
+  postgres:
+    image: postgres
+    container_name: taski_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: taski
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: taski
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taski"]
+      interval: 1s
+      timeout: 0s
+      retries: 30
+    volumes:
+      - postgres:/var/lib/postgresql/data

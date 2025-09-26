@@ -1,0 +1,9 @@
+env: dev
+http_server:
+  addr: localhost:5252
+filestorage:
+  root_dir: file_storage
+  trasher:
+    workers: 1
+    collector_iterations_delay: 60
+    worker_iterations_delay: 5
