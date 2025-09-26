@@ -3,40 +3,44 @@ package steps
 import (
 	"encoding/json"
 	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/sources"
+	"exesh/internal/domain/execution/inputs"
 	"fmt"
 )
 
 type CheckCppStep struct {
 	execution.StepDetails
-	CheckerExeSource    execution.Source `json:"checker_exe_source"`
-	CorrectOutputSource execution.Source `json:"correct_output_source"`
-	SuspectOutputSource execution.Source `json:"suspect_output_source"`
+	CompiledChecker execution.Input `json:"compiled_checker"`
+	CorrectOutput   execution.Input `json:"correct_output"`
+	SuspectOutput   execution.Input `json:"suspect_output"`
 }
 
-func (s *CheckCppStep) UnmarshalJSON(data []byte) error {
+func (step CheckCppStep) GetAttributes() map[string]any {
+	return map[string]any{}
+}
+
+func (step *CheckCppStep) UnmarshalJSON(data []byte) error {
 	var err error
-	if err = json.Unmarshal(data, &s.StepDetails); err != nil {
+	if err = json.Unmarshal(data, &step.StepDetails); err != nil {
 		return fmt.Errorf("failed to unmarshal step details: %w", err)
 	}
 
 	attributes := struct {
-		CheckerExeSource    json.RawMessage `json:"checker_exe_source"`
-		CorrectOutputSource json.RawMessage `json:"correct_output_source"`
-		SuspectOutputSource json.RawMessage `json:"suspect_output_source"`
+		CompiledChecker json.RawMessage `json:"compiled_checker"`
+		CorrectOutput   json.RawMessage `json:"correct_output"`
+		SuspectOutput   json.RawMessage `json:"suspect_output"`
 	}{}
 	if err = json.Unmarshal(data, &attributes); err != nil {
-		return fmt.Errorf("failed to unmarshal %s step attributes: %w", s.Type, err)
+		return fmt.Errorf("failed to unmarshal %s step attributes: %w", step.Type, err)
 	}
 
-	if s.CheckerExeSource, err = sources.UnmarshalSourceJSON(attributes.CheckerExeSource); err != nil {
-		return fmt.Errorf("failed to unmarshal checker exe source: %w", err)
+	if step.CompiledChecker, err = inputs.UnmarshalInputJSON(attributes.CompiledChecker); err != nil {
+		return fmt.Errorf("failed to unmarshal compiled_checker input: %w", err)
 	}
-	if s.CorrectOutputSource, err = sources.UnmarshalSourceJSON(attributes.CorrectOutputSource); err != nil {
-		return fmt.Errorf("failed to unmarshal correct output source: %w", err)
+	if step.CorrectOutput, err = inputs.UnmarshalInputJSON(attributes.CorrectOutput); err != nil {
+		return fmt.Errorf("failed to unmarshal correct_output input: %w", err)
 	}
-	if s.SuspectOutputSource, err = sources.UnmarshalSourceJSON(attributes.SuspectOutputSource); err != nil {
-		return fmt.Errorf("failed to unmarshal suspect output source: %w", err)
+	if step.SuspectOutput, err = inputs.UnmarshalInputJSON(attributes.SuspectOutput); err != nil {
+		return fmt.Errorf("failed to unmarshal suspect_output input: %w", err)
 	}
 
 	return nil

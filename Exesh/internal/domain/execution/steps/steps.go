@@ -39,7 +39,7 @@ func UnmarshalStepJSON(data []byte) (step execution.Step, err error) {
 func UnmarshalStepsJSON(data []byte) (stepsArray []execution.Step, err error) {
 	var array []json.RawMessage
 	if err = json.Unmarshal(data, &array); err != nil {
-		err = fmt.Errorf("failed to unmarshal array: %w", err)
+		err = fmt.Errorf("failed to unmarshal steps array: %w", err)
 		return
 	}
 

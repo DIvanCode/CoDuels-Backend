@@ -4,3 +4,20 @@ http_server:
 storage:
   connection_string: host=localhost port=5433 database=exesh user=coordinator password=secret
   init_timeout: 60s
+filestorage:
+  root_dir: file_storage/coordinator
+  trasher:
+    workers: 1
+    collector_iterations_delay: 60
+    worker_iterations_delay: 5
+scheduler:
+  executions_interval: 1s
+  max_concurrency: 10
+  execution_retry_after: 10s
+graph_factory:
+  output:
+    compiled_cpp: bin
+    run_output: output
+    check_verdict: verdict
+input_provider:
+  filestorage_bucket_ttl: 15m

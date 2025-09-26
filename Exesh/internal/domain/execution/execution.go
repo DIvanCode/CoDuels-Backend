@@ -33,3 +33,8 @@ func NewExecution(steps []Step) Execution {
 		FinishedAt:  nil,
 	}
 }
+
+func (e *Execution) SetScheduled(scheduledAt time.Time) {
+	e.Status = StatusScheduledExecution
+	e.ScheduledAt = &scheduledAt
+}
