@@ -1,12 +1,13 @@
 using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
+using Duely.Infrastructure.Gateway.Client.Abstracts;
 using MediatR;
 using FluentResults;
 
 namespace Duely.Application.UseCases.Submissions;
 
-public sealed class UpdateSubmissionStatusHandler(Context context)
+public sealed class UpdateSubmissionStatusHandler(Context context,IMessageSender messageSender)
     : IRequestHandler<UpdateSubmissionStatusCommand, Result>
 {
     public async Task<Result> Handle(UpdateSubmissionStatusCommand request, CancellationToken cancellationToken)
@@ -21,7 +22,14 @@ public sealed class UpdateSubmissionStatusHandler(Context context)
         submission.Verdict = request.Verdict;
 
         await context.SaveChangesAsync(cancellationToken);
-        Console.WriteLine($"Посылка {submission.Id} для пользователя {submission.UserId} сейчас {submission.Status} ({submission.Verdict})");
+        var message = new SubmissionUpdateMessage
+        {
+            SubmissionId = submission.Id,
+            Status = submission.Status.ToString(),
+            Verdict = submission.Verdict
+        };
+        
+        await messageSender.SendMessage(message, cancellationToken);
         return Result.Ok();
     }
 }
