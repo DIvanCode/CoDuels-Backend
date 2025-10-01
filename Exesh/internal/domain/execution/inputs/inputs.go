@@ -14,10 +14,8 @@ func UnmarshalInputJSON(data []byte) (input execution.Input, err error) {
 	}
 
 	switch details.Type {
-	case execution.OtherStepInputType:
-		input = &OtherStepInput{}
-	case execution.InlineInputType:
-		input = &InlineInput{}
+	case execution.ArtifactInputType:
+		input = &ArtifactInput{}
 	case execution.FilestorageBucketInputType:
 		input = &FilestorageBucketInput{}
 	default:

@@ -3,17 +3,25 @@ package steps
 import (
 	"encoding/json"
 	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/inputs"
+	"exesh/internal/domain/execution/sources"
 	"fmt"
 )
 
 type RunPyStep struct {
 	execution.StepDetails
-	Code        execution.Input `json:"code"`
-	RunInput    execution.Input `json:"run_input"`
-	TimeLimit   int             `json:"time_limit"`
-	MemoryLimit int             `json:"memory_limit"`
-	ShowOutput  bool            `json:"show_output"`
+	Code        execution.Source `json:"code"`
+	RunSource   execution.Source `json:"run_source"`
+	TimeLimit   int              `json:"time_limit"`
+	MemoryLimit int              `json:"memory_limit"`
+	ShowOutput  bool             `json:"show_output"`
+}
+
+func (step RunPyStep) GetSources() []execution.Source {
+	return []execution.Source{step.Code, step.RunSource}
+}
+
+func (step RunPyStep) GetDependencies() []execution.StepName {
+	return getDependencies(step)
 }
 
 func (step RunPyStep) GetAttributes() map[string]any {
@@ -32,7 +40,7 @@ func (step *RunPyStep) UnmarshalJSON(data []byte) error {
 
 	attributes := struct {
 		Code        json.RawMessage `json:"code"`
-		RunInput    json.RawMessage `json:"run_input"`
+		RunSource   json.RawMessage `json:"run_source"`
 		TimeLimit   int             `json:"time_limit"`
 		MemoryLimit int             `json:"memory_limit"`
 		ShowOutput  bool            `json:"show_output"`
@@ -41,11 +49,11 @@ func (step *RunPyStep) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal %s step attributes: %w", step.Type, err)
 	}
 
-	if step.Code, err = inputs.UnmarshalInputJSON(attributes.Code); err != nil {
-		return fmt.Errorf("failed to unmarshal code input: %w", err)
+	if step.Code, err = sources.UnmarshalSourceJSON(attributes.Code); err != nil {
+		return fmt.Errorf("failed to unmarshal code source: %w", err)
 	}
-	if step.RunInput, err = inputs.UnmarshalInputJSON(attributes.RunInput); err != nil {
-		return fmt.Errorf("failed to unmarshal run_input input: %w", err)
+	if step.RunSource, err = sources.UnmarshalSourceJSON(attributes.RunSource); err != nil {
+		return fmt.Errorf("failed to unmarshal run_source source: %w", err)
 	}
 	step.TimeLimit = attributes.TimeLimit
 	step.MemoryLimit = attributes.MemoryLimit

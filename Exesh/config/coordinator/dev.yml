@@ -10,14 +10,15 @@ filestorage:
     workers: 1
     collector_iterations_delay: 60
     worker_iterations_delay: 5
-scheduler:
-  executions_interval: 1s
-  max_concurrency: 10
-  execution_retry_after: 10s
-graph_factory:
+input_provider:
+  filestorage_bucket_ttl: 15m
+  artifact_ttl: 5m
+job_factory:
   output:
     compiled_cpp: bin
     run_output: output
     check_verdict: verdict
-input_provider:
-  filestorage_bucket_ttl: 15m
+execution_scheduler:
+  executions_interval: 1s
+  max_concurrency: 10
+  execution_retry_after: 5m

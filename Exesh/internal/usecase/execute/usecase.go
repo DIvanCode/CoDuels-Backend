@@ -36,6 +36,15 @@ func NewUseCase(
 }
 
 func (uc *UseCase) Execute(ctx context.Context, command Command) (result Result, err error) {
+	steps := make(map[execution.StepName]any, len(command.Steps))
+	for _, step := range command.Steps {
+		if _, has := steps[step.GetName()]; has {
+			err = fmt.Errorf("two or more steps have the same name '%s'", step.GetName())
+			return
+		}
+		steps[step.GetName()] = struct{}{}
+	}
+
 	err = uc.unitOfWork.Do(ctx, func(ctx context.Context) error {
 		e := execution.NewExecution(command.Steps)
 		if err = uc.executionStorage.Create(ctx, e); err != nil {

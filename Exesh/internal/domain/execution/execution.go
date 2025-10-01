@@ -38,3 +38,7 @@ func (e *Execution) SetScheduled(scheduledAt time.Time) {
 	e.Status = StatusScheduledExecution
 	e.ScheduledAt = &scheduledAt
 }
+
+func (e *Execution) BuildContext() (Context, error) {
+	return newContext(e.ID, newGraph(e.Steps))
+}
