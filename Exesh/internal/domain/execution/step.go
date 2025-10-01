@@ -2,15 +2,19 @@ package execution
 
 type (
 	Step interface {
-		GetName() string
+		GetName() StepName
 		GetType() StepType
+		GetSources() []Source
+		GetDependencies() []StepName
 		GetAttributes() map[string]any
 	}
 
 	StepDetails struct {
-		Name string   `json:"name"`
+		Name StepName `json:"name"`
 		Type StepType `json:"type"`
 	}
+
+	StepName string
 
 	StepType string
 )
@@ -23,7 +27,7 @@ const (
 	CheckCppStepType   StepType = "check_cpp"
 )
 
-func (step StepDetails) GetName() string {
+func (step StepDetails) GetName() StepName {
 	return step.Name
 }
 

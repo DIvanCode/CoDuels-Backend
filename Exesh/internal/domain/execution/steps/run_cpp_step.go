@@ -3,17 +3,25 @@ package steps
 import (
 	"encoding/json"
 	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/inputs"
+	"exesh/internal/domain/execution/sources"
 	"fmt"
 )
 
 type RunCppStep struct {
 	execution.StepDetails
-	CompiledCode execution.Input `json:"compiled_code"`
-	RunInput     execution.Input `json:"run_input"`
-	TimeLimit    int             `json:"time_limit"`
-	MemoryLimit  int             `json:"memory_limit"`
-	ShowOutput   bool            `json:"show_output"`
+	CompiledCode execution.Source `json:"compiled_code"`
+	RunSource    execution.Source `json:"run_source"`
+	TimeLimit    int              `json:"time_limit"`
+	MemoryLimit  int              `json:"memory_limit"`
+	ShowOutput   bool             `json:"show_output"`
+}
+
+func (step RunCppStep) GetSources() []execution.Source {
+	return []execution.Source{step.CompiledCode, step.RunSource}
+}
+
+func (step RunCppStep) GetDependencies() []execution.StepName {
+	return getDependencies(step)
 }
 
 func (step RunCppStep) GetAttributes() map[string]any {
@@ -32,7 +40,7 @@ func (step *RunCppStep) UnmarshalJSON(data []byte) error {
 
 	attributes := struct {
 		CompiledCode json.RawMessage `json:"compiled_code"`
-		RunInput     json.RawMessage `json:"run_input"`
+		RunSource    json.RawMessage `json:"run_source"`
 		TimeLimit    int             `json:"time_limit"`
 		MemoryLimit  int             `json:"memory_limit"`
 		ShowOutput   bool            `json:"show_output"`
@@ -41,11 +49,11 @@ func (step *RunCppStep) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal %s step attributes: %w", step.Type, err)
 	}
 
-	if step.CompiledCode, err = inputs.UnmarshalInputJSON(attributes.CompiledCode); err != nil {
-		return fmt.Errorf("failed to unmarshal compiled_code input: %w", err)
+	if step.CompiledCode, err = sources.UnmarshalSourceJSON(attributes.CompiledCode); err != nil {
+		return fmt.Errorf("failed to unmarshal compiled_code source: %w", err)
 	}
-	if step.RunInput, err = inputs.UnmarshalInputJSON(attributes.RunInput); err != nil {
-		return fmt.Errorf("failed to unmarshal run_input input: %w", err)
+	if step.RunSource, err = sources.UnmarshalSourceJSON(attributes.RunSource); err != nil {
+		return fmt.Errorf("failed to unmarshal run_source source: %w", err)
 	}
 	step.TimeLimit = attributes.TimeLimit
 	step.MemoryLimit = attributes.MemoryLimit
