@@ -12,7 +12,7 @@ public sealed class DuelMakingJob : BackgroundService
     private readonly IMediator _mediator;
     private readonly DuelSettings _settings;
 
-    public DuelMakingJob(DuelManager duelManager, IMediator mediator, IOptions<DuelSettings> options)
+    public DuelMakingJob(IDuelManager duelManager, IMediator mediator, IOptions<DuelSettings> options)
     {
         _duelManager = duelManager;
         _mediator = mediator;
