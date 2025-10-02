@@ -8,7 +8,7 @@ namespace Duely.Application.BackgroundJobs;
 
 public sealed class DuelMakingJob : BackgroundService
 {
-    private readonly DuelManager _duelManager;
+    private readonly IDuelManager _duelManager;
     private readonly IMediator _mediator;
     private readonly DuelSettings _settings;
 

@@ -4,7 +4,7 @@ using FluentResults;
 
 namespace Duely.Application.UseCases.CreateDuel;
 
-public class CreateDuelHandler(DuelManager duelManager) : IRequestHandler<CreateDuelCommand, Result>
+public class CreateDuelHandler(IDuelManager duelManager) : IRequestHandler<CreateDuelCommand, Result>
 {
 
     public Task<Result> Handle(CreateDuelCommand request, CancellationToken cancellationToken)
