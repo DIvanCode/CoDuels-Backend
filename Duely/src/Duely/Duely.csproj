@@ -18,6 +18,8 @@
       <ProjectReference Include="..\Duely.Infrastructure.Api.Http\Duely.Infrastructure.Api.Http.csproj" />
       <ProjectReference Include="..\Duely.Infrastructure.DataAccess.EntityFramework\Duely.Infrastructure.DataAccess.EntityFramework.csproj" />
       <ProjectReference Include="..\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks\Duely.Infrastructure.Gateway.Tasks.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj" />
     </ItemGroup>
 
 </Project>
