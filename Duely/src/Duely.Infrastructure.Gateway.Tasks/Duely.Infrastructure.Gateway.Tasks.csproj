@@ -9,6 +9,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj" />
+      <PackageReference Include="FluentResults" Version="4.0.0" />
     </ItemGroup>
 
 </Project>
