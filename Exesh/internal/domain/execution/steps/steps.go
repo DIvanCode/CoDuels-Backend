@@ -3,6 +3,7 @@ package steps
 import (
 	"encoding/json"
 	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/sources"
 	"fmt"
 )
 
@@ -54,4 +55,18 @@ func UnmarshalStepsJSON(data []byte) (stepsArray []execution.Step, err error) {
 		stepsArray = append(stepsArray, step)
 	}
 	return
+}
+
+func getDependencies(step execution.Step) []execution.StepName {
+	dependencies := make(map[execution.StepName]any)
+	for _, source := range step.GetSources() {
+		if otherStepSource, ok := source.(sources.OtherStepSource); ok {
+			dependencies[otherStepSource.StepName] = struct{}{}
+		}
+	}
+	result := make([]execution.StepName, 0, len(dependencies))
+	for stepName := range dependencies {
+		result = append(result, stepName)
+	}
+	return result
 }

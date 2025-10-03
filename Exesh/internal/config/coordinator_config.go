@@ -11,13 +11,13 @@ import (
 
 type (
 	CoordinatorConfig struct {
-		Env           string              `yaml:"env"`
-		HttpServer    HttpServerConfig    `yaml:"http_server"`
-		Storage       StorageConfig       `yaml:"storage"`
-		FileStorage   filestorage.Config  `yaml:"filestorage"`
-		InputProvider InputProviderConfig `yaml:"input_provider"`
-		GraphFactory  GraphFactoryConfig  `yaml:"graph_factory"`
-		Scheduler     SchedulerConfig     `yaml:"scheduler"`
+		Env                string                   `yaml:"env"`
+		HttpServer         HttpServerConfig         `yaml:"http_server"`
+		Storage            StorageConfig            `yaml:"storage"`
+		FileStorage        filestorage.Config       `yaml:"filestorage"`
+		InputProvider      InputProviderConfig      `yaml:"input_provider"`
+		JobFactory         JobFactoryConfig         `yaml:"job_factory"`
+		ExecutionScheduler ExecutionSchedulerConfig `yaml:"execution_scheduler"`
 	}
 
 	StorageConfig struct {
@@ -25,22 +25,18 @@ type (
 		InitTimeout      time.Duration `yaml:"init_timeout"`
 	}
 
-	SchedulerConfig struct {
+	ExecutionSchedulerConfig struct {
 		ExecutionsInterval  time.Duration `yaml:"executions_interval"`
 		MaxConcurrency      int           `yaml:"max_concurrency"`
 		ExecutionRetryAfter time.Duration `yaml:"execution_retry_after"`
 	}
 
-	GraphFactoryConfig struct {
+	JobFactoryConfig struct {
 		Output struct {
 			CompiledCpp  string `yaml:"compiled_cpp"`
 			RunOutput    string `yaml:"run_output"`
 			CheckVerdict string `yaml:"check_verdict"`
 		} `yaml:"output"`
-	}
-
-	InputProviderConfig struct {
-		FilestorageBucketTTL time.Duration `yaml:"filestorage_bucket_ttl"`
 	}
 )
 

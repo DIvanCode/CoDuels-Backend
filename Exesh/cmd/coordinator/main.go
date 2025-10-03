@@ -7,7 +7,9 @@ import (
 	"exesh/internal/factory"
 	"exesh/internal/provider"
 	"exesh/internal/provider/providers"
+	"exesh/internal/registry"
 	schedule "exesh/internal/scheduler"
+	"exesh/internal/sender"
 	"exesh/internal/storage/postgres"
 	executeUC "exesh/internal/usecase/execute"
 	"fmt"
@@ -56,11 +58,18 @@ func main() {
 
 	inputProvider := setupInputProvider(cfg.InputProvider, filestorage)
 
-	graphFactory := factory.NewGraphFactory(log, cfg.GraphFactory, inputProvider)
+	artifactRegistry := registry.NewArtifactRegistry(log)
 
-	scheduler := schedule.NewScheduler(log, cfg.Scheduler, unitOfWork, executionStorage, graphFactory)
+	jobFactory := factory.NewJobFactory(log, cfg.JobFactory, artifactRegistry, inputProvider, cfg.HttpServer.Addr)
 
-	scheduler.Start(ctx)
+	messageFactory := factory.NewMessageFactory(log)
+	messageSender := sender.NewMessageSender(log)
+
+	jobScheduler := schedule.NewJobScheduler(log)
+	exectuionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
+		jobFactory, jobScheduler, messageFactory, messageSender)
+
+	exectuionScheduler.Start(ctx)
 
 	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage)
 	executeAPI.NewHandler(log, executeUseCase).Register(mux)
@@ -129,6 +138,6 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 
 func setupInputProvider(cfg config.InputProviderConfig, filestorage filestorage.FileStorage) *provider.InputProvider {
 	filestorageBucketInputProvider := providers.NewFilestorageBucketInputProvider(filestorage, cfg.FilestorageBucketTTL)
-	inlineInputProvider := providers.NewInlineInputProvider()
-	return provider.NewInputProvider(filestorageBucketInputProvider, inlineInputProvider)
+	artifactInputProvider := providers.NewArtifactInputProvider(filestorage, cfg.ArtifactTTL)
+	return provider.NewInputProvider(filestorageBucketInputProvider, artifactInputProvider)
 }

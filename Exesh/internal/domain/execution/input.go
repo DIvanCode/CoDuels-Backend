@@ -3,21 +3,26 @@ package execution
 type (
 	Input interface {
 		GetType() InputType
+		GetFile() string
 	}
 
 	InputDetails struct {
 		Type InputType `json:"type"`
+		File string    `json:"file"`
 	}
 
 	InputType string
 )
 
 const (
-	OtherStepInputType         InputType = "other_step"
-	InlineInputType            InputType = "inline"
+	ArtifactInputType          InputType = "artifact"
 	FilestorageBucketInputType InputType = "filestorage_bucket"
 )
 
 func (input InputDetails) GetType() InputType {
 	return input.Type
+}
+
+func (input InputDetails) GetFile() string {
+	return input.File
 }

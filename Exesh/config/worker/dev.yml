@@ -1,0 +1,14 @@
+env: dev
+http_server:
+  addr: localhost:5254
+filestorage:
+  root_dir: file_storage/coordinator
+  trasher:
+    workers: 1
+    collector_iterations_delay: 60
+    worker_iterations_delay: 5
+input_provider:
+  filestorage_bucket_ttl: 15m
+  artifact_ttl: 5m
+output_provider:
+  artifact_ttl: 5m
