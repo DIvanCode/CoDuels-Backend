@@ -16,15 +16,15 @@ public sealed class TaskiClient : ITaskiClient
         string solution,
         string language)
     {
-        var request = new
+        var request = new SendSubmissionRequest
         {
-            taskId,
-            submissionId,
-            solution,
-            language
+            TaskId =taskId,
+            SubmissionId =submissionId,
+            Solution =solution,
+            Language = language
         };
 
-        using var resp = await _http.PostAsJsonAsync("/test", request);
+        using var resp = await _http.PostAsJsonAsync("test", request);
         if (!resp.IsSuccessStatusCode)
         {
             return Result.Fail($"Failed to send submission {submissionId} for task {taskId}");
