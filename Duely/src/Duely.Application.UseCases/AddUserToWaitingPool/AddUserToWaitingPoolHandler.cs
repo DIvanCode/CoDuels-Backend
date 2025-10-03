@@ -4,7 +4,7 @@ using FluentResults;
 
 namespace Duely.Application.UseCases.AddUserToWaitingPool;
 
-public class AddUserToWaitingPoolHandler(DuelManager duelManager) : IRequestHandler<AddUserToWaitingPoolCommand, Result>
+public class AddUserToWaitingPoolHandler(IDuelManager duelManager) : IRequestHandler<AddUserToWaitingPoolCommand, Result>
 {
 
     public Task<Result> Handle(AddUserToWaitingPoolCommand request, CancellationToken cancellationToken)
