@@ -32,12 +32,11 @@ public sealed class UpdateSubmissionStatusHandler(Context context,IMessageSender
         {
             submission.Status = SubmissionStatus.Running;
             await context.SaveChangesAsync(cancellationToken);
-            await context.SaveChangesAsync(cancellationToken);
             var message = new SubmissionUpdateMessage
             {
                 SubmissionId = submission.Id,
                 Status = "Running",
-                Verdict = request.Message
+                StatusText = request.Message
             };
 
             await messageSender.SendMessage(message, cancellationToken);
