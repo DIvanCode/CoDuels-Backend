@@ -2,12 +2,12 @@ using Duely.Domain.Models;
 using MediatR;
 using FluentResults;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
+using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Duely.Infrastructure.DataAccess.EntityFramework;
-using System.Data.Common;
 
 namespace Duely.Application.UseCases.CreateDuel;
 
-public class CreateDuelHandler(ITaskiClient taskiClient, Context db) : IRequestHandler<CreateDuelCommand, Result>
+public class CreateDuelHandler(ITaskiClient taskiClient, Context db, IMessageSender messageSender) : IRequestHandler<CreateDuelCommand, Result>
 {
 
     public async Task<Result> Handle(CreateDuelCommand request, CancellationToken cancellationToken)
@@ -33,6 +33,16 @@ public class CreateDuelHandler(ITaskiClient taskiClient, Context db) : IRequestH
 
         db.Duels.Add(duel);
         await db.SaveChangesAsync(cancellationToken);
+
+        var message = new DuelStartedMessage
+        {
+            DuelId = duel.Id,
+            User1Id = duel.User1Id,
+            User2Id = duel.User2Id,
+            TaskId = duel.TaskId,
+        };
+
+        await messageSender.SendMessage(message, cancellationToken);
 
         return Result.Ok();
         
