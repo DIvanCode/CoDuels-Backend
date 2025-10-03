@@ -21,7 +21,7 @@ public sealed class DuelManager: IDuelManager
 
     public (string User1, string User2)? TryGetPair()
     {
-        if (_waitingUsers.Count == 2) {
+        if (_waitingUsers.Count >= 2) {
             var user1 = _waitingUsers.Dequeue();
             var user2 = _waitingUsers.Dequeue();
 
