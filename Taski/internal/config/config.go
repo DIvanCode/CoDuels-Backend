@@ -3,6 +3,7 @@ package config
 import (
 	flog "log"
 	"os"
+	"time"
 
 	filestorage "github.com/DIvanCode/filestorage/pkg/config"
 	"github.com/ilyakaznacheev/cleanenv"
@@ -13,10 +14,21 @@ type (
 		Env         string             `yaml:"env"`
 		HttpServer  HttpServerConfig   `yaml:"http_server"`
 		FileStorage filestorage.Config `yaml:"filestorage"`
+		Db          DbConfig           `yaml:"db"`
+		Execute     ExecuteConfig      `yaml:"execute"`
 	}
 
 	HttpServerConfig struct {
 		Addr string `yaml:"addr"`
+	}
+
+	DbConfig struct {
+		ConnectionString string        `yaml:"connection_string"`
+		InitTimeout      time.Duration `yaml:"init_timeout"`
+	}
+
+	ExecuteConfig struct {
+		Endpoint string `yaml:"endpoint"`
 	}
 )
 

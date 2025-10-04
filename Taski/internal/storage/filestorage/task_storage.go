@@ -30,6 +30,15 @@ func NewTaskStorage(fs fileStorage) *TaskStorage {
 	}
 }
 
+func (ts *TaskStorage) GetTaskBucket(id task.ID) (bucketID bucket.ID, err error) {
+	bucketIDStr := id.String()
+	if err = bucketID.FromString(bucketIDStr); err != nil {
+		err = fmt.Errorf("failed to convert task id to bucket id: %w", err)
+		return
+	}
+	return
+}
+
 func (ts *TaskStorage) Get(id task.ID) (t task.Task, unlock func(), err error) {
 	bucketIDStr := id.String()
 	var bucketID bucket.ID
