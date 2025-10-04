@@ -76,7 +76,8 @@ func NewExecutionScheduler(
 		jobFactory:   jobFactory,
 		jobScheduler: jobScheduler,
 
-		messageSender: messageSender,
+		messageFactory: messageFactory,
+		messageSender:  messageSender,
 
 		mu:            sync.Mutex{},
 		nowExecutions: 0,
