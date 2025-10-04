@@ -10,14 +10,14 @@ import (
 type RunCppStep struct {
 	execution.StepDetails
 	CompiledCode execution.Source `json:"compiled_code"`
-	RunSource    execution.Source `json:"run_source"`
+	RunInput     execution.Source `json:"run_input"`
 	TimeLimit    int              `json:"time_limit"`
 	MemoryLimit  int              `json:"memory_limit"`
 	ShowOutput   bool             `json:"show_output"`
 }
 
 func (step RunCppStep) GetSources() []execution.Source {
-	return []execution.Source{step.CompiledCode, step.RunSource}
+	return []execution.Source{step.CompiledCode, step.RunInput}
 }
 
 func (step RunCppStep) GetDependencies() []execution.StepName {
@@ -40,7 +40,7 @@ func (step *RunCppStep) UnmarshalJSON(data []byte) error {
 
 	attributes := struct {
 		CompiledCode json.RawMessage `json:"compiled_code"`
-		RunSource    json.RawMessage `json:"run_source"`
+		RunInput     json.RawMessage `json:"run_input"`
 		TimeLimit    int             `json:"time_limit"`
 		MemoryLimit  int             `json:"memory_limit"`
 		ShowOutput   bool            `json:"show_output"`
@@ -52,8 +52,8 @@ func (step *RunCppStep) UnmarshalJSON(data []byte) error {
 	if step.CompiledCode, err = sources.UnmarshalSourceJSON(attributes.CompiledCode); err != nil {
 		return fmt.Errorf("failed to unmarshal compiled_code source: %w", err)
 	}
-	if step.RunSource, err = sources.UnmarshalSourceJSON(attributes.RunSource); err != nil {
-		return fmt.Errorf("failed to unmarshal run_source source: %w", err)
+	if step.RunInput, err = sources.UnmarshalSourceJSON(attributes.RunInput); err != nil {
+		return fmt.Errorf("failed to unmarshal run_input source: %w", err)
 	}
 	step.TimeLimit = attributes.TimeLimit
 	step.MemoryLimit = attributes.MemoryLimit

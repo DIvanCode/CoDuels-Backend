@@ -81,9 +81,9 @@ func (f *JobFactory) Create(ctx context.Context, execCtx execution.Context, step
 		if err != nil {
 			return nil, fmt.Errorf("failed to create compiled_code source: %w", err)
 		}
-		runSource, err := f.createInput(ctx, execCtx, typedStep.RunSource)
+		runSource, err := f.createInput(ctx, execCtx, typedStep.RunInput)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create run_source source: %w", err)
+			return nil, fmt.Errorf("failed to create run_input source: %w", err)
 		}
 
 		id, err := f.calculateID(ctx, []execution.Input{compiledCode, runSource}, step.GetAttributes())
@@ -101,9 +101,9 @@ func (f *JobFactory) Create(ctx context.Context, execCtx execution.Context, step
 		if err != nil {
 			return nil, fmt.Errorf("failed to create code source: %w", err)
 		}
-		runSource, err := f.createInput(ctx, execCtx, typedStep.RunSource)
+		runSource, err := f.createInput(ctx, execCtx, typedStep.RunInput)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create run_source source: %w", err)
+			return nil, fmt.Errorf("failed to create run_input source: %w", err)
 		}
 
 		id, err := f.calculateID(ctx, []execution.Input{code, runSource}, step.GetAttributes())
@@ -121,9 +121,9 @@ func (f *JobFactory) Create(ctx context.Context, execCtx execution.Context, step
 		if err != nil {
 			return nil, fmt.Errorf("failed to create code source: %w", err)
 		}
-		runSource, err := f.createInput(ctx, execCtx, typedStep.RunSource)
+		runSource, err := f.createInput(ctx, execCtx, typedStep.RunInput)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create run_source source: %w", err)
+			return nil, fmt.Errorf("failed to create run_input source: %w", err)
 		}
 
 		id, err := f.calculateID(ctx, []execution.Input{code, runSource}, step.GetAttributes())

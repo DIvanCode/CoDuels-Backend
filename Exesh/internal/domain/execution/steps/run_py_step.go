@@ -10,14 +10,14 @@ import (
 type RunPyStep struct {
 	execution.StepDetails
 	Code        execution.Source `json:"code"`
-	RunSource   execution.Source `json:"run_source"`
+	RunInput    execution.Source `json:"run_input"`
 	TimeLimit   int              `json:"time_limit"`
 	MemoryLimit int              `json:"memory_limit"`
 	ShowOutput  bool             `json:"show_output"`
 }
 
 func (step RunPyStep) GetSources() []execution.Source {
-	return []execution.Source{step.Code, step.RunSource}
+	return []execution.Source{step.Code, step.RunInput}
 }
 
 func (step RunPyStep) GetDependencies() []execution.StepName {
@@ -40,7 +40,7 @@ func (step *RunPyStep) UnmarshalJSON(data []byte) error {
 
 	attributes := struct {
 		Code        json.RawMessage `json:"code"`
-		RunSource   json.RawMessage `json:"run_source"`
+		RunInput    json.RawMessage `json:"run_input"`
 		TimeLimit   int             `json:"time_limit"`
 		MemoryLimit int             `json:"memory_limit"`
 		ShowOutput  bool            `json:"show_output"`
@@ -52,8 +52,8 @@ func (step *RunPyStep) UnmarshalJSON(data []byte) error {
 	if step.Code, err = sources.UnmarshalSourceJSON(attributes.Code); err != nil {
 		return fmt.Errorf("failed to unmarshal code source: %w", err)
 	}
-	if step.RunSource, err = sources.UnmarshalSourceJSON(attributes.RunSource); err != nil {
-		return fmt.Errorf("failed to unmarshal run_source source: %w", err)
+	if step.RunInput, err = sources.UnmarshalSourceJSON(attributes.RunInput); err != nil {
+		return fmt.Errorf("failed to unmarshal run_input source: %w", err)
 	}
 	step.TimeLimit = attributes.TimeLimit
 	step.MemoryLimit = attributes.MemoryLimit

@@ -28,7 +28,9 @@ func newContext(executionID ID, graph *graph) (ctx Context, err error) {
 		jobByStepName: make(map[StepName]Job),
 	}
 
-	if err = ctx.InlineSourcesBucketID.FromString(string(sha1.New().Sum([]byte(executionID.String())))); err != nil {
+	hash := sha1.New()
+	hash.Write([]byte(executionID.String()))
+	if err = ctx.InlineSourcesBucketID.FromString(fmt.Sprintf("%x", hash.Sum(nil))); err != nil {
 		err = fmt.Errorf("failed to create inline sources bucket id: %w", err)
 		return
 	}
