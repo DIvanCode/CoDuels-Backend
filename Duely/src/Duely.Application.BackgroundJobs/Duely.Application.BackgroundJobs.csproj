@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Duely.Domain.Services\Duely.Domain.Services.csproj" />
     <ProjectReference Include="..\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
+    <ProjectReference Include="..\Duely.Application.Configuration\Duely.Application.Configuration.csproj" />
   </ItemGroup>
 
   <ItemGroup>
