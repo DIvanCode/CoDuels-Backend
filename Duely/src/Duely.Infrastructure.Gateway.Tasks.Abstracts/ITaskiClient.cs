@@ -5,7 +5,7 @@ namespace Duely.Infrastructure.Gateway.Tasks.Abstracts;
 public interface ITaskiClient
 {
     Task <Result> SendSubmission(
-        int taskId,
+        string taskId,
         int submissionId,
         string solution,
         string language);

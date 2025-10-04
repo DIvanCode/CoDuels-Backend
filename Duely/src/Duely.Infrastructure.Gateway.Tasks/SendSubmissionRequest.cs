@@ -4,10 +4,10 @@ namespace Duely.Infrastructure.Gateway.Tasks;
 public sealed class SendSubmissionRequest
 {
     [JsonPropertyName("task_id")]
-    public int TaskId { get; init; }
+    public string TaskId { get; init; } = string.Empty;
 
     [JsonPropertyName("submission_id")]
-    public int SubmissionId { get; init; }
+    public string SubmissionId { get; init; } = string.Empty;
 
     [JsonPropertyName("solution")]
     public string Solution { get; init; } = string.Empty;
