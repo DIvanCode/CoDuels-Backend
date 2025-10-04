@@ -11,7 +11,7 @@ public sealed class TaskiClient : ITaskiClient
     public TaskiClient(HttpClient http) => _http = http;
 
     public async Task<Result> SendSubmission(
-        int taskId,
+        string taskId,
         int submissionId,
         string solution,
         string language)
@@ -19,7 +19,7 @@ public sealed class TaskiClient : ITaskiClient
         var request = new SendSubmissionRequest
         {
             TaskId =taskId,
-            SubmissionId =submissionId,
+            SubmissionId =submissionId.ToString(),
             Solution =solution,
             Language = language
         };
