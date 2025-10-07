@@ -89,7 +89,6 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	defer dr.client.ContainerRemove(ctx, cr.ID, container.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
-		RemoveLinks:   true,
 	})
 
 	for _, f := range params.InFiles {
