@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -71,14 +70,14 @@ func New(opts ...FuncOpt) (*Runtime, error) {
 	return dr, nil
 }
 
-func (dr *Runtime) Execute(ctx context.Context, params runtime.ExecuteParams) error {
+func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.ExecuteParams) error {
 	hostConfig := &container.HostConfig{}
 	dr.basePolicy(hostConfig)
 	cpuPolicy(int64(params.Limits.Time) / int64(time.Second))(hostConfig)
 	memoryPolicy(int64(params.Limits.Memory))(hostConfig)
 
 	cr, err := dr.client.ContainerCreate(ctx,
-		&container.Config{Image: dr.baseImage, Cmd: strslice.StrSlice(params.Command), OpenStdin: true},
+		&container.Config{Image: dr.baseImage, Cmd: cmd, OpenStdin: true},
 		hostConfig,
 		&network.NetworkingConfig{},
 		&v1.Platform{OS: "linux", Architecture: "amd64"},
