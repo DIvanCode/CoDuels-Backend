@@ -3,6 +3,7 @@ package executors
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -81,6 +82,29 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 		}
 	}
 
+	tlResult := func() execution.Result {
+		return results.RunResult{
+			ResultDetails: execution.ResultDetails{
+				ID:     job.GetID(),
+				Type:   execution.RunResult,
+				DoneAt: time.Now(),
+			},
+			Status:    results.RunStatusTL,
+			HasOutput: false,
+		}
+	}
+
+	mlResult := func() execution.Result {
+		return results.RunResult{
+			ResultDetails: execution.ResultDetails{
+				ID:     job.GetID(),
+				Type:   execution.RunResult,
+				DoneAt: time.Now(),
+			},
+			Status: results.RunStatusML,
+		}
+	}
+
 	if job.GetType() != execution.RunCppJobType {
 		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.RunCppJobType))
 	}
@@ -130,6 +154,12 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 		})
 	if err != nil {
 		e.log.Error("execute binary in runtime error", slog.Any("err", err))
+		if errors.Is(err, runtime.ErrTimeout) {
+			return tlResult()
+		}
+		if errors.Is(err, runtime.ErrOutOfMemory) {
+			return mlResult()
+		}
 		return runtimeErrorResult()
 	}
 
