@@ -45,7 +45,12 @@ func (p *ArtifactInputProvider) Create(ctx context.Context, input execution.Inpu
 		err = fmt.Errorf("unsupported input type %s for %s provider", input.GetType(), execution.ArtifactInputType)
 		return
 	}
-	typedInput := input.(inputs.ArtifactInput)
+	var typedInput inputs.ArtifactInput
+	if _, ok := input.(inputs.ArtifactInput); ok {
+		typedInput = input.(inputs.ArtifactInput)
+	} else {
+		typedInput = *input.(*inputs.ArtifactInput)
+	}
 
 	var bucketID bucket.ID
 	if err = bucketID.FromString(typedInput.JobID.String()); err != nil {
@@ -88,7 +93,12 @@ func (p *ArtifactInputProvider) Locate(ctx context.Context, input execution.Inpu
 		err = fmt.Errorf("unsupported input type %s for %s provider", input.GetType(), execution.ArtifactInputType)
 		return
 	}
-	typedInput := input.(inputs.ArtifactInput)
+	var typedInput inputs.ArtifactInput
+	if _, ok := input.(inputs.ArtifactInput); ok {
+		typedInput = input.(inputs.ArtifactInput)
+	} else {
+		typedInput = *input.(*inputs.ArtifactInput)
+	}
 
 	var bucketID bucket.ID
 	if err = bucketID.FromString(typedInput.JobID.String()); err != nil {
@@ -115,7 +125,12 @@ func (p *ArtifactInputProvider) Read(ctx context.Context, input execution.Input)
 		err = fmt.Errorf("unsupported input type %s for %s provider", input.GetType(), execution.ArtifactInputType)
 		return
 	}
-	typedInput := input.(inputs.ArtifactInput)
+	var typedInput inputs.ArtifactInput
+	if _, ok := input.(inputs.ArtifactInput); ok {
+		typedInput = input.(inputs.ArtifactInput)
+	} else {
+		typedInput = *input.(*inputs.ArtifactInput)
+	}
 
 	var bucketID bucket.ID
 	if err = bucketID.FromString(typedInput.JobID.String()); err != nil {

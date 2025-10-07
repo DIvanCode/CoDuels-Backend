@@ -16,10 +16,19 @@ type (
 		FileStorage    filestorage.Config   `yaml:"filestorage"`
 		InputProvider  InputProviderConfig  `yaml:"input_provider"`
 		OutputProvider OutputProviderConfig `yaml:"output_provider"`
+		Worker         WorkConfig           `yaml:"worker"`
 	}
 
 	OutputProviderConfig struct {
 		ArtifactTTL time.Duration `yaml:"artifact_ttl"`
+	}
+
+	WorkConfig struct {
+		WorkerID            string        `yaml:"id"`
+		FreeSlots           int           `yaml:"free_slots"`
+		CoordinatorEndpoint string        `yaml:"coordinator_endpoint"`
+		HeartbeatDelay      time.Duration `yaml:"heartbeat_delay"`
+		WorkerDelay         time.Duration `yaml:"worker_delay"`
 	}
 )
 

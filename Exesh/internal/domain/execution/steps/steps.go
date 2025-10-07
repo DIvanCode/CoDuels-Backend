@@ -60,7 +60,7 @@ func UnmarshalStepsJSON(data []byte) (stepsArray []execution.Step, err error) {
 func getDependencies(step execution.Step) []execution.StepName {
 	dependencies := make(map[execution.StepName]any)
 	for _, source := range step.GetSources() {
-		if otherStepSource, ok := source.(sources.OtherStepSource); ok {
+		if otherStepSource, ok := source.(*sources.OtherStepSource); ok {
 			dependencies[otherStepSource.StepName] = struct{}{}
 		}
 	}

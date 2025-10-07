@@ -44,7 +44,12 @@ func (p *ArtifactOutputProvider) Create(ctx context.Context, output execution.Ou
 		err = fmt.Errorf("unsupported output type %s for %s provider", output.GetType(), execution.ArtifactOutputType)
 		return
 	}
-	typedOutput := output.(outputs.ArtifactOutput)
+	var typedOutput outputs.ArtifactOutput
+	if _, ok := output.(outputs.ArtifactOutput); ok {
+		typedOutput = output.(outputs.ArtifactOutput)
+	} else {
+		typedOutput = *output.(*outputs.ArtifactOutput)
+	}
 
 	var bucketID bucket.ID
 	if err = bucketID.FromString(typedOutput.JobID.String()); err != nil {
@@ -87,7 +92,12 @@ func (p *ArtifactOutputProvider) Locate(ctx context.Context, output execution.Ou
 		err = fmt.Errorf("unsupported output type %s for %s provider", output.GetType(), execution.ArtifactOutputType)
 		return
 	}
-	typedOutput := output.(outputs.ArtifactOutput)
+	var typedOutput outputs.ArtifactOutput
+	if _, ok := output.(outputs.ArtifactOutput); ok {
+		typedOutput = output.(outputs.ArtifactOutput)
+	} else {
+		typedOutput = *output.(*outputs.ArtifactOutput)
+	}
 
 	var bucketID bucket.ID
 	if err = bucketID.FromString(typedOutput.JobID.String()); err != nil {
@@ -108,7 +118,12 @@ func (p *ArtifactOutputProvider) Read(ctx context.Context, output execution.Outp
 		err = fmt.Errorf("unsupported output type %s for %s provider", output.GetType(), execution.ArtifactOutputType)
 		return
 	}
-	typedOutput := output.(outputs.ArtifactOutput)
+	var typedOutput outputs.ArtifactOutput
+	if _, ok := output.(outputs.ArtifactOutput); ok {
+		typedOutput = output.(outputs.ArtifactOutput)
+	} else {
+		typedOutput = *output.(*outputs.ArtifactOutput)
+	}
 
 	var bucketID bucket.ID
 	if err = bucketID.FromString(typedOutput.JobID.String()); err != nil {

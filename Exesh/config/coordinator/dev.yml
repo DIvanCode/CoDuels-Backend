@@ -19,6 +19,14 @@ job_factory:
     run_output: output
     check_verdict: verdict
 execution_scheduler:
-  executions_interval: 1s
+  executions_interval: 5s
   max_concurrency: 10
-  execution_retry_after: 5m
+  execution_retry_after: 10m
+worker_pool:
+  worker_die_after: 30s
+artifact_registry:
+  artifact_ttl: 3m
+sender:
+  brokers:
+    - 0.0.0.0:29092
+  topic: exesh.step-updates

@@ -18,6 +18,9 @@ type (
 		InputProvider      InputProviderConfig      `yaml:"input_provider"`
 		JobFactory         JobFactoryConfig         `yaml:"job_factory"`
 		ExecutionScheduler ExecutionSchedulerConfig `yaml:"execution_scheduler"`
+		WorkerPool         WorkerPoolConfig         `yaml:"worker_pool"`
+		ArtifactRegistry   ArtifactRegistryConfig   `yaml:"artifact_registry"`
+		Sender             SenderConfig             `yaml:"sender"`
 	}
 
 	StorageConfig struct {
@@ -37,6 +40,19 @@ type (
 			RunOutput    string `yaml:"run_output"`
 			CheckVerdict string `yaml:"check_verdict"`
 		} `yaml:"output"`
+	}
+
+	WorkerPoolConfig struct {
+		WorkerDieAfter time.Duration `yaml:"worker_die_after"`
+	}
+
+	ArtifactRegistryConfig struct {
+		ArtifactTTL time.Duration `yaml:"artifact_ttl"`
+	}
+
+	SenderConfig struct {
+		Brokers []string `yaml:"brokers"`
+		Topic   string   `yaml:"topic"`
 	}
 )
 

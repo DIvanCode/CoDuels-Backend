@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	executeAPI "exesh/internal/api/execute"
+	heartbeatAPI "exesh/internal/api/heartbeat"
 	"exesh/internal/config"
 	"exesh/internal/factory"
+	"exesh/internal/pool"
 	"exesh/internal/provider"
 	"exesh/internal/provider/providers"
 	"exesh/internal/registry"
@@ -12,6 +14,7 @@ import (
 	"exesh/internal/sender"
 	"exesh/internal/storage/postgres"
 	executeUC "exesh/internal/usecase/execute"
+	heartbeatUC "exesh/internal/usecase/heartbeat"
 	"fmt"
 	flog "log"
 	"log/slog"
@@ -58,12 +61,15 @@ func main() {
 
 	inputProvider := setupInputProvider(cfg.InputProvider, filestorage)
 
-	artifactRegistry := registry.NewArtifactRegistry(log)
+	workerPool := pool.NewWorkerPool(log, cfg.WorkerPool)
+	defer workerPool.StopObservers()
 
-	jobFactory := factory.NewJobFactory(log, cfg.JobFactory, artifactRegistry, inputProvider, cfg.HttpServer.Addr)
+	artifactRegistry := registry.NewArtifactRegistry(log, cfg.ArtifactRegistry, workerPool)
+
+	jobFactory := factory.NewJobFactory(log, cfg.JobFactory, artifactRegistry, inputProvider, "http://"+cfg.HttpServer.Addr)
 
 	messageFactory := factory.NewMessageFactory(log)
-	messageSender := sender.NewMessageSender(log)
+	messageSender := sender.NewKafkaSender(log, cfg.Sender)
 
 	jobScheduler := schedule.NewJobScheduler(log)
 	exectuionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
@@ -73,6 +79,9 @@ func main() {
 
 	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage)
 	executeAPI.NewHandler(log, executeUseCase).Register(mux)
+
+	heartbeatUseCase := heartbeatUC.NewUseCase(log, workerPool, jobScheduler, artifactRegistry)
+	heartbeatAPI.NewHandler(log, heartbeatUseCase).Register(mux)
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 

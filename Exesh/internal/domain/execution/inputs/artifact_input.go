@@ -5,7 +5,6 @@ import "exesh/internal/domain/execution"
 type ArtifactInput struct {
 	execution.InputDetails
 	JobID    execution.JobID `json:"job_id"`
-	File     string          `json:"file"`
 	WorkerID string          `json:"worker_id"`
 }
 

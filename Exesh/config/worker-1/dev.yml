@@ -2,7 +2,7 @@ env: dev
 http_server:
   addr: localhost:5254
 filestorage:
-  root_dir: file_storage/coordinator
+  root_dir: file_storage/worker-1
   trasher:
     workers: 1
     collector_iterations_delay: 60
@@ -12,3 +12,9 @@ input_provider:
   artifact_ttl: 5m
 output_provider:
   artifact_ttl: 5m
+worker:
+  id: http://localhost:5254
+  free_slots: 1
+  coordinator_endpoint: http://localhost:5253
+  heartbeat_delay: 5s
+  worker_delay: 2s

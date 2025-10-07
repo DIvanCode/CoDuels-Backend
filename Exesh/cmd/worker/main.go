@@ -7,6 +7,7 @@ import (
 	"exesh/internal/executor/executors"
 	"exesh/internal/provider"
 	"exesh/internal/provider/providers"
+	"exesh/internal/worker"
 	"fmt"
 	flog "log"
 	"log/slog"
@@ -49,7 +50,8 @@ func main() {
 	outputProvider := setupOutputProvider(cfg.OutputProvider, filestorage)
 
 	jobExecutor := setupJobExecutor(log, inputProvider, outputProvider)
-	_ = jobExecutor
+
+	worker.NewWorker(log, cfg.Worker, jobExecutor).Start(ctx)
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 

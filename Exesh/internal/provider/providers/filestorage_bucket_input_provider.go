@@ -45,7 +45,12 @@ func (p *FilestorageBucketInputProvider) Create(ctx context.Context, input execu
 		err = fmt.Errorf("unsupported input type %s for %s provider", input.GetType(), execution.FilestorageBucketInputType)
 		return
 	}
-	typedInput := input.(inputs.FilestorageBucketInput)
+	var typedInput inputs.FilestorageBucketInput
+	if _, ok := input.(inputs.FilestorageBucketInput); ok {
+		typedInput = input.(inputs.FilestorageBucketInput)
+	} else {
+		typedInput = *input.(*inputs.FilestorageBucketInput)
+	}
 
 	path, commitBucket, abortBucket, err := p.filestorage.CreateBucket(typedInput.BucketID, time.Now().Add(p.filestorageBucketTTL))
 	if err != nil && errors.Is(err, errs.ErrBucketAlreadyExists) {
@@ -82,7 +87,12 @@ func (p *FilestorageBucketInputProvider) Locate(ctx context.Context, input execu
 		err = fmt.Errorf("unsupported input type %s for %s provider", input.GetType(), execution.FilestorageBucketInputType)
 		return
 	}
-	typedInput := input.(inputs.FilestorageBucketInput)
+	var typedInput inputs.FilestorageBucketInput
+	if _, ok := input.(inputs.FilestorageBucketInput); ok {
+		typedInput = input.(inputs.FilestorageBucketInput)
+	} else {
+		typedInput = *input.(*inputs.FilestorageBucketInput)
+	}
 
 	bucketTrashTime := time.Now().Add(p.filestorageBucketTTL)
 	if err = p.filestorage.DownloadBucket(ctx, typedInput.DownloadEndpoint, typedInput.BucketID, bucketTrashTime); err != nil {
@@ -103,7 +113,12 @@ func (p *FilestorageBucketInputProvider) Read(ctx context.Context, input executi
 		err = fmt.Errorf("unsupported input type %s for %s provider", input.GetType(), execution.FilestorageBucketInputType)
 		return
 	}
-	typedInput := input.(inputs.FilestorageBucketInput)
+	var typedInput inputs.FilestorageBucketInput
+	if _, ok := input.(inputs.FilestorageBucketInput); ok {
+		typedInput = input.(inputs.FilestorageBucketInput)
+	} else {
+		typedInput = *input.(*inputs.FilestorageBucketInput)
+	}
 
 	bucketTrashTime := time.Now().Add(p.filestorageBucketTTL)
 	if err = p.filestorage.DownloadBucket(ctx, typedInput.DownloadEndpoint, typedInput.BucketID, bucketTrashTime); err != nil {
