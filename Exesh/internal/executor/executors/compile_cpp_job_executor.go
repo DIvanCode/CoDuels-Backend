@@ -111,6 +111,5 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) 
 		return compilationErrorResult(stderr.String())
 	}
 
-	e.log.Info("command ok")
 	return okResult()
 }
