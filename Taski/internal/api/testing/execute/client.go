@@ -32,7 +32,6 @@ func (c *ExecuteClient) Execute(ctx context.Context, steps []testing.Step) (exec
 		err = fmt.Errorf("failed to marshal execute request: %w", err)
 		return
 	}
-	fmt.Println(string(jsonReq))
 	httpReq, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,

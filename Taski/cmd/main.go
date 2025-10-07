@@ -66,7 +66,7 @@ func main() {
 	getTaskFileUseCase := getFileUC.NewUseCase(log, taskStorage)
 	getFileAPI.NewHandler(log, getTaskFileUseCase).Register(mux)
 
-	testUseCase := testUC.NewUseCase(log, taskStorage, unitOfWork, solutionStorage, executeClient, cfg.HttpServer.Addr)
+	testUseCase := testUC.NewUseCase(log, taskStorage, unitOfWork, solutionStorage, executeClient, "http://"+cfg.HttpServer.Addr)
 	testAPI.NewHandler(log, testUseCase).Register(mux)
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))

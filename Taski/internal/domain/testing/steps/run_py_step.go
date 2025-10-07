@@ -14,7 +14,7 @@ func NewRunPyStep(name string, code, runInput testing.Source, timeLimit, memoryL
 	return RunPyStep{
 		StepDetails: testing.StepDetails{
 			Name: name,
-			Type: testing.RunGo,
+			Type: testing.RunPy,
 		},
 		Code:        code,
 		RunInput:    runInput,
