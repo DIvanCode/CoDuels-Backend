@@ -3,27 +3,29 @@ package executors
 import (
 	"bytes"
 	"context"
-	"errors"
+	"fmt"
+	"log/slog"
+	"time"
+
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/jobs"
 	"exesh/internal/domain/execution/results"
-	"fmt"
-	"log/slog"
-	"os/exec"
-	"time"
+	"exesh/internal/runtime"
 )
 
 type CompileCppJobExecutor struct {
 	log            *slog.Logger
 	inputProvider  inputProvider
 	outputProvider outputProvider
+	runtime        runtime.Runtime
 }
 
-func NewCompileCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider) *CompileCppJobExecutor {
+func NewCompileCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *CompileCppJobExecutor {
 	return &CompileCppJobExecutor{
 		log:            log,
 		inputProvider:  inputProvider,
 		outputProvider: outputProvider,
+		runtime:        rt,
 	}
 }
 
@@ -93,26 +95,26 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) 
 		_ = abortOutput()
 	}()
 
-	cmd := exec.CommandContext(ctx, "g++", code, "-o", compiledCode)
-
-	stderr := bytes.Buffer{}
-	cmd.Stderr = &stderr
-
-	e.log.Info("do command", slog.Any("cmd", cmd))
-	err = cmd.Run()
+	stderr := bytes.NewBuffer(nil)
+	err = e.runtime.Execute(ctx,
+		[]string{"g++", "/main.cpp", "-o", "/a.out"},
+		runtime.ExecuteParams{
+			// TODO: Limits
+			Limits:   runtime.Limits{},
+			InFiles:  []runtime.File{{OutsideLocation: code, InsideLocation: "/main.cpp"}},
+			OutFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: "/a.out"}},
+			Stderr:   stderr,
+		})
 	if err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			e.log.Error("command error", slog.Any("err", err))
-			return errorResult(err)
-		}
+		e.log.Error("execute g++ in runtime error", slog.Any("err", err))
+		return compilationErrorResult(stderr.String())
 	}
+
+	e.log.Info("command ok")
 
 	if commitErr := commit(); commitErr != nil {
 		return errorResult(commitErr)
 	}
-
-	e.log.Info("command ok")
 
 	if err != nil {
 		return compilationErrorResult(stderr.String())
