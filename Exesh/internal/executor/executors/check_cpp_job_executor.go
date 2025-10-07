@@ -68,7 +68,7 @@ func (e *CheckCppJobExecutor) Execute(ctx context.Context, job execution.Job) ex
 	if job.GetType() != execution.CheckCppJobType {
 		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.CheckCppJobType))
 	}
-	checkCppJob := job.(jobs.CheckCppJob)
+	checkCppJob := job.(*jobs.CheckCppJob)
 
 	var compiledCheckerLocation string
 	compiledCheckerLocation, unlock, err := e.inputProvider.Locate(ctx, checkCppJob.CompiledChecker)

@@ -30,7 +30,6 @@ func NewRunStepMessage(
 func NewRunStepMessageWithOutput(
 	executionID execution.ID,
 	stepName execution.StepName,
-	status results.RunStatus,
 	output string,
 ) RunStepMessage {
 	return RunStepMessage{
@@ -39,7 +38,7 @@ func NewRunStepMessageWithOutput(
 			Type:        execution.RunStepMessage,
 		},
 		StepName:  stepName,
-		RunStatus: status,
+		RunStatus: results.RunStatusOK,
 		Output:    output,
 	}
 }

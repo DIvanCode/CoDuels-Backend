@@ -82,7 +82,7 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 	if job.GetType() != execution.RunGoJobType {
 		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.RunGoJobType))
 	}
-	runGoJob := job.(jobs.RunGoJob)
+	runGoJob := job.(*jobs.RunGoJob)
 
 	var codeLocation string
 	codeLocation, unlock, err := e.inputProvider.Locate(ctx, runGoJob.Code)

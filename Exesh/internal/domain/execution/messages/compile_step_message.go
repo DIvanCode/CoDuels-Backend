@@ -15,7 +15,6 @@ type CompileStepMessage struct {
 func NewCompileStepMessage(
 	executionID execution.ID,
 	stepName execution.StepName,
-	status results.CompileStatus,
 ) CompileStepMessage {
 	return CompileStepMessage{
 		MessageDetails: execution.MessageDetails{
@@ -23,15 +22,14 @@ func NewCompileStepMessage(
 			Type:        execution.CompileStepMessage,
 		},
 		StepName:      stepName,
-		CompileStatus: status,
+		CompileStatus: results.CompileStatusOK,
 	}
 }
 
 func NewCompileStepMessageError(
 	executionID execution.ID,
 	stepName execution.StepName,
-	status results.CompileStatus,
-	error string,
+	err string,
 ) CompileStepMessage {
 	return CompileStepMessage{
 		MessageDetails: execution.MessageDetails{
@@ -39,7 +37,7 @@ func NewCompileStepMessageError(
 			Type:        execution.CompileStepMessage,
 		},
 		StepName:      stepName,
-		CompileStatus: status,
-		Error:         error,
+		CompileStatus: results.CompileStatusCE,
+		Error:         err,
 	}
 }

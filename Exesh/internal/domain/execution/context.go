@@ -52,7 +52,7 @@ func (c *Context) DoneStep(stepName StepName) {
 }
 
 func (c *Context) IsDone() bool {
-	return c.graph.isDone()
+	return c.graph.isGraphDone()
 }
 
 func (c *Context) GetJobForStep(stepName StepName) (Job, bool) {

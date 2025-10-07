@@ -12,7 +12,8 @@ type graph struct {
 
 	mu             sync.Mutex
 	lastPickedStep int
-	doneSteps      map[StepName]any
+	isDone         map[StepName]any
+	doneSteps      int
 }
 
 func newGraph(executionSteps []Step) *graph {
@@ -24,7 +25,8 @@ func newGraph(executionSteps []Step) *graph {
 
 		mu:             sync.Mutex{},
 		lastPickedStep: -1,
-		doneSteps:      make(map[StepName]any),
+		isDone:         make(map[StepName]any),
+		doneSteps:      0,
 	}
 
 	for i := len(executionSteps) - 1; i >= 0; i-- {
@@ -53,11 +55,12 @@ func (graph *graph) pickSteps() []Step {
 
 		canPick := true
 		for _, dep := range step.GetDependencies() {
-			if _, has := graph.doneSteps[dep]; !has {
+			if _, has := graph.isDone[dep]; !has {
 				canPick = false
 				break
 			}
 		}
+
 		if !canPick {
 			break
 		}
@@ -72,14 +75,15 @@ func (graph *graph) doneStep(stepName StepName) {
 	graph.mu.Lock()
 	defer graph.mu.Unlock()
 
-	graph.doneSteps[stepName] = struct{}{}
+	graph.isDone[stepName] = struct{}{}
+	graph.doneSteps++
 }
 
-func (graph *graph) isDone() bool {
+func (graph *graph) isGraphDone() bool {
 	graph.mu.Lock()
 	defer graph.mu.Unlock()
 
-	return graph.lastPickedStep == len(graph.topSortOrder)-1
+	return graph.doneSteps == len(graph.topSortOrder)
 }
 
 func (g *graph) topSort(executionSteps []Step) {

@@ -82,7 +82,7 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 	if job.GetType() != execution.RunCppJobType {
 		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.RunCppJobType))
 	}
-	runCppJob := job.(jobs.RunCppJob)
+	runCppJob := job.(*jobs.RunCppJob)
 
 	var compiledCodeLocation string
 	compiledCodeLocation, unlock, err := e.inputProvider.Locate(ctx, runCppJob.CompiledCode)

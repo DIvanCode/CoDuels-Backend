@@ -45,6 +45,11 @@ const (
 		UPDATE Executions SET steps=$2, status=$3, created_at=$4, scheduled_at=$5, finished_at=$6
 		WHERE id=$1;
 	`
+
+	finishQuery = `
+		UPDATE Executions SET status=$2, finished_at=$3
+		WHERE id=$1;
+	`
 )
 
 func NewExecutionStorage(ctx context.Context, log *slog.Logger) (*ExecutionStorage, error) {
@@ -105,6 +110,16 @@ func (s *ExecutionStorage) Update(ctx context.Context, e execution.Execution) er
 	if _, err := tx.ExecContext(ctx, updateQuery,
 		e.ID, e.Steps, e.Status, e.CreatedAt, e.ScheduledAt, e.FinishedAt); err != nil {
 		return fmt.Errorf("failed to do update query: %w", err)
+	}
+
+	return nil
+}
+
+func (s *ExecutionStorage) Finish(ctx context.Context, executionID execution.ID) error {
+	tx := extractTx(ctx)
+
+	if _, err := tx.ExecContext(ctx, finishQuery, executionID, execution.StatusFinishedExecution, time.Now()); err != nil {
+		return fmt.Errorf("failed to do finish query: %w", err)
 	}
 
 	return nil

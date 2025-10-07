@@ -35,6 +35,7 @@ type (
 	executionStorage interface {
 		GetForSchedule(context.Context, time.Time) (*execution.Execution, error)
 		Update(context.Context, execution.Execution) error
+		Finish(context.Context, execution.ID) error
 	}
 
 	jobFactory interface {
@@ -42,7 +43,7 @@ type (
 	}
 
 	jobScheduler interface {
-		Schedule(context.Context, execution.Job, func(context.Context, execution.Result))
+		Schedule(context.Context, execution.Job, jobCallback)
 	}
 
 	messageFactory interface {
@@ -198,6 +199,17 @@ func (s *ExecutionScheduler) doneStep(ctx context.Context, execCtx execution.Con
 
 	if execCtx.IsDone() {
 		msg, err := s.messageFactory.CreateExecutionFinished(execCtx)
+
+		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
+			if err = s.executionStorage.Finish(ctx, execCtx.ExecutionID); err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
+			s.log.Error("failed to finish execution in storage", slog.Any("error", err))
+			return fmt.Errorf("failed to finish execution in storage: %w", err)
+		}
+
 		if err != nil {
 			return fmt.Errorf("failed to create execution finished message: %w", err)
 		}
