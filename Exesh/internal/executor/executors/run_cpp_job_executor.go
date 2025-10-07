@@ -3,28 +3,30 @@ package executors
 import (
 	"bytes"
 	"context"
-	"errors"
-	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/jobs"
-	"exesh/internal/domain/execution/results"
 	"fmt"
 	"io"
 	"log/slog"
-	"os/exec"
 	"time"
+
+	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/jobs"
+	"exesh/internal/domain/execution/results"
+	"exesh/internal/runtime"
 )
 
 type RunCppJobExecutor struct {
 	log            *slog.Logger
 	inputProvider  inputProvider
 	outputProvider outputProvider
+	runtime        runtime.Runtime
 }
 
-func NewRunCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider) *RunCppJobExecutor {
+func NewRunCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *RunCppJobExecutor {
 	return &RunCppJobExecutor{
 		log:            log,
 		inputProvider:  inputProvider,
 		outputProvider: outputProvider,
+		runtime:        rt,
 	}
 }
 
@@ -114,29 +116,24 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 		return errorResult(fmt.Errorf("failed to create run_output output: %w", err))
 	}
 
-	cmd := exec.CommandContext(ctx, "./"+compiledCodeLocation)
-
-	cmd.Stdin = runInput
-	cmd.Stdout = runOutput
-
-	stderr := bytes.Buffer{}
-	cmd.Stderr = &stderr
-
-	e.log.Info("do command", slog.Any("cmd", cmd))
-	if err = cmd.Run(); err != nil {
-		e.log.Info("command error", slog.Any("err", err))
-
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			_ = abort()
-			return errorResult(err)
-		}
-
-		_ = abort()
+	stderr := bytes.NewBuffer(nil)
+	err = e.runtime.Execute(ctx,
+		[]string{"/a.out"},
+		runtime.ExecuteParams{
+			// TODO: Limits
+			Limits: runtime.Limits{
+				Memory: runtime.MemoryLimit(runCppJob.MemoryLimit),
+				Time:   runtime.TimeLimit(runCppJob.TimeLimit),
+			},
+			InFiles: []runtime.File{{OutsideLocation: compiledCodeLocation, InsideLocation: "/a.out"}},
+			Stderr:  stderr,
+			Stdin:   runInput,
+			Stdout:  runOutput,
+		})
+	if err != nil {
+		e.log.Error("execute binary in runtime error", slog.Any("err", err))
 		return runtimeErrorResult()
 	}
-
-	e.log.Info("command ok")
 
 	if err = commit(); err != nil {
 		_ = abort()
@@ -151,6 +148,8 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to open run output: %w", err))
 	}
+
+	defer unlock()
 
 	output, err := io.ReadAll(runOutputReader)
 	if err != nil {
