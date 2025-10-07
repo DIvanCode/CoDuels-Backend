@@ -27,11 +27,8 @@ type File struct {
 	OutsideLocation string
 }
 
-type Command []string
-
 type ExecuteParams struct {
 	Limits   Limits
-	Command  Command
 	InFiles  []File
 	OutFiles []File
 	Stdin    io.Reader
@@ -50,5 +47,5 @@ var (
 //
 // a Runtime may be shared or isolated, local or remote, generic or specific for some task, and so on
 type Runtime interface {
-	Execute(ctx context.Context, params ExecuteParams) error
+	Execute(ctx context.Context, cmd []string, params ExecuteParams) error
 }
