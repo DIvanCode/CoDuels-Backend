@@ -1,4 +1,4 @@
-package runtime
+package docker
 
 import (
 	"archive/tar"
@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"exesh/internal/runtime"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
@@ -18,32 +20,30 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-type DockerRuntime struct {
-	client       *client.Client
-	baseImage    string
-	networkAllow bool
-	nproc        int64
+type Runtime struct {
+	client     *client.Client
+	baseImage  string
+	basePolicy policy
 }
 
-type DockerRuntimeOpt func(dr *DockerRuntime) error
+type FuncOpt func(dr *Runtime) error
 
-func WithDockerRestrictivePolicy() DockerRuntimeOpt {
-	return func(dr *DockerRuntime) error {
-		dr.networkAllow = false
-		dr.nproc = 1
+func WithRestrictivePolicy() FuncOpt {
+	return func(dr *Runtime) error {
+		dr.basePolicy = restrictivePolicy
 		return nil
 	}
 }
 
-func WithDockerClient(client *client.Client) DockerRuntimeOpt {
-	return func(dr *DockerRuntime) error {
+func WithClient(client *client.Client) FuncOpt {
+	return func(dr *Runtime) error {
 		dr.client = client
 		return nil
 	}
 }
 
-func WithDockerDefaultClient() DockerRuntimeOpt {
-	return func(dr *DockerRuntime) error {
+func WithDefaultClient() FuncOpt {
+	return func(dr *Runtime) error {
 		c, err := client.NewClientWithOpts()
 		if err != nil {
 			return fmt.Errorf("docker client create: %w", err)
@@ -53,15 +53,15 @@ func WithDockerDefaultClient() DockerRuntimeOpt {
 	}
 }
 
-func WithDockerBaseImage(baseImage string) DockerRuntimeOpt {
-	return func(dr *DockerRuntime) error {
+func WithBaseImage(baseImage string) FuncOpt {
+	return func(dr *Runtime) error {
 		dr.baseImage = baseImage
 		return nil
 	}
 }
 
-func NewDockerRuntime(opts ...DockerRuntimeOpt) (*DockerRuntime, error) {
-	dr := &DockerRuntime{}
+func New(opts ...FuncOpt) (*Runtime, error) {
+	dr := &Runtime{}
 	for _, opt := range opts {
 		err := opt(dr)
 		if err != nil {
@@ -71,39 +71,15 @@ func NewDockerRuntime(opts ...DockerRuntimeOpt) (*DockerRuntime, error) {
 	return dr, nil
 }
 
-func (dr *DockerRuntime) Execute(ctx context.Context, params ExecuteParams) error {
-	var networkMode container.NetworkMode = network.NetworkNone
-	if dr.networkAllow {
-		networkMode = network.NetworkDefault
-	}
-
-	timeLimitSecs := int64(params.Limits.Time) / int64(time.Second)
+func (dr *Runtime) Execute(ctx context.Context, params runtime.ExecuteParams) error {
+	hostConfig := &container.HostConfig{}
+	dr.basePolicy(hostConfig)
+	cpuPolicy(int64(params.Limits.Time) / int64(time.Second))(hostConfig)
+	memoryPolicy(int64(params.Limits.Memory))(hostConfig)
 
 	cr, err := dr.client.ContainerCreate(ctx,
-		&container.Config{
-			Image:     dr.baseImage,
-			Cmd:       strslice.StrSlice(params.Command),
-			OpenStdin: true,
-		},
-		&container.HostConfig{
-			NetworkMode: networkMode,
-			Resources: container.Resources{
-				Memory: int64(params.Limits.Memory),
-				Ulimits: []*container.Ulimit{
-					{
-						// TODO: think about sleep(inf) case, it will not be killed
-						Name: "cpu",
-						Soft: timeLimitSecs,
-						Hard: timeLimitSecs,
-					},
-					{
-						Name: "nproc",
-						Soft: dr.nproc,
-						Hard: dr.nproc,
-					},
-				},
-			},
-		},
+		&container.Config{Image: dr.baseImage, Cmd: strslice.StrSlice(params.Command), OpenStdin: true},
+		hostConfig,
 		&network.NetworkingConfig{},
 		&v1.Platform{OS: "linux", Architecture: "amd64"},
 		"")
@@ -190,16 +166,12 @@ func (dr *DockerRuntime) Execute(ctx context.Context, params ExecuteParams) erro
 
 	if insp.State.ExitCode == 137 {
 		if insp.State.OOMKilled {
-			return ErrOutOfMemory
+			return runtime.ErrOutOfMemory
 		}
-		return ErrTimeout
+		return runtime.ErrTimeout
 	}
 
 	stdcopy.StdCopy(params.Stdout, params.Stderr, hjr.Conn)
-
-	if insp.State.ExitCode != 0 {
-		return fmt.Errorf("unknown error exit code: %d", insp.State.ExitCode)
-	}
 
 	for _, f := range params.OutFiles {
 		w, err := os.OpenFile(f.OutsideLocation, os.O_WRONLY|os.O_CREATE, 0o755)
