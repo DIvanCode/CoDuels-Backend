@@ -1,4 +1,5 @@
 using Duely.Application.UseCases;
+using Duely.Application.Configuration;
 using Duely.Application.BackgroundJobs;
 using Duely.Domain.Services;
 using Duely.Infrastructure.Api.Http;

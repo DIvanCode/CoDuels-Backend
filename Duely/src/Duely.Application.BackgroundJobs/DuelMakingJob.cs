@@ -1,5 +1,6 @@
 ﻿using Duely.Domain.Services;
 using Duely.Application.UseCases.CreateDuel;
+using Duely.Application.Configuration;
 using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;

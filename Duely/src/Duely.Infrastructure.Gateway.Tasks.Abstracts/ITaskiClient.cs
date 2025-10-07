@@ -9,4 +9,6 @@ public interface ITaskiClient
         int submissionId,
         string solution,
         string language);
+
+    Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken);
 }

@@ -31,4 +31,9 @@ public sealed class TaskiClient : ITaskiClient
         }
         return Result.Ok();
     }
+
+    public async Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken)
+    {
+        return Result.Ok(Guid.NewGuid().ToString());
+    }
 }
