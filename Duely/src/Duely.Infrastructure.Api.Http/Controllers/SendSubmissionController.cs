@@ -35,7 +35,7 @@ public class SendSubmissionController : ControllerBase
 
         if (result.IsFailed)
         {
-            return BadRequest(result.Errors);
+            return BadRequest(new {error = result.Errors.First().Message});
         }
 
         return Ok(new { submission_id = result.Value });
