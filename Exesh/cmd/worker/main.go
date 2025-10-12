@@ -2,12 +2,6 @@ package main
 
 import (
 	"context"
-	"exesh/internal/config"
-	"exesh/internal/executor"
-	"exesh/internal/executor/executors"
-	"exesh/internal/provider"
-	"exesh/internal/provider/providers"
-	"exesh/internal/worker"
 	"fmt"
 	flog "log"
 	"log/slog"
@@ -15,6 +9,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"exesh/internal/config"
+	"exesh/internal/executor"
+	"exesh/internal/executor/executors"
+	"exesh/internal/provider"
+	"exesh/internal/provider/providers"
+	"exesh/internal/runtime/docker"
+	"exesh/internal/worker"
 
 	"github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
@@ -49,7 +51,10 @@ func main() {
 	inputProvider := setupInputProvider(cfg.InputProvider, filestorage)
 	outputProvider := setupOutputProvider(cfg.OutputProvider, filestorage)
 
-	jobExecutor := setupJobExecutor(log, inputProvider, outputProvider)
+	jobExecutor, err := setupJobExecutor(log, inputProvider, outputProvider)
+	if err != nil {
+		flog.Fatal(err)
+	}
 
 	worker.NewWorker(log, cfg.Worker, jobExecutor).Start(ctx)
 
@@ -90,7 +95,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 		err = fmt.Errorf("failed setup logger for env %s", env)
 	}
 
-	return
+	return log, err
 }
 
 func setupInputProvider(cfg config.InputProviderConfig, filestorage filestorage.FileStorage) *provider.InputProvider {
@@ -104,11 +109,19 @@ func setupOutputProvider(cfg config.OutputProviderConfig, filestorage filestorag
 	return provider.NewOutputProvider(artifactOutputProvider)
 }
 
-func setupJobExecutor(log *slog.Logger, inputProvider *provider.InputProvider, outputProvider *provider.OutputProvider) *executor.JobExecutor {
-	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, inputProvider, outputProvider)
-	runCppJobExecutor := executors.NewRunCppJobExecutor(log, inputProvider, outputProvider)
+func setupJobExecutor(log *slog.Logger, inputProvider *provider.InputProvider, outputProvider *provider.OutputProvider) (*executor.JobExecutor, error) {
+	rt, err := docker.New(
+		docker.WithDefaultClient(),
+		docker.WithBaseImage("gcc"),
+		docker.WithRestrictivePolicy(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create cpp runtime: %w", err)
+	}
+	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, inputProvider, outputProvider, rt)
+	runCppJobExecutor := executors.NewRunCppJobExecutor(log, inputProvider, outputProvider, rt)
 	runPyJobExecutor := executors.NewRunPyJobExecutor(log, inputProvider, outputProvider)
 	runGoJobExecutor := executors.NewRunGoJobExecutor(log, inputProvider, outputProvider)
-	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, inputProvider, outputProvider)
-	return executor.NewJobExecutor(compileCppJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor)
+	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, inputProvider, outputProvider, rt)
+	return executor.NewJobExecutor(compileCppJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
 }
