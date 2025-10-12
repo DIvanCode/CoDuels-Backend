@@ -7,11 +7,11 @@ public class SseConnectionManager
 {
     private readonly ConcurrentDictionary<int, HttpResponse> _connections = new();
 
-    public void AddConnection(int duelId, HttpResponse response) => _connections[duelId] = response;
+    public void AddConnection(int userId, HttpResponse response) => _connections[userId] = response;
 
-    public void RemoveConnection(int duelId) => _connections.TryRemove(duelId, out _);
+    public void RemoveConnection(int userId) => _connections.TryRemove(userId, out _);
 
-    public HttpResponse GetConnection(int duelId) => _connections.TryGetValue(duelId, out var connection) ? connection : null;
+    public HttpResponse GetConnection(int userId) => _connections.TryGetValue(userId, out var connection) ? connection : null;
 
     public IReadOnlyCollection<int> GetAllActiveUserIds() => _connections.Keys;
 
