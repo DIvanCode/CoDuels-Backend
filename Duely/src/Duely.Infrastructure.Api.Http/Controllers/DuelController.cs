@@ -7,17 +7,17 @@ using Microsoft.AspNetCore.Mvc;
 namespace Duely.Infrastructure.Api.Http.Controllers;
 
 [ApiController]
-[Route("api/duels/{duelId:int}/submit")]
-public class SendSubmissionController : ControllerBase
+[Route("api/duels/{duelId:int}")]
+public class DuelController : ControllerBase
 {
     private readonly IMediator _mediator;
 
-    public SendSubmissionController(IMediator mediator) => _mediator = mediator;
+    public DuelController(IMediator mediator) => _mediator = mediator;
 
-    [HttpPost]
-    public async Task<IActionResult> SubmitAsync(
+    [HttpPost("submit")]
+    public async Task<IActionResult> SendSubmissionAsync(
         [FromRoute] int duelId,
-        [FromBody] SendSubmissionDto request,
+        [FromBody] SendSubmissionRequest request,
         CancellationToken cancellationToken
     )
     {
@@ -41,12 +41,23 @@ public class SendSubmissionController : ControllerBase
         return Ok(new { submission_id = result.Value });
 
     }
-}
 
+    [HttpGet("submissions/{submissionId:int}")] 
+    public async Task<ActionResult<SubmissionDto>> GetSubmissionAsync(
+        [FromRoute] int duelId,
+        [FromRoute] int submissionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetSubmissionQuery {
+            SubmissionId = submissionId,
+            DuelId = duelId
+        }, cancellationToken);
 
-public sealed class SendSubmissionDto
-{
-    public required string Submission { get; init; }
-    public required string Language { get; init; }
-    public int UserId { get; init; }= 0;
+        if (result.IsFailed)
+        {
+            return BadRequest(new {error = result.Errors.First().Message});
+        }
+
+        return result.Value;
+    }
 }
