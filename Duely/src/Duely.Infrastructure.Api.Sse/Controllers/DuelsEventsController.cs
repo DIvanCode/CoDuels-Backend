@@ -1,3 +1,6 @@
+using Duely.Application.Configuration;
+using Microsoft.Extensions.Options;
+
 namespace Duely.Infrastructure.Api.Sse;
 
 [ApiController]
@@ -6,7 +9,11 @@ public class DuelsEventsController : ControllerBase
 {
     private readonly SseConnectionManager _connections;
 
-    public DuelsEventsController(SseConnectionManager connections) => _connections = connections;
+    public DuelsEventsController(SseConnectionManager connections, IOptions<DuelSettings> options)
+    {
+        _connections = connections;
+        _settings = options.Value;
+    }
 
     [HttpGet]
     public async Task Connect(
@@ -25,7 +32,7 @@ public class DuelsEventsController : ControllerBase
             HttpOnly = true,
             SameSite = SameSiteMode.Strict,
             Path = "/",
-            Expires = DateTimeOffset.UtcNow.AddDays(30)
+            Expires = DateTimeOffset.UtcNow.AddDays(_options.CookieExpirationDays)
         };
         Response.Cookies.Append("UserId", userId.ToString(), cookieOptions);
 
@@ -33,7 +40,7 @@ public class DuelsEventsController : ControllerBase
             while (!cancellationToken.IsCancellationRequested) {
                 await Response.WriteAsync(":\n\n", cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
-                await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(_options.SsePingIntervalMs), cancellationToken);
             }
         }
         catch (TaskCanceledException) { }
