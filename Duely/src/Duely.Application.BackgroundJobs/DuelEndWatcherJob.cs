@@ -33,29 +33,17 @@ public sealed class DuelEndWatcherJob : BackgroundService
                     .AsNoTracking()
                     .Where(d => d.Status == DuelStatus.InProgress)
                     .OrderBy(d => d.StartTime)
-                    .Take(_settings.FinishBatchSize)
                     .ToListAsync(cancellationToken);
-
-                foreach (var duel in duels)
-                {
-                    if (cancellationToken.IsCancellationRequested) break;
-                    var deadline = duel.StartTime.AddMinutes(duel.MaxDuration);
-                    if (duel.Result == DuelResult.User1)
-                    {
-                        await mediator.Send(new FinishDuelCommand { DuelId = duel.Id, Winner = "1" }, cancellationToken);
-                        continue;
-                    }
-                    if (duel.Result == DuelResult.User2)
-                    {
-                        await mediator.Send(new FinishDuelCommand { DuelId = duel.Id, Winner = "2" }, cancellationToken);
-                        continue;
-                    }
-                    var duelIds = duels.Select(d => d.Id).ToList();
+                var duelIds = duels.Select(d => d.Id).ToList();
                     var accepted = await db.Submissions
                         .AsNoTracking()
                         .Where(s => duelIds.Contains(s.Duel.Id) && s.Status == SubmissionStatus.Done && s.Verdict == "Accepted")
                         .OrderBy(s => s.SubmitTime)
                         .ToListAsync(cancellationToken);
+                foreach (var duel in duels)
+                {
+                    if (cancellationToken.IsCancellationRequested) break;
+                    var deadline = duel.StartTime.AddMinutes(duel.MaxDuration);
                     var u1 = accepted.FirstOrDefault(s => s.UserId == duel.User1Id);
                     var u2 = accepted.FirstOrDefault(s => s.UserId == duel.User2Id);
                     if (u1 is not null || u2 is not null)
@@ -69,7 +57,7 @@ public sealed class DuelEndWatcherJob : BackgroundService
                         {
                             winner = "2";
                         }
-                        else if (u2 is not null && u1 is not null)
+                        if (u2 is not null && u1 is not null)
                         {
                             if (u1.SubmitTime > u2.SubmitTime)
                             {
