@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Duely.Infrastructure.Api.Sse;
 
@@ -13,6 +15,6 @@ public class SseConnectionManager
 
     public HttpResponse GetConnection(int userId) => _connections.TryGetValue(userId, out var connection) ? connection : null;
 
-    public IReadOnlyCollection<int> GetAllActiveUserIds() => _connections.Keys;
+    public IReadOnlyCollection<int> GetAllActiveUserIds() => _connections.Keys.ToList().AsReadOnly();
 
 }

@@ -1,5 +1,8 @@
-using Duely.Infrastructure.Getway.Client.Abstracts;
+using Duely.Infrastructure.Gateway.Client.Abstracts;
+using Duely.Application.Configuration;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
+
 
 namespace Duely.Infrastructure.Api.Sse;
 
@@ -28,7 +31,7 @@ public class SseMessageSender : IMessageSender
             }
             catch
             {
-                _connections.RemoveConnection(userId);
+                _connections.RemoveConnection(connection);
             }
         }
         
@@ -41,6 +44,6 @@ public class SseMessageSender : IMessageSender
             MessageType.DuelStarted => "duel_started",
             MessageType.DuelFinished => "duel_finished",
             _ => null
-        }
+        };
     }
 }
