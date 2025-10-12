@@ -21,7 +21,12 @@ public class DuelController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        var userId = request.UserId; // взять из sse
+
+        if (!Request.Cookies.TryGetValue("UserId", out var userIdStr) ||
+                !int.TryParse(userIdStr, out var userId))
+        {
+            return BadRequest(new { error = "Missing or invalid UserId cookie" });
+        }
 
         var command = new SendSubmissionCommand
         {

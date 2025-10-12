@@ -10,5 +10,4 @@ public sealed class SendSubmissionRequest
     [JsonPropertyName("language")]
     public required string Language { get; init; }
 
-    public int UserId { get; init; }= 0; // временное
 }
