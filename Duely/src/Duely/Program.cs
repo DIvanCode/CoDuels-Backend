@@ -24,6 +24,7 @@ builder.Services.AddHttpClient<ITaskiClient, TaskiClient>((sp, client) =>
 
 builder.Services.AddSingleton<IDuelManager, DuelManager>();
 builder.Services.AddHostedService<DuelMakingJob>();
+builder.Services.AddHostedService<DuelEndWatcherJob>();
 
 builder.Services.Configure<DuelSettings>(builder.Configuration.GetSection(DuelSettings.SectionName));
 

@@ -52,5 +52,8 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
             .HasColumnType("integer")
             .HasDefaultValue(30);
 
+        builder.HasMany(d => d.Submissions)
+            .WithOne(s => s.Duel)
+            .HasForeignKey(s => s.DuelId);
     }
 }

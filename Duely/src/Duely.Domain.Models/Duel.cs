@@ -24,4 +24,5 @@ public sealed class Duel
     public DateTime StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public int MaxDuration { get; set; } = 30;
+    public ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 }
