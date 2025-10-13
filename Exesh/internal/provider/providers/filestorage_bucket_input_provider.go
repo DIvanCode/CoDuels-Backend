@@ -25,6 +25,7 @@ type (
 		CreateBucket(bucket.ID, time.Time) (path string, commit, abort func() error, err error)
 		CreateFile(bucket.ID, string) (path string, commit, abort func() error, err error)
 		DownloadBucket(context.Context, string, bucket.ID, time.Time) error
+		DownloadFile(context.Context, string, bucket.ID, string) error
 		GetFile(bucket.ID, string) (path string, unlock func(), err error)
 	}
 )
@@ -94,14 +95,31 @@ func (p *FilestorageBucketInputProvider) Locate(ctx context.Context, input execu
 		typedInput = *input.(*inputs.FilestorageBucketInput)
 	}
 
-	bucketTrashTime := time.Now().Add(p.filestorageBucketTTL)
-	if err = p.filestorage.DownloadBucket(ctx, typedInput.DownloadEndpoint, typedInput.BucketID, bucketTrashTime); err != nil {
-		err = fmt.Errorf("failed to download bucket %s from %s: %w", typedInput.BucketID.String(), typedInput.DownloadEndpoint, err)
-		return
-	}
-
 	if path, unlock, err = p.filestorage.GetFile(typedInput.BucketID, typedInput.File); err != nil {
-		err = fmt.Errorf("failed to get file %s from bucket %s: %w", typedInput.File, typedInput.BucketID.String(), err)
+		if err = p.filestorage.DownloadFile(ctx, typedInput.DownloadEndpoint, typedInput.BucketID, typedInput.File); err != nil {
+			if errors.Is(err, errs.ErrBucketNotFound) {
+				var commit, abort func() error
+				_, commit, abort, err = p.filestorage.CreateBucket(typedInput.BucketID, time.Now().Add(p.filestorageBucketTTL))
+				if err != nil {
+					err = fmt.Errorf("failed to create bucket: %w", err)
+					return
+				}
+				if err = commit(); err != nil {
+					_ = abort()
+					err = fmt.Errorf("failed to commit bucket creation: %w", err)
+					return
+				}
+			}
+			err = p.filestorage.DownloadFile(ctx, typedInput.DownloadEndpoint, typedInput.BucketID, typedInput.File)
+		}
+		if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
+			err = fmt.Errorf("failed to download file: %w", err)
+			return
+		}
+		path, unlock, err = p.filestorage.GetFile(typedInput.BucketID, typedInput.File)
+	}
+	if err != nil {
+		err = fmt.Errorf("failed to get file %s from bucket %s: %s, %w", typedInput.File, typedInput.BucketID.String(), typedInput.DownloadEndpoint, err)
 		return
 	}
 
@@ -120,15 +138,32 @@ func (p *FilestorageBucketInputProvider) Read(ctx context.Context, input executi
 		typedInput = *input.(*inputs.FilestorageBucketInput)
 	}
 
-	bucketTrashTime := time.Now().Add(p.filestorageBucketTTL)
-	if err = p.filestorage.DownloadBucket(ctx, typedInput.DownloadEndpoint, typedInput.BucketID, bucketTrashTime); err != nil {
-		err = fmt.Errorf("failed to download bucket %s from %s: %w", typedInput.BucketID.String(), typedInput.DownloadEndpoint, err)
-		return
-	}
-
 	var path string
 	if path, unlock, err = p.filestorage.GetFile(typedInput.BucketID, typedInput.File); err != nil {
-		err = fmt.Errorf("failed to get file %s from bucket %s: %w", typedInput.File, typedInput.BucketID.String(), err)
+		if err = p.filestorage.DownloadFile(ctx, typedInput.DownloadEndpoint, typedInput.BucketID, typedInput.File); err != nil {
+			if errors.Is(err, errs.ErrBucketNotFound) {
+				var commit, abort func() error
+				_, commit, abort, err = p.filestorage.CreateBucket(typedInput.BucketID, time.Now().Add(p.filestorageBucketTTL))
+				if err != nil {
+					err = fmt.Errorf("failed to create bucket: %w", err)
+					return
+				}
+				if err = commit(); err != nil {
+					_ = abort()
+					err = fmt.Errorf("failed to commit bucket creation: %w", err)
+					return
+				}
+			}
+			err = p.filestorage.DownloadFile(ctx, typedInput.DownloadEndpoint, typedInput.BucketID, typedInput.File)
+		}
+		if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
+			err = fmt.Errorf("failed to download file: %w", err)
+			return
+		}
+		path, unlock, err = p.filestorage.GetFile(typedInput.BucketID, typedInput.File)
+	}
+	if err != nil {
+		err = fmt.Errorf("failed to get file %s from bucket %s: %s, %w", typedInput.File, typedInput.BucketID.String(), typedInput.DownloadEndpoint, err)
 		return
 	}
 

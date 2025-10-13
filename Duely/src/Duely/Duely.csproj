@@ -22,6 +22,7 @@
       <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks\Duely.Infrastructure.Gateway.Tasks.csproj" />
       <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj" />
       <ProjectReference Include="..\Duely.Application.BackgroundJobs\Duely.Application.BackgroundJobs.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.Api.Sse\Duely.Infrastructure.Api.Sse.csproj" />
     </ItemGroup>
 
 </Project>

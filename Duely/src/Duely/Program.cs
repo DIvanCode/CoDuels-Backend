@@ -7,6 +7,9 @@ using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.Gateway.Tasks;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using Microsoft.Extensions.Options;
+using Duely.Infrastructure.Api.Sse;
+using Duely.Infrastructure.Gateway.Client.Abstracts;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.SetupApiHttp();
@@ -24,6 +27,9 @@ builder.Services.AddHostedService<DuelMakingJob>();
 builder.Services.AddHostedService<DuelEndWatcherJob>();
 
 builder.Services.Configure<DuelSettings>(builder.Configuration.GetSection(DuelSettings.SectionName));
+
+builder.Services.AddSingleton<SseConnectionManager>();
+builder.Services.AddSingleton<IMessageSender, SseMessageSender>();
 
 var app = builder.Build();
 

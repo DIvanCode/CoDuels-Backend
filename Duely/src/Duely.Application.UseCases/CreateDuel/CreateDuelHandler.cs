@@ -44,9 +44,6 @@ public class CreateDuelHandler(ITaskiClient taskiClient, Context db, IMessageSen
         var message = new DuelStartedMessage
         {
             DuelId = duel.Id,
-            User1Id = duel.User1Id,
-            User2Id = duel.User2Id,
-            TaskId = duel.TaskId,
         };
 
         await messageSender.SendMessage(message, cancellationToken);
