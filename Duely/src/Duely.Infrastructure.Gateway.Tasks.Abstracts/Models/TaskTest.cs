@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
 
+namespace Duely.Infrastructure.Gateway.Tasks.Abstracts.Models;
+
 public sealed class TaskTest
 {
 

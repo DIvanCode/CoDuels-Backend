@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
 
+namespace Duely.Infrastructure.Gateway.Tasks.Abstracts.Models;
+
 public sealed class TaskiTask
 {
     [JsonPropertyName("id")]
@@ -20,5 +22,6 @@ public sealed class TaskiTask
     [JsonPropertyName("ml")]
     public required int MemoryLimit { get; init; }
 
+    [JsonPropertyName("tests")]
     public List<TaskTest> Tests { get; init; } = new();
 }
