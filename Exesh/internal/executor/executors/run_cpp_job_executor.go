@@ -84,8 +84,19 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 	}
 	runCppJob := job.(*jobs.RunCppJob)
 
+	_, unlock, err := e.inputProvider.Locate(ctx, runCppJob.CompiledCode)
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to locate compiled_code input: %w", err))
+	}
+	unlock()
+	_, unlock, err = e.inputProvider.Locate(ctx, runCppJob.RunInput)
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to locate run_input input: %w", err))
+	}
+	unlock()
+
 	var compiledCodeLocation string
-	compiledCodeLocation, unlock, err := e.inputProvider.Locate(ctx, runCppJob.CompiledCode)
+	compiledCodeLocation, unlock, err = e.inputProvider.Locate(ctx, runCppJob.CompiledCode)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate compiled_code input: %w", err))
 	}

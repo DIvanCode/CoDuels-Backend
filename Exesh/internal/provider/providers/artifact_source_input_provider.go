@@ -25,6 +25,7 @@ type (
 		CreateBucket(bucket.ID, time.Time) (path string, commit, abort func() error, err error)
 		CreateFile(bucket.ID, string) (path string, commit, abort func() error, err error)
 		DownloadBucket(context.Context, string, bucket.ID, time.Time) error
+		DownloadFile(context.Context, string, bucket.ID, string) error
 		GetFile(bucket.ID, string) (path string, unlock func(), err error)
 	}
 )
@@ -106,14 +107,31 @@ func (p *ArtifactInputProvider) Locate(ctx context.Context, input execution.Inpu
 		return
 	}
 
-	bucketTrashTime := time.Now().Add(p.artifactTTL)
-	if err = p.artifactStorage.DownloadBucket(ctx, typedInput.WorkerID, bucketID, bucketTrashTime); err != nil {
-		err = fmt.Errorf("failed to download bucket %s from %s: %w", bucketID.String(), typedInput.WorkerID, err)
-		return
-	}
-
 	if path, unlock, err = p.artifactStorage.GetFile(bucketID, typedInput.File); err != nil {
-		err = fmt.Errorf("failed to get file %s from bucket %s: %w", typedInput.File, bucketID.String(), err)
+		if err = p.artifactStorage.DownloadFile(ctx, typedInput.WorkerID, bucketID, typedInput.File); err != nil {
+			if errors.Is(err, errs.ErrBucketNotFound) {
+				var commit, abort func() error
+				_, commit, abort, err = p.artifactStorage.CreateBucket(bucketID, time.Now().Add(p.artifactTTL))
+				if err != nil {
+					err = fmt.Errorf("failed to create bucket: %w", err)
+					return
+				}
+				if err = commit(); err != nil {
+					_ = abort()
+					err = fmt.Errorf("failed to commit bucket creation: %w", err)
+					return
+				}
+			}
+			err = p.artifactStorage.DownloadFile(ctx, typedInput.WorkerID, bucketID, typedInput.File)
+		}
+		if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
+			err = fmt.Errorf("failed to download file: %w", err)
+			return
+		}
+		path, unlock, err = p.artifactStorage.GetFile(bucketID, typedInput.File)
+	}
+	if err != nil {
+		err = fmt.Errorf("failed to get file %s from bucket %s: %s, %w", typedInput.File, bucketID.String(), typedInput.WorkerID, err)
 		return
 	}
 
@@ -138,15 +156,32 @@ func (p *ArtifactInputProvider) Read(ctx context.Context, input execution.Input)
 		return
 	}
 
-	bucketTrashTime := time.Now().Add(p.artifactTTL)
-	if err = p.artifactStorage.DownloadBucket(ctx, typedInput.WorkerID, bucketID, bucketTrashTime); err != nil {
-		err = fmt.Errorf("failed to download bucket %s from %s: %w", bucketID.String(), typedInput.WorkerID, err)
-		return
-	}
-
 	var path string
 	if path, unlock, err = p.artifactStorage.GetFile(bucketID, typedInput.File); err != nil {
-		err = fmt.Errorf("failed to get file %s from bucket %s: %w", typedInput.File, bucketID.String(), err)
+		if err = p.artifactStorage.DownloadFile(ctx, typedInput.WorkerID, bucketID, typedInput.File); err != nil {
+			if errors.Is(err, errs.ErrBucketNotFound) {
+				var commit, abort func() error
+				_, commit, abort, err = p.artifactStorage.CreateBucket(bucketID, time.Now().Add(p.artifactTTL))
+				if err != nil {
+					err = fmt.Errorf("failed to create bucket: %w", err)
+					return
+				}
+				if err = commit(); err != nil {
+					_ = abort()
+					err = fmt.Errorf("failed to commit bucket creation: %w", err)
+					return
+				}
+			}
+			err = p.artifactStorage.DownloadFile(ctx, typedInput.WorkerID, bucketID, typedInput.File)
+		}
+		if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
+			err = fmt.Errorf("failed to download file: %w", err)
+			return
+		}
+		path, unlock, err = p.artifactStorage.GetFile(bucketID, typedInput.File)
+	}
+	if err != nil {
+		err = fmt.Errorf("failed to get file %s from bucket %s: %s, %w", typedInput.File, bucketID.String(), typedInput.WorkerID, err)
 		return
 	}
 

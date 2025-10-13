@@ -84,8 +84,18 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 	}
 	runGoJob := job.(*jobs.RunGoJob)
 
+	_, unlock, err := e.inputProvider.Locate(ctx, runGoJob.Code)
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to locate code input: %w", err))
+	}
+	unlock()
+	_, unlock, err = e.inputProvider.Locate(ctx, runGoJob.RunInput)
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to locate run_input input: %w", err))
+	}
+
 	var codeLocation string
-	codeLocation, unlock, err := e.inputProvider.Locate(ctx, runGoJob.Code)
+	codeLocation, unlock, err = e.inputProvider.Locate(ctx, runGoJob.Code)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate code input: %w", err))
 	}
