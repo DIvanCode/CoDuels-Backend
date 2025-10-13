@@ -70,8 +70,24 @@ func (e *CheckCppJobExecutor) Execute(ctx context.Context, job execution.Job) ex
 	}
 	checkCppJob := job.(*jobs.CheckCppJob)
 
+	_, unlock, err := e.inputProvider.Locate(ctx, checkCppJob.CorrectOutput)
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to locate correct_output input: %w", err))
+	}
+	unlock()
+	_, unlock, err = e.inputProvider.Locate(ctx, checkCppJob.SuspectOutput)
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to locate suspect_output input: %w", err))
+	}
+	unlock()
+	_, unlock, err = e.inputProvider.Locate(ctx, checkCppJob.CompiledChecker)
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to locate compiled_checker input: %w", err))
+	}
+	unlock()
+
 	var compiledCheckerLocation string
-	compiledCheckerLocation, unlock, err := e.inputProvider.Locate(ctx, checkCppJob.CompiledChecker)
+	compiledCheckerLocation, unlock, err = e.inputProvider.Locate(ctx, checkCppJob.CompiledChecker)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate compiled_checker input: %w", err))
 	}
