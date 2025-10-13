@@ -32,17 +32,14 @@ public sealed class DuelEndWatcherJob : BackgroundService
                 var duels = await db.Duels
                     .AsNoTracking()
                     .Where(d => d.Status == DuelStatus.InProgress)
-                    .OrderBy(d => d.StartTime)
+                    .Include(d => d.Submissions
+                        .Where(s => s.Status == SubmissionStatus.Done && s.Verdict == "Accepted")
+                        .OrderBy(s => s.SubmitTime))
                     .ToListAsync(cancellationToken);
-                var duelIds = duels.Select(d => d.Id).ToList();
-                    var accepted = await db.Submissions
-                        .AsNoTracking()
-                        .Where(s => duelIds.Contains(s.Duel.Id) && s.Status == SubmissionStatus.Done && s.Verdict == "Accepted")
-                        .OrderBy(s => s.SubmitTime)
-                        .ToListAsync(cancellationToken);
                 foreach (var duel in duels)
                 {
                     if (cancellationToken.IsCancellationRequested) break;
+                    var accepted = duel.Submissions;
                     var deadline = duel.StartTime.AddMinutes(duel.MaxDuration);
                     var u1 = accepted.FirstOrDefault(s => s.UserId == duel.User1Id);
                     var u2 = accepted.FirstOrDefault(s => s.UserId == duel.User2Id);
