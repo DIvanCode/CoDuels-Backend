@@ -140,9 +140,12 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 
 	defer hjr.Close()
 
-	// TODO: think whether it will ever freeeze
+	// it will nto freeze because both hjr.Conn and params.Stdin will be closed at some point
 	if params.Stdin != nil {
-		go func(r io.Reader) { io.Copy(hjr.Conn, r) }(params.Stdin)
+		go func(r io.Reader) {
+			_, _ = io.Copy(hjr.Conn, params.Stdin)
+			hjr.CloseWrite()
+		}(params.Stdin)
 	}
 
 	err = dr.client.ContainerStart(ctx, cr.ID, container.StartOptions{})
