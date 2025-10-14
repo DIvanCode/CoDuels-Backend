@@ -51,7 +51,7 @@ template='
       "type": "run_cpp",
       "run_input": {
         "type": "inline",
-        "content": $indata
+        "content": ($indata+"\n")
       },
       "compiled_code": {
         "type": "other_step",
@@ -63,7 +63,7 @@ template='
       "type": "check_cpp",
       "correct_output": {
         "type": "inline",
-        "content": $indata
+        "content": ($correct+"\n")
       },
       "suspect_output": {
         "type": "other_step",
