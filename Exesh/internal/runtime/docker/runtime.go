@@ -144,7 +144,8 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	if params.Stdin != nil {
 		go func(r io.Reader) {
 			_, _ = io.Copy(hjr.Conn, params.Stdin)
-			hjr.CloseWrite()
+			// BUG: why the fuck does this "CloseWrite" cause stdout to be empty
+			// hjr.CloseWrite()
 		}(params.Stdin)
 	}
 
@@ -172,7 +173,10 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		return runtime.ErrTimeout
 	}
 
-	stdcopy.StdCopy(params.Stdout, params.Stderr, hjr.Conn)
+	_, err = stdcopy.StdCopy(params.Stdout, params.Stderr, hjr.Conn)
+	if err != nil {
+		return fmt.Errorf("copy std streams from container: %w", err)
+	}
 
 	for _, f := range params.OutFiles {
 		w, err := os.OpenFile(f.OutsideLocation, os.O_WRONLY|os.O_CREATE, 0o755)
