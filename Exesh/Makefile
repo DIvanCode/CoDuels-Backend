@@ -13,3 +13,7 @@ worker-2:
 	rm -rf file_storage/worker-2 && \
 	export CONFIG_PATH=config/worker-2/dev.yml && \
 	go run cmd/worker/main.go
+
+clean:
+	docker compose down --volumes
+	rm -rf file_storage
