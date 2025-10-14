@@ -126,7 +126,7 @@ func (w *Worker) runWorker(ctx context.Context) {
 			continue
 		}
 
-		js, _ := json.MarshalIndent(job, "", "")
+		js, _ := json.Marshal(job)
 		w.log.Info("picked job", slog.Any("job_id", (*job).GetID()), slog.String("job", string(js)))
 
 		result := w.jobExecutor.Execute(ctx, *job)
@@ -135,7 +135,9 @@ func (w *Worker) runWorker(ctx context.Context) {
 		w.doneJobs = append(w.doneJobs, result)
 		w.mu.Unlock()
 
-		w.log.Info("done job", slog.Any("job_id", (*job).GetID()), slog.Any("error", result.GetError()))
+		js, _ = json.Marshal(result)
+		w.log.Info("done job", slog.Any("job_id", (*job).GetID()), slog.Any("error", result.GetError()),
+			slog.Any("result", js))
 		w.changeFreeSlots(+1)
 	}
 }
