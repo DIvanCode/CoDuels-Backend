@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"exesh/internal/api/heartbeat"
 	"exesh/internal/config"
 	"exesh/internal/domain/execution"
@@ -125,7 +126,8 @@ func (w *Worker) runWorker(ctx context.Context) {
 			continue
 		}
 
-		w.log.Info("picked job", slog.Any("job_id", (*job).GetID()))
+		js, _ := json.MarshalIndent(job, "", "")
+		w.log.Info("picked job", slog.Any("job_id", (*job).GetID()), slog.String("job", string(js)))
 
 		result := w.jobExecutor.Execute(ctx, *job)
 
