@@ -8,7 +8,7 @@ filestorage:
     collector_iterations_delay: 60
     worker_iterations_delay: 5
 db:
-  connection_string: host=localhost port=5432 database=taski user=taski password=secret
+  connection_string: host=localhost port=5434 database=taski user=taski password=secret
   init_timeout: 5m
 execute:
   endpoint: http://localhost:5253
