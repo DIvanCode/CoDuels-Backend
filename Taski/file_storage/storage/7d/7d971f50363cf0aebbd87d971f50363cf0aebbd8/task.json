@@ -1,0 +1,31 @@
+{
+    "id": "7d971f50363cf0aebbd87d971f50363cf0aebbd8",
+    "title": "A + B",
+    "type": "write_code",
+    "level": "easy",
+    "statement": "statement.md",
+    "tl": 1000,
+    "ml": 256,
+    "tests": [
+        {
+            "id": 1,
+            "input": "tests/01.in",
+            "output": "tests/01.out",
+            "visible": true
+        },
+        {
+            "id": 2,
+            "input": "tests/02.in",
+            "output": "tests/02.out",
+            "visible": false
+        }
+    ],
+    "checker": {
+        "path": "checker.cpp",
+        "lang": "C++"
+    },
+    "solution": {
+        "path": "solution.cpp",
+        "lang": "C++"
+    }
+}

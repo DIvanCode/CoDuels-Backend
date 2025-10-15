@@ -6,7 +6,7 @@ services:
     image: postgres
     container_name: taski_postgres
     ports:
-      - "5432:5432"
+      - "5434:5432"
     environment:
       POSTGRES_USER: taski
       POSTGRES_PASSWORD: secret
