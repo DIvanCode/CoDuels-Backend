@@ -10,6 +10,8 @@ using Microsoft.Extensions.Options;
 using Duely.Infrastructure.Api.Sse;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.SetupApiHttp();

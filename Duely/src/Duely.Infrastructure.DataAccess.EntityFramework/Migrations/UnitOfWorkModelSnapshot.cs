@@ -86,8 +86,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnName("Code");
 
                     b.Property<int>("DuelId")
-                        .HasColumnType("integer")
-                        .HasColumnName("DuelId");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Language")
                         .IsRequired()
@@ -121,12 +120,17 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
             modelBuilder.Entity("Duely.Domain.Models.Submission", b =>
                 {
                     b.HasOne("Duely.Domain.Models.Duel", "Duel")
-                        .WithMany()
+                        .WithMany("Submissions")
                         .HasForeignKey("DuelId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Duel");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
+                {
+                    b.Navigation("Submissions");
                 });
 #pragma warning restore 612, 618
         }

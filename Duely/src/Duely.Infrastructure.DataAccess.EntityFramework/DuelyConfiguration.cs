@@ -54,6 +54,7 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
 
         builder.HasMany(d => d.Submissions)
             .WithOne(s => s.Duel)
-            .HasForeignKey(s => s.DuelId);
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
