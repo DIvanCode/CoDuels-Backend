@@ -9,7 +9,7 @@ using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using Microsoft.Extensions.Options;
 using Duely.Infrastructure.Api.Sse;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
-
+using Duely.Infrastructure.MessageBus.Kafka;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.SetupApiHttp();
@@ -30,6 +30,9 @@ builder.Services.Configure<DuelSettings>(builder.Configuration.GetSection(DuelSe
 
 builder.Services.AddSingleton<SseConnectionManager>();
 builder.Services.AddSingleton<IMessageSender, SseMessageSender>();
+builder.Services.Configure<KafkaSettings>(builder.Configuration.GetSection("Kafka:OrderCreated"));
+builder.Services.AddHostedService<TaskiSubmissionStatusConsumer>();
+
 
 var app = builder.Build();
 

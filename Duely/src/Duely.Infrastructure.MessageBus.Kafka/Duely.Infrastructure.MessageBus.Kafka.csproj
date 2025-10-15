@@ -8,7 +8,16 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Confluent.Kafka" Version="2.4.0" />
       <ProjectReference Include="..\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
+      <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.9" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.9" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
+      <ProjectReference Include="..\Duely.Application.Configuration\Duely.Application.Configuration.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj" />
     </ItemGroup>
 
 </Project>
