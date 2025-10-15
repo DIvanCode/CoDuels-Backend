@@ -43,14 +43,10 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
             .HasColumnName("Verdict")
             .HasColumnType("text")
             .IsRequired(false);
-        
-        builder.Property<int>("DuelId")
-            .HasColumnName("DuelId")
-            .HasColumnType("integer")
-            .IsRequired();
 
         builder.HasOne(s => s.Duel)
-            .WithMany()
-            .HasForeignKey("DuelId");
+            .WithMany(d => d.Submissions)
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
