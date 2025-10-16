@@ -3,6 +3,7 @@ package execution
 import (
 	"crypto/sha1"
 	"fmt"
+	"sync"
 
 	"github.com/DIvanCode/filestorage/pkg/bucket"
 )
@@ -16,6 +17,9 @@ type Context struct {
 
 	stepByJobID   map[JobID]Step
 	jobByStepName map[StepName]Job
+
+	mu     *sync.Mutex
+	failed bool
 }
 
 func newContext(executionID ID, graph *graph) (ctx Context, err error) {
@@ -26,6 +30,9 @@ func newContext(executionID ID, graph *graph) (ctx Context, err error) {
 
 		stepByJobID:   make(map[JobID]Step),
 		jobByStepName: make(map[StepName]Job),
+
+		mu:     &sync.Mutex{},
+		failed: false,
 	}
 
 	hash := sha1.New()
@@ -39,6 +46,9 @@ func newContext(executionID ID, graph *graph) (ctx Context, err error) {
 }
 
 func (c *Context) PickSteps() []Step {
+	if c.isFailed() {
+		return []Step{}
+	}
 	return c.graph.pickSteps()
 }
 
@@ -47,15 +57,30 @@ func (c *Context) ScheduledStep(step Step, job Job) {
 	c.jobByStepName[step.GetName()] = job
 }
 
+func (c *Context) FailStep(stepName StepName) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.failed = true
+}
+
 func (c *Context) DoneStep(stepName StepName) {
 	c.graph.doneStep(stepName)
 }
 
 func (c *Context) IsDone() bool {
+	if c.isFailed() {
+		return true
+	}
 	return c.graph.isGraphDone()
 }
 
 func (c *Context) GetJobForStep(stepName StepName) (Job, bool) {
 	job, ok := c.jobByStepName[stepName]
 	return job, ok
+}
+
+func (c *Context) isFailed() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.failed
 }

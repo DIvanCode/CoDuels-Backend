@@ -40,7 +40,6 @@ func newGraph(executionSteps []Step) *graph {
 	}
 
 	g.topSort(executionSteps)
-	slices.Reverse(g.topSortOrder)
 
 	return &g
 }
@@ -89,10 +88,15 @@ func (graph *graph) isGraphDone() bool {
 func (g *graph) topSort(executionSteps []Step) {
 	for i := len(executionSteps) - 1; i >= 0; i-- {
 		step := executionSteps[i]
-		if _, used := g.used[step.GetName()]; !used {
-			g.dfs(step)
-		}
+
+		// temp: do not change the initial order
+		g.topSortOrder = append(g.topSortOrder, step)
+
+		// if _, used := g.used[step.GetName()]; !used {
+		// 	g.dfs(step)
+		// }
 	}
+	slices.Reverse(g.topSortOrder)
 }
 
 func (g *graph) dfs(step Step) {

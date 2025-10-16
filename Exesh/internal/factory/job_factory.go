@@ -56,7 +56,7 @@ func NewJobFactory(
 	}
 }
 
-func (f *JobFactory) Create(ctx context.Context, execCtx execution.Context, step execution.Step) (execution.Job, error) {
+func (f *JobFactory) Create(ctx context.Context, execCtx *execution.Context, step execution.Step) (execution.Job, error) {
 	switch step.GetType() {
 	case execution.CompileCppStepType:
 		typedStep := step.(*steps.CompileCppStep)
@@ -163,7 +163,7 @@ func (f *JobFactory) Create(ctx context.Context, execCtx execution.Context, step
 	}
 }
 
-func (f *JobFactory) createInput(ctx context.Context, execCtx execution.Context, source execution.Source) (input execution.Input, err error) {
+func (f *JobFactory) createInput(ctx context.Context, execCtx *execution.Context, source execution.Source) (input execution.Input, err error) {
 	switch source.GetType() {
 	case execution.OtherStepSourceType:
 		typedSource := source.(*sources.OtherStepSource)
@@ -243,6 +243,14 @@ func (f *JobFactory) calculateID(
 		return
 	}
 	hash.Write(bytes)
+
+	// temp: add random string to make all ids different
+	rand, err := uuid.NewUUID()
+	if err != nil {
+		err = fmt.Errorf("failed to generate random string")
+		return
+	}
+	hash.Write([]byte(rand.String()))
 
 	if err = id.FromString(fmt.Sprintf("%x", hash.Sum(nil))); err != nil {
 		return
