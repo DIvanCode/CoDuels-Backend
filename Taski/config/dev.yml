@@ -12,3 +12,13 @@ db:
   init_timeout: 5m
 execute:
   endpoint: http://localhost:5253
+event_consumer:
+  brokers:
+    - 0.0.0.0:29092
+  topic: exesh.step-updates
+  group_id: taski
+  fetch_interval: 1s
+message_producer:
+  brokers:
+    - 0.0.0.0:29092
+  topic: taski.testing
