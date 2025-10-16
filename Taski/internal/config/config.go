@@ -11,11 +11,13 @@ import (
 
 type (
 	Config struct {
-		Env         string             `yaml:"env"`
-		HttpServer  HttpServerConfig   `yaml:"http_server"`
-		FileStorage filestorage.Config `yaml:"filestorage"`
-		Db          DbConfig           `yaml:"db"`
-		Execute     ExecuteConfig      `yaml:"execute"`
+		Env             string                `yaml:"env"`
+		HttpServer      HttpServerConfig      `yaml:"http_server"`
+		FileStorage     filestorage.Config    `yaml:"filestorage"`
+		Db              DbConfig              `yaml:"db"`
+		Execute         ExecuteConfig         `yaml:"execute"`
+		EventConsumer   EventConsumerConfig   `yaml:"event_consumer"`
+		MessageProducer MessageProducerConfig `yaml:"message_producer"`
 	}
 
 	HttpServerConfig struct {
@@ -29,6 +31,18 @@ type (
 
 	ExecuteConfig struct {
 		Endpoint string `yaml:"endpoint"`
+	}
+
+	EventConsumerConfig struct {
+		Brokers       []string      `yaml:"brokers"`
+		Topic         string        `yaml:"topic"`
+		GroupID       string        `yaml:"group_id"`
+		FetchInterval time.Duration `yaml:"fetch_interval"`
+	}
+
+	MessageProducerConfig struct {
+		Brokers []string `yaml:"brokers"`
+		Topic   string   `yaml:"topic"`
 	}
 )
 
