@@ -1,13 +1,15 @@
 using Duely.Domain.Models;
 using MediatR;
 using FluentResults;
+using Microsoft.Extensions.Options;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Duely.Infrastructure.DataAccess.EntityFramework;
+using Duely.Application.Configuration;
 
 namespace Duely.Application.UseCases.CreateDuel;
 
-public class CreateDuelHandler(ITaskiClient taskiClient, Context db, IMessageSender messageSender) : IRequestHandler<CreateDuelCommand, Result>
+public class CreateDuelHandler(ITaskiClient taskiClient, Context db, IMessageSender messageSender, IOptions<DuelSettings> options) : IRequestHandler<CreateDuelCommand, Result>
 {
 
     public async Task<Result> Handle(CreateDuelCommand request, CancellationToken cancellationToken)
@@ -22,6 +24,7 @@ public class CreateDuelHandler(ITaskiClient taskiClient, Context db, IMessageSen
         var taskId = taskResult.Value;
 
         var startTime = DateTime.UtcNow;
+        var maxDuration = options.Value.MaxDurationMinutes;
 
         var duel = new Duel 
         {
@@ -31,6 +34,7 @@ public class CreateDuelHandler(ITaskiClient taskiClient, Context db, IMessageSen
             Status = DuelStatus.InProgress,
             Result = DuelResult.None,
             StartTime = startTime,
+            MaxDuration = maxDuration,
         };
 
         db.Duels.Add(duel);
