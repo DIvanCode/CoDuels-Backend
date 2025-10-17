@@ -11,6 +11,7 @@ import (
 	"syscall"
 	getFileAPI "taski/internal/api/task/file"
 	getAPI "taski/internal/api/task/get"
+	randomTaskAPI "taski/internal/api/task/random"
 	"taski/internal/api/testing/execute"
 	testAPI "taski/internal/api/testing/test"
 	"taski/internal/config"
@@ -20,6 +21,7 @@ import (
 	"taski/internal/storage/postgres"
 	getFileUC "taski/internal/usecase/task/usecase/file"
 	getUC "taski/internal/usecase/task/usecase/get"
+	randomTaskUC "taski/internal/usecase/task/usecase/random"
 	testUC "taski/internal/usecase/testing/usecase/test"
 	"taski/internal/usecase/testing/usecase/update"
 
@@ -65,6 +67,9 @@ func main() {
 
 	getTaskUseCase := getUC.NewUseCase(log, taskStorage)
 	getAPI.NewHandler(log, getTaskUseCase).Register(mux)
+
+	randomTaskUseCase := randomTaskUC.NewUseCase(log, )
+	randomTaskAPI.NewHandler(log, randomTaskUseCase).Register(mux)
 
 	getTaskFileUseCase := getFileUC.NewUseCase(log, taskStorage)
 	getFileAPI.NewHandler(log, getTaskFileUseCase).Register(mux)
