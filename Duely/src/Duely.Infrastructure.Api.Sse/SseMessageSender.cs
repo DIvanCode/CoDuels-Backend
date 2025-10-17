@@ -1,4 +1,5 @@
 using Duely.Infrastructure.Gateway.Client.Abstracts;
+using Duely.Infrastructure.Gateway.Client.Abstracts.Messages;
 using Duely.Application.Configuration;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
@@ -14,7 +15,14 @@ public class SseMessageSender : IMessageSender
 
     public async Task SendMessage(Message message, CancellationToken cancellationToken = default)
     {
-        var json = JsonSerializer.Serialize(message);
+        string json = message switch
+        {
+            DuelStartedMessage duelStarted => JsonSerializer.Serialize(new { duel_id = duelStarted.DuelId }),
+            DuelFinishedMessage duelFinished => JsonSerializer.Serialize(new { duel_id = duelFinished.DuelId, winner = duelFinished.Winner }),
+            _ => JsonSerializer.Serialize(message)
+        };
+
+
         var eventName = ConvertMessageTypeToEventName(message.Type);
         if (eventName is null) return;
         
