@@ -35,7 +35,6 @@ public class CreateDuelHandler(ITaskiClient taskiClient, Context db, IMessageSen
             Result = DuelResult.None,
             StartTime = startTime,
             MaxDuration = maxDuration,
-            EndTime = startTime.AddMinutes(maxDuration)
         };
 
         db.Duels.Add(duel);

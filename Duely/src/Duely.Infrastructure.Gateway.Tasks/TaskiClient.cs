@@ -34,6 +34,20 @@ public sealed class TaskiClient : ITaskiClient
 
     public async Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken)
     {
-        return Result.Ok(Guid.NewGuid().ToString());
+        try
+        {
+            var task = await _http.GetFromJsonAsync<RandomTaskResponse>("task/random", cancellationToken);
+
+            if (task is null)
+            {
+                return Result.Fail<string>("No random task returned from Taski");
+            }
+
+            return Result.Ok(task.TaskId);
+        }
+        catch (Exception e)
+        {
+            return Result.Fail<string>(e.Message);
+        }
     }
 }
