@@ -15,13 +15,7 @@ public class SseMessageSender : IMessageSender
 
     public async Task SendMessage(Message message, CancellationToken cancellationToken = default)
     {
-        string json = message switch
-        {
-            DuelStartedMessage duelStarted => JsonSerializer.Serialize(new { duel_id = duelStarted.DuelId }),
-            DuelFinishedMessage duelFinished => JsonSerializer.Serialize(new { duel_id = duelFinished.DuelId, winner = duelFinished.Winner }),
-            _ => JsonSerializer.Serialize(message)
-        };
-
+        var json = JsonSerializer.Serialize(message, message.GetType());
 
         var eventName = ConvertMessageTypeToEventName(message.Type);
         if (eventName is null) return;
