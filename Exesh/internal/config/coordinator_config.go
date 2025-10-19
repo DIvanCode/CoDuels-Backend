@@ -40,6 +40,7 @@ type (
 			RunOutput    string `yaml:"run_output"`
 			CheckVerdict string `yaml:"check_verdict"`
 		} `yaml:"output"`
+		FilestorageEndpoint string `yaml:"filestorage_endpoint"`
 	}
 
 	WorkerPoolConfig struct {

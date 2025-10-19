@@ -1,0 +1,20 @@
+env: docker
+http_server:
+  addr: 0.0.0.0:5254
+filestorage:
+  root_dir: file_storage/worker-1
+  trasher:
+    workers: 1
+    collector_iterations_delay: 60
+    worker_iterations_delay: 5
+input_provider:
+  filestorage_bucket_ttl: 15m
+  artifact_ttl: 5m
+output_provider:
+  artifact_ttl: 5m
+worker:
+  id: http://worker-1:5254
+  free_slots: 1
+  coordinator_endpoint: http://coordinator:5253
+  heartbeat_delay: 5s
+  worker_delay: 2s

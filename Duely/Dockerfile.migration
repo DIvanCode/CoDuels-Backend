@@ -1,0 +1,10 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+
+WORKDIR /app
+
+COPY . .
+
+RUN dotnet tool install --global dotnet-ef
+RUN dotnet restore Duely.sln
+RUN dotnet build Duely.sln -c Release --no-restore
+RUN dotnet publish src/Duely/Duely.csproj -c Release -o /out --no-build

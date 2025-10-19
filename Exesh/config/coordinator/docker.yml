@@ -1,8 +1,8 @@
-env: dev
+env: docker
 http_server:
-  addr: localhost:5253
+  addr: 0.0.0.0:5253
 storage:
-  connection_string: host=localhost port=5433 database=exesh user=coordinator password=secret
+  connection_string: host=exesh_postgres port=5432 database=exesh user=coordinator password=secret
   init_timeout: 60s
 filestorage:
   root_dir: file_storage/coordinator
@@ -18,7 +18,7 @@ job_factory:
     compiled_cpp: bin
     run_output: output
     check_verdict: verdict
-  filestorage_endpoint: http://localhost:5253
+  filestorage_endpoint: http://coordinator:5253
 execution_scheduler:
   executions_interval: 5s
   max_concurrency: 10
@@ -29,5 +29,5 @@ artifact_registry:
   artifact_ttl: 3m
 sender:
   brokers:
-    - 0.0.0.0:29092
+    - kafka:9092
   topic: exesh.step-updates

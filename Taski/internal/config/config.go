@@ -30,7 +30,8 @@ type (
 	}
 
 	ExecuteConfig struct {
-		Endpoint string `yaml:"endpoint"`
+		Endpoint             string `yaml:"endpoint"`
+		DownloadTaskEndpoint string `yaml:"download_task_endpoint"`
 	}
 
 	EventConsumerConfig struct {

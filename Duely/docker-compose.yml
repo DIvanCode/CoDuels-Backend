@@ -1,9 +1,18 @@
-﻿volumes:
-  duely-postgres:
+﻿networks:
+  coduels:
+    name: coduels
+    driver: bridge
+    external: true
+
+volumes:
+  postgres:
 
 services:
   postgres:
-    image: postgres:17
+    image: postgres
+    container_name: duely_postgres
+    networks:
+      - coduels
     ports:
       - "5432:5432"
     environment:
@@ -16,30 +25,38 @@ services:
       timeout: 0s
       retries: 30
     volumes:
-      - duely-postgres:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql/data
   
   migration:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.migration
+    container_name: duely_migration
+    networks:
+      - coduels
     environment:
-      DbConnection__ConnectionString: Server=postgres:5432;Database=duely;Username=duely;Password=secret
+      DbConnection__ConnectionString: Server=duely_postgres:5432;Database=duely;Username=duely;Password=secret
     command: |
       bash -c '/root/.dotnet/tools/dotnet-ef database update \
         --connection "$$DbConnection__ConnectionString" \
-        --startup-project /Source/src/Duely \
-        --project /Source/src/Duely.Infrastructure.DataAccess.EntityFramework'
+        --startup-project /app/src/Duely \
+        --project /app/src/Duely.Infrastructure.DataAccess.EntityFramework'
     depends_on:
       postgres:
         condition: service_healthy
   
-  app:
+  duely:
     build: .
+    container_name: duely
+    networks:
+      - coduels
     ports:
       - "5001:5001"
-    volumes:
-      - .:/App:ro
     environment:
-      DbConnection__ConnectionString: Server=postgres:5432;Database=duely;Username=duely;Password=secret
       ASPNETCORE_ENVIRONMENT: Development
+      DbConnection__ConnectionString: Server=duely_postgres:5432;Database=duely;Username=duely;Password=secret
+      Taski__BaseUrl: http://taski:5252/
+      Kafka__BootstrapServers: kafka:9092
     depends_on:
       postgres:
         condition: service_healthy
