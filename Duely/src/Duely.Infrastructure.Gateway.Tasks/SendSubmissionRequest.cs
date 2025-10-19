@@ -6,8 +6,8 @@ public sealed class SendSubmissionRequest
     [JsonPropertyName("task_id")]
     public string TaskId { get; init; } = string.Empty;
 
-    [JsonPropertyName("submission_id")]
-    public string SubmissionId { get; init; } = string.Empty;
+    [JsonPropertyName("solution_id")]
+    public string SolutionId { get; init; } = string.Empty;
 
     [JsonPropertyName("solution")]
     public string Solution { get; init; } = string.Empty;

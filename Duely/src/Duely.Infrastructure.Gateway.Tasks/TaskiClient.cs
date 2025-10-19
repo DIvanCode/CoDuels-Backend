@@ -19,7 +19,7 @@ public sealed class TaskiClient : ITaskiClient
         var request = new SendSubmissionRequest
         {
             TaskId =taskId,
-            SubmissionId =submissionId.ToString(),
+            SolutionId =submissionId.ToString(),
             Solution =solution,
             Language = language
         };

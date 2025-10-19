@@ -9,6 +9,9 @@ using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using Microsoft.Extensions.Options;
 using Duely.Infrastructure.Api.Sse;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
+using Duely.Infrastructure.MessageBus.Kafka;
+
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -32,6 +35,8 @@ builder.Services.Configure<DuelSettings>(builder.Configuration.GetSection(DuelSe
 
 builder.Services.AddSingleton<SseConnectionManager>();
 builder.Services.AddSingleton<IMessageSender, SseMessageSender>();
+builder.Services.Configure<KafkaSettings>(builder.Configuration.GetSection("Kafka"));
+builder.Services.AddHostedService<TaskiSubmissionStatusConsumer>();
 
 var app = builder.Build();
 
