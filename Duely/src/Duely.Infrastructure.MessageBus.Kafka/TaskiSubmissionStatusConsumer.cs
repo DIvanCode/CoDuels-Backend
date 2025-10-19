@@ -45,7 +45,7 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
                 if (statusEvent is null) continue;
                 using var scope = _scopeFactory.CreateScope();
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                var cmd = new UpdateSubmissionStatusCommand(statusEvent.SubmissionId,statusEvent.Type,statusEvent.Verdict, statusEvent.Message, statusEvent.Error);
+                var cmd = new UpdateSubmissionStatusCommand(statusEvent.SolutionId,statusEvent.Type,statusEvent.Verdict, statusEvent.Message, statusEvent.Error);
                 await mediator.Send(cmd, cancellationToken);
 
             }

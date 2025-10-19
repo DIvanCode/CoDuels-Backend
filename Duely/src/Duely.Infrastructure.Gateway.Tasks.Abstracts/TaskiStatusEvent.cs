@@ -3,8 +3,8 @@ namespace Duely.Infrastructure.Gateway.Tasks.Abstracts.Messages;
 
 public sealed class TaskiStatusEvent
 {
-    [JsonPropertyName("submission_id")]
-    public int SubmissionId { get; init; }
+    [JsonPropertyName("solution_id")]
+    public int SolutionId { get; init; }
 
     [JsonPropertyName("type")]
     public string Type { get; init; } = "";
