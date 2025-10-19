@@ -1,0 +1,45 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.8.3
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+  kafka:
+    image: confluentinc/cp-kafka:7.8.3
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CREATE_TOPICS: "exesh.step-updates:1:1,taski.testing:1:1"
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+  kafka-init-topics:
+    image: confluentinc/cp-kafka:7.8.3
+    depends_on:
+      - kafka
+    command: >
+      bash -c "
+        sleep 10 &&
+        kafka-topics --create --topic exesh.step-updates --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
+        kafka-topics --create --topic taski.testing --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
+      "
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "8080:8080"

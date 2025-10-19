@@ -39,7 +39,7 @@ type (
 	}
 
 	jobFactory interface {
-		Create(context.Context, execution.Context, execution.Step) (execution.Job, error)
+		Create(context.Context, *execution.Context, execution.Step) (execution.Job, error)
 	}
 
 	jobScheduler interface {
@@ -47,9 +47,10 @@ type (
 	}
 
 	messageFactory interface {
-		CreateExecutionStarted(execution.Context) (execution.Message, error)
-		CreateForStep(execution.Context, execution.Step, execution.Result) (execution.Message, error)
-		CreateExecutionFinished(execution.Context) (execution.Message, error)
+		CreateExecutionStarted(*execution.Context) (execution.Message, error)
+		CreateForStep(*execution.Context, execution.Step, execution.Result) (execution.Message, error)
+		CreateExecutionFinished(*execution.Context) (execution.Message, error)
+		CreateExecutionFinishedError(*execution.Context, string) (execution.Message, error)
 	}
 
 	messageSender interface {
@@ -134,9 +135,9 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 				s.changeNowExecutions(-1)
 				return fmt.Errorf("failed to build execution context: %w", err)
 			}
-			if err = s.scheduleGraph(ctx, execCtx); err != nil {
+			if err = s.scheduleExecution(ctx, &execCtx); err != nil {
 				s.changeNowExecutions(-1)
-				return fmt.Errorf("failed to schedule graph: %w", err)
+				return fmt.Errorf("failed to schedule execution: %w", err)
 
 			}
 
@@ -147,7 +148,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 	}
 }
 
-func (s *ExecutionScheduler) scheduleGraph(ctx context.Context, execCtx execution.Context) error {
+func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, execCtx *execution.Context) error {
 	s.log.Info("schedule execution", slog.String("execution_id", execCtx.ExecutionID.String()))
 
 	msg, err := s.messageFactory.CreateExecutionStarted(execCtx)
@@ -165,7 +166,7 @@ func (s *ExecutionScheduler) scheduleGraph(ctx context.Context, execCtx executio
 	return nil
 }
 
-func (s *ExecutionScheduler) scheduleStep(ctx context.Context, execCtx execution.Context, step execution.Step) {
+func (s *ExecutionScheduler) scheduleStep(ctx context.Context, execCtx *execution.Context, step execution.Step) {
 	s.log.Info("schedule step", slog.Any("step_name", step.GetName()))
 
 	job, err := s.jobFactory.Create(ctx, execCtx, step)
@@ -175,30 +176,67 @@ func (s *ExecutionScheduler) scheduleStep(ctx context.Context, execCtx execution
 	}
 
 	s.jobScheduler.Schedule(ctx, job, func(ctx context.Context, result execution.Result) {
-		msg, err := s.messageFactory.CreateForStep(execCtx, step, result)
-		if err != nil {
-			s.log.Error("failed to create message for result", slog.Any("step_name", step.GetName()), slog.Any("error", err))
-			return
-		}
-		if err = s.messageSender.Send(ctx, msg); err != nil {
-			s.log.Error("failed to send message", slog.Any("step_name", step.GetName()), slog.Any("error", err))
-			return
-		}
-
-		if err = s.doneStep(ctx, execCtx, step); err != nil {
-			s.log.Error("failed to done step", slog.Any("step_name", step.GetName()), slog.Any("error", err))
-			return
+		if result.GetError() != nil {
+			if err = s.failStep(ctx, execCtx, step, result); err != nil {
+				s.log.Error("failed to fail step", slog.Any("step_name", step.GetName()), slog.Any("error", err))
+			}
+		} else {
+			if err = s.doneStep(ctx, execCtx, step, result); err != nil {
+				s.log.Error("failed to done step", slog.Any("step_name", step.GetName()), slog.Any("error", err))
+			}
 		}
 	})
 
 	execCtx.ScheduledStep(step, job)
 }
 
-func (s *ExecutionScheduler) doneStep(ctx context.Context, execCtx execution.Context, step execution.Step) error {
+func (s *ExecutionScheduler) failStep(ctx context.Context, execCtx *execution.Context, step execution.Step, result execution.Result) error {
+	if execCtx.IsDone() {
+		return nil
+	}
+
+	defer s.changeNowExecutions(-1)
+
+	execCtx.FailStep(step.GetName())
+
+	msg, err := s.messageFactory.CreateExecutionFinishedError(execCtx, result.GetError().Error())
+	if err != nil {
+		return fmt.Errorf("failed to create message for result: %w", err)
+	}
+	if err = s.messageSender.Send(ctx, msg); err != nil {
+		return fmt.Errorf("failed to send message: %w", err)
+	}
+
+	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
+		if err = s.executionStorage.Finish(ctx, execCtx.ExecutionID); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		s.log.Error("failed to finish execution in storage", slog.Any("error", err))
+		return fmt.Errorf("failed to finish execution in storage: %w", err)
+	}
+
+	return nil
+}
+
+func (s *ExecutionScheduler) doneStep(ctx context.Context, execCtx *execution.Context, step execution.Step, result execution.Result) error {
+	if execCtx.IsDone() {
+		return nil
+	}
+
 	execCtx.DoneStep(step.GetName())
 
+	msg, err := s.messageFactory.CreateForStep(execCtx, step, result)
+	if err != nil {
+		return fmt.Errorf("failed to create message for result: %w", err)
+	}
+	if err = s.messageSender.Send(ctx, msg); err != nil {
+		return fmt.Errorf("failed to send message: %w", err)
+	}
+
 	if execCtx.IsDone() {
-		msg, err := s.messageFactory.CreateExecutionFinished(execCtx)
+		defer s.changeNowExecutions(-1)
 
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
 			if err = s.executionStorage.Finish(ctx, execCtx.ExecutionID); err != nil {
@@ -210,12 +248,14 @@ func (s *ExecutionScheduler) doneStep(ctx context.Context, execCtx execution.Con
 			return fmt.Errorf("failed to finish execution in storage: %w", err)
 		}
 
+		msg, err := s.messageFactory.CreateExecutionFinished(execCtx)
 		if err != nil {
 			return fmt.Errorf("failed to create execution finished message: %w", err)
 		}
 		if err = s.messageSender.Send(ctx, msg); err != nil {
 			return fmt.Errorf("failed to send %s message: %w", msg.GetType(), err)
 		}
+
 		return nil
 	}
 

@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: duely
       POSTGRES_PASSWORD: secret
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U duely"]
       interval: 1s
       timeout: 0s
       retries: 30

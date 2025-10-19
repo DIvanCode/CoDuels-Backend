@@ -4,35 +4,41 @@ using Duely.Application.Configuration;
 using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Duely.Application.BackgroundJobs;
 
 public sealed class DuelMakingJob : BackgroundService
 {
     private readonly IDuelManager _duelManager;
-    private readonly IMediator _mediator;
     private readonly DuelSettings _settings;
+    private readonly IServiceProvider _sp;
 
-    public DuelMakingJob(IDuelManager duelManager, IMediator mediator, IOptions<DuelSettings> options)
+    public DuelMakingJob(IServiceProvider sp, IDuelManager duelManager, IOptions<DuelSettings> options)
     {
+        _sp = sp;
         _duelManager = duelManager;
-        _mediator = mediator;
         _settings = options.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested) {
-            var pair = _duelManager.TryGetPair();
+            using (var scope = _sp.CreateScope())
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                var pair = _duelManager.TryGetPair();
 
-            if (pair is not null) {
-                await _mediator.Send(new CreateDuelCommand {
-                    User1Id = pair.Value.User1,
-                    User2Id = pair.Value.User2
-                }, cancellationToken);
+                if (pair is not null) {
+                    await mediator.Send(new CreateDuelCommand {
+                        User1Id = pair.Value.User1,
+                        User2Id = pair.Value.User2
+                    }, cancellationToken);
+                }
+
+                await Task.Delay(_settings.CheckPairInterval, cancellationToken);
             }
-
-            await Task.Delay(_settings.CheckPairInterval, cancellationToken);
+            
 
         }
     }

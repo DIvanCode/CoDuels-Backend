@@ -11,14 +11,19 @@ import (
 	"syscall"
 	getFileAPI "taski/internal/api/task/file"
 	getAPI "taski/internal/api/task/get"
+	randomTaskAPI "taski/internal/api/task/random"
 	"taski/internal/api/testing/execute"
 	testAPI "taski/internal/api/testing/test"
 	"taski/internal/config"
+	"taski/internal/consumer"
+	"taski/internal/producer"
 	"taski/internal/storage/filestorage"
 	"taski/internal/storage/postgres"
 	getFileUC "taski/internal/usecase/task/usecase/file"
 	getUC "taski/internal/usecase/task/usecase/get"
+	randomTaskUC "taski/internal/usecase/task/usecase/random"
 	testUC "taski/internal/usecase/testing/usecase/test"
+	"taski/internal/usecase/testing/usecase/update"
 
 	fs "github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
@@ -63,11 +68,22 @@ func main() {
 	getTaskUseCase := getUC.NewUseCase(log, taskStorage)
 	getAPI.NewHandler(log, getTaskUseCase).Register(mux)
 
+	randomTaskUseCase := randomTaskUC.NewUseCase(log, )
+	randomTaskAPI.NewHandler(log, randomTaskUseCase).Register(mux)
+
 	getTaskFileUseCase := getFileUC.NewUseCase(log, taskStorage)
 	getFileAPI.NewHandler(log, getTaskFileUseCase).Register(mux)
 
 	testUseCase := testUC.NewUseCase(log, taskStorage, unitOfWork, solutionStorage, executeClient, "http://"+cfg.HttpServer.Addr)
 	testAPI.NewHandler(log, testUseCase).Register(mux)
+
+	messageProducer := producer.NewKafkaProducer(log, cfg.MessageProducer)
+
+	updateTestingUseCase := update.NewUseCase(log, solutionStorage, unitOfWork, taskStorage, messageProducer)
+
+	eventConsumer := consumer.NewKafkaConsumer(log, cfg.EventConsumer, updateTestingUseCase)
+	eventConsumer.Start(ctx)
+	defer func() { _ = eventConsumer.Close() }()
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 
