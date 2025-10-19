@@ -6,16 +6,17 @@ using Duely.Infrastructure.Gateway.Tasks.Abstracts.Messages;
 using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Duely.Infrastructure.MessageBus.Kafka;
 public sealed class TaskiSubmissionStatusConsumer : BackgroundService
 {
     private readonly IConsumer<string, TaskiStatusEvent> _consumer;
     private readonly string _topic;
-    private readonly IMediator _mediator;
-    public TaskiSubmissionStatusConsumer(IMediator mediator, IOptions<KafkaSettings> kafkaSettings)
+    private readonly IServiceScopeFactory _scopeFactory;
+    public TaskiSubmissionStatusConsumer(IServiceScopeFactory scopeFactory, IOptions<KafkaSettings> kafkaSettings)
     {
-        _mediator = mediator;
+        _scopeFactory = scopeFactory;
         _topic = kafkaSettings.Value.Topic;
         var config = new ConsumerConfig
         {
@@ -26,7 +27,11 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
             .SetValueDeserializer(new KafkaValueDeserializer<TaskiStatusEvent>())
             .Build();
     }
-    protected override Task ExecuteAsync(CancellationToken cancellationToken) => ConsumeAsync(cancellationToken);
+    protected override Task ExecuteAsync(CancellationToken cancellationToken){
+        Task.Run(() => ConsumeAsync(cancellationToken), cancellationToken);
+        return Task.CompletedTask;
+    }
+
     private async Task ConsumeAsync(CancellationToken cancellationToken)
     {
         _consumer.Subscribe(_topic);
@@ -38,8 +43,10 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
                 if (result is null) continue;
                 var statusEvent = result?.Message?.Value;
                 if (statusEvent is null) continue;
+                using var scope = _scopeFactory.CreateScope();
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
                 var cmd = new UpdateSubmissionStatusCommand(statusEvent.SubmissionId,statusEvent.Type,statusEvent.Verdict, statusEvent.Message, statusEvent.Error);
-                var sendResult = await _mediator.Send(cmd, cancellationToken);
+                await mediator.Send(cmd, cancellationToken);
 
             }
         }
