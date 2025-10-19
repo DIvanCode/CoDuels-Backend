@@ -35,7 +35,7 @@ builder.Services.Configure<DuelSettings>(builder.Configuration.GetSection(DuelSe
 
 builder.Services.AddSingleton<SseConnectionManager>();
 builder.Services.AddSingleton<IMessageSender, SseMessageSender>();
-builder.Services.Configure<KafkaSettings>(builder.Configuration.GetSection("Kafka:OrderCreated"));
+builder.Services.Configure<KafkaSettings>(builder.Configuration.GetSection("Kafka"));
 builder.Services.AddHostedService<TaskiSubmissionStatusConsumer>();
 
 var app = builder.Build();
