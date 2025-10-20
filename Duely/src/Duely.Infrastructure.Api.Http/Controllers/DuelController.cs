@@ -1,7 +1,6 @@
 using Duely.Application.UseCases.Submissions;
+using Duely.Application.UseCases.GetDuel;
 using MediatR;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Duely.Infrastructure.Api.Http.Controllers;
@@ -13,6 +12,27 @@ public class DuelController : ControllerBase
     private readonly IMediator _mediator;
 
     public DuelController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet]
+    public async Task<ActionResult<DuelDto>> GetDuelAsync(
+        [FromRoute] int duelId,
+        CancellationToken cancellationToken
+    )
+    {
+        var command = new GetDuelQuery
+        {
+            DuelId = duelId
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+
+        if (result.IsFailed)
+        {
+            return BadRequest(new {error = result.Errors.First().Message});
+        }
+
+        return result.Value;
+    }
 
     [HttpPost("submit")]
     public async Task<IActionResult> SendSubmissionAsync(
