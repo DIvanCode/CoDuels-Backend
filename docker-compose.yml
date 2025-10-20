@@ -1,16 +1,26 @@
+networks:
+  coduels:
+    name: coduels
+    driver: bridge
+
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.8.3
     container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - coduels
     ports:
       - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
   kafka:
     image: confluentinc/cp-kafka:7.8.3
     container_name: kafka
-    depends_on:
-      - zookeeper
+    networks:
+      - coduels
+    ports:
+      - "9092:9092"
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -20,26 +30,30 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_CREATE_TOPICS: "exesh.step-updates:1:1,taski.testing:1:1"
-    ports:
-      - "9092:9092"
-      - "29092:29092"
+    depends_on:
+      - zookeeper
   kafka-init-topics:
     image: confluentinc/cp-kafka:7.8.3
-    depends_on:
-      - kafka
+    container_name: kafka_init_topics
+    networks:
+      - coduels
     command: >
       bash -c "
         sleep 10 &&
         kafka-topics --create --topic exesh.step-updates --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 &&
         kafka-topics --create --topic taski.testing --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
       "
+    depends_on:
+      - kafka
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
-    depends_on:
-      - kafka
+    networks:
+      - coduels
+    ports:
+      - "8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-    ports:
-      - "8080:8080"
+    depends_on:
+      - kafka

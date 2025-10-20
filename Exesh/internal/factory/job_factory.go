@@ -23,9 +23,8 @@ type (
 		log *slog.Logger
 		cfg config.JobFactoryConfig
 
-		artifactRegistry    artifactRegistry
-		inputProvider       inputProvider
-		filestorageEndpoint string
+		artifactRegistry artifactRegistry
+		inputProvider    inputProvider
 	}
 
 	artifactRegistry interface {
@@ -44,15 +43,13 @@ func NewJobFactory(
 	cfg config.JobFactoryConfig,
 	artifactRegistry artifactRegistry,
 	inputProvider inputProvider,
-	filestorageEndpoint string,
 ) *JobFactory {
 	return &JobFactory{
 		log: log,
 		cfg: cfg,
 
-		artifactRegistry:    artifactRegistry,
-		inputProvider:       inputProvider,
-		filestorageEndpoint: filestorageEndpoint,
+		artifactRegistry: artifactRegistry,
+		inputProvider:    inputProvider,
 	}
 }
 
@@ -182,7 +179,7 @@ func (f *JobFactory) createInput(ctx context.Context, execCtx *execution.Context
 		input = inputs.NewArtifactInput(otherJobOutput.GetFile(), otherJob.GetID(), workerID)
 	case execution.InlineSourceType:
 		typedSource := source.(*sources.InlineSource)
-		input = inputs.NewFilestorageBucketInput(uuid.New().String(), execCtx.InlineSourcesBucketID, f.filestorageEndpoint)
+		input = inputs.NewFilestorageBucketInput(uuid.New().String(), execCtx.InlineSourcesBucketID, f.cfg.FilestorageEndpoint)
 		w, commit, abort, err := f.inputProvider.Create(ctx, input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to save inline source to filestorage: %w", err)
@@ -203,7 +200,7 @@ func (f *JobFactory) createInput(ctx context.Context, execCtx *execution.Context
 			return nil, fmt.Errorf("failed to locate filestorage bucket input: %w", err)
 		}
 		unlock()
-		input = inputs.NewFilestorageBucketInput(typedSource.File, typedSource.BucketID, f.filestorageEndpoint)
+		input = inputs.NewFilestorageBucketInput(typedSource.File, typedSource.BucketID, f.cfg.FilestorageEndpoint)
 	default:
 		err = fmt.Errorf("unknown source type %s: %w", source.GetType(), err)
 	}

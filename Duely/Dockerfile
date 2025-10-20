@@ -1,18 +1,20 @@
-﻿FROM mcr.microsoft.com/dotnet/sdk:8.0
+﻿FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
-EXPOSE 5001
-
-WORKDIR /Source
-
-RUN dotnet tool install --global dotnet-ef
+WORKDIR /app
 
 COPY . .
 
-RUN dotnet publish Duely.sln -p:PublishDir=/Build
+RUN dotnet restore Duely.sln
+RUN dotnet build Duely.sln -c Release --no-restore
+RUN dotnet publish src/Duely/Duely.csproj -c Release -o /out --no-build
 
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 
-WORKDIR /App
+WORKDIR /app
 
-ENV ASPNETCORE_URLS=http://0.0.0.0:5001
+COPY --from=build /out .
 
-CMD ["/Build/Duely"]
+ENV ASPNETCORE_URLS=http://+:5001
+EXPOSE 5001
+
+CMD ["dotnet", "Duely.dll"]

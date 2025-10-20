@@ -1,3 +1,9 @@
+networks:
+  coduels:
+    name: coduels
+    driver: bridge
+    external: true
+
 volumes:
   postgres:
 
@@ -5,6 +11,8 @@ services:
   postgres:
     image: postgres
     container_name: exesh_postgres
+    networks:
+      - coduels
     ports:
       - "5433:5432"
     environment:
@@ -18,3 +26,30 @@ services:
       retries: 30
     volumes:
       - postgres:/var/lib/postgresql/data
+
+  coordinator:
+    build:
+      context: .
+      dockerfile: Dockerfile.coordinator
+    container_name: coordinator
+    networks:
+      - coduels
+    ports:
+      - "5253:5253"
+    environment:
+      CONFIG_PATH: config/coordinator/docker.yml
+    depends_on:
+      postgres:
+        condition: service_healthy
+  
+  worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker-1
+    container_name: worker-1
+    networks:
+      - coduels
+    ports:
+      - "5254:5254"
+    environment:
+      CONFIG_PATH: config/worker-1/docker.yml

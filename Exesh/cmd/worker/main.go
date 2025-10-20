@@ -84,6 +84,8 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 	switch env {
 	case "dev":
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	case "docker":
+		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	default:
 		err = fmt.Errorf("failed setup logger for env %s", env)
 	}

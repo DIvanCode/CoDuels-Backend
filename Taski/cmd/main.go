@@ -68,13 +68,13 @@ func main() {
 	getTaskUseCase := getUC.NewUseCase(log, taskStorage)
 	getAPI.NewHandler(log, getTaskUseCase).Register(mux)
 
-	randomTaskUseCase := randomTaskUC.NewUseCase(log, )
+	randomTaskUseCase := randomTaskUC.NewUseCase(log)
 	randomTaskAPI.NewHandler(log, randomTaskUseCase).Register(mux)
 
 	getTaskFileUseCase := getFileUC.NewUseCase(log, taskStorage)
 	getFileAPI.NewHandler(log, getTaskFileUseCase).Register(mux)
 
-	testUseCase := testUC.NewUseCase(log, taskStorage, unitOfWork, solutionStorage, executeClient, "http://"+cfg.HttpServer.Addr)
+	testUseCase := testUC.NewUseCase(log, taskStorage, unitOfWork, solutionStorage, executeClient, cfg.Execute.DownloadTaskEndpoint)
 	testAPI.NewHandler(log, testUseCase).Register(mux)
 
 	messageProducer := producer.NewKafkaProducer(log, cfg.MessageProducer)
@@ -115,6 +115,8 @@ func main() {
 func setupLogger(env string) (log *slog.Logger, err error) {
 	switch env {
 	case "dev":
+		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	case "docker":
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	default:
 		err = fmt.Errorf("failed setup logger for env %s", env)

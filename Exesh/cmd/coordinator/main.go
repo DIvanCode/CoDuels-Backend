@@ -66,7 +66,7 @@ func main() {
 
 	artifactRegistry := registry.NewArtifactRegistry(log, cfg.ArtifactRegistry, workerPool)
 
-	jobFactory := factory.NewJobFactory(log, cfg.JobFactory, artifactRegistry, inputProvider, "http://"+cfg.HttpServer.Addr)
+	jobFactory := factory.NewJobFactory(log, cfg.JobFactory, artifactRegistry, inputProvider)
 
 	messageFactory := factory.NewMessageFactory(log)
 	messageSender := sender.NewKafkaSender(log, cfg.Sender)
@@ -113,6 +113,8 @@ func main() {
 func setupLogger(env string) (log *slog.Logger, err error) {
 	switch env {
 	case "dev":
+		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	case "docker":
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	default:
 		err = fmt.Errorf("failed setup logger for env %s", env)
