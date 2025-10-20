@@ -30,7 +30,7 @@ func NewHandler(log *slog.Logger, useCase *file.UseCase) *Handler {
 }
 
 func (h *Handler) Register(r chi.Router) {
-	r.Get("/task/{id:[a-z0-9]{40}}/file/*", h.Handle)
+	r.Get("/task/{id:[a-z0-9]{40}}/*", h.Handle)
 }
 
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := strings.TrimPrefix(r.URL.Path, "/task/"+id+"/file")
+	path := strings.TrimPrefix(r.URL.Path, "/task/"+id+"/")
 	if path == "" {
 		h.log.Info("empty path")
 		render.Status(r, http.StatusBadRequest)
