@@ -41,17 +41,10 @@ public class DuelController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-
-        if (!Request.Cookies.TryGetValue("UserId", out var userIdStr) ||
-                !int.TryParse(userIdStr, out var userId))
-        {
-            return BadRequest(new { error = "Missing or invalid UserId cookie" });
-        }
-
         var command = new SendSubmissionCommand
         {
             DuelId = duelId,
-            UserId = userId,
+            UserId = request.UserId,
             Code = request.Submission,
             Language = request.Language
         };

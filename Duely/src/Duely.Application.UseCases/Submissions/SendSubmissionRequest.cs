@@ -4,7 +4,10 @@ namespace Duely.Application.UseCases.Submissions;
 
 public sealed class SendSubmissionRequest
 {
-    [JsonPropertyName("submission")]
+    [JsonPropertyName("user_id")]
+    public required int UserId { get; init; }
+
+    [JsonPropertyName("solution")]
     public required string Submission { get; init; }
 
     [JsonPropertyName("language")]
