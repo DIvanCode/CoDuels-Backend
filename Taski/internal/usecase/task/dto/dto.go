@@ -57,7 +57,7 @@ type PredictOutputTaskDto struct {
 }
 
 type TestDto struct {
-	ID     int    `json:"id"`
+	Order  int    `json:"order"`
 	Input  string `json:"input"`
 	Output string `json:"output"`
 }
@@ -70,7 +70,7 @@ func ConvertTests(tests []task.Test) []TestDto {
 		}
 
 		testsDto = append(testsDto, TestDto{
-			ID:     test.ID,
+			Order:  test.ID,
 			Input:  test.Input,
 			Output: test.Output,
 		})
