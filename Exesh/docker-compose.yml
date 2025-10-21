@@ -53,3 +53,5 @@ services:
       - "5254:5254"
     environment:
       CONFIG_PATH: config/worker-1/docker.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
