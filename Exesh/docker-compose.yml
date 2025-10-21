@@ -53,6 +53,8 @@ services:
       - "5254:5254"
     environment:
       CONFIG_PATH: config/worker-1/docker.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   worker-2:
     build:
@@ -65,3 +67,5 @@ services:
       - "5255:5255"
     environment:
       CONFIG_PATH: config/worker-2/docker.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
