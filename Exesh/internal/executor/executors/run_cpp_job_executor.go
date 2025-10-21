@@ -144,8 +144,8 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 		runtime.ExecuteParams{
 			// TODO: Limits
 			Limits: runtime.Limits{
-				Memory: runtime.MemoryLimit(runCppJob.MemoryLimit),
-				Time:   runtime.TimeLimit(runCppJob.TimeLimit),
+				Memory: runtime.MemoryLimit(int64(runCppJob.MemoryLimit) * int64(runtime.Megabyte)),
+				Time:   runtime.TimeLimit(int64(runCppJob.TimeLimit) * int64(time.Millisecond)),
 			},
 			InFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: "/a.out"}},
 			Stderr:  stderr,
