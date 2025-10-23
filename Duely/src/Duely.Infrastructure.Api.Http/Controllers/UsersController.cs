@@ -55,6 +55,21 @@ public sealed class UsersController(IMediator mediator, IUserContext userContext
         return this.HandleResult(result);
     }
 
+    [HttpGet("{userId:int}")]
+    [Authorize]
+    public async Task<ActionResult<UserDto>> GetAsync(
+        [FromRoute] int userId,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetUserQuery
+        {
+            UserId = userId
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpPost("refresh")]
     [Authorize]
     public async Task<ActionResult<TokenDto>> RefreshAsync(

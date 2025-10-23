@@ -21,7 +21,9 @@ public sealed class DuelsController(
     IOptions<SseConnectionOptions> options) : ControllerBase
 {
     [HttpGet("{duelId:int}")]
-    public async Task<ActionResult<DuelDto>> GetAsync([FromRoute] int duelId, CancellationToken cancellationToken)
+    public async Task<ActionResult<DuelDto>> GetAsync(
+        [FromRoute] int duelId,
+        CancellationToken cancellationToken)
     {
         var query = new GetDuelQuery
         {
