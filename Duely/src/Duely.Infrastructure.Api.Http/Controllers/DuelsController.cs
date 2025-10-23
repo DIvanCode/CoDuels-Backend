@@ -1,4 +1,3 @@
-using System.Linq;
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Infrastructure.Api.Http.Services;
