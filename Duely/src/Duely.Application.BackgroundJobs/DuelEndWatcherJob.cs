@@ -1,5 +1,3 @@
-using Duely.Application.Configuration;
-using Duely.Application.UseCases.FinishDuel;
 using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using MediatR;
@@ -7,78 +5,87 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
+using Duely.Application.UseCases.Features.Duels;
+
 namespace Duely.Application.BackgroundJobs;
 
-public sealed class DuelEndWatcherJob : BackgroundService
+public sealed class DuelEndWatcherJob(IServiceProvider sp, IOptions<DuelEndWatcherJobOptions> options)
+    : BackgroundService
 {
-    private readonly IServiceProvider _sp;
-    private readonly DuelSettings _settings;
-
-    public DuelEndWatcherJob(IServiceProvider sp, IOptions<DuelSettings> options)
-    {
-        _sp = sp;
-        _settings = options.Value;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            using (var scope = _sp.CreateScope())
+            using (var scope = sp.CreateScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<Context>();
+                var context = scope.ServiceProvider.GetRequiredService<Context>();
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                var now = DateTime.UtcNow;
-                var duels = await db.Duels
-                    .AsNoTracking()
+
+                var duels = await context.Duels
                     .Where(d => d.Status == DuelStatus.InProgress)
+                    .Include(d => d.User1)
+                    .Include(d => d.User2)
                     .Include(d => d.Submissions
                         .Where(s => s.Status == SubmissionStatus.Done && s.Verdict == "Accepted")
                         .OrderBy(s => s.SubmitTime))
+                    .ThenInclude(s => s.User)
                     .ToListAsync(cancellationToken);
+
                 foreach (var duel in duels)
                 {
-                    if (cancellationToken.IsCancellationRequested) break;
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
                     var accepted = duel.Submissions;
-                    var deadline = duel.StartTime.AddMinutes(duel.MaxDuration);
-                    var u1 = accepted.FirstOrDefault(s => s.UserId == duel.User1Id);
-                    var u2 = accepted.FirstOrDefault(s => s.UserId == duel.User2Id);
+                    var u1 = accepted.FirstOrDefault(s => s.User.Id == duel.User1.Id);
+                    var u2 = accepted.FirstOrDefault(s => s.User.Id == duel.User2.Id);
                     if (u1 is not null || u2 is not null)
                     {
-                        string winner = "draw";
+                        User? winner = null;
                         if (u1 is not null && u2 is null)
                         {
-                            winner = "1";
+                            winner = duel.User1;
                         }
                         if (u2 is not null && u1 is null)
                         {
-                            winner = "2";
+                            winner = duel.User2;
                         }
                         if (u2 is not null && u1 is not null)
                         {
                             if (u1.SubmitTime > u2.SubmitTime)
                             {
-                                winner = "2";
+                                winner = duel.User2;
                             }
                             else if (u1.SubmitTime < u2.SubmitTime)
                             {
-                                winner = "1";
-                            }
-                            else
-                            {
-                                winner = "draw";
+                                winner = duel.User1;
                             }
                         }
-                        await mediator.Send(new FinishDuelCommand { DuelId = duel.Id, Winner = winner }, cancellationToken);
+
+                        var command = new FinishDuelCommand
+                        {
+                            DuelId = duel.Id,
+                            WinnerId = winner?.Id
+                        };
+                        await mediator.Send(command, cancellationToken);
                         continue;
                     }
-                    if (now >= deadline)
+
+                    if (DateTime.UtcNow >= duel.DeadlineTime)
                     {
-                        await mediator.Send(new FinishDuelCommand { DuelId = duel.Id, Winner = "draw" }, cancellationToken);
+                        var command = new FinishDuelCommand
+                        {
+                            DuelId = duel.Id,
+                            WinnerId = null
+                        };
+                        await mediator.Send(command, cancellationToken);
                     }
                 }
             }
-            await Task.Delay(_settings.CheckFinishInterval, cancellationToken);
+
+            await Task.Delay(options.Value.CheckIntervalMs, cancellationToken);
         }
     }
 }

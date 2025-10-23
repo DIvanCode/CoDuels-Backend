@@ -30,7 +30,8 @@ services:
   migration:
     build:
       context: .
-      dockerfile: Dockerfile.migration
+      dockerfile: Dockerfile
+      target: migration
     container_name: duely_migration
     networks:
       - coduels
@@ -46,7 +47,10 @@ services:
         condition: service_healthy
   
   duely:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
     container_name: duely
     networks:
       - coduels

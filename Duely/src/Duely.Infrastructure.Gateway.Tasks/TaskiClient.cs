@@ -4,46 +4,50 @@ using FluentResults;
 
 namespace Duely.Infrastructure.Gateway.Tasks;
 
-public sealed class TaskiClient : ITaskiClient
+public sealed class TaskiClient(HttpClient httpClient) : ITaskiClient
 {
-    private readonly HttpClient _http;
-
-    public TaskiClient(HttpClient http) => _http = http;
-
-    public async Task<Result> SendSubmission(
+    public async Task<Result> TestSolutionAsync(
         string taskId,
-        int submissionId,
+        string solutionId,
         string solution,
-        string language)
+        string language,
+        CancellationToken cancellationToken)
     {
-        var request = new SendSubmissionRequest
+        try
         {
-            TaskId =taskId,
-            SolutionId =submissionId.ToString(),
-            Solution =solution,
-            Language = language
-        };
+            var request = new TestRequest
+            {
+                TaskId = taskId,
+                SolutionId = solutionId,
+                Solution = solution,
+                Language = language
+            };
 
-        using var resp = await _http.PostAsJsonAsync("test", request);
-        if (!resp.IsSuccessStatusCode)
-        {
-            return Result.Fail($"Failed to send submission {submissionId} for task {taskId}");
+            using var resp = await httpClient.PostAsJsonAsync("test", request, cancellationToken);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return Result.Fail($"Failed to test solution {solutionId} for task {taskId}");
+            }
+
+            return Result.Ok();
         }
-        return Result.Ok();
+        catch (Exception e)
+        {
+            return Result.Fail(e.Message);
+        }
     }
 
     public async Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var task = await _http.GetFromJsonAsync<RandomTaskResponse>("task/random", cancellationToken);
-
-            if (task is null)
+            var resp = await httpClient.GetFromJsonAsync<RandomTaskResponse>("task/random", cancellationToken);
+            if (resp is null)
             {
                 return Result.Fail<string>("No random task returned from Taski");
             }
 
-            return Result.Ok(task.TaskId);
+            return Result.Ok(resp.TaskId);
         }
         catch (Exception e)
         {

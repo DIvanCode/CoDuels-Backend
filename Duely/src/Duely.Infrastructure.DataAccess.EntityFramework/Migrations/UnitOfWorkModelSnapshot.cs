@@ -26,24 +26,18 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DeadlineTime")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("DeadlineTime");
 
                     b.Property<DateTime?>("EndTime")
                         .HasColumnType("timestamp")
                         .HasColumnName("EndTime");
-
-                    b.Property<int>("MaxDuration")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(30)
-                        .HasColumnName("MaxDuration");
-
-                    b.Property<string>("Result")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Result");
 
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("timestamp")
@@ -59,24 +53,32 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("TaskId");
 
-                    b.Property<int>("User1Id")
-                        .HasColumnType("integer")
-                        .HasColumnName("User1Id");
+                    b.Property<int?>("User1Id")
+                        .HasColumnType("integer");
 
-                    b.Property<int>("User2Id")
-                        .HasColumnType("integer")
-                        .HasColumnName("User2Id");
+                    b.Property<int?>("User2Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("WinnerId")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Duel", (string)null);
+                    b.HasIndex("User1Id");
+
+                    b.HasIndex("User2Id");
+
+                    b.HasIndex("WinnerId");
+
+                    b.ToTable("Duels", (string)null);
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.Submission", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
@@ -93,6 +95,10 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("Language");
 
+                    b.Property<string>("Message")
+                        .HasColumnType("text")
+                        .HasColumnName("Message");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
@@ -103,8 +109,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnName("SubmitTime");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("UserId");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Verdict")
                         .HasColumnType("text")
@@ -114,7 +119,66 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
                     b.HasIndex("DuelId");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("Submissions", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Nickname")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Nickname");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("PasswordHash");
+
+                    b.Property<string>("PasswordSalt")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("PasswordSalt");
+
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("text")
+                        .HasColumnName("RefreshToken");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.User", "User1")
+                        .WithMany()
+                        .HasForeignKey("User1Id")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Duely.Domain.Models.User", "User2")
+                        .WithMany()
+                        .HasForeignKey("User2Id")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Duely.Domain.Models.User", "Winner")
+                        .WithMany()
+                        .HasForeignKey("WinnerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("User1");
+
+                    b.Navigation("User2");
+
+                    b.Navigation("Winner");
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.Submission", b =>
@@ -125,7 +189,15 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Duely.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Duel");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>

@@ -8,12 +8,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
+      <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.0" />
+      <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.0" />
-      <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4" />
+      <ProjectReference Include="..\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
     </ItemGroup>
 
 </Project>

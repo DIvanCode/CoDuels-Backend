@@ -22,10 +22,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Domain.Services", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Application.BackgroundJobs", "src\Duely.Application.BackgroundJobs\Duely.Application.BackgroundJobs.csproj", "{B1A348B2-0D59-489D-8EB6-230620CA5F35}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Application.Configuration", "src\Duely.Application.Configuration\Duely.Application.Configuration.csproj", "{DF7D2AF1-F372-4CF2-9E4D-EB93405A19BA}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Api.Sse", "src\Duely.Infrastructure.Api.Sse\Duely.Infrastructure.Api.Sse.csproj", "{855F4F2A-0635-48E0-A816-4E920A3EF9F6}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -76,13 +72,5 @@ Global
 		{B1A348B2-0D59-489D-8EB6-230620CA5F35}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B1A348B2-0D59-489D-8EB6-230620CA5F35}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B1A348B2-0D59-489D-8EB6-230620CA5F35}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DF7D2AF1-F372-4CF2-9E4D-EB93405A19BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DF7D2AF1-F372-4CF2-9E4D-EB93405A19BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DF7D2AF1-F372-4CF2-9E4D-EB93405A19BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DF7D2AF1-F372-4CF2-9E4D-EB93405A19BA}.Release|Any CPU.Build.0 = Release|Any CPU
-		{855F4F2A-0635-48E0-A816-4E920A3EF9F6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{855F4F2A-0635-48E0-A816-4E920A3EF9F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{855F4F2A-0635-48E0-A816-4E920A3EF9F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{855F4F2A-0635-48E0-A816-4E920A3EF9F6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
