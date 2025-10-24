@@ -1,45 +1,37 @@
-﻿using Duely.Domain.Services;
-using Duely.Application.UseCases.CreateDuel;
-using Duely.Application.Configuration;
+﻿using Duely.Domain.Services.Duels;
 using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
+using Duely.Application.UseCases.Features.Duels;
 
 namespace Duely.Application.BackgroundJobs;
 
-public sealed class DuelMakingJob : BackgroundService
+public sealed class DuelMakingJob(IServiceProvider sp, IDuelManager duelManager, IOptions<DuelMakingJobOptions> options)
+    : BackgroundService
 {
-    private readonly IDuelManager _duelManager;
-    private readonly DuelSettings _settings;
-    private readonly IServiceProvider _sp;
-
-    public DuelMakingJob(IServiceProvider sp, IDuelManager duelManager, IOptions<DuelSettings> options)
-    {
-        _sp = sp;
-        _duelManager = duelManager;
-        _settings = options.Value;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested) {
-            using (var scope = _sp.CreateScope())
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            using (var scope = sp.CreateScope())
             {
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                var pair = _duelManager.TryGetPair();
+                var pair = duelManager.TryGetPair();
 
-                if (pair is not null) {
-                    await mediator.Send(new CreateDuelCommand {
+                if (pair is not null)
+                {
+                    var command = new CreateDuelCommand
+                    {
                         User1Id = pair.Value.User1,
                         User2Id = pair.Value.User2
-                    }, cancellationToken);
+                    };
+
+                    await mediator.Send(command, cancellationToken);
                 }
-
-                await Task.Delay(_settings.CheckPairInterval, cancellationToken);
             }
-            
 
+            await Task.Delay(options.Value.CheckPairIntervalMs, cancellationToken);
         }
     }
 }

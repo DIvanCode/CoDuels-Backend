@@ -1,28 +1,21 @@
 namespace Duely.Domain.Models;
 
+public sealed class Duel
+{
+    public int Id { get; init; }
+    public required string TaskId { get; init; }
+    public required User? User1 { get; init; }
+    public required User? User2 { get; init; }
+    public required DuelStatus Status { get; set; }
+    public required DateTime StartTime { get; init; }
+    public required DateTime DeadlineTime { get; init; }
+    public DateTime? EndTime { get; set; }
+    public User? Winner { get; set; }
+    public List<Submission> Submissions { get; set; } = [];
+}
+
 public enum DuelStatus
 {
     InProgress = 0,
     Finished = 1
-}
-public enum DuelResult
-{
-    None = 0,
-    Draw = 1,
-    User1 = 2,
-    User2 = 3
-}
-
-public sealed class Duel
-{
-    public int Id { get; set; }
-    public required string TaskId { get; set; }
-    public int User1Id { get; set; }
-    public int User2Id { get; set; }
-    public DuelStatus Status { get; set; }
-    public DuelResult Result { get; set; }
-    public DateTime StartTime { get; set; }
-    public DateTime? EndTime { get; set; }
-    public int MaxDuration { get; set; } = 30;
-    public ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 }

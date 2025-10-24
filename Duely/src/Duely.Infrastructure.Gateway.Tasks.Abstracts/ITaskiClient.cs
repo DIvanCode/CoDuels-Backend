@@ -1,16 +1,15 @@
-using System.Xml.XPath;
 using FluentResults;
 
 namespace Duely.Infrastructure.Gateway.Tasks.Abstracts;
 
 public interface ITaskiClient
 {
-    Task <Result> SendSubmission(
+    Task<Result> TestSolutionAsync(
         string taskId,
-        int submissionId,
+        string solutionId,
         string solution,
-        string language);
+        string language,
+        CancellationToken cancellationToken);
 
     Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken);
-
 }

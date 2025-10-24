@@ -8,10 +8,9 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
       <PackageReference Include="FluentResults" Version="4.0.0" />
       <PackageReference Include="MediatR" Version="13.0.0" />
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.9" />
-      <PackageReference Include="FluentResults" Version="4.0.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -20,7 +19,6 @@
       <ProjectReference Include="..\Duely.Infrastructure.Gateway.Client.Abstracts\Duely.Infrastructure.Gateway.Client.Abstracts.csproj" />
       <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj" />
       <ProjectReference Include="..\Duely.Infrastructure.DataAccess.EntityFramework\Duely.Infrastructure.DataAccess.EntityFramework.csproj" />
-      <ProjectReference Include="..\Duely.Application.Configuration\Duely.Application.Configuration.csproj" />
     </ItemGroup>
 
 </Project>
