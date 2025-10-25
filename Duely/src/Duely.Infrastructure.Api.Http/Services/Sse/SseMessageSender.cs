@@ -7,17 +7,18 @@ namespace Duely.Infrastructure.Api.Http.Services.Sse;
 
 public sealed class SseMessageSender(ISseConnectionManager connections) : IMessageSender
 {
-    public async Task SendMessage(Message message, CancellationToken cancellationToken)
+    public async Task SendMessage(IEnumerable<int> userIds, Message message, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(message, message.GetType());
 
-        foreach (var connection in connections.GetAllActiveUserIds())
+        foreach (var userId in userIds)
         {
-            var response = connections.GetConnection(connection);
+            var response = connections.GetConnection(userId);
+
             if (response is null)
             {
                 continue;
-            }
+            } 
 
             try
             {
@@ -27,7 +28,7 @@ public sealed class SseMessageSender(ISseConnectionManager connections) : IMessa
             }
             catch
             {
-                connections.RemoveConnection(connection);
+                connections.RemoveConnection(userId);
             }
         }
     }
