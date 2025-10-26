@@ -3,27 +3,30 @@ package executors
 import (
 	"bytes"
 	"context"
-	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/jobs"
-	"exesh/internal/domain/execution/results"
 	"fmt"
 	"io"
 	"log/slog"
-	"os/exec"
 	"time"
+
+	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/jobs"
+	"exesh/internal/domain/execution/results"
+	"exesh/internal/runtime"
 )
 
 type CheckCppJobExecutor struct {
 	log            *slog.Logger
 	inputProvider  inputProvider
 	outputProvider outputProvider
+	runtime        runtime.Runtime
 }
 
-func NewCheckCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider) *CheckCppJobExecutor {
+func NewCheckCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *CheckCppJobExecutor {
 	return &CheckCppJobExecutor{
 		log:            log,
 		inputProvider:  inputProvider,
 		outputProvider: outputProvider,
+		runtime:        rt,
 	}
 }
 
@@ -113,20 +116,20 @@ func (e *CheckCppJobExecutor) Execute(ctx context.Context, job execution.Job) ex
 		return errorResult(fmt.Errorf("failed to create check_verdict output: %w", err))
 	}
 
-	cmd := exec.CommandContext(ctx, "./"+compiledCheckerLocation, correctOutputLocation, suspectOutputLocation)
-
-	cmd.Stdout = checkVerdict
-
-	stderr := bytes.Buffer{}
-	cmd.Stderr = &stderr
-
-	e.log.Info("do command", slog.Any("cmd", cmd))
-	if err = cmd.Run(); err != nil {
-		e.log.Info("command error", slog.Any("err", err))
+	stderr := bytes.NewBuffer(nil)
+	err = e.runtime.Execute(ctx, []string{"/a.out", "/correct.txt", "/suspect.txt"}, runtime.ExecuteParams{
+		InFiles: []runtime.File{
+			{InsideLocation: "/correct.txt", OutsideLocation: correctOutputLocation},
+			{InsideLocation: "/suspect.txt", OutsideLocation: suspectOutputLocation},
+			{InsideLocation: "/a.out", OutsideLocation: compiledCheckerLocation},
+		},
+		Stdout: checkVerdict,
+		Stderr: stderr,
+	})
+	if err != nil {
+		e.log.Error("execute checker in runtime error", slog.Any("err", err))
 		return errorResult(err)
 	}
-
-	e.log.Info("command ok")
 
 	if err = commit(); err != nil {
 		_ = abort()
@@ -137,6 +140,8 @@ func (e *CheckCppJobExecutor) Execute(ctx context.Context, job execution.Job) ex
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to open check_verdict output: %w", err))
 	}
+
+	defer unlock()
 
 	checkVerdictOutput, err := io.ReadAll(checkVerdictReader)
 	if err != nil {
