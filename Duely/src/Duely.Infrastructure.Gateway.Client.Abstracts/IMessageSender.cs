@@ -4,5 +4,5 @@ namespace Duely.Infrastructure.Gateway.Client.Abstracts;
 
 public interface IMessageSender
 {
-    Task SendMessage(Message message, CancellationToken cancellationToken);
+    Task SendMessage(int userId, Message message, CancellationToken cancellationToken);
 }

@@ -66,7 +66,8 @@ public sealed class CreateDuelHandler(
             DuelId = duel.Id,
         };
 
-        await messageSender.SendMessage(message, cancellationToken);
+        await messageSender.SendMessage(duel.User1.Id, message, cancellationToken);
+        await messageSender.SendMessage(duel.User2.Id, message, cancellationToken);
 
         return Result.Ok();
     }

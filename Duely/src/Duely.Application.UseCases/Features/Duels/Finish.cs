@@ -52,7 +52,8 @@ public sealed class FinishDuelHandler(Context context, IMessageSender messageSen
             DuelId = duel.Id,
         };
 
-        await messageSender.SendMessage(message, cancellationToken);
+        await messageSender.SendMessage(duel.User1.Id, message, cancellationToken);
+        await messageSender.SendMessage(duel.User2.Id, message, cancellationToken);
 
         return Result.Ok();
     }
