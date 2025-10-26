@@ -31,6 +31,7 @@ public sealed class SubmissionsController(IMediator mediator, IUserContext userC
         var result = await mediator.Send(command, cancellationToken);
         return this.HandleResult(result);
     }
+    
     [HttpGet]
     public async Task<ActionResult<List<SubmissionListItemDto>>> GetUserSubmissionsAsync(
         [FromRoute] int duelId,
@@ -45,6 +46,7 @@ public sealed class SubmissionsController(IMediator mediator, IUserContext userC
         var result = await mediator.Send(query, cancellationToken);
         return this.HandleResult(result);
     }
+
     [HttpGet("{submissionId:int}")] 
     public async Task<ActionResult<SubmissionDto>> GetSubmissionAsync(
         [FromRoute] int duelId,

@@ -25,8 +25,9 @@ public sealed class GetUserSubmissionsHandler(Context context)
         {
             return new EntityNotFoundError(nameof(Duel), nameof(Duel.Id), query.DuelId);
         }
-        var items = await context.Submissions
-            .Where(s => s.Duel.Id == query.DuelId && s.User.Id == query.UserId)
+        var items = await context.Duels
+            .Where(d => d.Id == query.DuelId)
+            .SelectMany(d => d.Submissions.Where(s => s.User.Id == query.UserId))
             .OrderBy(s => s.SubmitTime)
             .Select(s => new SubmissionListItemDto
             {
