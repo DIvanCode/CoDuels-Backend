@@ -57,3 +57,22 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
       - kafka
+  # for testing nginx
+  # http_echo:
+  #   image: mendhak/http-https-echo:latest
+  #   ports:
+  #     - "443"
+  #     - "80"
+  #   networks:
+  #     - coduels
+  nginx:
+    image: nginx:1.29.2
+    restart: unless-stopped
+    container_name: nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - coduels
+    ports:
+      - "80:80"
+      - "443:443"
