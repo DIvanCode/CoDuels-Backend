@@ -116,8 +116,5 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) 
 		return errorResult(commitErr)
 	}
 
-	if err != nil {
-		return compilationErrorResult(stderr.String())
-	}
 	return okResult()
 }

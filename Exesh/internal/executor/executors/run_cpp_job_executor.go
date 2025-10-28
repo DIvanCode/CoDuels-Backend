@@ -4,15 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
-	"io"
-	"log/slog"
-	"time"
-
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/jobs"
 	"exesh/internal/domain/execution/results"
 	"exesh/internal/runtime"
+	"fmt"
+	"io"
+	"log/slog"
+	"time"
 )
 
 type RunCppJobExecutor struct {
@@ -162,6 +161,8 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 		}
 		return runtimeErrorResult()
 	}
+
+	e.log.Info("command ok")
 
 	if err = commit(); err != nil {
 		return errorResult(fmt.Errorf("failed to commit output creation: %w", err))
