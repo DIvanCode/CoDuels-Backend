@@ -7,10 +7,10 @@ import (
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/jobs"
 	"exesh/internal/domain/execution/results"
+	"exesh/internal/runtime"
 	"fmt"
 	"io"
 	"log/slog"
-	"os/exec"
 	"time"
 )
 
@@ -18,13 +18,15 @@ type RunPyJobExecutor struct {
 	log            *slog.Logger
 	inputProvider  inputProvider
 	outputProvider outputProvider
+	runtime        runtime.Runtime
 }
 
-func NewRunPyJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider) *RunPyJobExecutor {
+func NewRunPyJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *RunPyJobExecutor {
 	return &RunPyJobExecutor{
 		log:            log,
 		inputProvider:  inputProvider,
 		outputProvider: outputProvider,
+		runtime:        rt,
 	}
 }
 
@@ -79,6 +81,29 @@ func (e *RunPyJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 		}
 	}
 
+	tlResult := func() execution.Result {
+		return results.RunResult{
+			ResultDetails: execution.ResultDetails{
+				ID:     job.GetID(),
+				Type:   execution.RunResult,
+				DoneAt: time.Now(),
+			},
+			Status:    results.RunStatusTL,
+			HasOutput: false,
+		}
+	}
+
+	mlResult := func() execution.Result {
+		return results.RunResult{
+			ResultDetails: execution.ResultDetails{
+				ID:     job.GetID(),
+				Type:   execution.RunResult,
+				DoneAt: time.Now(),
+			},
+			Status: results.RunStatusML,
+		}
+	}
+
 	if job.GetType() != execution.RunPyJobType {
 		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.RunPyJobType))
 	}
@@ -114,25 +139,28 @@ func (e *RunPyJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 		return errorResult(fmt.Errorf("failed to create run_output output: %w", err))
 	}
 
-	cmd := exec.CommandContext(ctx, "python3", codeLocation)
-
-	cmd.Stdin = runInput
-	cmd.Stdout = runOutput
-
-	stderr := bytes.Buffer{}
-	cmd.Stderr = &stderr
-
-	e.log.Info("do command", slog.Any("cmd", cmd))
-	if err = cmd.Run(); err != nil {
-		e.log.Info("command error", slog.Any("err", err))
-
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			_ = abort()
-			return errorResult(err)
+	stderr := bytes.NewBuffer(nil)
+	err = e.runtime.Execute(ctx,
+		[]string{"python3 /main.py"},
+		runtime.ExecuteParams{
+			// TODO: Limits
+			Limits: runtime.Limits{
+				Memory: runtime.MemoryLimit(int64(runPyJob.MemoryLimit) * int64(runtime.Megabyte)),
+				Time:   runtime.TimeLimit(int64(runPyJob.TimeLimit) * int64(time.Millisecond)),
+			},
+			InFiles: []runtime.File{{OutsideLocation: codeLocation, InsideLocation: "/main.py"}},
+			Stderr:  stderr,
+			Stdin:   runInput,
+			Stdout:  runOutput,
+		})
+	if err != nil {
+		e.log.Error("execute binary in runtime error", slog.Any("err", err))
+		if errors.Is(err, runtime.ErrTimeout) {
+			return tlResult()
 		}
-
-		_ = abort()
+		if errors.Is(err, runtime.ErrOutOfMemory) {
+			return mlResult()
+		}
 		return runtimeErrorResult()
 	}
 
@@ -151,6 +179,9 @@ func (e *RunPyJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to open run output: %w", err))
 	}
+
+	// TODO: find out where defer should and should not be used
+	defer unlock()
 
 	output, err := io.ReadAll(runOutputReader)
 	if err != nil {
