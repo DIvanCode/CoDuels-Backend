@@ -7,10 +7,10 @@ import (
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/jobs"
 	"exesh/internal/domain/execution/results"
+	"exesh/internal/runtime"
 	"fmt"
 	"io"
 	"log/slog"
-	"os/exec"
 	"time"
 )
 
@@ -18,13 +18,15 @@ type RunGoJobExecutor struct {
 	log            *slog.Logger
 	inputProvider  inputProvider
 	outputProvider outputProvider
+	runtime        runtime.Runtime
 }
 
-func NewRunGoJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider) *RunGoJobExecutor {
+func NewRunGoJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *RunGoJobExecutor {
 	return &RunGoJobExecutor{
 		log:            log,
 		inputProvider:  inputProvider,
 		outputProvider: outputProvider,
+		runtime:        rt,
 	}
 }
 
@@ -79,6 +81,29 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 		}
 	}
 
+	tlResult := func() execution.Result {
+		return results.RunResult{
+			ResultDetails: execution.ResultDetails{
+				ID:     job.GetID(),
+				Type:   execution.RunResult,
+				DoneAt: time.Now(),
+			},
+			Status:    results.RunStatusTL,
+			HasOutput: false,
+		}
+	}
+
+	mlResult := func() execution.Result {
+		return results.RunResult{
+			ResultDetails: execution.ResultDetails{
+				ID:     job.GetID(),
+				Type:   execution.RunResult,
+				DoneAt: time.Now(),
+			},
+			Status: results.RunStatusML,
+		}
+	}
+
 	if job.GetType() != execution.RunGoJobType {
 		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.RunGoJobType))
 	}
@@ -88,11 +113,13 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate code input: %w", err))
 	}
-	unlock()
+	defer unlock()
+
 	_, unlock, err = e.inputProvider.Locate(ctx, runGoJob.RunInput)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate run_input input: %w", err))
 	}
+	defer unlock()
 
 	var codeLocation string
 	codeLocation, unlock, err = e.inputProvider.Locate(ctx, runGoJob.Code)
@@ -113,25 +140,28 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 		return errorResult(fmt.Errorf("failed to create run_output output: %w", err))
 	}
 
-	cmd := exec.CommandContext(ctx, "go", "run", codeLocation)
-
-	cmd.Stdin = runInput
-	cmd.Stdout = runOutput
-
-	stderr := bytes.Buffer{}
-	cmd.Stderr = &stderr
-
-	e.log.Info("do command", slog.Any("cmd", cmd))
-	if err = cmd.Run(); err != nil {
-		e.log.Info("command error", slog.Any("err", err))
-
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			_ = abort()
-			return errorResult(err)
+	stderr := bytes.NewBuffer(nil)
+	err = e.runtime.Execute(ctx,
+		[]string{"go run /main.go"},
+		runtime.ExecuteParams{
+			// TODO: Limits
+			Limits: runtime.Limits{
+				Memory: runtime.MemoryLimit(int64(runGoJob.MemoryLimit) * int64(runtime.Megabyte)),
+				Time:   runtime.TimeLimit(int64(runGoJob.TimeLimit) * int64(time.Millisecond)),
+			},
+			InFiles: []runtime.File{{OutsideLocation: codeLocation, InsideLocation: "/main.go"}},
+			Stderr:  stderr,
+			Stdin:   runInput,
+			Stdout:  runOutput,
+		})
+	if err != nil {
+		e.log.Error("execute binary in runtime error", slog.Any("err", err))
+		if errors.Is(err, runtime.ErrTimeout) {
+			return tlResult()
 		}
-
-		_ = abort()
+		if errors.Is(err, runtime.ErrOutOfMemory) {
+			return mlResult()
+		}
 		return runtimeErrorResult()
 	}
 
@@ -150,6 +180,7 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to open run output: %w", err))
 	}
+	defer unlock()
 
 	output, err := io.ReadAll(runOutputReader)
 	if err != nil {
