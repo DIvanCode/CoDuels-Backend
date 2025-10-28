@@ -110,9 +110,9 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 	}
 	runGoJob := job.(*jobs.RunGoJob)
 
-	code, unlock, err := e.inputProvider.Locate(ctx, runGoJob.Code)
+	compiledCode, unlock, err := e.inputProvider.Locate(ctx, runGoJob.CompiledCode)
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate code input: %w", err))
+		return errorResult(fmt.Errorf("failed to locate compiled_code input: %w", err))
 	}
 	defer unlock()
 
@@ -140,14 +140,14 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.Execute(ctx,
-		[]string{"go run /main.go"},
+		[]string{"/a.out"},
 		runtime.ExecuteParams{
 			// TODO: Limits
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(int64(runGoJob.MemoryLimit) * int64(runtime.Megabyte)),
 				Time:   runtime.TimeLimit(int64(runGoJob.TimeLimit) * int64(time.Millisecond)),
 			},
-			InFiles: []runtime.File{{OutsideLocation: codeLocation, InsideLocation: "/main.go"}},
+			InFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: "/a.out"}},
 			Stderr:  stderr,
 			Stdin:   runInput,
 			Stdout:  runOutput,
@@ -165,8 +165,12 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 
 	e.log.Info("command ok")
 
-	if commitErr := commit(); commitErr != nil {
-		return errorResult(commitErr)
+	if err = commit(); err != nil {
+		return errorResult(fmt.Errorf("failed to commit output creation: %w", err))
+	}
+
+	if err != nil {
+		return runtimeErrorResult()
 	}
 
 	if !runGoJob.ShowOutput {
@@ -177,6 +181,8 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to open run output: %w", err))
 	}
+	defer unlock()
+
 	defer unlock()
 
 	output, err := io.ReadAll(runOutputReader)

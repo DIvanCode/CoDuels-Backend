@@ -26,6 +26,7 @@ type (
 
 const (
 	CompileCppJobType JobType = "compile_cpp"
+	CompileGoJobType  JobType = "compile_go"
 	RunCppJobType     JobType = "run_cpp"
 	RunPyJobType      JobType = "run_py"
 	RunGoJobType      JobType = "run_go"

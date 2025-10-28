@@ -120,9 +120,10 @@ func setupJobExecutor(log *slog.Logger, inputProvider *provider.InputProvider, o
 		return nil, fmt.Errorf("create cpp runtime: %w", err)
 	}
 	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, inputProvider, outputProvider, rt)
+	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, inputProvider, outputProvider, rt)
 	runCppJobExecutor := executors.NewRunCppJobExecutor(log, inputProvider, outputProvider, rt)
 	runPyJobExecutor := executors.NewRunPyJobExecutor(log, inputProvider, outputProvider, rt)
 	runGoJobExecutor := executors.NewRunGoJobExecutor(log, inputProvider, outputProvider, rt)
 	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, inputProvider, outputProvider, rt)
-	return executor.NewJobExecutor(compileCppJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
+	return executor.NewJobExecutor(compileCppJobExecutor, compileGoJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
 }
