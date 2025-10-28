@@ -2,14 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	flog "log"
-	"log/slog"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-
 	"exesh/internal/config"
 	"exesh/internal/executor"
 	"exesh/internal/executor/executors"
@@ -18,6 +10,13 @@ import (
 	"exesh/internal/provider/providers/adapter"
 	"exesh/internal/runtime/docker"
 	"exesh/internal/worker"
+	"fmt"
+	flog "log"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
@@ -123,7 +122,7 @@ func setupJobExecutor(log *slog.Logger, inputProvider *provider.InputProvider, o
 	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, inputProvider, outputProvider, rt)
 	runCppJobExecutor := executors.NewRunCppJobExecutor(log, inputProvider, outputProvider, rt)
 	runPyJobExecutor := executors.NewRunPyJobExecutor(log, inputProvider, outputProvider)
-	runGoJobExecutor := executors.NewRunGoJobExecutor(log, inputProvider, outputProvider)
+	runGoJobExecutor := executors.NewRunGoJobExecutor(log, inputProvider, outputProvider, rt)
 	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, inputProvider, outputProvider, rt)
 	return executor.NewJobExecutor(compileCppJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
 }

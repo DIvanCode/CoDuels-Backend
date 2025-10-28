@@ -1,29 +1,33 @@
 package executors
 
 import (
+	"bytes"
 	"context"
 	"errors"
-	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/jobs"
-	"exesh/internal/domain/execution/results"
 	"fmt"
 	"io"
 	"log/slog"
-	"os/exec"
 	"time"
+
+	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/jobs"
+	"exesh/internal/domain/execution/results"
+	"exesh/internal/runtime"
 )
 
 type RunGoJobExecutor struct {
 	log            *slog.Logger
 	inputProvider  inputProvider
 	outputProvider outputProvider
+	runtime        runtime.Runtime
 }
 
-func NewRunGoJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider) *RunGoJobExecutor {
+func NewRunGoJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *RunGoJobExecutor {
 	return &RunGoJobExecutor{
 		log:            log,
 		inputProvider:  inputProvider,
 		outputProvider: outputProvider,
+		runtime:        rt,
 	}
 }
 
@@ -78,6 +82,29 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 		}
 	}
 
+	tlResult := func() execution.Result {
+		return results.RunResult{
+			ResultDetails: execution.ResultDetails{
+				ID:     job.GetID(),
+				Type:   execution.RunResult,
+				DoneAt: time.Now(),
+			},
+			Status:    results.RunStatusTL,
+			HasOutput: false,
+		}
+	}
+
+	mlResult := func() execution.Result {
+		return results.RunResult{
+			ResultDetails: execution.ResultDetails{
+				ID:     job.GetID(),
+				Type:   execution.RunResult,
+				DoneAt: time.Now(),
+			},
+			Status: results.RunStatusML,
+		}
+	}
+
 	if job.GetType() != execution.RunGoJobType {
 		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.RunGoJobType))
 	}
@@ -111,29 +138,35 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 		_ = abortOutput()
 	}()
 
-	cmd := exec.CommandContext(ctx, "go", "run", code)
-
-	cmd.Stdin = runInput
-	cmd.Stdout = runOutput
-
-	e.log.Info("do command", slog.Any("cmd", cmd))
-	err = cmd.Run()
+	stderr := bytes.NewBuffer(nil)
+	err = e.runtime.Execute(ctx,
+		[]string{"go run /main.go"},
+		runtime.ExecuteParams{
+			// TODO: Limits
+			Limits: runtime.Limits{
+				Memory: runtime.MemoryLimit(int64(runGoJob.MemoryLimit) * int64(runtime.Megabyte)),
+				Time:   runtime.TimeLimit(int64(runGoJob.TimeLimit) * int64(time.Millisecond)),
+			},
+			InFiles: []runtime.File{{OutsideLocation: codeLocation, InsideLocation: "/main.go"}},
+			Stderr:  stderr,
+			Stdin:   runInput,
+			Stdout:  runOutput,
+		})
 	if err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			e.log.Error("command error", slog.Any("err", err))
-			return errorResult(err)
+		e.log.Error("execute binary in runtime error", slog.Any("err", err))
+		if errors.Is(err, runtime.ErrTimeout) {
+			return tlResult()
 		}
-	}
-
-	if commitErr := commit(); commitErr != nil {
-		return errorResult(commitErr)
+		if errors.Is(err, runtime.ErrOutOfMemory) {
+			return mlResult()
+		}
+		return runtimeErrorResult()
 	}
 
 	e.log.Info("command ok")
 
-	if err != nil {
-		return runtimeErrorResult()
+	if commitErr := commit(); commitErr != nil {
+		return errorResult(commitErr)
 	}
 
 	if !runGoJob.ShowOutput {
