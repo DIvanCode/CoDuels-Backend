@@ -10,12 +10,12 @@ import (
 
 type RunGoJob struct {
 	execution.JobDetails
-	Code        execution.Input  `json:"code"`
-	RunInput    execution.Input  `json:"run_input"`
-	RunOutput   execution.Output `json:"run_output"`
-	TimeLimit   int              `json:"time_limit"`
-	MemoryLimit int              `json:"memory_limit"`
-	ShowOutput  bool             `json:"show_output"`
+	CompiledCode execution.Input  `json:"compiled_code"`
+	RunInput     execution.Input  `json:"run_input"`
+	RunOutput    execution.Output `json:"run_output"`
+	TimeLimit    int              `json:"time_limit"`
+	MemoryLimit  int              `json:"memory_limit"`
+	ShowOutput   bool             `json:"show_output"`
 }
 
 func NewRunGoJob(
@@ -25,23 +25,24 @@ func NewRunGoJob(
 	runOutput execution.Output,
 	timeLimit int,
 	memoryLimit int,
-	showOutput bool) RunGoJob {
+	showOutput bool,
+) RunGoJob {
 	return RunGoJob{
 		JobDetails: execution.JobDetails{
 			ID:   id,
 			Type: execution.RunGoJobType,
 		},
-		Code:        code,
-		RunInput:    runInput,
-		RunOutput:   runOutput,
-		TimeLimit:   timeLimit,
-		MemoryLimit: memoryLimit,
-		ShowOutput:  showOutput,
+		CompiledCode: code,
+		RunInput:     runInput,
+		RunOutput:    runOutput,
+		TimeLimit:    timeLimit,
+		MemoryLimit:  memoryLimit,
+		ShowOutput:   showOutput,
 	}
 }
 
 func (job RunGoJob) GetInputs() []execution.Input {
-	return []execution.Input{job.Code, job.RunInput}
+	return []execution.Input{job.CompiledCode, job.RunInput}
 }
 
 func (job RunGoJob) GetOutput() execution.Output {
@@ -55,18 +56,18 @@ func (job *RunGoJob) UnmarshalJSON(data []byte) error {
 	}
 
 	attributes := struct {
-		Code        json.RawMessage `json:"code"`
-		RunInput    json.RawMessage `json:"run_input"`
-		RunOutput   json.RawMessage `json:"run_output"`
-		TimeLimit   int             `json:"time_limit"`
-		MemoryLimit int             `json:"memory_limit"`
-		ShowOutput  bool            `json:"show_output"`
+		CompiledCode json.RawMessage `json:"compiled_code"`
+		RunInput     json.RawMessage `json:"run_input"`
+		RunOutput    json.RawMessage `json:"run_output"`
+		TimeLimit    int             `json:"time_limit"`
+		MemoryLimit  int             `json:"memory_limit"`
+		ShowOutput   bool            `json:"show_output"`
 	}{}
 	if err = json.Unmarshal(data, &attributes); err != nil {
 		return fmt.Errorf("failed to unmarshal %s job attributes: %w", job.Type, err)
 	}
 
-	if job.Code, err = inputs.UnmarshalInputJSON(attributes.Code); err != nil {
+	if job.CompiledCode, err = inputs.UnmarshalInputJSON(attributes.CompiledCode); err != nil {
 		return fmt.Errorf("failed to unmarshal code input: %w", err)
 	}
 	if job.RunInput, err = inputs.UnmarshalInputJSON(attributes.RunInput); err != nil {
