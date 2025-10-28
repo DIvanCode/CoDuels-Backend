@@ -121,8 +121,8 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 	}
 	defer unlock()
 
-	var codeLocation string
-	codeLocation, unlock, err = e.inputProvider.Locate(ctx, runGoJob.Code)
+	var compiledCodeLocation string
+	compiledCodeLocation, unlock, err = e.inputProvider.Locate(ctx, runGoJob.Code)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate code input: %w", err))
 	}
@@ -142,14 +142,14 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.Execute(ctx,
-		[]string{"go run /main.go"},
+		[]string{"/a.out"},
 		runtime.ExecuteParams{
 			// TODO: Limits
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(int64(runGoJob.MemoryLimit) * int64(runtime.Megabyte)),
 				Time:   runtime.TimeLimit(int64(runGoJob.TimeLimit) * int64(time.Millisecond)),
 			},
-			InFiles: []runtime.File{{OutsideLocation: codeLocation, InsideLocation: "/main.go"}},
+			InFiles: []runtime.File{{OutsideLocation: compiledCodeLocation, InsideLocation: "/a.out"}},
 			Stderr:  stderr,
 			Stdin:   runInput,
 			Stdout:  runOutput,
