@@ -3,14 +3,13 @@ package executors
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"log/slog"
-	"time"
-
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/jobs"
 	"exesh/internal/domain/execution/results"
 	"exesh/internal/runtime"
+	"fmt"
+	"log/slog"
+	"time"
 )
 
 type CompileCppJobExecutor struct {
@@ -110,6 +109,8 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) 
 		e.log.Error("execute g++ in runtime error", slog.Any("err", err))
 		return compilationErrorResult(stderr.String())
 	}
+
+	e.log.Info("command ok")
 
 	return okResult()
 }
