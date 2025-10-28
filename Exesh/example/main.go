@@ -2,19 +2,17 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"log/slog"
-	"os"
-
-	// "time"
-
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/inputs"
 	"exesh/internal/domain/execution/jobs"
 	"exesh/internal/domain/execution/outputs"
 	"exesh/internal/executor/executors"
 	"exesh/internal/runtime/docker"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	// "time"
 )
 
 type dummyInputProvider struct{}
@@ -75,6 +73,14 @@ func (dp *dummyOutputProvider) Read(ctx context.Context, out execution.Output) (
 	return f, unlock, err
 }
 
+func Unref[T any](t *T) T {
+	return *t
+}
+
+func Ref[T any](t T) *T {
+	return &t
+}
+
 func main() {
 	compileJobId := execution.JobID([]byte("1234567890123456789012345678901234567890"))
 	runJobId := execution.JobID([]byte("0123456789012345678901234567890123456789"))
@@ -90,33 +96,33 @@ func main() {
 	}
 	compileExecutor := executors.NewCompileCppJobExecutor(slog.Default(), &dummyInputProvider{}, &dummyOutputProvider{}, rt)
 
-	compilationResult := compileExecutor.Execute(context.Background(), jobs.NewCompileCppJob(
+	compilationResult := compileExecutor.Execute(context.Background(), Ref(jobs.NewCompileCppJob(
 		compileJobId,
 		inputs.NewArtifactInput("main.cpp", compileJobId, workerID),
 		outputs.NewArtifactOutput("a.out", compileJobId),
-	))
+	)))
 	fmt.Printf("compile: %#v\n", compilationResult)
 
-	checkerCompilationResult := compileExecutor.Execute(context.Background(), jobs.NewCompileCppJob(
+	checkerCompilationResult := compileExecutor.Execute(context.Background(), Ref(jobs.NewCompileCppJob(
 		compileJobId,
 		inputs.NewArtifactInput("checker.cpp", compileJobId, workerID),
 		outputs.NewArtifactOutput("a.checker.out", compileJobId),
-	))
+	)))
 	fmt.Printf("compile checker: %#v\n", checkerCompilationResult)
 
 	runExecutor := executors.NewRunCppJobExecutor(slog.Default(), &dummyInputProvider{}, &dummyOutputProvider{}, rt)
-	runResult := runExecutor.Execute(context.Background(), jobs.NewRunCppJob(
+	runResult := runExecutor.Execute(context.Background(), Ref(jobs.NewRunCppJob(
 		runJobId, inputs.NewArtifactInput("a.out", runJobId, workerID),
 		inputs.NewArtifactInput("in.txt", runJobId, workerID),
-		outputs.NewArtifactOutput("out.txt", runJobId), 0, 0, true))
+		outputs.NewArtifactOutput("out.txt", runJobId), 0, 0, true)))
 	fmt.Printf("run: %#v\n", runResult)
 
 	checkExecutor := executors.NewCheckCppJobExecutor(slog.Default(), &dummyInputProvider{}, &dummyOutputProvider{}, rt)
-	checkResult := checkExecutor.Execute(context.Background(), jobs.NewCheckCppJob(
+	checkResult := checkExecutor.Execute(context.Background(), Ref(jobs.NewCheckCppJob(
 		runJobId, inputs.NewArtifactInput("a.checker.out", checkJobId, workerID),
 		inputs.NewArtifactInput("correct.txt", checkJobId, workerID),
 		inputs.NewArtifactInput("out.txt", checkJobId, workerID),
 		outputs.NewArtifactOutput("verdict.txt", checkJobId),
-	))
+	)))
 	fmt.Printf("check: %#v\n", checkResult)
 }
