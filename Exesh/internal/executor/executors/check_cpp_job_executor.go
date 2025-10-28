@@ -107,6 +107,8 @@ func (e *CheckCppJobExecutor) Execute(ctx context.Context, job execution.Job) ex
 		return errorResult(err)
 	}
 
+	e.log.Info("command ok")
+
 	checkVerdictOutput, err := io.ReadAll(checkVerdictReader)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to read check_verdict output: %w", err))
