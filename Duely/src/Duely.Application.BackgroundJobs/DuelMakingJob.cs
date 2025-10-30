@@ -7,7 +7,7 @@ using Duely.Application.UseCases.Features.Duels;
 
 namespace Duely.Application.BackgroundJobs;
 
-public sealed class DuelMakingJob(IServiceProvider sp, IDuelManager duelManager, IOptions<DuelMakingJobOptions> options)
+public sealed class DuelMakingJob(IServiceProvider sp, IOptions<DuelMakingJobOptions> options)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
@@ -17,18 +17,8 @@ public sealed class DuelMakingJob(IServiceProvider sp, IDuelManager duelManager,
             using (var scope = sp.CreateScope())
             {
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                var pair = duelManager.TryGetPair();
 
-                if (pair is not null)
-                {
-                    var command = new CreateDuelCommand
-                    {
-                        User1Id = pair.Value.User1,
-                        User2Id = pair.Value.User2
-                    };
-
-                    await mediator.Send(command, cancellationToken);
-                }
+                await mediator.Send(new TryCreateDuelCommand(), cancellationToken);
             }
 
             await Task.Delay(options.Value.CheckPairIntervalMs, cancellationToken);
