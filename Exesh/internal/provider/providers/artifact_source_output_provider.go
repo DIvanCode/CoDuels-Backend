@@ -2,41 +2,61 @@ package providers
 
 import (
 	"context"
-	"errors"
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/outputs"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/DIvanCode/filestorage/pkg/bucket"
-	errs "github.com/DIvanCode/filestorage/pkg/errors"
 )
 
 type (
 	ArtifactOutputProvider struct {
-		artifactStorage artifactOutputStorage
-		artifactTTL     time.Duration
+		artifactStorageAdapter artifactOutputStorageAdapter
+		artifactTTL            time.Duration
 	}
 
-	artifactOutputStorage interface {
-		CreateBucket(bucket.ID, time.Time) (path string, commit, abort func() error, err error)
-		CreateFile(bucket.ID, string) (path string, commit, abort func() error, err error)
-		GetFile(bucket.ID, string) (path string, unlock func(), err error)
+	artifactOutputStorageAdapter interface {
+		Reserve(ctx context.Context, bucketID bucket.ID, file string, ttl time.Duration) (
+			path string, commit, abort func() error, err error)
+		Create(ctx context.Context, bucketID bucket.ID, file string, ttl time.Duration) (
+			w io.Writer, commit, abort func() error, err error)
+		Read(ctx context.Context, bucketID bucket.ID, file string, ttl time.Duration, downloadEndpoint string) (
+			r io.Reader, unlock func(), err error)
 	}
 )
 
-func NewArtifactOutputProvider(artifactStorage artifactOutputStorage, artifactTTL time.Duration) *ArtifactOutputProvider {
+func NewArtifactOutputProvider(artifactStorageAdapter artifactOutputStorageAdapter, artifactTTL time.Duration) *ArtifactOutputProvider {
 	return &ArtifactOutputProvider{
-		artifactStorage: artifactStorage,
-		artifactTTL:     artifactTTL,
+		artifactStorageAdapter: artifactStorageAdapter,
+		artifactTTL:            artifactTTL,
 	}
 }
 
 func (p *ArtifactOutputProvider) SupportsType(outputType execution.OutputType) bool {
 	return outputType == execution.ArtifactOutputType
+}
+
+func (p *ArtifactOutputProvider) Reserve(ctx context.Context, output execution.Output) (path string, commit, abort func() error, err error) {
+	if output.GetType() != execution.ArtifactOutputType {
+		err = fmt.Errorf("unsupported output type %s for %s provider", output.GetType(), execution.ArtifactOutputType)
+		return
+	}
+	var typedOutput outputs.ArtifactOutput
+	if _, ok := output.(outputs.ArtifactOutput); ok {
+		typedOutput = output.(outputs.ArtifactOutput)
+	} else {
+		typedOutput = *output.(*outputs.ArtifactOutput)
+	}
+
+	var bucketID bucket.ID
+	bucketID, err = p.getBucket(typedOutput)
+	if err != nil {
+		return
+	}
+
+	return p.artifactStorageAdapter.Reserve(ctx, bucketID, typedOutput.File, p.artifactTTL)
 }
 
 func (p *ArtifactOutputProvider) Create(ctx context.Context, output execution.Output) (w io.Writer, commit, abort func() error, err error) {
@@ -52,65 +72,20 @@ func (p *ArtifactOutputProvider) Create(ctx context.Context, output execution.Ou
 	}
 
 	var bucketID bucket.ID
-	if err = bucketID.FromString(typedOutput.JobID.String()); err != nil {
-		err = fmt.Errorf("failed to create bucket id: %w", err)
+	bucketID, err = p.getBucket(typedOutput)
+	if err != nil {
 		return
 	}
 
-	path, commitBucket, abortBucket, err := p.artifactStorage.CreateBucket(bucketID, time.Now().Add(p.artifactTTL))
-	if err != nil && errors.Is(err, errs.ErrBucketAlreadyExists) {
-		path, commitBucket, abortBucket, err = p.artifactStorage.CreateFile(bucketID, output.GetFile())
-	}
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to create bucket or file: %w", err)
-	}
-
-	var f *os.File
-	f, err = os.OpenFile(filepath.Join(path, typedOutput.File), os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		_ = abortBucket()
-		return nil, nil, nil, fmt.Errorf("failed to create file: %w", err)
-	}
-
-	commit = func() error {
-		_ = f.Close()
-		return commitBucket()
-	}
-
-	abort = func() error {
-		_ = f.Close()
-		return abortBucket()
-	}
-
-	w = f
-
-	return
+	return p.artifactStorageAdapter.Create(ctx, bucketID, typedOutput.File, p.artifactTTL)
 }
 
-func (p *ArtifactOutputProvider) Locate(ctx context.Context, output execution.Output) (path string, unlock func(), err error) {
-	if output.GetType() != execution.ArtifactOutputType {
-		err = fmt.Errorf("unsupported output type %s for %s provider", output.GetType(), execution.ArtifactOutputType)
-		return
-	}
-	var typedOutput outputs.ArtifactOutput
-	if _, ok := output.(outputs.ArtifactOutput); ok {
-		typedOutput = output.(outputs.ArtifactOutput)
-	} else {
-		typedOutput = *output.(*outputs.ArtifactOutput)
-	}
-
-	var bucketID bucket.ID
-	if err = bucketID.FromString(typedOutput.JobID.String()); err != nil {
+func (p *ArtifactOutputProvider) getBucket(output outputs.ArtifactOutput) (bucketID bucket.ID, err error) {
+	if err = bucketID.FromString(output.JobID.String()); err != nil {
 		err = fmt.Errorf("failed to convert job id to bucket id: %w", err)
 		return
 	}
-
-	if path, unlock, err = p.artifactStorage.GetFile(bucketID, typedOutput.File); err != nil {
-		err = fmt.Errorf("failed to get file %s from bucket %s: %w", typedOutput.File, bucketID.String(), err)
-		return
-	}
-
-	return filepath.Join(path, typedOutput.File), unlock, nil
+	return
 }
 
 func (p *ArtifactOutputProvider) Read(ctx context.Context, output execution.Output) (r io.Reader, unlock func(), err error) {
@@ -126,21 +101,10 @@ func (p *ArtifactOutputProvider) Read(ctx context.Context, output execution.Outp
 	}
 
 	var bucketID bucket.ID
-	if err = bucketID.FromString(typedOutput.JobID.String()); err != nil {
-		err = fmt.Errorf("failed to convert job id to bucket id: %w", err)
+	bucketID, err = p.getBucket(typedOutput)
+	if err != nil {
 		return
 	}
 
-	var path string
-	if path, unlock, err = p.artifactStorage.GetFile(bucketID, typedOutput.File); err != nil {
-		err = fmt.Errorf("failed to get file %s from bucket %s: %w", typedOutput.File, bucketID.String(), err)
-		return
-	}
-
-	if r, err = os.OpenFile(filepath.Join(path, typedOutput.File), os.O_RDONLY, 0666); err != nil {
-		err = fmt.Errorf("failed to open file %s in bucket %s: %w", typedOutput.File, bucketID.String(), err)
-		return
-	}
-
-	return
+	return p.artifactStorageAdapter.Read(ctx, bucketID, typedOutput.File, p.artifactTTL, "")
 }

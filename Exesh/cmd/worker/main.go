@@ -7,6 +7,7 @@ import (
 	"exesh/internal/executor/executors"
 	"exesh/internal/provider"
 	"exesh/internal/provider/providers"
+	"exesh/internal/provider/providers/adapter"
 	"exesh/internal/worker"
 	"fmt"
 	flog "log"
@@ -46,8 +47,9 @@ func main() {
 	}
 	defer filestorage.Shutdown()
 
-	inputProvider := setupInputProvider(cfg.InputProvider, filestorage)
-	outputProvider := setupOutputProvider(cfg.OutputProvider, filestorage)
+	filestorageAdapter := adapter.NewFilestorageAdapter(filestorage)
+	inputProvider := setupInputProvider(cfg.InputProvider, filestorageAdapter)
+	outputProvider := setupOutputProvider(cfg.OutputProvider, filestorageAdapter)
 
 	jobExecutor := setupJobExecutor(log, inputProvider, outputProvider)
 
@@ -93,14 +95,14 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 	return
 }
 
-func setupInputProvider(cfg config.InputProviderConfig, filestorage filestorage.FileStorage) *provider.InputProvider {
-	filestorageBucketInputProvider := providers.NewFilestorageBucketInputProvider(filestorage, cfg.FilestorageBucketTTL)
-	artifactInputProvider := providers.NewArtifactInputProvider(filestorage, cfg.ArtifactTTL)
+func setupInputProvider(cfg config.InputProviderConfig, filestorageAdapter *adapter.FilestorageAdapter) *provider.InputProvider {
+	filestorageBucketInputProvider := providers.NewFilestorageBucketInputProvider(filestorageAdapter, cfg.FilestorageBucketTTL)
+	artifactInputProvider := providers.NewArtifactInputProvider(filestorageAdapter, cfg.ArtifactTTL)
 	return provider.NewInputProvider(filestorageBucketInputProvider, artifactInputProvider)
 }
 
-func setupOutputProvider(cfg config.OutputProviderConfig, filestorage filestorage.FileStorage) *provider.OutputProvider {
-	artifactOutputProvider := providers.NewArtifactOutputProvider(filestorage, cfg.ArtifactTTL)
+func setupOutputProvider(cfg config.OutputProviderConfig, filestorageAdapter *adapter.FilestorageAdapter) *provider.OutputProvider {
+	artifactOutputProvider := providers.NewArtifactOutputProvider(filestorageAdapter, cfg.ArtifactTTL)
 	return provider.NewOutputProvider(artifactOutputProvider)
 }
 

@@ -1,7 +1,6 @@
 package executors
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"exesh/internal/domain/execution"
@@ -84,63 +83,57 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 	}
 	runCppJob := job.(*jobs.RunCppJob)
 
-	_, unlock, err := e.inputProvider.Locate(ctx, runCppJob.CompiledCode)
-	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate compiled_code input: %w", err))
-	}
-	unlock()
-	_, unlock, err = e.inputProvider.Locate(ctx, runCppJob.RunInput)
-	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate run_input input: %w", err))
-	}
-	unlock()
-
-	var compiledCodeLocation string
-	compiledCodeLocation, unlock, err = e.inputProvider.Locate(ctx, runCppJob.CompiledCode)
+	compiledCode, unlock, err := e.inputProvider.Locate(ctx, runCppJob.CompiledCode)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate compiled_code input: %w", err))
 	}
 	defer unlock()
 
-	var runInput io.Reader
-	runInput, unlock, err = e.inputProvider.Read(ctx, runCppJob.RunInput)
+	runInput, unlock, err := e.inputProvider.Read(ctx, runCppJob.RunInput)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to read run_input input: %w", err))
 	}
 	defer unlock()
 
-	runOutput, commit, abort, err := e.outputProvider.Create(ctx, runCppJob.RunOutput)
+	runOutput, commitOutput, abortOutput, err := e.outputProvider.Create(ctx, runCppJob.RunOutput)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to create run_output output: %w", err))
 	}
+	commit := func() error {
+		if err = commitOutput(); err != nil {
+			_ = abortOutput()
+			return fmt.Errorf("failed to commit run_output output: %w", err)
+		}
+		abortOutput = func() error { return nil }
+		return nil
+	}
+	defer func() {
+		_ = abortOutput()
+	}()
 
-	cmd := exec.CommandContext(ctx, "./"+compiledCodeLocation)
+	cmd := exec.CommandContext(ctx, "./"+compiledCode)
 
 	cmd.Stdin = runInput
 	cmd.Stdout = runOutput
 
-	stderr := bytes.Buffer{}
-	cmd.Stderr = &stderr
-
 	e.log.Info("do command", slog.Any("cmd", cmd))
-	if err = cmd.Run(); err != nil {
-		e.log.Info("command error", slog.Any("err", err))
-
+	err = cmd.Run()
+	if err != nil {
 		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) {
-			_ = abort()
+			e.log.Error("command error", slog.Any("err", err))
 			return errorResult(err)
 		}
+	}
 
-		_ = abort()
-		return runtimeErrorResult()
+	if commitErr := commit(); commitErr != nil {
+		return errorResult(commitErr)
 	}
 
 	e.log.Info("command ok")
 
-	if err = commit(); err != nil {
-		_ = abort()
-		return errorResult(fmt.Errorf("failed to commit output creation: %w", err))
+	if err != nil {
+		return runtimeErrorResult()
 	}
 
 	if !runCppJob.ShowOutput {
@@ -151,6 +144,7 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to open run output: %w", err))
 	}
+	defer unlock()
 
 	output, err := io.ReadAll(runOutputReader)
 	if err != nil {

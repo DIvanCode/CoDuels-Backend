@@ -9,6 +9,7 @@ import (
 	"exesh/internal/pool"
 	"exesh/internal/provider"
 	"exesh/internal/provider/providers"
+	"exesh/internal/provider/providers/adapter"
 	"exesh/internal/registry"
 	schedule "exesh/internal/scheduler"
 	"exesh/internal/sender"
@@ -59,7 +60,8 @@ func main() {
 	}
 	defer filestorage.Shutdown()
 
-	inputProvider := setupInputProvider(cfg.InputProvider, filestorage)
+	filestorageAdapter := adapter.NewFilestorageAdapter(filestorage)
+	inputProvider := setupInputProvider(cfg.InputProvider, filestorageAdapter)
 
 	workerPool := pool.NewWorkerPool(log, cfg.WorkerPool)
 	defer workerPool.StopObservers()
@@ -147,8 +149,8 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	return
 }
 
-func setupInputProvider(cfg config.InputProviderConfig, filestorage filestorage.FileStorage) *provider.InputProvider {
-	filestorageBucketInputProvider := providers.NewFilestorageBucketInputProvider(filestorage, cfg.FilestorageBucketTTL)
-	artifactInputProvider := providers.NewArtifactInputProvider(filestorage, cfg.ArtifactTTL)
+func setupInputProvider(cfg config.InputProviderConfig, filestorageAdapter *adapter.FilestorageAdapter) *provider.InputProvider {
+	filestorageBucketInputProvider := providers.NewFilestorageBucketInputProvider(filestorageAdapter, cfg.FilestorageBucketTTL)
+	artifactInputProvider := providers.NewArtifactInputProvider(filestorageAdapter, cfg.ArtifactTTL)
 	return provider.NewInputProvider(filestorageBucketInputProvider, artifactInputProvider)
 }

@@ -71,46 +71,51 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) 
 	}
 	compileCppJob := job.(*jobs.CompileCppJob)
 
-	var codeLocation string
-	codeLocation, unlock, err := e.inputProvider.Locate(ctx, compileCppJob.Code)
+	code, unlock, err := e.inputProvider.Locate(ctx, compileCppJob.Code)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate code input: %w", err))
 	}
 	defer unlock()
 
-	_, commit, abort, err := e.outputProvider.Create(ctx, compileCppJob.CompiledCode)
-	if err != nil {
-		return errorResult(fmt.Errorf("failed to create compiled_code output: %w", err))
-	}
-	if err = commit(); err != nil {
-		_ = abort()
-		return errorResult(fmt.Errorf("failed to commit compiled_code output creation: %w", err))
-	}
-
-	var compiledCodeLocation string
-	compiledCodeLocation, unlock, err = e.outputProvider.Locate(ctx, compileCppJob.CompiledCode)
+	compiledCode, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, compileCppJob.CompiledCode)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate compiled_code output: %w", err))
 	}
-	defer unlock()
+	commit := func() error {
+		if err = commitOutput(); err != nil {
+			_ = abortOutput()
+			return fmt.Errorf("failed to commit compiled_code output: %w", err)
+		}
+		abortOutput = func() error { return nil }
+		return nil
+	}
+	defer func() {
+		_ = abortOutput()
+	}()
 
-	cmd := exec.CommandContext(ctx, "g++", codeLocation, "-o", compiledCodeLocation)
+	cmd := exec.CommandContext(ctx, "g++", code, "-o", compiledCode)
 
 	stderr := bytes.Buffer{}
 	cmd.Stderr = &stderr
 
 	e.log.Info("do command", slog.Any("cmd", cmd))
-	if err = cmd.Run(); err != nil {
-		e.log.Info("command error", slog.Any("err", err))
-
+	err = cmd.Run()
+	if err != nil {
 		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) {
+			e.log.Error("command error", slog.Any("err", err))
 			return errorResult(err)
 		}
+	}
 
-		return compilationErrorResult(stderr.String())
+	if commitErr := commit(); commitErr != nil {
+		return errorResult(commitErr)
 	}
 
 	e.log.Info("command ok")
+
+	if err != nil {
+		return compilationErrorResult(stderr.String())
+	}
 	return okResult()
 }
