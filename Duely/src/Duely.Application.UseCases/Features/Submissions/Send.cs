@@ -1,11 +1,13 @@
 using Duely.Domain.Models;
+using OutboxEntity = Duely.Domain.Models.Outbox;
 using Duely.Infrastructure.DataAccess.EntityFramework;
-using Duely.Infrastructure.Gateway.Tasks.Abstracts; 
 using Microsoft.EntityFrameworkCore;
 using MediatR;
 using FluentResults;
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Errors;
+using System.Text.Json;
+using Duely.Application.UseCases.Payloads; 
 
 namespace Duely.Application.UseCases.Features.Submissions;
 
@@ -17,7 +19,7 @@ public sealed record SendSubmissionCommand : IRequest<Result<SubmissionDto>>
     public required string Language { get; init; }
 }
 
-public sealed class SendSubmissionHandler(Context context, ITaskiClient taskiClient)
+public sealed class SendSubmissionHandler(Context context)
     : IRequestHandler<SendSubmissionCommand, Result<SubmissionDto>>
 {
     public async Task<Result<SubmissionDto>> Handle(SendSubmissionCommand command, CancellationToken cancellationToken)
@@ -33,6 +35,7 @@ public sealed class SendSubmissionHandler(Context context, ITaskiClient taskiCli
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         var submission = new Submission
         {
@@ -47,16 +50,19 @@ public sealed class SendSubmissionHandler(Context context, ITaskiClient taskiCli
         context.Submissions.Add(submission);
         await context.SaveChangesAsync(cancellationToken);
         
-        var sendResult = await taskiClient.TestSolutionAsync(
-            duel.TaskId,
-            submission.Id.ToString(),
-            submission.Code,
-            submission.Language,
-            cancellationToken);
-        if (sendResult.IsFailed)
+        var payload = JsonSerializer.Serialize(new TestSolutionPayload(duel.TaskId, submission.Id, submission.Code, submission.Language));
+
+        context.Outbox.Add(new OutboxEntity
         {
-            return sendResult;
-        }
+            Type = OutboxType.TestSolution,
+            Status = OutboxStatus.ToDo,
+            Retries = 0,
+            RetryAt = null,
+            Payload = payload
+        });
+
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return new SubmissionDto
         {
