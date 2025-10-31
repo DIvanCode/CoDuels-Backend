@@ -20,7 +20,7 @@ job_factory:
     check_verdict: verdict
   filestorage_endpoint: http://coordinator:5253
 execution_scheduler:
-  executions_interval: 5s
+  executions_interval: 3s
   max_concurrency: 10
   execution_retry_after: 10m
 worker_pool:

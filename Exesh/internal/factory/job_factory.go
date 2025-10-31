@@ -152,9 +152,7 @@ func (f *JobFactory) Create(ctx context.Context, execCtx *execution.Context, ste
 			return nil, fmt.Errorf("failed to calculate job id for step '%s': %w", step.GetName(), err)
 		}
 
-		checkVerdict := outputs.NewArtifactOutput(f.cfg.Output.CheckVerdict, id)
-
-		return jobs.NewCheckCppJob(id, compiledChecker, correctOutput, suspectOutput, checkVerdict), nil
+		return jobs.NewCheckCppJob(id, compiledChecker, correctOutput, suspectOutput), nil
 	default:
 		return nil, fmt.Errorf("unknown step type %s", step.GetType())
 	}

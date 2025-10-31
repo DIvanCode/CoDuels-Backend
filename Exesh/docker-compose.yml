@@ -53,3 +53,15 @@ services:
       - "5254:5254"
     environment:
       CONFIG_PATH: config/worker-1/docker.yml
+
+  worker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker-2
+    container_name: worker-2
+    networks:
+      - coduels
+    ports:
+      - "5255:5255"
+    environment:
+      CONFIG_PATH: config/worker-2/docker.yml

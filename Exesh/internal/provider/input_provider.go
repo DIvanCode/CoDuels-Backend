@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"exesh/internal/domain/execution"
 	"fmt"
 	"io"
@@ -14,10 +15,15 @@ type (
 
 	inputProvider interface {
 		SupportsType(execution.InputType) bool
+		Reserve(context.Context, execution.Input) (path string, commit, abort func() error, err error)
 		Create(context.Context, execution.Input) (w io.Writer, commit, abort func() error, err error)
 		Locate(context.Context, execution.Input) (path string, unlock func(), err error)
 		Read(context.Context, execution.Input) (r io.Reader, unlock func(), err error)
 	}
+)
+
+var (
+	ErrInputAlreadyExists = errors.New("input already exists")
 )
 
 func NewInputProvider(providers ...inputProvider) *InputProvider {

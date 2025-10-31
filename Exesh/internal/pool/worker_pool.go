@@ -23,39 +23,46 @@ func NewWorkerPool(log *slog.Logger, cfg config.WorkerPoolConfig) *WorkerPool {
 		log: log,
 		cfg: cfg,
 
-		heartbeats: make(map[string]chan any),
-
 		mu:   sync.Mutex{},
+		heartbeats: make(map[string]chan any),
 		stop: false,
 	}
 }
 
 func (p *WorkerPool) Heartbeat(ctx context.Context, workerID string) {
-	if _, ok := p.heartbeats[workerID]; !ok {
+	if !p.IsAlive(workerID) {
 		p.createWorker(workerID)
 	}
 
 	p.mu.Lock()
-	if p.stop {
+	heartbeat, ok := p.heartbeats[workerID]
+	if p.stop || !ok {
 		return
 	}
 	p.mu.Unlock()
 
-	p.heartbeats[workerID] <- struct{}{}
+	heartbeat <- struct{}{}
 }
 
 func (p *WorkerPool) IsAlive(workerID string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	_, ok := p.heartbeats[workerID]
 	return ok
 }
 
 func (p *WorkerPool) StopObservers() {
 	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.stop = true
-	p.mu.Unlock()
 }
 
 func (p *WorkerPool) createWorker(workerID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.heartbeats[workerID] = make(chan any)
 	go p.runObserver(workerID)
 }
@@ -63,7 +70,8 @@ func (p *WorkerPool) createWorker(workerID string) {
 func (p *WorkerPool) runObserver(workerID string) {
 	for {
 		p.mu.Lock()
-		if p.stop {
+		heartbeat, ok := p.heartbeats[workerID]
+		if p.stop || !ok {
 			break
 		}
 		p.mu.Unlock()
@@ -73,7 +81,7 @@ func (p *WorkerPool) runObserver(workerID string) {
 		select {
 		case <-timer.C:
 			p.deleteWorker(workerID)
-		case <-p.heartbeats[workerID]:
+		case <-heartbeat:
 			break
 		}
 	}

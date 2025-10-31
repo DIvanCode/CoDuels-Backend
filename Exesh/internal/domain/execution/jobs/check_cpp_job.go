@@ -4,16 +4,14 @@ import (
 	"encoding/json"
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/inputs"
-	"exesh/internal/domain/execution/outputs"
 	"fmt"
 )
 
 type CheckCppJob struct {
 	execution.JobDetails
-	CompiledChecker execution.Input  `json:"compiled_checker"`
-	CorrectOutput   execution.Input  `json:"correct_output"`
-	SuspectOutput   execution.Input  `json:"suspect_output"`
-	CheckVerdict    execution.Output `json:"check_verdict"`
+	CompiledChecker execution.Input `json:"compiled_checker"`
+	CorrectOutput   execution.Input `json:"correct_output"`
+	SuspectOutput   execution.Input `json:"suspect_output"`
 }
 
 func NewCheckCppJob(
@@ -21,7 +19,6 @@ func NewCheckCppJob(
 	compiledChecker execution.Input,
 	correctOutput execution.Input,
 	suspectOutput execution.Input,
-	checkVerdict execution.Output,
 ) CheckCppJob {
 	return CheckCppJob{
 		JobDetails: execution.JobDetails{
@@ -31,7 +28,6 @@ func NewCheckCppJob(
 		CompiledChecker: compiledChecker,
 		CorrectOutput:   correctOutput,
 		SuspectOutput:   suspectOutput,
-		CheckVerdict:    checkVerdict,
 	}
 }
 
@@ -40,7 +36,7 @@ func (job CheckCppJob) GetInputs() []execution.Input {
 }
 
 func (job CheckCppJob) GetOutput() execution.Output {
-	return job.CheckVerdict
+	return nil
 }
 
 func (job *CheckCppJob) UnmarshalJSON(data []byte) error {
@@ -53,7 +49,6 @@ func (job *CheckCppJob) UnmarshalJSON(data []byte) error {
 		CompiledChecker json.RawMessage `json:"compiled_checker"`
 		CorrectOutput   json.RawMessage `json:"correct_output"`
 		SuspectOutput   json.RawMessage `json:"suspect_output"`
-		CheckVerdict    json.RawMessage `json:"check_verdict"`
 	}{}
 	if err = json.Unmarshal(data, &attributes); err != nil {
 		return fmt.Errorf("failed to unmarshal %s job attributes: %w", job.Type, err)
@@ -67,9 +62,6 @@ func (job *CheckCppJob) UnmarshalJSON(data []byte) error {
 	}
 	if job.SuspectOutput, err = inputs.UnmarshalInputJSON(attributes.SuspectOutput); err != nil {
 		return fmt.Errorf("failed to unmarshal suspect_output input: %w", err)
-	}
-	if job.CheckVerdict, err = outputs.UnmarshalOutputJSON(attributes.CheckVerdict); err != nil {
-		return fmt.Errorf("failed to unmarshal check_verdict output: %w", err)
 	}
 
 	return nil
