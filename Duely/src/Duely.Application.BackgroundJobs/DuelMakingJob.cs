@@ -1,5 +1,4 @@
-﻿using Duely.Domain.Services.Duels;
-using MediatR;
+﻿using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
