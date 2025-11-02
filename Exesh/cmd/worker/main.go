@@ -2,6 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
+	flog "log"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"exesh/internal/config"
 	"exesh/internal/executor"
 	"exesh/internal/executor/executors"
@@ -10,13 +18,6 @@ import (
 	"exesh/internal/provider/providers/adapter"
 	"exesh/internal/runtime/docker"
 	"exesh/internal/worker"
-	"fmt"
-	flog "log"
-	"log/slog"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
@@ -111,7 +112,7 @@ func setupOutputProvider(cfg config.OutputProviderConfig, filestorageAdapter *ad
 }
 
 func setupJobExecutor(log *slog.Logger, inputProvider *provider.InputProvider, outputProvider *provider.OutputProvider) (*executor.JobExecutor, error) {
-	rt, err := docker.New(
+	gccRT, err := docker.New(
 		docker.WithDefaultClient(),
 		docker.WithBaseImage("gcc"),
 		docker.WithRestrictivePolicy(),
@@ -119,11 +120,27 @@ func setupJobExecutor(log *slog.Logger, inputProvider *provider.InputProvider, o
 	if err != nil {
 		return nil, fmt.Errorf("create cpp runtime: %w", err)
 	}
-	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, inputProvider, outputProvider, rt)
-	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, inputProvider, outputProvider, rt)
-	runCppJobExecutor := executors.NewRunCppJobExecutor(log, inputProvider, outputProvider, rt)
-	runPyJobExecutor := executors.NewRunPyJobExecutor(log, inputProvider, outputProvider, rt)
-	runGoJobExecutor := executors.NewRunGoJobExecutor(log, inputProvider, outputProvider, rt)
-	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, inputProvider, outputProvider, rt)
+	goRT, err := docker.New(
+		docker.WithDefaultClient(),
+		docker.WithBaseImage("golang"),
+		docker.WithRestrictivePolicy(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create go runtime: %w", err)
+	}
+	pyRT, err := docker.New(
+		docker.WithDefaultClient(),
+		docker.WithBaseImage("python"),
+		docker.WithRestrictivePolicy(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create python runtime: %w", err)
+	}
+	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, inputProvider, outputProvider, gccRT)
+	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, inputProvider, outputProvider, goRT)
+	runCppJobExecutor := executors.NewRunCppJobExecutor(log, inputProvider, outputProvider, gccRT)
+	runPyJobExecutor := executors.NewRunPyJobExecutor(log, inputProvider, outputProvider, pyRT)
+	runGoJobExecutor := executors.NewRunGoJobExecutor(log, inputProvider, outputProvider, goRT)
+	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, inputProvider, outputProvider, gccRT)
 	return executor.NewJobExecutor(compileCppJobExecutor, compileGoJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
 }
