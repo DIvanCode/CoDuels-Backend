@@ -11,8 +11,9 @@ COPY ./internal ./internal
 
 RUN --mount=type=cache,target=/gomod-cache --mount=type=cache,target=/go-cache \
   mkdir -p /app/bin && \
-  go build -o /app/bin/taski /app/cmd/...
+  go build -o /app/bin /app/cmd/...
 
-EXPOSE 5252
+EXPOSE 5253
+EXPOSE 5254
 
-CMD ["/app/bin/taski"]
+CMD ["/app/bin/worker"]
