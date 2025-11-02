@@ -27,6 +27,8 @@ import (
 
 	fs "github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
+	"github.com/go-chi/chi/middleware"
 )
 
 func main() {
@@ -47,6 +49,16 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	mux := chi.NewRouter()
+	mux.Use(middleware.Logger)
+	mux.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
+
 
 	fileStorage, err := fs.New(log, cfg.FileStorage, mux)
 	if err != nil {
