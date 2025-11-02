@@ -3,13 +3,14 @@ package executors
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"log/slog"
+	"time"
+
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/jobs"
 	"exesh/internal/domain/execution/results"
 	"exesh/internal/runtime"
-	"fmt"
-	"log/slog"
-	"time"
 )
 
 type CompileGoJobExecutor struct {
