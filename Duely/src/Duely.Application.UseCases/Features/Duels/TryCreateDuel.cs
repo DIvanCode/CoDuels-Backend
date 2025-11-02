@@ -1,42 +1,46 @@
-using Duely.Domain.Models;
-using MediatR;
 using FluentResults;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Duely.Infrastructure.DataAccess.EntityFramework;
-using Microsoft.EntityFrameworkCore;
 using Duely.Application.UseCases.Errors;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Models.Messages;
+using Duely.Domain.Models;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
-public sealed class CreateDuelCommand : IRequest<Result>
-{
-    public required int User1Id { get; init; }
-    public required int User2Id { get; init; }
-}
+public sealed class TryCreateDuelCommand : IRequest<Result> { }
 
-public sealed class CreateDuelHandler(
-    Context context,
+public sealed class TryCreateDuelHandler(
+    IDuelManager duelManager,
     ITaskiClient taskiClient,
     IMessageSender messageSender,
-    IOptions<DuelOptions> duelOptions)
-    : IRequestHandler<CreateDuelCommand, Result>
+    IOptions<DuelOptions> duelOptions,
+    Context context)
+    : IRequestHandler<TryCreateDuelCommand, Result>
 {
-    public async Task<Result> Handle(CreateDuelCommand command, CancellationToken cancellationToken)
+    public async Task<Result> Handle(TryCreateDuelCommand request, CancellationToken cancellationToken)
     {
-        var user1 = await context.Users.SingleOrDefaultAsync(u => u.Id == command.User1Id, cancellationToken);
-        if (user1 is null)
+        var pair = duelManager.TryGetPair();
+
+        if (pair is null)
         {
-            return new EntityNotFoundError(nameof(User), nameof(User.Id), command.User1Id);
+            return Result.Ok();
         }
 
-        var user2 = await context.Users.SingleOrDefaultAsync(u => u.Id == command.User2Id, cancellationToken);
+        var user1 = await context.Users.SingleOrDefaultAsync(u => u.Id == pair.Value.User1, cancellationToken);
+        if (user1 is null)
+        {
+            return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.Value.User1);
+        }
+
+        var user2 = await context.Users.SingleOrDefaultAsync(u => u.Id == pair.Value.User2, cancellationToken);
         if (user2 is null)
         {
-            return new EntityNotFoundError(nameof(User), nameof(User.Id), command.User2Id);
+            return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.Value.User2);
         }
 
         var taskResult = await taskiClient.GetRandomTaskIdAsync(cancellationToken);
