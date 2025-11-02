@@ -3,26 +3,30 @@ package executors
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"time"
+
 	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/jobs"
 	"exesh/internal/domain/execution/results"
-	"fmt"
-	"log/slog"
-	"os/exec"
-	"time"
+	"exesh/internal/runtime"
 )
 
 type CheckCppJobExecutor struct {
 	log            *slog.Logger
 	inputProvider  inputProvider
 	outputProvider outputProvider
+	runtime        runtime.Runtime
 }
 
-func NewCheckCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider) *CheckCppJobExecutor {
+func NewCheckCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *CheckCppJobExecutor {
 	return &CheckCppJobExecutor{
 		log:            log,
 		inputProvider:  inputProvider,
 		outputProvider: outputProvider,
+		runtime:        rt,
 	}
 }
 
@@ -87,25 +91,31 @@ func (e *CheckCppJobExecutor) Execute(ctx context.Context, job execution.Job) ex
 	}
 	defer unlock()
 
-	cmd := exec.CommandContext(ctx, "./"+compiledChecker, correctOutput, suspectOutput)
-
-	checkVerdict := bytes.Buffer{}
-	cmd.Stdout = &checkVerdict
-
-	e.log.Info("do command", slog.Any("cmd", cmd))
-	if err = cmd.Run(); err != nil {
-		e.log.Info("command error", slog.Any("err", err))
+	checkVerdictReader := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
+	err = e.runtime.Execute(ctx, []string{"/a.out", "/correct.txt", "/suspect.txt"}, runtime.ExecuteParams{
+		InFiles: []runtime.File{
+			{InsideLocation: "/correct.txt", OutsideLocation: correctOutput},
+			{InsideLocation: "/suspect.txt", OutsideLocation: suspectOutput},
+			{InsideLocation: "/a.out", OutsideLocation: compiledChecker},
+		},
+		Stdout: checkVerdictReader,
+		Stderr: stderr,
+	})
+	if err != nil {
+		e.log.Error("execute checker in runtime error", slog.Any("err", err))
 		return errorResult(err)
 	}
 
-	e.log.Info("command ok")
+	checkVerdictOutput, err := io.ReadAll(checkVerdictReader)
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to read check_verdict output: %w", err))
+	}
 
-	checkVerdictOutput := string(checkVerdict.Bytes())
-
-	if checkVerdictOutput == string(results.CheckStatusOK) {
+	if string(checkVerdictOutput) == string(results.CheckStatusOK) {
 		return okResult()
 	}
-	if checkVerdictOutput == string(results.CheckStatusWA) {
+	if string(checkVerdictOutput) == string(results.CheckStatusWA) {
 		return wrongAnswerResult()
 	}
 	return errorResult(fmt.Errorf("failed to parse check_verdict output: %s", string(checkVerdictOutput)))
