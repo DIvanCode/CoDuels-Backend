@@ -30,36 +30,43 @@ services:
   coordinator:
     build:
       context: .
-      dockerfile: Dockerfile.coordinator
+      dockerfile: Dockerfile
+    command:
+      - /app/bin/coordinator
     container_name: coordinator
     networks:
       - coduels
     ports:
       - "5253:5253"
     environment:
-      CONFIG_PATH: config/coordinator/docker.yml
+      CONFIG_PATH: /config/coordinator/docker.yml
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - ./config:/config:ro
   
   worker-1:
     build:
       context: .
-      dockerfile: Dockerfile.worker-1
+      dockerfile: Dockerfile
+    command:
+      - /app/bin/worker
     container_name: worker-1
     networks:
       - coduels
     ports:
       - "5254:5254"
     environment:
-      CONFIG_PATH: config/worker-1/docker.yml
+      CONFIG_PATH: /config/worker-1/docker.yml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./config:/config:ro
 
   worker-2:
     build:
       context: .
-      dockerfile: Dockerfile.worker-2
+      dockerfile: Dockerfile
     container_name: worker-2
     networks:
       - coduels
@@ -69,3 +76,4 @@ services:
       CONFIG_PATH: config/worker-2/docker.yml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./config:/config:ro
