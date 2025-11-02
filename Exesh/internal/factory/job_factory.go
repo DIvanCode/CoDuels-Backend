@@ -111,10 +111,26 @@ func (f *JobFactory) Create(ctx context.Context, execCtx *execution.Context, ste
 		runOutput := outputs.NewArtifactOutput(f.cfg.Output.RunOutput, id)
 
 		return jobs.NewRunPyJob(id, code, runSource, runOutput, typedStep.TimeLimit, typedStep.MemoryLimit, typedStep.ShowOutput), nil
+	case execution.CompileGoStepType:
+		typedStep := step.(*steps.CompileGoStep)
+
+		code, err := f.createInput(ctx, execCtx, typedStep.Code)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create code source: %w", err)
+		}
+
+		id, err := f.calculateID(ctx, []execution.Input{code}, map[string]any{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate job id for step '%s': %w", step.GetName(), err)
+		}
+
+		compiledCode := outputs.NewArtifactOutput(f.cfg.Output.CompiledCpp, id)
+
+		return jobs.NewCompileGoJob(id, code, compiledCode), nil
 	case execution.RunGoStepType:
 		typedStep := step.(*steps.RunGoStep)
 
-		code, err := f.createInput(ctx, execCtx, typedStep.Code)
+		code, err := f.createInput(ctx, execCtx, typedStep.CompiledCode)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create code source: %w", err)
 		}
@@ -202,7 +218,7 @@ func (f *JobFactory) createInput(ctx context.Context, execCtx *execution.Context
 	default:
 		err = fmt.Errorf("unknown source type %s: %w", source.GetType(), err)
 	}
-	return
+	return input, err
 }
 
 func (f *JobFactory) calculateID(
@@ -217,25 +233,25 @@ func (f *JobFactory) calculateID(
 		r, unlock, err = f.inputProvider.Read(ctx, input)
 		if err != nil {
 			err = fmt.Errorf("failed to read %s input: %w", input.GetType(), err)
-			return
+			return id, err
 		}
 		var content []byte
 		if content, err = io.ReadAll(r); err != nil {
 			unlock()
 			err = fmt.Errorf("failed to read %s input's content: %w", input.GetType(), err)
-			return
+			return id, err
 		}
 		unlock()
 		if _, err = hash.Write(content); err != nil {
 			err = fmt.Errorf("failed to write %s input to hash: %w", input.GetType(), err)
-			return
+			return id, err
 		}
 	}
 
 	bytes, err := json.Marshal(attributes)
 	if err != nil {
 		err = fmt.Errorf("failed to marshal attributes: %w", err)
-		return
+		return id, err
 	}
 	hash.Write(bytes)
 
@@ -243,13 +259,13 @@ func (f *JobFactory) calculateID(
 	rand, err := uuid.NewUUID()
 	if err != nil {
 		err = fmt.Errorf("failed to generate random string")
-		return
+		return id, err
 	}
 	hash.Write([]byte(rand.String()))
 
 	if err = id.FromString(fmt.Sprintf("%x", hash.Sum(nil))); err != nil {
-		return
+		return id, err
 	}
 
-	return
+	return id, err
 }
