@@ -49,7 +49,7 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                 {
                     message.Retries++;
                     message.Status = OutboxStatus.ToRetry;
-                    message.RetryAt = DateTime.UtcNow.AddSeconds(outboxOptions.RetryDelayMs);
+                    message.RetryAt = DateTime.UtcNow.AddMilliseconds(outboxOptions.RetryDelayMs);
                 }
             
                 await db.SaveChangesAsync(cancellationToken);
