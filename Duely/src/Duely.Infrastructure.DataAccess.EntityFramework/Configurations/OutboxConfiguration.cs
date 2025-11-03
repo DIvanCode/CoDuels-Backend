@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Duely.Infrastructure.DataAccess.EntityFramework;
 
-public sealed class OutboxConfiguration : IEntityTypeConfiguration<Outbox>
+public sealed class OutboxConfiguration : IEntityTypeConfiguration<OutboxMessage>
 {
-    public void Configure(EntityTypeBuilder<Outbox> builder)
+    public void Configure(EntityTypeBuilder<OutboxMessage> builder)
     {
         builder.ToTable("Outbox");
 

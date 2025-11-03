@@ -1,5 +1,5 @@
 using Duely.Domain.Models;
-using OutboxEntity = Duely.Domain.Models.Outbox;
+using OutboxEntity = Duely.Domain.Models.OutboxMessage;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using MediatR;
@@ -35,8 +35,6 @@ public sealed class SendSubmissionHandler(Context context)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-
         var submission = new Submission
         {
             Duel = duel,
@@ -48,8 +46,6 @@ public sealed class SendSubmissionHandler(Context context)
         };
 
         context.Submissions.Add(submission);
-        await context.SaveChangesAsync(cancellationToken);
-        
         var payload = JsonSerializer.Serialize(new TestSolutionPayload(duel.TaskId, submission.Id, submission.Code, submission.Language));
 
         context.Outbox.Add(new OutboxEntity
@@ -62,8 +58,6 @@ public sealed class SendSubmissionHandler(Context context)
         });
 
         await context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-
         return new SubmissionDto
         {
             SubmissionId = submission.Id,

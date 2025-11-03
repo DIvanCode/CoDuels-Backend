@@ -6,6 +6,10 @@ using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.Gateway.Tasks;
 using Duely.Infrastructure.MessageBus.Kafka;
 using Hellang.Middleware.ProblemDetails;
+using Duely.Application.UseCases.Features.Outbox.Relay;
+using Duely.Application.UseCases.Features.Outbox.Handlers;
+using Duely.Application.UseCases.Payloads;
+
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -13,6 +17,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Application
 builder.Services.SetupUseCases();
+builder.Services.AddScoped<IOutboxHandler<TestSolutionPayload>, TestSolutionHandler>();
+builder.Services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
 builder.Services.SetupBackgroundJobs(builder.Configuration);
 
 // Domain

@@ -1,15 +1,14 @@
 using System.Text.Json;
 using FluentResults;
 using Duely.Application.UseCases.Payloads;     
-using DomainOutbox = Duely.Domain.Models.Outbox;
-using OutboxType = Duely.Domain.Models.OutboxType;
+using Duely.Domain.Models;
 namespace Duely.Application.UseCases.Features.Outbox.Relay;
 
 public sealed class OutboxDispatcher(IOutboxHandler<TestSolutionPayload> testSolutionHandler) : IOutboxDispatcher
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    public Task<Result> DispatchAsync(DomainOutbox message, CancellationToken cancellationToken)
+    public Task<Result> DispatchAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
         if (message.Type == OutboxType.TestSolution)
         {
@@ -23,11 +22,11 @@ public sealed class OutboxDispatcher(IOutboxHandler<TestSolutionPayload> testSol
         return Task.FromResult(Result.Ok());
     }
 
-    private static Task<Result> Handle<T>(IOutboxHandler<T> handler, string payload, CancellationToken cancellationToken)
+    private static Task<Result> Handle<TPayload>(IOutboxHandler<TPayload> handler, string payload, CancellationToken cancellationToken)  where TPayload : IOutboxPayload     
     {
-        var parsed = JsonSerializer.Deserialize<T>(payload, Json);
+        var parsed = JsonSerializer.Deserialize<TPayload>(payload, Json);
         if (parsed is null)
-            return Task.FromResult(Result.Fail($"Invalid {typeof(T).Name} payload"));
+            return Task.FromResult(Result.Fail($"Invalid {typeof(TPayload).Name} payload"));
         return handler.HandleAsync(parsed, cancellationToken);
     }
 }

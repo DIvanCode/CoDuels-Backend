@@ -1,6 +1,6 @@
 namespace Duely.Domain.Models;
 
-public sealed class Outbox
+public sealed class OutboxMessage
 {
     public int Id { get; init; }
     public required OutboxType Type { get; init; }  
