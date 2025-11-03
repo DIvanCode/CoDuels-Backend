@@ -22,11 +22,15 @@ public sealed class SseMessageSender(ISseConnectionManager connections) : IMessa
         {
             Console.WriteLine($"==== Send message {message.Type} to user {user.Id}: {json} ====");
             await response.WriteAsync($"event: {message.Type}\n", cancellationToken);
+            Console.WriteLine("==== Ok sent event type ====");
             await response.WriteAsync($"data: {json}\n\n", cancellationToken);
+            Console.WriteLine("==== Ok sent json data ====");
             await response.Body.FlushAsync(cancellationToken);
+            Console.WriteLine("==== Ok sent message ====");
         }
         catch
         {
+            Console.WriteLine("==== Failed to sent message ====");
             connections.RemoveConnection(userId);
         }
     }
