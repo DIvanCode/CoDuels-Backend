@@ -51,11 +51,12 @@ public sealed class DuelsController(
             {
                 await Response.WriteAsync(":\n\n", cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
-                await Task.Delay(TimeSpan.FromSeconds(options.Value.SsePingIntervalMs), cancellationToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(options.Value.SsePingIntervalMs), cancellationToken);
             }
         }
         finally
         {
+            Console.WriteLine($"==== Disconnect user {userContext.UserId} ====");
             connections.RemoveConnection(userContext.UserId);
         }
     }
