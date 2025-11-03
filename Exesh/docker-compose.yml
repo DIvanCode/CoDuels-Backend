@@ -65,3 +65,27 @@ services:
       - "5255:5255"
     environment:
       CONFIG_PATH: config/worker-2/docker.yml
+  
+  worker-3:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker-3
+    container_name: worker-3
+    networks:
+      - coduels
+    ports:
+      - "5256:5256"
+    environment:
+      CONFIG_PATH: config/worker-3/docker.yml
+  
+  worker-4:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker-4
+    container_name: worker-4
+    networks:
+      - coduels
+    ports:
+      - "5257:5257"
+    environment:
+      CONFIG_PATH: config/worker-4/docker.yml

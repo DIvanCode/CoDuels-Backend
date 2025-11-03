@@ -1,0 +1,12 @@
+FROM golang:1.24.0
+
+WORKDIR /app
+
+COPY . .
+
+RUN go mod download
+RUN go build -o ./worker-4 /app/cmd/worker/main.go
+
+EXPOSE 5257
+
+CMD ["./worker-4"]
