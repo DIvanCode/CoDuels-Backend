@@ -20,6 +20,7 @@ public sealed class SseMessageSender(ISseConnectionManager connections) : IMessa
 
         try
         {
+            Console.WriteLine($"==== Send message {message.Type} to user {user.Id}: {json} ====");
             await response.WriteAsync($"event: {message.Type}\n", cancellationToken);
             await response.WriteAsync($"data: {json}\n\n", cancellationToken);
             await response.Body.FlushAsync(cancellationToken);
