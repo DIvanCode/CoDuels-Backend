@@ -23,3 +23,14 @@ message_producer:
   brokers:
     - kafka:9092
   topic: taski.testing
+tasks:
+  - 7d971f50363cf0aebbd87d971f50363cf0aebbd8
+  - 0c5fe950363fc0aeb7d80c5fe950363fc0aeb7d8
+  - 26ce3aba327163cd34f7f8fdd9e3c061318912e9
+  - 586de7a74de3302ee145a1edbf7bb2befa22f7ff
+  - 91ab757e2b7dd3369a7dccd0e367a908c28ceb32
+  - 992259beed7308ea89ca514b55d5d474bee335aa
+  - ac5266821afb002a0d41912b7a59e3698220151d
+  - b63b646d8a5e54a0a75fe8d0dac647d11bc62c1e
+  - c611ca79dbe5d03a3e103a45f85ca097167b0a7e
+  - d287f1e9bd5e8fca95e91350e5cd23d5e0c9f661

@@ -18,6 +18,7 @@ type (
 		Execute         ExecuteConfig         `yaml:"execute"`
 		EventConsumer   EventConsumerConfig   `yaml:"event_consumer"`
 		MessageProducer MessageProducerConfig `yaml:"message_producer"`
+		Tasks           []string              `yaml:"tasks"`
 	}
 
 	HttpServerConfig struct {

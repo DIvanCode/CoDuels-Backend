@@ -3,6 +3,7 @@ package random
 import (
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"taski/internal/domain/task"
 )
 
@@ -11,17 +12,17 @@ type (
 	}
 
 	UseCase struct {
-		log *slog.Logger
+		log   *slog.Logger
+		tasks []string
 	}
 )
 
-func NewUseCase(log *slog.Logger) *UseCase {
-	return &UseCase{log: log}
+func NewUseCase(log *slog.Logger, tasks []string) *UseCase {
+	return &UseCase{log: log, tasks: tasks}
 }
 
 func (uc *UseCase) Random(query Query) (taskID task.ID, err error) {
-	// temp: hardcode only one existing task id
-	if err = taskID.FromString("c611ca79dbe5d03a3e103a45f85ca097167b0a7e"); err != nil {
+	if err = taskID.FromString(uc.tasks[rand.Intn(len(uc.tasks))]); err != nil {
 		err = fmt.Errorf("failed to parse task id: %w")
 		return
 	}
