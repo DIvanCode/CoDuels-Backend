@@ -71,14 +71,12 @@ public sealed class UsersController(IMediator mediator, IUserContext userContext
     }
 
     [HttpPost("refresh")]
-    [Authorize]
     public async Task<ActionResult<TokenDto>> RefreshAsync(
         [FromBody] RefreshRequest request,
         CancellationToken cancellationToken)
     {
         var command = new RefreshCommand
         {
-            UserId = userContext.UserId,
             RefreshToken = request.RefreshToken
         };
 
