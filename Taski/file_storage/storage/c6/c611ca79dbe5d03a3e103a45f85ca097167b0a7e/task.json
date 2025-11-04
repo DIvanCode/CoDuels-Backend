@@ -9,38 +9,38 @@
     "tests": [
         {
             "id": 1,
-            "input": "01",
-            "output": "01.out",
-            "visible": true
+            "input": "tests/01",
+            "output": "tests/01.out",
+            "visible": false
         },
         {
             "id": 2,
-            "input": "02",
-            "output": "02.out",
-            "visible": true
+            "input": "tests/02",
+            "output": "tests/02.out",
+            "visible": false
         },
         {
             "id": 3,
-            "input": "03",
-            "output": "03.out",
+            "input": "tests/03",
+            "output": "tests/03.out",
             "visible": false
         },
         {
             "id": 4,
-            "input": "04",
-            "output": "04.out",
+            "input": "tests/04",
+            "output": "tests/04.out",
             "visible": false
         },
         {
             "id": 5,
-            "input": "05",
-            "output": "05.out",
+            "input": "tests/05",
+            "output": "tests/05.out",
             "visible": false
         },
         {
             "id": 6,
-            "input": "06",
-            "output": "06.out",
+            "input": "tests/06",
+            "output": "tests/06.out",
             "visible": false
         }
     ],
