@@ -10,14 +10,36 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Moq" Version="4.20.69" />
+    <PackageReference Include="FluentResults" Version="3.15.1" />
+
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.10" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
+    <ProjectReference Include="..\..\src\Duely.Domain.Models\Duely.Domain.Models.csproj" />
+    <ProjectReference Include="..\..\src\Duely.Domain.Services\Duely.Domain.Services.csproj" />
+    <ProjectReference Include="..\..\src\Duely.Infrastructure.DataAccess.EntityFramework\Duely.Infrastructure.DataAccess.EntityFramework.csproj" />
+    <ProjectReference Include="..\..\src\Duely.Infrastructure.Gateway.Client.Abstracts\Duely.Infrastructure.Gateway.Client.Abstracts.csproj" />
+    <ProjectReference Include="..\..\src\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj" />
   </ItemGroup>
 
 </Project>
