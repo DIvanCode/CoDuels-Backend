@@ -237,13 +237,13 @@ func (uc *UseCase) CreateTestingSteps(t task.Task, solution string, lang task.La
 		}
 
 		batchCheckSteps := make([]testing.Step, 0)
-		batchSize := 6
+		batchSize := 8
 		for i, test := range t.Tests {
 			for _, step := range testsSteps[test.ID] {
 				testingSteps = append(testingSteps, step)
 			}
 			batchCheckSteps = append(batchCheckSteps, checkSteps[test.ID])
-			if i%batchSize == 0 || i == len(t.Tests)-1 {
+			if i%batchSize == batchSize-1 || i == len(t.Tests)-1 {
 				for _, checkStep := range batchCheckSteps {
 					testingSteps = append(testingSteps, checkStep)
 				}
