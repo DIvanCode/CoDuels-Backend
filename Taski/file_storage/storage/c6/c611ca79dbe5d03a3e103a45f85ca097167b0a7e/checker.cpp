@@ -16,8 +16,8 @@ int main(int argv, char **argc) {
     while (true) {
         string correct_output;
         bool correct_eol = !(correct >> correct_output);
-        int suspect_output;
-        string suspect_eol = !(suspect >> suspect_output);
+        string suspect_output;
+        bool suspect_eol = !(suspect >> suspect_output);
         if (correct_eol != suspect_eol) {
             cout << "WA";
             return 0;
