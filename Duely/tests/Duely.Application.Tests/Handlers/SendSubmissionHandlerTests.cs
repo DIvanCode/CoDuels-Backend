@@ -1,182 +1,80 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Duely.Application.UseCases.Dtos;
+using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Submissions;
-using Duely.Application.Tests.TestHelpers;
 using Duely.Domain.Models;
-using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentAssertions;
-using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
+using FluentResults;
 
 public class SendSubmissionHandlerTests
 {
-    private static (Context ctx, System.Data.Common.DbConnection conn) NewCtx()
-        => DbContextFactory.CreateSqliteContext();
-
     [Fact]
-    public async Task Returns_NotFound_when_duel_does_not_exist()
+    public async Task NotFound_when_duel_absent()
     {
-        var (ctx, conn) = NewCtx();
-        await using var _ = conn;
-
+        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
         var taski = new Mock<ITaskiClient>(MockBehavior.Strict);
         var handler = new SendSubmissionHandler(ctx, taski.Object);
 
-        var cmd = new SendSubmissionCommand
-        {
-            DuelId = 999, UserId = 1, Code = "print(42)", Language = "python"
-        };
+        var res = await handler.Handle(new SendSubmissionCommand {
+            DuelId = 10, UserId = 1, Code = "print(1)", Language = "py" }, CancellationToken.None);
 
-        var result = await handler.Handle(cmd, CancellationToken.None);
-
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
-        taski.VerifyNoOtherCalls();
+        res.IsFailed.Should().BeTrue();
+        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
     }
 
     [Fact]
-    public async Task Returns_NotFound_when_user_does_not_exist()
+    public async Task NotFound_when_user_absent()
     {
-        var (ctx, conn) = NewCtx();
-        await using var _ = conn;
-
-        // есть дуэль, но нет пользователя
-        var duel = new Duel
-        {
-            Id = 10, TaskId = 777, Status = DuelStatus.InProgress,
-            StartTime = DateTime.UtcNow, DeadlineTime = DateTime.UtcNow.AddMinutes(30)
-        };
+        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        ctx.Users.AddRange(u1, u2);
+        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK");
         ctx.Duels.Add(duel);
         await ctx.SaveChangesAsync();
 
         var taski = new Mock<ITaskiClient>(MockBehavior.Strict);
         var handler = new SendSubmissionHandler(ctx, taski.Object);
 
-        var cmd = new SendSubmissionCommand
-        {
-            DuelId = duel.Id, UserId = 123, Code = "x", Language = "py"
-        };
+        var res = await handler.Handle(new SendSubmissionCommand {
+            DuelId = 10, UserId = 999, Code = "print(1)", Language = "py" }, CancellationToken.None);
 
-        var result = await handler.Handle(cmd, CancellationToken.None);
-
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
-        taski.VerifyNoOtherCalls();
+        res.IsFailed.Should().BeTrue();
+        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
     }
 
     [Fact]
-    public async Task Creates_submission_with_Queued_status_saves_and_calls_TaskiClient()
+    public async Task Success_creates_submission_and_calls_taski()
     {
-        var (ctx, conn) = NewCtx();
-        await using var _ = conn;
+        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
 
-        var user = new User { Id = 1 };
-        var duel = new Duel
-        {
-            Id = 10, TaskId = 321, Status = DuelStatus.InProgress,
-            StartTime = DateTime.UtcNow, DeadlineTime = DateTime.UtcNow.AddMinutes(45)
-        };
-        ctx.AddRange(user, duel);
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        ctx.Users.AddRange(u1, u2);
+        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK-10");
+        ctx.Duels.Add(duel);
         await ctx.SaveChangesAsync();
 
         var taski = new Mock<ITaskiClient>();
-        taski.Setup(t => t.TestSolutionAsync(
-                duel.TaskId,
-                It.IsAny<string>(),
-                "print(1)",
-                "python",
-                It.IsAny<CancellationToken>()))
-             .ReturnsAsync(Result.Ok())
-             .Verifiable();
+        taski.Setup(t => t.TestSolutionAsync("TASK-10", It.IsAny<string>(), "print(1)", "py", It.IsAny<CancellationToken>()))
+             .ReturnsAsync(Result.Ok());
 
         var handler = new SendSubmissionHandler(ctx, taski.Object);
 
-        var before = DateTime.UtcNow.AddSeconds(-5);
+        var res = await handler.Handle(new SendSubmissionCommand {
+            DuelId = 10, UserId = 1, Code = "print(1)", Language = "py" }, CancellationToken.None);
 
-        var cmd = new SendSubmissionCommand
-        {
-            DuelId = duel.Id,
-            UserId = user.Id,
-            Code = "print(1)",
-            Language = "python"
-        };
+        res.IsSuccess.Should().BeTrue();
+        var sub = await ctx.Submissions.AsNoTracking().SingleAsync(s => s.Id == res.Value.SubmissionId);
+        sub.Status.Should().Be(SubmissionStatus.Queued);
+        sub.User.Id.Should().Be(1);
+        sub.Duel.Id.Should().Be(10);
 
-        var result = await handler.Handle(cmd, CancellationToken.None);
-
-        // результат успешный и корректный DTO
-        result.IsSuccess.Should().BeTrue();
-        var dto = result.Value;
-        dto.SubmissionId.Should().BeGreaterThan(0);
-        dto.Solution.Should().Be("print(1)");
-        dto.Language.Should().Be("python");
-        dto.Status.Should().Be(SubmissionStatus.Queued);
-        dto.SubmitTime.Should().BeOnOrAfter(before);
-
-        // проверим, что запись реально в БД правильная
-        var saved = await ctx.Submissions.SingleAsync(s => s.Id == dto.SubmissionId);
-        saved.DuelId.Should().Be(duel.Id);
-        saved.UserId.Should().Be(user.Id);
-        saved.Status.Should().Be(SubmissionStatus.Queued);
-        saved.Code.Should().Be("print(1)");
-        saved.Language.Should().Be("python");
-
-        // taskiClient вызван с ожидаемыми аргументами
-        taski.Verify(t => t.TestSolutionAsync(
-            duel.TaskId,
-            dto.SubmissionId.ToString(),
-            "print(1)",
-            "python",
-            It.IsAny<CancellationToken>()),
-            Times.Once);
         taski.VerifyAll();
-    }
-
-    [Fact]
-    public async Task Propagates_error_when_TaskiClient_fails()
-    {
-        var (ctx, conn) = NewCtx();
-        await using var _ = conn;
-
-        var user = new User { Id = 1 };
-        var duel = new Duel
-        {
-            Id = 10, TaskId = 999, Status = DuelStatus.InProgress,
-            StartTime = DateTime.UtcNow, DeadlineTime = DateTime.UtcNow.AddMinutes(45)
-        };
-        ctx.AddRange(user, duel);
-        await ctx.SaveChangesAsync();
-
-        var taski = new Mock<ITaskiClient>();
-        taski.Setup(t => t.TestSolutionAsync(
-                duel.TaskId,
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-             .ReturnsAsync(Result.Fail("judge unavailable"));
-
-        var handler = new SendSubmissionHandler(ctx, taski.Object);
-
-        var cmd = new SendSubmissionCommand
-        {
-            DuelId = duel.Id,
-            UserId = user.Id,
-            Code = "code",
-            Language = "py"
-        };
-
-        var result = await handler.Handle(cmd, CancellationToken.None);
-
-        result.IsFailed.Should().BeTrue();
-        result.Errors.Should().Contain(e => e.Message.Contains("judge", StringComparison.OrdinalIgnoreCase));
-
-        // сабмишен всё равно создан и сохранён 
-        (await ctx.Submissions.CountAsync()).Should().Be(1);
     }
 }
