@@ -73,7 +73,7 @@ services:
     ports:
       - "5255:5255"
     environment:
-      CONFIG_PATH: config/worker-2/docker.yml
+      CONFIG_PATH: /config/worker-2/docker.yml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/config:ro
@@ -88,7 +88,7 @@ services:
     ports:
       - "5256:5256"
     environment:
-      CONFIG_PATH: config/worker-3/docker.yml
+      CONFIG_PATH: /config/worker-3/docker.yml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/config:ro
@@ -103,7 +103,7 @@ services:
     ports:
       - "5257:5257"
     environment:
-      CONFIG_PATH: config/worker-4/docker.yml
+      CONFIG_PATH: /config/worker-4/docker.yml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/config:ro

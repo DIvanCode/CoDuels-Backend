@@ -15,5 +15,8 @@ RUN --mount=type=cache,target=/gomod-cache --mount=type=cache,target=/go-cache \
 
 EXPOSE 5253
 EXPOSE 5254
+EXPOSE 5255
+EXPOSE 5256
+EXPOSE 5257
 
 CMD ["/app/bin/worker"]
