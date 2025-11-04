@@ -11,13 +11,13 @@
             "id": 1,
             "input": "tests/01",
             "output": "tests/01.out",
-            "visible": false
+            "visible": true
         },
         {
             "id": 2,
             "input": "tests/02",
             "output": "tests/02.out",
-            "visible": false
+            "visible": true
         },
         {
             "id": 3,
