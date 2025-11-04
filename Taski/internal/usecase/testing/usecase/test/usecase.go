@@ -218,7 +218,7 @@ func (uc *UseCase) CreateTestingSteps(t task.Task, solution string, lang task.La
 			}
 		}
 
-		checkSteps := make([]testing.Step, 0)
+		checkSteps := make(map[int]testing.Step, 0)
 		checker := sources.NewFilestorageBucketSource(taskBucket, uc.downloadTaskEndpoint, t.Checker.Path)
 		switch t.Checker.Lang {
 		case task.LanguageCpp:
@@ -232,17 +232,23 @@ func (uc *UseCase) CreateTestingSteps(t task.Task, solution string, lang task.La
 					compiledChecker,
 					correctOutputs[test.ID],
 					suspectOutputs[test.ID])
-				checkSteps = append(checkSteps, checkStep)
+				checkSteps[test.ID] = checkStep
 			}
 		}
 
-		for _, test := range t.Tests {
+		batchCheckSteps := make([]testing.Step, 0)
+		batchSize := 6
+		for i, test := range t.Tests {
 			for _, step := range testsSteps[test.ID] {
 				testingSteps = append(testingSteps, step)
 			}
-		}
-		for _, step := range checkSteps {
-			testingSteps = append(testingSteps, step)
+			batchCheckSteps = append(batchCheckSteps, checkSteps[test.ID])
+			if i%batchSize == 0 || i == len(t.Tests)-1 {
+				for _, checkStep := range batchCheckSteps {
+					testingSteps = append(testingSteps, checkStep)
+				}
+				batchCheckSteps = make([]testing.Step, 0)
+			}
 		}
 	default:
 		return nil, nil, fmt.Errorf("cannot create testing steps for task of type %s", t.GetType())
