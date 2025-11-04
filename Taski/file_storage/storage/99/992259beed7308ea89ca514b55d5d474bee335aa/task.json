@@ -1,0 +1,169 @@
+{
+    "id": "992259beed7308ea89ca514b55d5d474bee335aa",
+    "title": "Правильная скобочная последовательность",
+    "type": "write_code",
+    "level": "easy",
+    "statement": "statement.md",
+    "tl": 1000,
+    "ml": 256,
+    "tests": [
+        {
+            "id": 1,
+            "input": "tests/01",
+            "output": "tests/01.out",
+            "visible": true
+        },
+        {
+            "id": 2,
+            "input": "tests/02",
+            "output": "tests/02.out",
+            "visible": true
+        },
+        {
+            "id": 3,
+            "input": "tests/03",
+            "output": "tests/03.out",
+            "visible": false
+        },
+        {
+            "id": 4,
+            "input": "tests/04",
+            "output": "tests/04.out",
+            "visible": false
+        },
+        {
+            "id": 5,
+            "input": "tests/05",
+            "output": "tests/05.out",
+            "visible": false
+        },
+        {
+            "id": 6,
+            "input": "tests/06",
+            "output": "tests/06.out",
+            "visible": false
+        },
+        {
+            "id": 7,
+            "input": "tests/07",
+            "output": "tests/07.out",
+            "visible": false
+        },
+        {
+            "id": 8,
+            "input": "tests/08",
+            "output": "tests/08.out",
+            "visible": false
+        },
+        {
+            "id": 9,
+            "input": "tests/09",
+            "output": "tests/09.out",
+            "visible": false
+        },
+        {
+            "id": 10,
+            "input": "tests/10",
+            "output": "tests/10.out",
+            "visible": false
+        },
+        {
+            "id": 11,
+            "input": "tests/11",
+            "output": "tests/11.out",
+            "visible": false
+        },
+        {
+            "id": 12,
+            "input": "tests/12",
+            "output": "tests/12.out",
+            "visible": false
+        },
+        {
+            "id": 13,
+            "input": "tests/13",
+            "output": "tests/13.out",
+            "visible": false
+        },
+        {
+            "id": 14,
+            "input": "tests/14",
+            "output": "tests/14.out",
+            "visible": false
+        },
+        {
+            "id": 15,
+            "input": "tests/15",
+            "output": "tests/15.out",
+            "visible": false
+        },
+        {
+            "id": 16,
+            "input": "tests/16",
+            "output": "tests/16.out",
+            "visible": false
+        },
+        {
+            "id": 17,
+            "input": "tests/17",
+            "output": "tests/17.out",
+            "visible": false
+        },
+        {
+            "id": 18,
+            "input": "tests/18",
+            "output": "tests/18.out",
+            "visible": false
+        },
+        {
+            "id": 19,
+            "input": "tests/19",
+            "output": "tests/19.out",
+            "visible": false
+        },
+        {
+            "id": 20,
+            "input": "tests/20",
+            "output": "tests/20.out",
+            "visible": false
+        },
+        {
+            "id": 21,
+            "input": "tests/21",
+            "output": "tests/21.out",
+            "visible": false
+        },
+        {
+            "id": 22,
+            "input": "tests/22",
+            "output": "tests/22.out",
+            "visible": false
+        },
+        {
+            "id": 23,
+            "input": "tests/23",
+            "output": "tests/23.out",
+            "visible": false
+        },
+        {
+            "id": 24,
+            "input": "tests/24",
+            "output": "tests/24.out",
+            "visible": false
+        },
+        {
+            "id": 25,
+            "input": "tests/25",
+            "output": "tests/25.out",
+            "visible": false
+        }
+    ],
+    "checker": {
+        "path": "checker.cpp",
+        "lang": "C++"
+    },
+    "solution": {
+        "path": "solution.cpp",
+        "lang": "C++"
+    }
+}

@@ -1,6 +1,6 @@
 {
-    "id": "c611ca79dbe5d03a3e103a45f85ca097167b0a7e",
-    "title": "Числа Фибоначчи",
+    "id": "586de7a74de3302ee145a1edbf7bb2befa22f7ff",
+    "title": "Платная лестница",
     "type": "write_code",
     "level": "easy",
     "statement": "statement.md",
@@ -11,7 +11,7 @@
             "id": 1,
             "input": "tests/01",
             "output": "tests/01.out",
-            "visible": false
+            "visible": true
         },
         {
             "id": 2,
@@ -41,6 +41,42 @@
             "id": 6,
             "input": "tests/06",
             "output": "tests/06.out",
+            "visible": false
+        },
+        {
+            "id": 7,
+            "input": "tests/07",
+            "output": "tests/07.out",
+            "visible": false
+        },
+        {
+            "id": 8,
+            "input": "tests/08",
+            "output": "tests/08.out",
+            "visible": false
+        },
+        {
+            "id": 9,
+            "input": "tests/09",
+            "output": "tests/09.out",
+            "visible": false
+        },
+        {
+            "id": 10,
+            "input": "tests/10",
+            "output": "tests/10.out",
+            "visible": false
+        },
+        {
+            "id": 11,
+            "input": "tests/11",
+            "output": "tests/11.out",
+            "visible": false
+        },
+        {
+            "id": 12,
+            "input": "tests/12",
+            "output": "tests/12.out",
             "visible": false
         }
     ],

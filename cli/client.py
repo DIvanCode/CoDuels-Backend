@@ -166,7 +166,7 @@ class DuelClient:
                 result = "ПОРАЖЕНИЕ :("
             else:
                 result = "НИЧЬЯ."
-            self.print_message(f"=== РЕЗУЛЬТАТ ДУЭЛИ: {result} ===")
+            print(f"\n\n=== РЕЗУЛЬТАТ ДУЭЛИ: {result} ===\n")
         
         self.is_duel_active = False
         self.should_stop_polling = True
