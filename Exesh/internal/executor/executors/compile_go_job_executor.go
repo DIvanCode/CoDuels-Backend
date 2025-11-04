@@ -13,15 +13,15 @@ import (
 	"exesh/internal/runtime"
 )
 
-type CompileCppJobExecutor struct {
+type CompileGoJobExecutor struct {
 	log            *slog.Logger
 	inputProvider  inputProvider
 	outputProvider outputProvider
 	runtime        runtime.Runtime
 }
 
-func NewCompileCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *CompileCppJobExecutor {
-	return &CompileCppJobExecutor{
+func NewCompileGoJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *CompileGoJobExecutor {
+	return &CompileGoJobExecutor{
 		log:            log,
 		inputProvider:  inputProvider,
 		outputProvider: outputProvider,
@@ -29,11 +29,11 @@ func NewCompileCppJobExecutor(log *slog.Logger, inputProvider inputProvider, out
 	}
 }
 
-func (e *CompileCppJobExecutor) SupportsType(jobType execution.JobType) bool {
-	return jobType == execution.CompileCppJobType
+func (e *CompileGoJobExecutor) SupportsType(jobType execution.JobType) bool {
+	return jobType == execution.CompileGoJobType
 }
 
-func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) execution.Result {
+func (e *CompileGoJobExecutor) Execute(ctx context.Context, job execution.Job) execution.Result {
 	errorResult := func(err error) execution.Result {
 		return results.CompileResult{
 			ResultDetails: execution.ResultDetails{
@@ -68,18 +68,18 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) 
 		}
 	}
 
-	if job.GetType() != execution.CompileCppJobType {
-		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.CompileCppJobType))
+	if job.GetType() != execution.CompileGoJobType {
+		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.CompileGoJobType))
 	}
-	compileCppJob := job.(*jobs.CompileCppJob)
+	compileGoJob := job.(*jobs.CompileGoJob)
 
-	code, unlock, err := e.inputProvider.Locate(ctx, compileCppJob.Code)
+	code, unlock, err := e.inputProvider.Locate(ctx, compileGoJob.Code)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate code input: %w", err))
 	}
 	defer unlock()
 
-	compiledCode, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, compileCppJob.CompiledCode)
+	compiledCode, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, compileGoJob.CompiledCode)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate compiled_code output: %w", err))
 	}
@@ -97,16 +97,16 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) 
 
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.Execute(ctx,
-		[]string{"g++", "/main.cpp", "-o", "/a.out"},
+		[]string{"go", "build", "-o", "/a.out", "/main.go"},
 		runtime.ExecuteParams{
 			// TODO: Limits
 			Limits:   runtime.Limits{},
-			InFiles:  []runtime.File{{OutsideLocation: code, InsideLocation: "/main.cpp"}},
+			InFiles:  []runtime.File{{OutsideLocation: code, InsideLocation: "/main.go"}},
 			OutFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: "/a.out"}},
 			Stderr:   stderr,
 		})
 	if err != nil {
-		e.log.Error("execute g++ in runtime error", slog.Any("err", err))
+		e.log.Error("execute go build in runtime error", slog.Any("err", err))
 		return compilationErrorResult(stderr.String())
 	}
 

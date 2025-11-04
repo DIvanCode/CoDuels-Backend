@@ -1,0 +1,2 @@
+# normalize text, store with LF, checkout with LF
+* text=auto eol=lf

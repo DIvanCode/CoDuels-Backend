@@ -160,10 +160,14 @@ func (uc *UseCase) CreateTestingSteps(t task.Task, solution string, lang task.La
 				suspectOutputs[test.ID] = sources.NewOtherStepSource(runStep.Name)
 			}
 		case task.LanguageGo:
+			compileStep := steps.NewCompileGoStep("compile_suspect", suspect)
+			testingSteps = append(testingSteps, compileStep)
+			compiledCode := sources.NewOtherStepSource(compileStep.Name)
+
 			for _, test := range t.Tests {
 				runStep := steps.NewRunGoStep(
 					"run_suspect_"+strconv.Itoa(test.ID),
-					suspect,
+					compiledCode,
 					inputs[test.ID],
 					t.TimeLimit,
 					t.MemoryLimit)

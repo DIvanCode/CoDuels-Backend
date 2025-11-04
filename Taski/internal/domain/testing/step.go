@@ -15,6 +15,7 @@ type (
 
 const (
 	CompileCpp StepType = "compile_cpp"
+	CompileGo  StepType = "compile_go"
 	RunCpp     StepType = "run_cpp"
 	RunPy      StepType = "run_py"
 	RunGo      StepType = "run_go"
