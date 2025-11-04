@@ -152,6 +152,7 @@ class DuelClient:
     def handle_duel_finished(self, data):
         if self.current_duel_id != data["duel_id"]:
             return
+            
         """Обработка завершения дуэли"""
         time.sleep(2)  # Ждем 2 секунды
         
@@ -165,7 +166,7 @@ class DuelClient:
                 result = "ПОРАЖЕНИЕ :("
             else:
                 result = "НИЧЬЯ."
-            print(f"\n\n=== РЕЗУЛЬТАТ ДУЭЛИ: {result} ===")
+            self.print_message(f"=== РЕЗУЛЬТАТ ДУЭЛИ: {result} ===")
         
         self.is_duel_active = False
         self.should_stop_polling = True
@@ -176,7 +177,8 @@ class DuelClient:
             thread.join(timeout=1)
         self.polling_threads.clear()
         
-        exit(0)
+        # Завершаем программу
+        os._exit(0)
     
     def get_duel_info(self, duel_id):
         """Получение информации о дуэли"""
@@ -342,23 +344,24 @@ class DuelClient:
         if not self.login():
             return
         
-        print("\nДобро пожаловать!")
-
-        self.connect_to_duel()
+        print("\nДобро пожаловать! Доступные команды:")
+        print("  connect - подключиться к дуэли")
         
         while True:
             try:
                 print()  # Пустая строка перед prompt
                 command = input("> ").strip()
                 
-                if command.startswith("submit "):
+                if command == "connect":
+                    self.connect_to_duel()
+                elif command.startswith("submit "):
                     if len(command.split()) >= 2:
                         file_path = command.split(" ", 1)[1]
                         self.submit_solution(file_path)
                     else:
                         print("Использование: submit <путь_к_файлу>")
                 elif command:
-                    print("Неизвестная команда. Доступные команды: submit")
+                    print("Неизвестная команда. Доступные команды: connect, submit")
                     
             except KeyboardInterrupt:
                 print("\n\nВыход из программы...")
