@@ -32,28 +32,27 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                         && m.RetryAt <= now))
                     .OrderBy(m => m.Id)
                     .FirstOrDefaultAsync(cancellationToken);
-                if (message is null)
+                if (message is not null)
                 {
-                    await Task.Delay(outboxOptions.CheckIntervalMs, cancellationToken);
-                    continue;
-                }
-                if (cancellationToken.IsCancellationRequested) break;
+                    if (cancellationToken.IsCancellationRequested) break;
 
-                var result = await dispatcher.DispatchAsync(message, cancellationToken);
+                    var result = await dispatcher.DispatchAsync(message, cancellationToken);
 
-                if (result.IsSuccess)
-                {
-                    db.Outbox.Remove(message);
+                    if (result.IsSuccess)
+                    {
+                        db.Outbox.Remove(message);
+                    }
+                    else
+                    {
+                        message.Retries++;
+                        message.Status = OutboxStatus.ToRetry;
+                        message.RetryAt = DateTime.UtcNow.AddMilliseconds(outboxOptions.RetryDelayMs);
+                    }
+                
+                    await db.SaveChangesAsync(cancellationToken);
                 }
-                else
-                {
-                    message.Retries++;
-                    message.Status = OutboxStatus.ToRetry;
-                    message.RetryAt = DateTime.UtcNow.AddMilliseconds(outboxOptions.RetryDelayMs);
-                }
-            
-                await db.SaveChangesAsync(cancellationToken);
             }
+            await Task.Delay(TimeSpan.FromMilliseconds(outboxOptions.CheckIntervalMs),cancellationToken);
         }
     }
 }

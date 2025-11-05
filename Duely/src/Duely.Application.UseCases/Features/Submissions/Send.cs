@@ -46,7 +46,6 @@ public sealed class SendSubmissionHandler(Context context)
         };
 
         context.Submissions.Add(submission);
-        await context.SaveChangesAsync(cancellationToken);
         var payload = JsonSerializer.Serialize(new TestSolutionPayload(duel.TaskId, submission.Id, submission.Code, submission.Language));
 
         context.Outbox.Add(new OutboxEntity
