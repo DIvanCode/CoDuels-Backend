@@ -12,5 +12,8 @@ public static class ServiceCollectionExtensions
 
         services.Configure<DuelEndWatcherJobOptions>(configuration.GetSection(DuelEndWatcherJobOptions.SectionName));
         services.AddHostedService<DuelEndWatcherJob>();
+
+        services.Configure<OutboxOptions>(configuration.GetSection(OutboxOptions.SectionName));
+        services.AddHostedService<OutboxJob>();
     }
 }
