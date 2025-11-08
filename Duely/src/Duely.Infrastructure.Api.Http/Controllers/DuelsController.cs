@@ -34,6 +34,19 @@ public sealed class DuelsController(
         return this.HandleResult(result);
     }
 
+    [HttpGet("history")]
+    public async Task<ActionResult<List<DuelHistoryItemDto>>> GetUserDuelsHistoryAsync(
+        CancellationToken cancellationToken)
+    {
+        var query = new GetUserDuelsQuery
+        {
+            UserId = userContext.UserId
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpGet("connect")]
     public async Task Connect(CancellationToken cancellationToken)
     {
