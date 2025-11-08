@@ -34,7 +34,7 @@ public sealed class DuelsController(
         return this.HandleResult(result);
     }
 
-    [HttpGet("history")]
+    [HttpGet]
     public async Task<ActionResult<List<DuelHistoryItemDto>>> GetUserDuelsHistoryAsync(
         CancellationToken cancellationToken)
     {

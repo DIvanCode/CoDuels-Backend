@@ -11,11 +11,14 @@ public sealed class DuelHistoryItemDto
     [JsonPropertyName("status"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required DuelStatus Status { get; init; }
 
+    [JsonPropertyName("opponent_nickname")]
+    public string OpponentNickname { get; init; } = null!;
+
+    [JsonPropertyName("winner_nickname")]
+    public string? WinnerNickname { get; init; }
+
     [JsonPropertyName("start_time")]
     public required DateTime StartTime { get; init; }
-
-    [JsonPropertyName("deadline_time")]
-    public required DateTime DeadlineTime { get; init; }
 
     [JsonPropertyName("end_time")]
     public DateTime? EndTime { get; init; }
