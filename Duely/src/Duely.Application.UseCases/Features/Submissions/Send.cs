@@ -1,5 +1,4 @@
 using Duely.Domain.Models;
-using OutboxEntity = Duely.Domain.Models.OutboxMessage;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using MediatR;
@@ -35,38 +34,49 @@ public sealed class SendSubmissionHandler(Context context)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
-        var submission = new Submission
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        try
         {
-            Duel = duel,
-            User = user,
-            Code = command.Code,
-            Language = command.Language,
-            SubmitTime = DateTime.Now,
-            Status = SubmissionStatus.Queued
-        };
+            var submission = new Submission
+            {
+                Duel = duel,
+                User = user,
+                Code = command.Code,
+                Language = command.Language,
+                SubmitTime = DateTime.UtcNow,
+                Status = SubmissionStatus.Queued
+            };
 
-        context.Submissions.Add(submission);
-        var payload = JsonSerializer.Serialize(new TestSolutionPayload(duel.TaskId, submission.Id, submission.Code, submission.Language));
+            context.Submissions.Add(submission);
+            await context.SaveChangesAsync(cancellationToken);
+            var payload = JsonSerializer.Serialize(new TestSolutionPayload(duel.TaskId, submission.Id, submission.Code, submission.Language));
 
-        context.Outbox.Add(new OutboxEntity
+            context.Outbox.Add(new OutboxMessage
+            {
+                Type = OutboxType.TestSolution,
+                Status = OutboxStatus.ToDo,
+                Retries = 0,
+                RetryAt = null,
+                Payload = payload
+            });
+
+            await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new SubmissionDto
+            {
+                SubmissionId = submission.Id,
+                Solution = submission.Code,
+                Language = submission.Language,
+                Status = submission.Status,
+                SubmitTime = submission.SubmitTime,
+                Message = submission.Message,
+                Verdict = submission.Verdict
+            };
+        }
+        catch
         {
-            Type = OutboxType.TestSolution,
-            Status = OutboxStatus.ToDo,
-            Retries = 0,
-            RetryAt = null,
-            Payload = payload
-        });
-
-        await context.SaveChangesAsync(cancellationToken);
-        return new SubmissionDto
-        {
-            SubmissionId = submission.Id,
-            Solution = submission.Code,
-            Language = submission.Language,
-            Status = submission.Status,
-            SubmitTime = submission.SubmitTime,
-            Message = submission.Message,
-            Verdict = submission.Verdict
-        };
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 }
