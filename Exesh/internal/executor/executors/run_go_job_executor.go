@@ -185,8 +185,6 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 	}
 	defer unlock()
 
-	defer unlock()
-
 	output, err := io.ReadAll(runOutputReader)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to read run output: %w", err))

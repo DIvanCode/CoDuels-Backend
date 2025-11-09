@@ -170,10 +170,6 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 		return errorResult(fmt.Errorf("failed to commit output creation: %w", err))
 	}
 
-	if err != nil {
-		return runtimeErrorResult()
-	}
-
 	if !runCppJob.ShowOutput {
 		return okResult()
 	}
@@ -182,7 +178,6 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to open run output: %w", err))
 	}
-	defer unlock()
 
 	defer unlock()
 
