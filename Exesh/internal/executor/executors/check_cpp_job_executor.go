@@ -91,13 +91,17 @@ func (e *CheckCppJobExecutor) Execute(ctx context.Context, job execution.Job) ex
 	}
 	defer unlock()
 
+	const compiledCheckerMountPath = "/a.out"
+	const correctOutputMountPath = "/correct.txt"
+	const suspectOutputMountPath = "/suspect.txt"
+
 	checkVerdictReader := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
-	err = e.runtime.Execute(ctx, []string{"/a.out", "/correct.txt", "/suspect.txt"}, runtime.ExecuteParams{
+	err = e.runtime.Execute(ctx, []string{compiledCheckerMountPath, correctOutputMountPath, suspectOutputMountPath}, runtime.ExecuteParams{
 		InFiles: []runtime.File{
-			{InsideLocation: "/correct.txt", OutsideLocation: correctOutput},
-			{InsideLocation: "/suspect.txt", OutsideLocation: suspectOutput},
-			{InsideLocation: "/a.out", OutsideLocation: compiledChecker},
+			{InsideLocation: correctOutputMountPath, OutsideLocation: correctOutput},
+			{InsideLocation: suspectOutputMountPath, OutsideLocation: suspectOutput},
+			{InsideLocation: compiledCheckerMountPath, OutsideLocation: compiledChecker},
 		},
 		Stdout: checkVerdictReader,
 		Stderr: stderr,

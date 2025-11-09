@@ -137,16 +137,18 @@ func (e *RunPyJobExecutor) Execute(ctx context.Context, job execution.Job) execu
 		_ = abortOutput()
 	}()
 
+	const codeLocation = "/main.py"
+
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.Execute(ctx,
-		[]string{"python3", "/main.py"},
+		[]string{"python3", codeLocation},
 		runtime.ExecuteParams{
 			// TODO: Limits
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(int64(runPyJob.MemoryLimit) * int64(runtime.Megabyte)),
 				Time:   runtime.TimeLimit(int64(runPyJob.TimeLimit) * int64(time.Millisecond)),
 			},
-			InFiles: []runtime.File{{OutsideLocation: code, InsideLocation: "/main.py"}},
+			InFiles: []runtime.File{{OutsideLocation: code, InsideLocation: codeLocation}},
 			Stderr:  stderr,
 			Stdin:   runInput,
 			Stdout:  runOutput,

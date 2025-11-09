@@ -137,16 +137,18 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 		_ = abortOutput()
 	}()
 
+	const compiledCodeMountPath = "/a.out"
+
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.Execute(ctx,
-		[]string{"/a.out"},
+		[]string{compiledCodeMountPath},
 		runtime.ExecuteParams{
 			// TODO: Limits
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(int64(runCppJob.MemoryLimit) * int64(runtime.Megabyte)),
 				Time:   runtime.TimeLimit(int64(runCppJob.TimeLimit) * int64(time.Millisecond)),
 			},
-			InFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: "/a.out"}},
+			InFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: compiledCodeMountPath}},
 			Stderr:  stderr,
 			Stdin:   runInput,
 			Stdout:  runOutput,

@@ -95,14 +95,17 @@ func (e *CompileGoJobExecutor) Execute(ctx context.Context, job execution.Job) e
 		_ = abortOutput()
 	}()
 
+	const codeMountPath = "/main.go"
+	const compiledCodeMountPath = "/a.out"
+
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.Execute(ctx,
-		[]string{"go", "build", "-o", "/a.out", "/main.go"},
+		[]string{"go", "build", "-o", compiledCodeMountPath, codeMountPath},
 		runtime.ExecuteParams{
 			// TODO: Limits
 			Limits:   runtime.Limits{},
-			InFiles:  []runtime.File{{OutsideLocation: code, InsideLocation: "/main.go"}},
-			OutFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: "/a.out"}},
+			InFiles:  []runtime.File{{OutsideLocation: code, InsideLocation: codeMountPath}},
+			OutFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: compiledCodeMountPath}},
 			Stderr:   stderr,
 		})
 	if err != nil {
