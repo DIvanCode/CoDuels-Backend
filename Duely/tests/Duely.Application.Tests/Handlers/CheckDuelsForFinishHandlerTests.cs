@@ -201,4 +201,54 @@ public class CheckDuelsForFinishHandlerTests
         sender.VerifyNoOtherCalls();
     }
 
+
+    [Fact]
+    public async Task Finishes_even_if_running_submission_sent_after_deadline()
+    {
+        // Дуэль закончилась по времени (deadline прошёл),
+        // но один из пользователей отправил посылку ПОСЛЕ дедлайна — её игнорируем.
+        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+
+        var now = DateTime.UtcNow;
+        var duel = EntityFactory.MakeDuel(
+            id: 60,
+            u1, u2,
+            taskId: "TASK-60",
+            start: now.AddMinutes(-30),
+            deadline: now.AddMinutes(-5) // дедлайн уже прошёл
+        );
+
+        // Посылка отправлена после дедлайна (18:02)
+        var lateRunning = EntityFactory.MakeSubmission(
+            id: 600,
+            duel: duel,
+            user: u1,
+            time: duel.DeadlineTime.AddMinutes(2), // позже дедлайна
+            status: SubmissionStatus.Running
+        );
+
+        ctx.AddRange(u1, u2, duel, lateRunning);
+        await ctx.SaveChangesAsync();
+
+        var sender = new Moq.Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
+        sender.Setup(s => s.SendMessage(u1.Id, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        sender.Setup(s => s.SendMessage(u2.Id, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+
+        var d = await ctx.Duels.AsNoTracking().SingleAsync(x => x.Id == 60);
+        d.Status.Should().Be(DuelStatus.Finished, "посылки после дедлайна не продлевают дуэль");
+        d.Winner.Should().BeNull("ни у кого нет Accepted до дедлайна");
+        d.EndTime.Should().NotBeNull();
+
+        sender.VerifyAll();
+    }
+
+
 }
