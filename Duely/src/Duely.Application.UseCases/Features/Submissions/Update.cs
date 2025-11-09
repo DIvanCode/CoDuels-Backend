@@ -36,11 +36,6 @@ public sealed class UpdateSubmissionStatusHandler(Context context) : IRequestHan
             submission.Status = SubmissionStatus.Running;
         }
 
-        if (!string.IsNullOrEmpty(command.Message))
-        {
-            submission.Message = command.Message;
-        }
-
         if (!string.IsNullOrEmpty(command.Error))
         {
             submission.Status = SubmissionStatus.Done;
@@ -52,6 +47,10 @@ public sealed class UpdateSubmissionStatusHandler(Context context) : IRequestHan
             submission.Status = SubmissionStatus.Done;
             submission.Verdict = command.Verdict;
             submission.Message = null;
+        }
+        if (!string.IsNullOrEmpty(command.Message))
+        {
+            submission.Message = command.Message;
         }
 
         await context.SaveChangesAsync(cancellationToken);
