@@ -41,7 +41,7 @@ public class UpdateSubmissionStatusHandlerTests
 
         var handler = new UpdateSubmissionStatusHandler(ctx);
         var res = await handler.Handle(new UpdateSubmissionStatusCommand {
-            SubmissionId = 100, Type = "status", Verdict = "Accepted", Message = "ignored" }, CancellationToken.None);
+            SubmissionId = 100, Type = "status", Verdict = "Accepted"}, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
 

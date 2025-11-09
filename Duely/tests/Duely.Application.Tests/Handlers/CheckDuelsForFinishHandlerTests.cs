@@ -22,7 +22,7 @@ public class CheckDuelsForFinishHandlerTests
         var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK", start: DateTime.UtcNow.AddMinutes(-40), deadline: DateTime.UtcNow.AddMinutes(-5));
         ctx.AddRange(u1, u2, duel); await ctx.SaveChangesAsync();
 
-        var sender = new Moq.Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
+        var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
         sender.Setup(s => s.SendMessage(1, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         sender.Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -46,13 +46,15 @@ public class CheckDuelsForFinishHandlerTests
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
-        var duel = EntityFactory.MakeDuel(20, u1, u2, "TASK", start: DateTime.UtcNow.AddMinutes(-10), deadline: DateTime.UtcNow.AddMinutes(10));
-        var s1 = EntityFactory.MakeSubmission(100, duel, u1, time: DateTime.UtcNow.AddSeconds(30), status: SubmissionStatus.Done, verdict: "Accepted");
-        var s2 = EntityFactory.MakeSubmission(101, duel, u2, time: DateTime.UtcNow.AddSeconds(40), status: SubmissionStatus.Done, verdict: "Accepted");
+        var now = DateTime.UtcNow;
+
+        var duel = EntityFactory.MakeDuel(20, u1, u2, "TASK", start: now.AddMinutes(-10), deadline: now.AddMinutes(10));
+        var s1 = EntityFactory.MakeSubmission(100, duel, u1, time: now.AddSeconds(30), status: SubmissionStatus.Done, verdict: "Accepted");
+        var s2 = EntityFactory.MakeSubmission(101, duel, u2, time: now.AddSeconds(40), status: SubmissionStatus.Done, verdict: "Accepted");
 
         ctx.AddRange(u1, u2, duel, s1, s2); await ctx.SaveChangesAsync();
 
-        var sender = new Moq.Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
+        var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
         sender.Setup(s => s.SendMessage(1, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         sender.Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -78,7 +80,7 @@ public class CheckDuelsForFinishHandlerTests
         var duel = EntityFactory.MakeDuel(30, u1, u2, "TASK", start: DateTime.UtcNow, deadline: DateTime.UtcNow.AddMinutes(15));
         ctx.AddRange(u1, u2, duel); await ctx.SaveChangesAsync();
 
-        var sender = new Moq.Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
+        var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
         var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
@@ -87,4 +89,116 @@ public class CheckDuelsForFinishHandlerTests
         (await ctx.Duels.AsNoTracking().SingleAsync(d => d.Id == 30)).Status.Should().Be(DuelStatus.InProgress);
         sender.VerifyNoOtherCalls();
     }
+
+    [Fact]
+    public async Task Waits_if_Accepted_exists_but_earlier_submission_is_not_done()
+    {
+        // 18:20 — u1 отправил, статус Running
+        // 18:21 — u2 отправил, статус Done, Accepted
+        // Ожидание: дуэль НЕ завершается, ждём u1
+        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+
+        var baseTime = DateTime.UtcNow.Date.AddHours(18);
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var duel = EntityFactory.MakeDuel(40, u1, u2, "TASK", start: baseTime.AddMinutes(-10), deadline: baseTime.AddHours(1));
+
+        var earlierRunning = EntityFactory.MakeSubmission(200, duel, u1, time: baseTime.AddMinutes(20), status: SubmissionStatus.Running);
+        var laterAccepted = EntityFactory.MakeSubmission(201, duel, u2, time: baseTime.AddMinutes(21), status: SubmissionStatus.Done, verdict: "Accepted");
+
+        ctx.AddRange(u1, u2, duel, earlierRunning, laterAccepted);
+        await ctx.SaveChangesAsync();
+
+        var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+
+        var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        var d = await ctx.Duels.AsNoTracking().SingleAsync(x => x.Id == 40);
+        d.Status.Should().Be(DuelStatus.InProgress); // не завершаем
+        sender.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task Finishes_when_Accepted_is_earliest_and_later_running_can_be_ignored()
+    {
+        // 18:20 — u1 отправил, статус Done, Accepted
+        // 18:21 — u2 отправил, статус Running
+        // Ожидание: дуэль завершается победой u1, ждать u2 не нужно
+        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+
+        var baseTime = DateTime.UtcNow.Date.AddHours(18);
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var duel = EntityFactory.MakeDuel(50, u1, u2, "TASK", start: baseTime.AddMinutes(-10), deadline: baseTime.AddHours(1));
+
+        var earliestAccepted = EntityFactory.MakeSubmission(300, duel, u1, time: baseTime.AddMinutes(20), status: SubmissionStatus.Done, verdict: "Accepted");
+        var laterRunning = EntityFactory.MakeSubmission(301, duel, u2, time: baseTime.AddMinutes(21), status: SubmissionStatus.Running);
+
+        ctx.AddRange(u1, u2, duel, earliestAccepted, laterRunning);
+        await ctx.SaveChangesAsync();
+
+        var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
+        sender.Setup(s => s.SendMessage(1, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        sender.Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+
+        var d = await ctx.Duels.AsNoTracking().Include(x => x.Winner).SingleAsync(x => x.Id == 50);
+        d.Status.Should().Be(DuelStatus.Finished);
+        d.Winner!.Id.Should().Be(1);
+
+        sender.VerifyAll();
+    }
+
+    [Fact]
+    public async Task Does_not_finish_when_deadline_passed_but_some_submissions_still_running()
+    {
+        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var now = DateTime.UtcNow;
+
+        // Дуэль уже должна была завершиться по времени
+        var duel = EntityFactory.MakeDuel(
+            id: 40,
+            u1, u2,
+            taskId: "TASK-40",
+            start: now.AddMinutes(-40),
+            deadline: now.AddMinutes(-1) // дедлайн в прошлом
+        );
+
+        // Но есть посылка, отправленная до дедлайна, которая всё ещё тестируется
+        var running = EntityFactory.MakeSubmission(
+            id: 400,
+            duel: duel,
+            user: u1,
+            time: now.AddMinutes(-2),
+            status: SubmissionStatus.Running
+        );
+
+        ctx.AddRange(u1, u2, duel, running);
+        await ctx.SaveChangesAsync();
+
+        // Сообщения отправляться не должны
+        var sender = new Moq.Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
+
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+
+        var d = await ctx.Duels.AsNoTracking().Include(x => x.Winner).SingleAsync(dd => dd.Id == 40);
+        d.Status.Should().Be(DuelStatus.InProgress, "есть ещё выполняющиеся посылки");
+        d.EndTime.Should().BeNull();
+        d.Winner.Should().BeNull();
+
+        sender.VerifyNoOtherCalls();
+    }
+
 }

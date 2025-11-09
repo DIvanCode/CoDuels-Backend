@@ -13,41 +13,30 @@ using Xunit;
 public class RefreshHandlerTests
 {
     [Fact]
-    public async Task NotFound_when_user_absent()
+    public async Task NotFound_when_refresh_token_unknown()
     {
         var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+
+        // Никаких пользователей в БД с таким токеном нет
         var tokenSvc = new Mock<ITokenService>(MockBehavior.Strict);
         var handler = new RefreshHandler(ctx, tokenSvc.Object);
 
-        var res = await handler.Handle(new RefreshCommand { UserId = 1, RefreshToken = "X" }, CancellationToken.None);
+        var res = await handler.Handle(new RefreshCommand { RefreshToken = "NOPE" }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
+
+        // Убеждаемся, что генерация токенов не вызывалась
+        tokenSvc.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task AuthError_when_token_mismatch()
+    public async Task Success_generates_and_persists_new_refresh_by_token_lookup()
     {
         var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
-        ctx.Users.Add(new User { Id = 1, Nickname = "neo", PasswordHash = "h", PasswordSalt = "s", RefreshToken = "OLD" });
-        await ctx.SaveChangesAsync();
 
-        var tokenSvc = new Mock<ITokenService>(MockBehavior.Strict);
-        var handler = new RefreshHandler(ctx, tokenSvc.Object);
-
-        var res = await handler.Handle(new RefreshCommand { UserId = 1, RefreshToken = "WRONG" }, CancellationToken.None);
-
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is AuthenticationError);
-
-        (await ctx.Users.AsNoTracking().SingleAsync(u => u.Id == 1)).RefreshToken.Should().Be("OLD");
-    }
-
-    [Fact]
-    public async Task Success_generates_and_persists_new_refresh()
-    {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
-        ctx.Users.Add(new User { Id = 2, Nickname = "trinity", PasswordHash = "h", PasswordSalt = "s", RefreshToken = "OLD" });
+        var user = new User { Id = 2, Nickname = "trinity", PasswordHash = "h", PasswordSalt = "s", RefreshToken = "OLD" };
+        ctx.Users.Add(user);
         await ctx.SaveChangesAsync();
 
         var tokenSvc = new Mock<ITokenService>();
@@ -55,12 +44,17 @@ public class RefreshHandlerTests
                 .Returns(("ACCESS2", "REFRESH2"));
 
         var handler = new RefreshHandler(ctx, tokenSvc.Object);
-        var res = await handler.Handle(new RefreshCommand { UserId = 2, RefreshToken = "OLD" }, CancellationToken.None);
+
+        var res = await handler.Handle(new RefreshCommand { RefreshToken = "OLD" }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         res.Value.AccessToken.Should().Be("ACCESS2");
         res.Value.RefreshToken.Should().Be("REFRESH2");
 
-        (await ctx.Users.AsNoTracking().SingleAsync(u => u.Id == 2)).RefreshToken.Should().Be("REFRESH2");
+        var refreshed = await ctx.Users.AsNoTracking().SingleAsync(u => u.Id == 2);
+        refreshed.RefreshToken.Should().Be("REFRESH2");
+
+        tokenSvc.Verify(s => s.GenerateTokens(It.Is<User>(u => u.Id == 2)), Times.Once);
+        tokenSvc.VerifyNoOtherCalls();
     }
 }
