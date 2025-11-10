@@ -11,12 +11,14 @@ func UnmarshalStepJSON(data []byte) (step execution.Step, err error) {
 	var details execution.StepDetails
 	if err = json.Unmarshal(data, &details); err != nil {
 		err = fmt.Errorf("failed to unmarshal step details: %w", err)
-		return
+		return step, err
 	}
 
 	switch details.Type {
 	case execution.CompileCppStepType:
 		step = &CompileCppStep{}
+	case execution.CompileGoStepType:
+		step = &CompileGoStep{}
 	case execution.RunCppStepType:
 		step = &RunCppStep{}
 	case execution.RunGoStepType:
@@ -27,21 +29,21 @@ func UnmarshalStepJSON(data []byte) (step execution.Step, err error) {
 		step = &CheckCppStep{}
 	default:
 		err = fmt.Errorf("unknown step type: %s", details.Type)
-		return
+		return step, err
 	}
 
 	if err = json.Unmarshal(data, step); err != nil {
 		err = fmt.Errorf("failed to unmarshal %s step: %w", details.Type, err)
-		return
+		return step, err
 	}
-	return
+	return step, err
 }
 
 func UnmarshalStepsJSON(data []byte) (stepsArray []execution.Step, err error) {
 	var array []json.RawMessage
 	if err = json.Unmarshal(data, &array); err != nil {
 		err = fmt.Errorf("failed to unmarshal steps array: %w", err)
-		return
+		return stepsArray, err
 	}
 
 	stepsArray = make([]execution.Step, 0, len(array))
@@ -50,11 +52,11 @@ func UnmarshalStepsJSON(data []byte) (stepsArray []execution.Step, err error) {
 		step, err = UnmarshalStepJSON(item)
 		if err != nil {
 			err = fmt.Errorf("failed to unmarshal step: %w", err)
-			return
+			return stepsArray, err
 		}
 		stepsArray = append(stepsArray, step)
 	}
-	return
+	return stepsArray, err
 }
 
 func getDependencies(step execution.Step) []execution.StepName {

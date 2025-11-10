@@ -10,12 +10,14 @@ func UnmarshalJSON(data []byte) (job execution.Job, err error) {
 	var details execution.JobDetails
 	if err = json.Unmarshal(data, &details); err != nil {
 		err = fmt.Errorf("failed to unmarshal job etails: %w", err)
-		return
+		return job, err
 	}
 
 	switch details.Type {
 	case execution.CompileCppJobType:
 		job = &CompileCppJob{}
+	case execution.CompileGoJobType:
+		job = &CompileGoJob{}
 	case execution.RunCppJobType:
 		job = &RunCppJob{}
 	case execution.RunGoJobType:
@@ -26,21 +28,21 @@ func UnmarshalJSON(data []byte) (job execution.Job, err error) {
 		job = &CheckCppJob{}
 	default:
 		err = fmt.Errorf("unknown job type: %s", details.Type)
-		return
+		return job, err
 	}
 
 	if err = json.Unmarshal(data, job); err != nil {
 		err = fmt.Errorf("failed to unmarshal %s job: %w", details.Type, err)
-		return
+		return job, err
 	}
-	return
+	return job, err
 }
 
 func UnmarshalJobsJSON(data []byte) (jobsArray []execution.Job, err error) {
 	var array []json.RawMessage
 	if err = json.Unmarshal(data, &array); err != nil {
 		err = fmt.Errorf("failed to unmarshal jobs array: %w", err)
-		return
+		return jobsArray, err
 	}
 
 	jobsArray = make([]execution.Job, 0, len(array))
@@ -49,9 +51,9 @@ func UnmarshalJobsJSON(data []byte) (jobsArray []execution.Job, err error) {
 		job, err = UnmarshalJSON(item)
 		if err != nil {
 			err = fmt.Errorf("failed to unmarshal job: %w", err)
-			return
+			return jobsArray, err
 		}
 		jobsArray = append(jobsArray, job)
 	}
-	return
+	return jobsArray, err
 }
