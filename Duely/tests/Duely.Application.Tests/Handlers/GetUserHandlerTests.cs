@@ -8,16 +8,15 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-public class GetUserHandlerTests
+public class GetUserHandlerTests : ContextBasedTest
 {
     [Fact]
     public async Task Returns_UserDto_when_exists()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
         var user = EntityFactory.MakeUser(1, "neo");
-        ctx.Users.Add(user); await ctx.SaveChangesAsync();
+        Context.Users.Add(user); await Context.SaveChangesAsync();
 
-        var handler = new GetHandler(ctx);
+        var handler = new GetHandler(Context);
         var res = await handler.Handle(new GetUserQuery { UserId = 1 }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -28,8 +27,7 @@ public class GetUserHandlerTests
     [Fact]
     public async Task Returns_NotFound_when_absent()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
-        var handler = new GetHandler(ctx);
+        var handler = new GetHandler(Context);
 
         var res = await handler.Handle(new GetUserQuery { UserId = 777 }, CancellationToken.None);
 
