@@ -12,7 +12,7 @@ public sealed class DuelHistoryItemDto
     public required DuelStatus Status { get; init; }
 
     [JsonPropertyName("opponent_nickname")]
-    public string OpponentNickname { get; init; } = null!;
+    public required string OpponentNickname { get; init; }
 
     [JsonPropertyName("winner_nickname")]
     public string? WinnerNickname { get; init; }
