@@ -9,12 +9,12 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-public class SendSubmissionHandlerTests
+public class SendSubmissionHandlerTests : ContextBasedTest
 {
     [Fact]
     public async Task NotFound_when_duel_absent()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var handler = new SendSubmissionHandler(ctx);
 
@@ -33,7 +33,7 @@ public class SendSubmissionHandlerTests
     [Fact]
     public async Task NotFound_when_user_absent()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
@@ -59,7 +59,7 @@ public class SendSubmissionHandlerTests
     [Fact]
     public async Task Success_creates_submission_and_outbox_message()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");

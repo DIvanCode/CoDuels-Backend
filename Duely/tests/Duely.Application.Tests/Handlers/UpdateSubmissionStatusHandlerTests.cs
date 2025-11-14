@@ -7,12 +7,12 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-public class UpdateSubmissionStatusHandlerTests
+public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
 {
     [Fact]
     public async Task Updates_running_on_status_ping()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
@@ -31,7 +31,7 @@ public class UpdateSubmissionStatusHandlerTests
     [Fact]
     public async Task Finishes_with_verdict_and_clears_message()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
@@ -54,7 +54,7 @@ public class UpdateSubmissionStatusHandlerTests
     [Fact]
     public async Task Finishes_with_technical_error_when_error_present()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");

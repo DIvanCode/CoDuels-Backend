@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 
 namespace Duely.Application.Tests.TestHelpers;
@@ -8,7 +9,8 @@ public abstract class ContextBasedTest : IAsyncLifetime
     protected ContextBasedTest()
     {
         var builder = new DbContextOptionsBuilder<Context>();
-        builder.UseInMemoryDatabase(Guid.NewGuid().ToString());
+        builder.UseInMemoryDatabase(Guid.NewGuid().ToString())
+        .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
         Context = new Context(builder.Options);
     }
 

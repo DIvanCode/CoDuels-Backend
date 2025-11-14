@@ -9,12 +9,12 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-public class RegisterHandlerTests
+public class RegisterHandlerTests : ContextBasedTest
 {
     [Fact]
     public async Task AlreadyExists_when_nickname_dup()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         ctx.Users.Add(new User { Id = 1, Nickname = "alice", PasswordHash = "h", PasswordSalt = "s" });
         await ctx.SaveChangesAsync();
@@ -36,7 +36,7 @@ public class RegisterHandlerTests
     [Fact]
     public async Task Success_creates_user_with_hash_and_salt()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var handler = new RegisterHandler(ctx);
 

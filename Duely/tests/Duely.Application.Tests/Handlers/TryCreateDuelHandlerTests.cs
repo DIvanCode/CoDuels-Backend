@@ -12,16 +12,15 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
-public class TryCreateDuelHandlerTests
+public class TryCreateDuelHandlerTests : ContextBasedTest
 {
-
     [Fact]
     public async Task Does_nothing_when_no_pair()
     {
-        var (ctx, conn) = Duely.Application.Tests.TestHelpers.DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.TryGetPair()).Returns(( (int,int)? )null);
+        duelManager.Setup(m => m.TryGetPair()).Returns(((int, int)?)null);
 
         var taski = new TaskiClientSuccessFake("TASK-1");
         var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
@@ -38,7 +37,7 @@ public class TryCreateDuelHandlerTests
     [Fact]
     public async Task Creates_duel_and_sends_messages_when_pair_exists()
     {
-        var (ctx, conn) = Duely.Application.Tests.TestHelpers.DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");

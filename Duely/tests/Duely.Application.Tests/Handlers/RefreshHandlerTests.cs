@@ -10,12 +10,12 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 
-public class RefreshHandlerTests
+public class RefreshHandlerTests : ContextBasedTest
 {
     [Fact]
     public async Task NotFound_when_refresh_token_unknown()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         // Никаких пользователей в БД с таким токеном нет
         var tokenSvc = new Mock<ITokenService>(MockBehavior.Strict);
@@ -33,7 +33,7 @@ public class RefreshHandlerTests
     [Fact]
     public async Task Success_generates_and_persists_new_refresh_by_token_lookup()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var user = new User { Id = 2, Nickname = "trinity", PasswordHash = "h", PasswordSalt = "s", RefreshToken = "OLD" };
         ctx.Users.Add(user);

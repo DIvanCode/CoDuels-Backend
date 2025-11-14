@@ -6,12 +6,12 @@ using Duely.Domain.Models;
 using FluentAssertions;
 using Xunit;
 
-public class IamHandlerTests
+public class IamHandlerTests : ContextBasedTest
 {
     [Fact]
     public async Task Returns_current_user()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
         ctx.Users.Add(EntityFactory.MakeUser(7, "alice"));
         await ctx.SaveChangesAsync();
 

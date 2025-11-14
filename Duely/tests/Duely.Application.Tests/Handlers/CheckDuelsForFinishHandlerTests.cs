@@ -10,12 +10,12 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 
-public class CheckDuelsForFinishHandlerTests
+public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 {
     [Fact]
     public async Task Finishes_by_time_as_draw()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
@@ -42,7 +42,7 @@ public class CheckDuelsForFinishHandlerTests
     [Fact]
     public async Task Finishes_by_first_accepted_submission()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
@@ -73,7 +73,7 @@ public class CheckDuelsForFinishHandlerTests
     [Fact]
     public async Task Does_nothing_when_nobody_ready()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
@@ -96,7 +96,7 @@ public class CheckDuelsForFinishHandlerTests
         // 18:20 — u1 отправил, статус Running
         // 18:21 — u2 отправил, статус Done, Accepted
         // Ожидание: дуэль НЕ завершается, ждём u1
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var baseTime = DateTime.UtcNow.Date.AddHours(18);
         var u1 = EntityFactory.MakeUser(1, "u1");
@@ -126,7 +126,7 @@ public class CheckDuelsForFinishHandlerTests
         // 18:20 — u1 отправил, статус Done, Accepted
         // 18:21 — u2 отправил, статус Running
         // Ожидание: дуэль завершается победой u1, ждать u2 не нужно
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var baseTime = DateTime.UtcNow.Date.AddHours(18);
         var u1 = EntityFactory.MakeUser(1, "u1");
@@ -158,7 +158,7 @@ public class CheckDuelsForFinishHandlerTests
     [Fact]
     public async Task Does_not_finish_when_deadline_passed_but_some_submissions_still_running()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
@@ -201,13 +201,12 @@ public class CheckDuelsForFinishHandlerTests
         sender.VerifyNoOtherCalls();
     }
 
-
     [Fact]
     public async Task Finishes_even_if_running_submission_sent_after_deadline()
     {
         // Дуэль закончилась по времени (deadline прошёл),
         // но один из пользователей отправил посылку ПОСЛЕ дедлайна — её игнорируем.
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
@@ -249,6 +248,4 @@ public class CheckDuelsForFinishHandlerTests
 
         sender.VerifyAll();
     }
-
-
 }

@@ -7,12 +7,12 @@ using Duely.Domain.Models;
 using FluentAssertions;
 using Xunit;
 
-public class GetSubmissionHandlerTests
+public class GetSubmissionHandlerTests : ContextBasedTest
 {
     [Fact]
     public async Task Returns_submission_for_user_in_duel()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
@@ -39,7 +39,7 @@ public class GetSubmissionHandlerTests
     [Fact]
     public async Task NotFound_when_not_matches_user_or_duel()
     {
-        var (ctx, conn) = DbContextFactory.CreateSqliteContext(); await using var _ = conn;
+        var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
