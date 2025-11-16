@@ -1,0 +1,15 @@
+name: Duely
+on: [push]
+jobs:
+  Unit-Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET 6.x
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Run tests
+        run: for proj in $(find tests -name '*.csproj'); do dotnet test $proj --no-restore --verbosity normal; done
