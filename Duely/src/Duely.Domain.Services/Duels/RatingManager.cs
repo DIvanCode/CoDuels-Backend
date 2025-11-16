@@ -44,17 +44,17 @@ public sealed class RatingManager : IRatingManager
         user1.Rating = (int)Math.Round(r1 + k1 * (score1 - expected1));
         user2.Rating = (int)Math.Round(r2 + k2 * (score2 - expected2));
     }
-}
-private static int GetK(int rating)
-{
-    if (rating < 1600)
-        return 40;
+    private static int GetK(int rating)
+    {
+        if (rating < 1600)
+            return 40;
 
-    if (rating < 2000)
-        return 32;
+        if (rating < 2000)
+            return 32;
 
-    if (rating < 2200)
-        return 24;
+        if (rating < 2200)
+            return 24;
 
-    return 16;
+        return 16;
+    }
 }

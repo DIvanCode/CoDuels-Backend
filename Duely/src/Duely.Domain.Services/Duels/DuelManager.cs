@@ -17,7 +17,7 @@ public sealed class DuelManager : IDuelManager
 
     private readonly List<WaitingUser> _waitingUsers = new();
 
-    public void AddUser(int userId)
+    public void AddUser(int userId, int rating)
     {
         if (_waitingUsers.Any(u => u.UserId == userId))
         {
