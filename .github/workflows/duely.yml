@@ -1,0 +1,17 @@
+name: Duely
+on: [push]
+defaults:
+  run:
+    shell: bash
+    working-directory: ./Duely
+jobs:
+  Unit-Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET 8.0.x
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Run tests
+        run: for proj in $(find tests -name '*.csproj'); do dotnet test $proj --verbosity normal; done
