@@ -3,6 +3,7 @@ using Duely.Domain.Models;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Duely.Domain.Models.Messages;
 using Microsoft.EntityFrameworkCore;
+using Duely.Domain.Services.Duels;
 using MediatR;
 using FluentResults;
 
@@ -12,7 +13,8 @@ public sealed class CheckDuelsForFinishCommand: IRequest<Result> { }
 
 public sealed class CheckDuelsForFinishHandler(
     Context context,
-    IMessageSender messageSender
+    IMessageSender messageSender,
+    IRatingManager ratingManager
     ) 
     : IRequestHandler<CheckDuelsForFinishCommand, Result>
 {
@@ -65,6 +67,7 @@ public sealed class CheckDuelsForFinishHandler(
             return Result.Ok();
 
         }
+        ratingManager.UpdateRatings(duel);
 
         if (duel.DeadlineTime <= DateTime.UtcNow)
         {

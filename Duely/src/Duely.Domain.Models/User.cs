@@ -7,4 +7,5 @@ public sealed class User
     public required string PasswordHash { get; init; }
     public required string PasswordSalt { get; init; }
     public string? RefreshToken { get; set; }
+    public int Rating { get; set; } = 1500;
 }
