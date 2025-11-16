@@ -1,6 +1,5 @@
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Domain.Models;
-using Duely.Application.UseCases.Errors;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Duely.Domain.Models.Messages;
 using Microsoft.EntityFrameworkCore;
@@ -20,9 +19,9 @@ public sealed class CheckDuelsForFinishHandler(
     public async Task<Result> Handle(CheckDuelsForFinishCommand request, CancellationToken cancellationToken)
     {
         var duel = await context.Duels
-            .Where(d => d.Status == DuelStatus.InProgress && 
+            .Where(d => d.Status == DuelStatus.InProgress &&
             (
-                d.DeadlineTime <= DateTime.UtcNow || 
+                d.DeadlineTime <= DateTime.UtcNow ||
                 d.Submissions.Any(
                     s => s.Status == SubmissionStatus.Done && s.Verdict == "Accepted"
                 )
@@ -31,7 +30,6 @@ public sealed class CheckDuelsForFinishHandler(
             .Include(d => d.User1)
             .Include(d => d.User2)
             .Include(d => d.Submissions
-                .Where(s => s.Status == SubmissionStatus.Done && s.Verdict == "Accepted")
                 .OrderBy(s => s.SubmitTime))
             .ThenInclude(s => s.User)
             .FirstOrDefaultAsync(cancellationToken);
@@ -45,59 +43,61 @@ public sealed class CheckDuelsForFinishHandler(
         {
             return Result.Ok();
         }
-        
-        var winner = getWinner(duel);
 
-        duel.Status = DuelStatus.Finished;
-        duel.EndTime = DateTime.UtcNow;
-        
-        if (winner is not null)
+        var earliestAccepted = duel.Submissions
+            .Where(s => s.Status == SubmissionStatus.Done && s.Verdict == "Accepted" && s.SubmitTime <= duel.DeadlineTime)
+            .OrderBy(s => s.SubmitTime)
+            .FirstOrDefault();
+
+
+        if (earliestAccepted is not null)
         {
-            duel.Winner = winner;
+            var evenEarlierNotDone = duel.Submissions
+                .Any(s => s.Status != SubmissionStatus.Done && s.SubmitTime <= earliestAccepted.SubmitTime);
+
+            if (evenEarlierNotDone)
+            {
+                return Result.Ok();
+            }
+
+            await FinishDuelAsync(duel, earliestAccepted.User, cancellationToken);
+
+            return Result.Ok();
+
         }
 
-        await context.SaveChangesAsync(cancellationToken);
-
-        var message = new DuelFinishedMessage
+        if (duel.DeadlineTime <= DateTime.UtcNow)
         {
-            DuelId = duel.Id,
-        };
+            var notDoneBeforeDeadline = duel.Submissions
+                .Any(s => s.Status != SubmissionStatus.Done && s.SubmitTime <= duel.DeadlineTime);
 
-        await messageSender.SendMessage(duel.User1.Id, message, cancellationToken);
-        await messageSender.SendMessage(duel.User2.Id, message, cancellationToken);
-        
+            if (notDoneBeforeDeadline)
+            {
+                return Result.Ok();
+            }
+
+            await FinishDuelAsync(duel, null, cancellationToken);
+
+            return Result.Ok();
+
+        }
+
         return Result.Ok();
     }
 
-    private static User? getWinner(Duel duel)
+
+    private async Task FinishDuelAsync(Duel duel, User? winner, CancellationToken cancellationToken)
     {
-        var accepted = duel.Submissions;
-        var u1 = accepted.FirstOrDefault(s => s.User.Id == duel.User1.Id);
-        var u2 = accepted.FirstOrDefault(s => s.User.Id == duel.User2.Id);
+        duel.Status = DuelStatus.Finished;
+        duel.EndTime = DateTime.UtcNow;
+        duel.Winner = winner;
 
-        if (u1 is null && u2 is null)
-        {
-            return null;
-        }
-        if (u1 is not null && u2 is null)
-        {
-            return duel.User1;
-        }
-        if (u2 is not null && u1 is null)
-        {
-            return duel.User2;
-        }
+        await context.SaveChangesAsync(cancellationToken);
 
+        var message = new DuelFinishedMessage { DuelId = duel.Id };
 
-        if (u1!.SubmitTime > u2!.SubmitTime)
-        {
-            return duel.User2;
-        }
-        if (u1.SubmitTime < u2.SubmitTime)
-        {
-            return duel.User1;
-        }
-
-        return null;
+        await messageSender.SendMessage(duel.User1.Id, message, cancellationToken);
+        await messageSender.SendMessage(duel.User2.Id, message, cancellationToken);
     }
+
 }
