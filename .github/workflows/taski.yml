@@ -5,7 +5,7 @@ defaults:
     shell: bash
     working-directory: ./Taski
 jobs:
-  Unit-Tests:
+  Test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
