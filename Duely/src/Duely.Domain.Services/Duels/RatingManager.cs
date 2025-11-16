@@ -8,8 +8,6 @@ public interface IRatingManager
 }
 public sealed class RatingManager : IRatingManager
 {
-    private const int K = 32;
-
     public void UpdateRatings(Duel duel)
     {
         var user1 = duel.User1;
@@ -40,7 +38,23 @@ public sealed class RatingManager : IRatingManager
         double expected1 = 1.0 / (1.0 + Math.Pow(10, (r2 - r1) / 400.0));
         double expected2 = 1.0 / (1.0 + Math.Pow(10, (r1 - r2) / 400.0));
 
-        user1.Rating = (int)Math.Round(r1 + K * (score1 - expected1));
-        user2.Rating = (int)Math.Round(r2 + K * (score2 - expected2));
+        var k1 = GetK(user1.Rating);
+        var k2 = GetK(user2.Rating);
+
+        user1.Rating = (int)Math.Round(r1 + k1 * (score1 - expected1));
+        user2.Rating = (int)Math.Round(r2 + k2 * (score2 - expected2));
     }
+}
+private static int GetK(int rating)
+{
+    if (rating < 1600)
+        return 40;
+
+    if (rating < 2000)
+        return 32;
+
+    if (rating < 2200)
+        return 24;
+
+    return 16;
 }
