@@ -23,12 +23,14 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
             .IsRequired();
 
         builder.HasOne(d => d.User1)
-            .WithMany()
+            .WithMany(u => u.DuelsAsUser1)
+            .HasForeignKey("User1Id")
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(d => d.User2)
-            .WithMany()
+            .WithMany(u => u.DuelsAsUser2)
+            .HasForeignKey("User2Id")
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
 
