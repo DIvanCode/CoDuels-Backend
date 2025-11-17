@@ -17,4 +17,4 @@ jobs:
         with:
           dotnet-version: "8.0.x"
       - name: Run tests
-        run: for proj in $(find tests -name '*.csproj'); do dotnet test $proj --verbosity normal; done
+        run: dotnet test Duely.sln
