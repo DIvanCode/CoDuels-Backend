@@ -18,6 +18,7 @@ type (
 		Execute         ExecuteConfig         `yaml:"execute"`
 		EventConsumer   EventConsumerConfig   `yaml:"event_consumer"`
 		MessageProducer MessageProducerConfig `yaml:"message_producer"`
+		Tasks           TasksList             `yaml:"tasks"`
 	}
 
 	HttpServerConfig struct {
@@ -45,6 +46,8 @@ type (
 		Brokers []string `yaml:"brokers"`
 		Topic   string   `yaml:"topic"`
 	}
+
+	TasksList []string
 )
 
 func MustLoad() (cfg *Config) {

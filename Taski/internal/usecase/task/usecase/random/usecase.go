@@ -3,26 +3,31 @@ package random
 import (
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
+	"taski/internal/config"
 	"taski/internal/domain/task"
 )
 
 type (
-	Query struct {
-	}
+	Query struct{}
 
 	UseCase struct {
-		log     *slog.Logger
+		log   *slog.Logger
+		tasks config.TasksList
 	}
 )
 
-func NewUseCase(log *slog.Logger) *UseCase {
-	return &UseCase{log: log}
+func NewUseCase(log *slog.Logger, tasks config.TasksList) *UseCase {
+	return &UseCase{
+		log:   log,
+		tasks: tasks,
+	}
 }
 
-func (uc *UseCase) Random(query Query) (taskID task.ID, err error) {
-	// temp: hardcode only one existing task id
-	if err = taskID.FromString("7d971f50363cf0aebbd87d971f50363cf0aebbd8"); err != nil {
-		err = fmt.Errorf("failed to parse task id: %w", err)
+func (uc *UseCase) Random(_ Query) (taskID task.ID, err error) {
+	if err = taskID.FromString(uc.tasks[rand.N(len(uc.tasks))]); err != nil {
+		uc.log.Error("failed to parse task ID", slog.Any("err", err))
+		err = fmt.Errorf("failed to parse task id")
 		return
 	}
 	return

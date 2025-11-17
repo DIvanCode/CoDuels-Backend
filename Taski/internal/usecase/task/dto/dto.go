@@ -1,23 +1,21 @@
 package dto
 
-import "taski/internal/domain/task"
+import (
+	"fmt"
+	"taski/internal/domain/task"
+	"taski/internal/domain/task/tasks"
+)
 
 type TaskDto interface {
-	SetDetails(t task.Task)
+	setDetails(t task.Task)
 }
 
 type taskDetailsDto struct {
-	ID        task.ID   `json:"id"`
-	Title     string    `json:"title"`
-	Type      task.Type `json:"type"`
-	Statement string    `json:"statement"`
-}
-
-func (d *taskDetailsDto) SetDetails(t task.Task) {
-	d.ID = t.GetID()
-	d.Title = t.GetTitle()
-	d.Type = t.GetType()
-	d.Statement = t.GetStatement()
+	ID        task.ID    `json:"id"`
+	Title     string     `json:"title"`
+	Type      task.Type  `json:"type"`
+	Level     task.Level `json:"level"`
+	Statement string     `json:"statement"`
 }
 
 type WriteCodeTaskDto struct {
@@ -62,7 +60,15 @@ type TestDto struct {
 	Output string `json:"output"`
 }
 
-func ConvertTests(tests []task.Test) []TestDto {
+func (d *taskDetailsDto) setDetails(t task.Task) {
+	d.ID = t.GetID()
+	d.Title = t.GetTitle()
+	d.Type = t.GetType()
+	d.Level = t.GetLevel()
+	d.Statement = t.GetStatement()
+}
+
+func convertTests(tests []task.Test) []TestDto {
 	testsDto := make([]TestDto, 0, len(tests))
 	for _, test := range tests {
 		if !test.Visible {
@@ -76,4 +82,62 @@ func ConvertTests(tests []task.Test) []TestDto {
 		})
 	}
 	return testsDto
+}
+
+func ConvertTask(t task.Task) (TaskDto, error) {
+	switch t.GetType() {
+	case task.WriteCode:
+		taskDto := &WriteCodeTaskDto{}
+		taskDto.setDetails(t)
+
+		typedTask := t.(*tasks.WriteCodeTask)
+		taskDto.TimeLimit = typedTask.TimeLimit
+		taskDto.MemoryLimit = typedTask.MemoryLimit
+		taskDto.Tests = convertTests(typedTask.Tests)
+
+		return taskDto, nil
+	case task.FixCode:
+		taskDto := &FixCodeTaskDto{}
+		taskDto.setDetails(t)
+
+		typedTask := t.(*tasks.FixCodeTask)
+		taskDto.Code = typedTask.Code.Path
+		taskDto.TimeLimit = typedTask.TimeLimit
+		taskDto.MemoryLimit = typedTask.MemoryLimit
+		taskDto.Tests = convertTests(typedTask.Tests)
+
+		return taskDto, nil
+	case task.AddCode:
+		taskDto := &AddCodeTaskDto{}
+		taskDto.setDetails(t)
+
+		typedTask := t.(*tasks.AddCodeTask)
+		taskDto.Code = typedTask.Code.Path
+		taskDto.TimeLimit = typedTask.TimeLimit
+		taskDto.MemoryLimit = typedTask.MemoryLimit
+		taskDto.Tests = convertTests(typedTask.Tests)
+
+		return taskDto, nil
+	case task.FindTest:
+		taskDto := &FindTestTaskDto{}
+		taskDto.setDetails(t)
+
+		typedTask := t.(*tasks.FindTestTask)
+		taskDto.Code = typedTask.Code.Path
+		taskDto.TimeLimit = typedTask.TimeLimit
+		taskDto.MemoryLimit = typedTask.MemoryLimit
+
+		return taskDto, nil
+	case task.PredictOutput:
+		taskDto := &PredictOutputTaskDto{}
+		taskDto.setDetails(t)
+
+		typedTask := t.(*tasks.FixCodeTask)
+		taskDto.Code = typedTask.Code.Path
+		taskDto.Tests = convertTests(typedTask.Tests)
+
+		return taskDto, nil
+	default:
+		return nil, fmt.Errorf("unknown task type %s", t.GetType())
+	}
 }

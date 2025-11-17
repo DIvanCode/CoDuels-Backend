@@ -2,7 +2,7 @@
     "id": "7d971f50363cf0aebbd87d971f50363cf0aebbd8",
     "title": "A + B",
     "type": "write_code",
-    "level": "easy",
+    "level": 1,
     "statement": "statement.md",
     "tl": 1000,
     "ml": 256,
