@@ -32,7 +32,8 @@ public sealed class TryCreateDuelHandler(
         }
 
         var user1 = await context.Users
-            .Include(u => u.Duels)
+            .Include(u => u.DuelsAsUser1)
+            .Include(u => u.DuelsAsUser2)
             .SingleOrDefaultAsync(u => u.Id == pair.Value.User1, cancellationToken);
         if (user1 is null)
         {
@@ -40,7 +41,8 @@ public sealed class TryCreateDuelHandler(
         }
 
         var user2 = await context.Users
-            .Include(u => u.Duels)
+            .Include(u => u.DuelsAsUser1)
+            .Include(u => u.DuelsAsUser2)
             .SingleOrDefaultAsync(u => u.Id == pair.Value.User2, cancellationToken);
         if (user2 is null)
         {
