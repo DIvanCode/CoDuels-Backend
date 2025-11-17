@@ -1,9 +1,12 @@
 name: Exesh
-on: [push]
+on:
+  pull_request:
+    paths:
+      - Exesh/**
 defaults:
   run:
     shell: bash
-    working-directory: ./Exesh
+    working-directory: Exesh
 jobs:
   Test:
     runs-on: ubuntu-latest

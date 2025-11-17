@@ -1,9 +1,12 @@
 name: Taski
-on: [push]
+on:
+  pull_request:
+    paths:
+      - Taski/**
 defaults:
   run:
     shell: bash
-    working-directory: ./Taski
+    working-directory: Taski
 jobs:
   Test:
     runs-on: ubuntu-latest
