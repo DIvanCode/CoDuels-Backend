@@ -1,0 +1,51 @@
+using Duely.Application.UseCases.Dtos;
+using Duely.Application.UseCases.Errors;
+using Duely.Domain.Models;
+using Duely.Infrastructure.DataAccess.EntityFramework;
+using FluentResults;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+namespace Duely.Application.UseCases.Features.UserCodeRuns;
+
+public sealed class GetUserCodeRunQuery : IRequest<Result<UserCodeRunDto>>
+{
+    public required int DuelId { get; init; }
+    public required int UserId { get; init; }
+    public required int RunId { get; init; }
+}
+
+public sealed class GetUserCodeRunHandler(Context context) : IRequestHandler<GetUserCodeRunQuery, Result<UserCodeRunDto>>
+{
+    public async Task<Result<UserCodeRunDto>> Handle(GetUserCodeRunQuery query, CancellationToken cancellationToken)
+    {
+        var run = await context.UserCodeRuns
+            .Include(r => r.Duel)
+            .Include(r => r.User)
+            .SingleOrDefaultAsync(r =>
+                r.Id == query.RunId &&
+                r.Duel.Id == query.DuelId &&
+                r.User.Id == query.UserId,
+                cancellationToken);
+
+        if (run is null)
+        {
+            return new EntityNotFoundError(nameof(UserCodeRun), nameof(UserCodeRun.Id), query.RunId);
+        }
+
+        var dto = new UserCodeRunDto
+        {
+            RunId = run.Id,
+            Solution = run.Code,
+            Language = run.Language,
+            Input = run.Input,
+            Status = run.Status,
+            Verdict = run.Verdict,
+            Output = run.Output,
+            Error = run.Error,
+            CreatedAt = run.CreatedAt
+        };
+
+        return dto;
+    }
+}
