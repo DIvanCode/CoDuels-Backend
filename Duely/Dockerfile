@@ -10,7 +10,7 @@ RUN dotnet build Duely.sln -c Release --no-restore
 RUN dotnet publish src/Duely/Duely.csproj -c Release -o /out --no-build
 
 FROM base AS migration
-RUN dotnet tool install --global dotnet-ef
+RUN dotnet tool install --global dotnet-ef --version 9.0.10
 RUN dotnet build Duely.sln -c Release --no-restore
 RUN dotnet publish src/Duely/Duely.csproj -c Release -o /migration-out --no-build
 
