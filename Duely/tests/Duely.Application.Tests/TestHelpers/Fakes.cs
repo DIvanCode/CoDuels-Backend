@@ -19,14 +19,16 @@ public sealed class TaskiClientSuccessFake : ITaskiClient
     public Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken)
         => Task.FromResult(Result.Ok(_tasks[Random.Shared.Next(_tasks.Length)]));
 
-    public Task<Result<IReadOnlyCollection<TaskResponse>>> GetTasksListAsync(CancellationToken cancellationToken)
-        => Task.FromResult(Result.Ok<IReadOnlyCollection<TaskResponse>>(
-            _tasks
+    public Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken)
+        => Task.FromResult(Result.Ok(new TaskListResponse
+        {
+            Tasks = _tasks
                 .Select(task => new TaskResponse
                 {
-                    Id = task                    
+                    Id = task
                 })
-                .ToList()));
+                .ToList()
+        }));
 
     public Task<Result> TestSolutionAsync(
         string taskId, string solutionId, string solution, string language, CancellationToken cancellationToken)
@@ -47,8 +49,8 @@ public sealed class TaskiClientFailFake : ITaskiClient
     public Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken)
         => Task.FromResult(Result.Fail<string>(_error));
 
-    public Task<Result<IReadOnlyCollection<TaskResponse>>> GetTasksListAsync(CancellationToken cancellationToken)
-        => Task.FromResult(Result.Fail<IReadOnlyCollection<TaskResponse>>(_error));
+    public Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken)
+        => Task.FromResult(Result.Fail<TaskListResponse>(_error));
 
     public Task<Result> TestSolutionAsync(
         string taskId, string solutionId, string solution, string language, CancellationToken cancellationToken)

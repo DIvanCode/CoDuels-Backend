@@ -13,5 +13,5 @@ public interface ITaskiClient
 
     Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken);
     
-    Task<Result<IReadOnlyCollection<TaskResponse>>> GetTasksListAsync(CancellationToken cancellationToken);
+    Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken);
 }

@@ -58,7 +58,7 @@ public sealed class TryCreateDuelHandler(
         var solvedTasks = user1.Duels.Select(d => d.TaskId)
             .Union(user2.Duels.Select(d => d.TaskId))
             .ToList();
-        var tasks = tasksList.Value
+        var tasks = tasksList.Value.Tasks
             .Select(task => task.Id)
             .Except(solvedTasks)
             .ToList();

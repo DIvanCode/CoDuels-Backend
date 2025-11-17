@@ -55,23 +55,23 @@ public sealed class TaskiClient(HttpClient httpClient) : ITaskiClient
         }
     }
 
-    public async Task<Result<IReadOnlyCollection<TaskResponse>>> GetTasksListAsync(CancellationToken cancellationToken)
+    public async Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var resp = await httpClient.GetFromJsonAsync<IReadOnlyCollection<TaskResponse>>(
+            var resp = await httpClient.GetFromJsonAsync<TaskListResponse>(
                 "task/list",
                 cancellationToken);
             if (resp is null)
             {
-                return Result.Fail<IReadOnlyCollection<TaskResponse>>("No tasks returned from Taski");
+                return Result.Fail<TaskListResponse>("No tasks returned from Taski");
             }
 
             return Result.Ok(resp);
         }
         catch (Exception e)
         {
-            return Result.Fail<IReadOnlyCollection<TaskResponse>>(e.Message);
+            return Result.Fail<TaskListResponse>(e.Message);
         }
     }
 }
