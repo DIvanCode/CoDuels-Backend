@@ -9,4 +9,7 @@ public sealed class UserDto
 
     [JsonPropertyName("nickname")]
     public required string Nickname { get; init; }
+
+    [JsonPropertyName("rating")]
+    public required int Rating { get; init; }
 }

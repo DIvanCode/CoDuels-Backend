@@ -36,5 +36,12 @@ public sealed class UsersConfiguration : IEntityTypeConfiguration<User>
             .HasColumnName("RefreshToken")
             .HasColumnType("text")
             .IsRequired(false);
+
+        builder.Property(s => s.Rating)
+            .HasColumnName("Rating")
+            .HasColumnType("integer")  
+            .HasDefaultValue(1500)
+            .IsRequired();
+        
     }
 }
