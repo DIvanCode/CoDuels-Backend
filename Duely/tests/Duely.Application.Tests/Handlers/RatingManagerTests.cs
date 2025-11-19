@@ -77,4 +77,17 @@ public class RatingManagerTests
         user1.Rating.Should().Be(1430); 
         user2.Rating.Should().Be(1576);    
     }
+    [Fact]
+    public void Favorite_win_changes_ratings_less_than_upset()
+    {
+        var strong = CreateUser(1, 1600);
+        var weak   = CreateUser(2, 1400);
+        var duel = CreateDuel(1, strong, weak);
+        duel.Winner = strong;
+
+        _ratingManager.UpdateRatings(duel);
+
+        strong.Rating.Should().Be(1608);  
+        weak.Rating.Should().Be(1390);   
+    }
 }

@@ -38,18 +38,43 @@ public sealed class DuelManager : IDuelManager
         {
             return null;
         }
-        var oldestUser = _waitingUsers
-            .OrderBy(u => u.EnqueuedAt)
-            .First();
-        var bestMatch = _waitingUsers
-            .Where(u => u.UserId != oldestUser.UserId)
-            .OrderBy(u => Math.Abs(u.Rating - oldestUser.Rating))
-            .ThenBy(u => u.EnqueuedAt)                       
-            .First();
+        var now = DateTime.UtcNow;
+        var sorted = _waitingUsers
+            .OrderBy(u => u.Rating)
+            .ThenBy(u => u.EnqueuedAt)
+            .ToList();
+        double bestScore = double.MaxValue;
+        WaitingUser? bestA = null;
+        WaitingUser? bestB = null;
+        for (int i = 0; i < sorted.Count - 1; i++)
+        {
+            var a = sorted[i];
+            var b = sorted[i + 1];
+            var score = CalculatePairScore(a, b, now);
+            if (score < bestScore)
+            {
+                bestScore = score;
+                bestA = a;
+                bestB = b;
+            }
+        }
+        if (bestA is null || bestB is null)
+            return null;
 
-        _waitingUsers.Remove(oldestUser);
-        _waitingUsers.Remove(bestMatch);
+        _waitingUsers.Remove(bestA);
+        _waitingUsers.Remove(bestB);
 
-        return (oldestUser.UserId, bestMatch.UserId);
+        return (bestA.UserId, bestB.UserId);
+    }
+
+    private static double CalculatePairScore(WaitingUser a, WaitingUser b, DateTime now)
+    {
+        var ratingDiff = Math.Abs(a.Rating - b.Rating);
+        var waitingA = (now - a.EnqueuedAt).TotalSeconds;
+        var waitingB = (now - b.EnqueuedAt).TotalSeconds;
+        var minWaiting = Math.Min(waitingA, waitingB);
+        const double ratingWeight = 1.0;
+        const double waitingWeight = 0.01; 
+        return ratingWeight * ratingDiff - waitingWeight * minWaiting;
     }
 }
