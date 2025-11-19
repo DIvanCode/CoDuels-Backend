@@ -1,0 +1,91 @@
+{
+    "id": "586de7a74de3302ee145a1edbf7bb2befa22f7ff",
+    "title": "Платная лестница",
+    "type": "write_code",
+    "level": 1,
+    "statement": "statement.md",
+    "tl": 1000,
+    "ml": 256,
+    "tests": [
+        {
+            "id": 1,
+            "input": "tests/01",
+            "output": "tests/01.out",
+            "visible": true
+        },
+        {
+            "id": 2,
+            "input": "tests/02",
+            "output": "tests/02.out",
+            "visible": false
+        },
+        {
+            "id": 3,
+            "input": "tests/03",
+            "output": "tests/03.out",
+            "visible": false
+        },
+        {
+            "id": 4,
+            "input": "tests/04",
+            "output": "tests/04.out",
+            "visible": false
+        },
+        {
+            "id": 5,
+            "input": "tests/05",
+            "output": "tests/05.out",
+            "visible": false
+        },
+        {
+            "id": 6,
+            "input": "tests/06",
+            "output": "tests/06.out",
+            "visible": false
+        },
+        {
+            "id": 7,
+            "input": "tests/07",
+            "output": "tests/07.out",
+            "visible": false
+        },
+        {
+            "id": 8,
+            "input": "tests/08",
+            "output": "tests/08.out",
+            "visible": false
+        },
+        {
+            "id": 9,
+            "input": "tests/09",
+            "output": "tests/09.out",
+            "visible": false
+        },
+        {
+            "id": 10,
+            "input": "tests/10",
+            "output": "tests/10.out",
+            "visible": false
+        },
+        {
+            "id": 11,
+            "input": "tests/11",
+            "output": "tests/11.out",
+            "visible": false
+        },
+        {
+            "id": 12,
+            "input": "tests/12",
+            "output": "tests/12.out",
+            "visible": false
+        }
+    ],
+    "checker": {
+        "path": "checker.cpp",
+        "lang": "C++"
+    },
+    "solution": {
+        "path": "solution.cpp",
+        "lang": "C++"
+    }
+}

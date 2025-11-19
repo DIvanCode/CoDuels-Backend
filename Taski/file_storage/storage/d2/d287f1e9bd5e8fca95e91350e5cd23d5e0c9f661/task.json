@@ -1,0 +1,31 @@
+{
+    "id": "d287f1e9bd5e8fca95e91350e5cd23d5e0c9f661",
+    "title": "Бинарный поиск",
+    "type": "write_code",
+    "level": 1,
+    "statement": "statement.md",
+    "tl": 1000,
+    "ml": 256,
+    "tests": [
+        {
+            "id": 1,
+            "input": "tests/01",
+            "output": "tests/01.out",
+            "visible": true
+        },
+        {
+            "id": 2,
+            "input": "tests/02",
+            "output": "tests/02.out",
+            "visible": false
+        }
+    ],
+    "checker": {
+        "path": "checker.cpp",
+        "lang": "C++"
+    },
+    "solution": {
+        "path": "solution.cpp",
+        "lang": "C++"
+    }
+}
