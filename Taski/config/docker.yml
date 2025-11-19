@@ -24,4 +24,4 @@ message_producer:
     - kafka:9092
   topic: taski.testing
 tasks:
-  - 7d971f50363cf0aebbd87d971f50363cf0aebbd8
+  - 0c5fe950363fc0aeb7d80c5fe950363fc0aeb7d8

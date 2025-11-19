@@ -109,12 +109,10 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 
 		s.log.Info("begin execution scheduler loop")
 
+		s.changeNowExecutions(+1)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-			s.changeNowExecutions(+1)
-
 			e, err := s.executionStorage.GetForSchedule(ctx, time.Now().Add(-s.cfg.ExecutionRetryAfter))
 			if err != nil {
-				s.changeNowExecutions(-1)
 				return fmt.Errorf("failed to get execution for schedule from storage: %w", err)
 			}
 			if e == nil {
@@ -126,23 +124,21 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 			e.SetScheduled(time.Now())
 
 			if err = s.executionStorage.Update(ctx, *e); err != nil {
-				s.changeNowExecutions(-1)
 				return fmt.Errorf("failed to update execution in storage %s: %w", e.ID.String(), err)
 			}
 
 			execCtx, err := e.BuildContext()
 			if err != nil {
-				s.changeNowExecutions(-1)
 				return fmt.Errorf("failed to build execution context: %w", err)
 			}
 			if err = s.scheduleExecution(ctx, &execCtx); err != nil {
-				s.changeNowExecutions(-1)
 				return fmt.Errorf("failed to schedule execution: %w", err)
 
 			}
 
 			return nil
 		}); err != nil {
+			s.changeNowExecutions(-1)
 			s.log.Error("failed to schedule execution", slog.Any("error", err))
 		}
 	}
@@ -207,7 +203,7 @@ func (s *ExecutionScheduler) failStep(ctx context.Context, execCtx *execution.Co
 		return fmt.Errorf("failed to send message: %w", err)
 	}
 
-	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
+	if err = s.unitOfWork.Do(ctx, func(ctx context.Context) error {
 		if err = s.executionStorage.Finish(ctx, execCtx.ExecutionID); err != nil {
 			return err
 		}
@@ -220,12 +216,20 @@ func (s *ExecutionScheduler) failStep(ctx context.Context, execCtx *execution.Co
 	return nil
 }
 
-func (s *ExecutionScheduler) doneStep(ctx context.Context, execCtx *execution.Context, step execution.Step, result execution.Result) error {
+func (s *ExecutionScheduler) doneStep(
+	ctx context.Context,
+	execCtx *execution.Context,
+	step execution.Step,
+	result execution.Result,
+) error {
 	if execCtx.IsDone() {
 		return nil
 	}
 
 	execCtx.DoneStep(step.GetName())
+	if execCtx.IsDone() {
+		defer s.changeNowExecutions(-1)
+	}
 
 	msg, err := s.messageFactory.CreateForStep(execCtx, step, result)
 	if err != nil {
@@ -236,9 +240,7 @@ func (s *ExecutionScheduler) doneStep(ctx context.Context, execCtx *execution.Co
 	}
 
 	if execCtx.IsDone() {
-		defer s.changeNowExecutions(-1)
-
-		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
+		if err = s.unitOfWork.Do(ctx, func(ctx context.Context) error {
 			if err = s.executionStorage.Finish(ctx, execCtx.ExecutionID); err != nil {
 				return err
 			}
@@ -248,12 +250,38 @@ func (s *ExecutionScheduler) doneStep(ctx context.Context, execCtx *execution.Co
 			return fmt.Errorf("failed to finish execution in storage: %w", err)
 		}
 
-		msg, err := s.messageFactory.CreateExecutionFinished(execCtx)
+		msg, err = s.messageFactory.CreateExecutionFinished(execCtx)
 		if err != nil {
 			return fmt.Errorf("failed to create execution finished message: %w", err)
 		}
 		if err = s.messageSender.Send(ctx, msg); err != nil {
 			return fmt.Errorf("failed to send %s message: %w", msg.GetType(), err)
+		}
+
+		return nil
+	}
+
+	if result.ShouldFinishExecution() {
+		defer s.changeNowExecutions(-1)
+
+		execCtx.FailStep(step.GetName())
+
+		msg, err = s.messageFactory.CreateExecutionFinished(execCtx)
+		if err != nil {
+			return fmt.Errorf("failed to create message for result: %w", err)
+		}
+		if err = s.messageSender.Send(ctx, msg); err != nil {
+			return fmt.Errorf("failed to send message: %w", err)
+		}
+
+		if err = s.unitOfWork.Do(ctx, func(ctx context.Context) error {
+			if err = s.executionStorage.Finish(ctx, execCtx.ExecutionID); err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
+			s.log.Error("failed to finish execution in storage", slog.Any("error", err))
+			return fmt.Errorf("failed to finish execution in storage: %w", err)
 		}
 
 		return nil
