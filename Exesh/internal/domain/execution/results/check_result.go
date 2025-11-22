@@ -15,3 +15,7 @@ const (
 	CheckStatusOK CheckStatus = "OK"
 	CheckStatusWA CheckStatus = "WA"
 )
+
+func (r CheckResult) ShouldFinishExecution() bool {
+	return r.Status != CheckStatusOK
+}

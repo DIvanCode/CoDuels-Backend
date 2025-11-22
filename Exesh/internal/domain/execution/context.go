@@ -18,8 +18,8 @@ type Context struct {
 	stepByJobID   map[JobID]Step
 	jobByStepName map[StepName]Job
 
-	mu     *sync.Mutex
-	failed bool
+	mu        *sync.Mutex
+	forceDone bool
 }
 
 func newContext(executionID ID, graph *graph) (ctx Context, err error) {
@@ -31,8 +31,8 @@ func newContext(executionID ID, graph *graph) (ctx Context, err error) {
 		stepByJobID:   make(map[JobID]Step),
 		jobByStepName: make(map[StepName]Job),
 
-		mu:     &sync.Mutex{},
-		failed: false,
+		mu:        &sync.Mutex{},
+		forceDone: false,
 	}
 
 	hash := sha1.New()
@@ -46,7 +46,7 @@ func newContext(executionID ID, graph *graph) (ctx Context, err error) {
 }
 
 func (c *Context) PickSteps() []Step {
-	if c.isFailed() {
+	if c.IsForceDone() {
 		return []Step{}
 	}
 	return c.graph.pickSteps()
@@ -57,18 +57,18 @@ func (c *Context) ScheduledStep(step Step, job Job) {
 	c.jobByStepName[step.GetName()] = job
 }
 
-func (c *Context) FailStep(stepName StepName) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.failed = true
-}
-
 func (c *Context) DoneStep(stepName StepName) {
 	c.graph.doneStep(stepName)
 }
 
+func (c *Context) ForceDone() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.forceDone = true
+}
+
 func (c *Context) IsDone() bool {
-	if c.isFailed() {
+	if c.IsForceDone() {
 		return true
 	}
 	return c.graph.isGraphDone()
@@ -79,8 +79,8 @@ func (c *Context) GetJobForStep(stepName StepName) (Job, bool) {
 	return job, ok
 }
 
-func (c *Context) isFailed() bool {
+func (c *Context) IsForceDone() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.failed
+	return c.forceDone
 }
