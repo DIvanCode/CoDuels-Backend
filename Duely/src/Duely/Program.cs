@@ -4,6 +4,7 @@ using Duely.Domain.Services;
 using Duely.Infrastructure.Api.Http;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.Gateway.Tasks;
+using Duely.Infrastructure.Gateway.Exesh;
 using Duely.Infrastructure.MessageBus.Kafka;
 using Hellang.Middleware.ProblemDetails;
 using Duely.Application.UseCases.Features.Outbox.Relay;
@@ -28,6 +29,7 @@ builder.Services.SetupDomainServices(builder.Configuration);
 builder.Services.SetupApiHttp(builder.Configuration, builder.Environment);
 builder.Services.SetupDataAccessEntityFramework(builder.Configuration);
 builder.Services.SetupTasksGateway(builder.Configuration);
+builder.Services.SetupExeshGateway(builder.Configuration);
 builder.Services.SetupMessageBusKafka(builder.Configuration);
 
 var app = builder.Build();

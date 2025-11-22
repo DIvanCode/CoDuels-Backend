@@ -1,10 +1,12 @@
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Errors;
+using Duely.Application.UseCases.Payloads;
 using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Duely.Application.UseCases.Features.UserCodeRuns;
 
@@ -28,31 +30,54 @@ public sealed class RunUserCodeHandler(Context context)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
-        var run = new UserCodeRun
+        try 
         {
-            User = user,
-            Code = command.Code,
-            Language = command.Language,
-            Input = command.Input,
-            Status = UserCodeRunStatus.Queued,
-            Output = null,
-            Error = null,
-            ExecutionId = null
-        };
+            var run = new UserCodeRun
+            {
+                User = user,
+                Code = command.Code,
+                Language = command.Language,
+                Input = command.Input,
+                Status = UserCodeRunStatus.Queued,
+                Output = null,
+                Error = null,
+                ExecutionId = null
+            };
 
-        context.UserCodeRuns.Add(run);
-        await context.SaveChangesAsync(cancellationToken);
+            context.UserCodeRuns.Add(run);
+            await context.SaveChangesAsync(cancellationToken);
 
-        return new UserCodeRunDto
+            var payload = JsonSerializer.Serialize(new RunUserCodePayload(run.Id, run.Code, run.Language, run.Input));
+
+            context.Outbox.Add(new OutboxMessage
+                {
+                    Type = OutboxType.RunUserCode,
+                    Status = OutboxStatus.ToDo,
+                    Retries = 0,
+                    RetryAt = null,
+                    Payload = payload
+                });
+
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+            return new UserCodeRunDto
+            {
+                RunId = run.Id,
+                Solution = run.Code,
+                Language = run.Language,
+                Input = run.Input,
+                Status = run.Status,
+                Output = run.Output,
+                Error = run.Error
+            };
+        }
+        catch
         {
-            RunId = run.Id,
-            Solution = run.Code,
-            Language = run.Language,
-            Input = run.Input,
-            Status = run.Status,
-            Output = run.Output,
-            Error = run.Error
-        };
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 }
