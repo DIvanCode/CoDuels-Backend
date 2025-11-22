@@ -110,7 +110,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
     }
     
     [Fact]
-    public async Task Returns_error_when_no_unsolved_tasks()
+    public async Task Creates_duel_with_random_task_when_no_unsolved_tasks()
     {
         var ctx = Context;
 
@@ -125,7 +125,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var duelManager = new Mock<IDuelManager>();
         duelManager.Setup(m => m.TryGetPair()).Returns((1, 2));
 
-        var taski = new TaskiClientSuccessFake(["SOLVED_TASK_1", "SOLVED_TASK_2"]);
+        var taski = new TaskiClientSuccessFake(["SOLVED_TASK_1", "SOLVED_TASK_2"], randomTask: "RANDOM_TASK");
 
         var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
         sender.Setup(s => s.SendMessage(1, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -136,7 +136,16 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var handler = new TryCreateDuelHandler(duelManager.Object, taski, sender.Object, options, ctx);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.First().Message.Should().Be("failed to find task (all the tasks were solved by one of users)");
+        var duel = await ctx.Duels
+            .Include(d => d.User1)
+            .Include(d => d.User2)
+            .Where(d => d.Id != d1.Id && d.Id != d2.Id)
+            .SingleAsync();
+        duel.TaskId.Should().Be("RANDOM_TASK");
+        duel.Status.Should().Be(DuelStatus.InProgress);
+        duel.User1!.Id.Should().Be(1);
+        duel.User2!.Id.Should().Be(2);
+
+        sender.VerifyAll();
     }
 }
