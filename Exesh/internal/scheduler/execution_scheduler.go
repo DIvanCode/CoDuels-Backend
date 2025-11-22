@@ -107,7 +107,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 			continue
 		}
 
-		s.log.Info("begin execution scheduler loop")
+		s.log.Info("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
 
 		s.changeNowExecutions(+1)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
