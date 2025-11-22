@@ -9,6 +9,7 @@ public sealed class Context : DbContext
     public DbSet<Duel> Duels => Set<Duel>();
     public DbSet<Submission> Submissions => Set<Submission>();
     public DbSet<OutboxMessage> Outbox => Set<OutboxMessage>();
+    public DbSet<UserCodeRun> UserCodeRuns => Set<UserCodeRun>();
 
     public Context(DbContextOptions<Context> options) : base(options)
     {
