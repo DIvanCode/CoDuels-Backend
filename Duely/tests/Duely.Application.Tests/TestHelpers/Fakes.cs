@@ -8,16 +8,18 @@ namespace Duely.Application.Tests.TestHelpers;
 public sealed class TaskiClientSuccessFake : ITaskiClient
 {
     private readonly string[] _tasks;
+    private readonly string _randomTask;
     private readonly bool _testSolutionSucceeds;
 
-    public TaskiClientSuccessFake(string[]? tasks = null, bool testSolutionSucceeds = true)
+    public TaskiClientSuccessFake(string[]? tasks = null, string? randomTask = null, bool testSolutionSucceeds = true)
     {
         _tasks = tasks ?? ["TASK-1"];
+        _randomTask = randomTask ?? _tasks[Random.Shared.Next(_tasks.Length)];
         _testSolutionSucceeds = testSolutionSucceeds;
     }
 
     public Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken)
-        => Task.FromResult(Result.Ok(_tasks[Random.Shared.Next(_tasks.Length)]));
+        => Task.FromResult(Result.Ok(_randomTask));
 
     public Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken)
         => Task.FromResult(Result.Ok(new TaskListResponse

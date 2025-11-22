@@ -64,7 +64,13 @@ public sealed class TryCreateDuelHandler(
             .ToList();
         if (tasks.Count == 0)
         {
-            return Result.Fail("failed to find task (all the tasks were solved by one of users)");
+            var randomTaskResult = await taskiClient.GetRandomTaskIdAsync(cancellationToken);
+            if (randomTaskResult.IsFailed)
+            {
+                return randomTaskResult.ToResult();
+            }
+            
+            tasks.Add(randomTaskResult.Value);
         }
 
         var startTime = DateTime.UtcNow;
