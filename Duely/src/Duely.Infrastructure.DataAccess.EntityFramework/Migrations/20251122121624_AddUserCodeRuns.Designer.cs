@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 {
     [DbContext(typeof(Context))]
-    [Migration("20251117183035_AddUserCodeRuns")]
+    [Migration("20251122121624_AddUserCodeRuns")]
     partial class AddUserCodeRuns
     {
         /// <inheritdoc />
@@ -213,13 +213,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("Code");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp")
-                        .HasColumnName("CreatedAt");
-
-                    b.Property<int>("DuelId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Error")
                         .HasColumnType("text")
                         .HasColumnName("Error");
@@ -250,13 +243,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Verdict")
-                        .HasColumnType("text")
-                        .HasColumnName("Verdict");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("DuelId");
 
                     b.HasIndex("UserId");
 
@@ -308,19 +295,11 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
             modelBuilder.Entity("Duely.Domain.Models.UserCodeRun", b =>
                 {
-                    b.HasOne("Duely.Domain.Models.Duel", "Duel")
-                        .WithMany()
-                        .HasForeignKey("DuelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Duely.Domain.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Duel");
 
                     b.Navigation("User");
                 });

@@ -17,11 +17,6 @@ public sealed class UserCodeRunConfiguration : IEntityTypeConfiguration<UserCode
             .ValueGeneratedOnAdd()
             .UseIdentityByDefaultColumn();
 
-        builder.HasOne(r => r.Duel)
-            .WithMany()
-            .IsRequired()
-            .OnDelete(DeleteBehavior.Cascade);
-
         builder.HasOne(r => r.User)
             .WithMany()
             .IsRequired()
@@ -42,21 +37,11 @@ public sealed class UserCodeRunConfiguration : IEntityTypeConfiguration<UserCode
             .HasColumnType("text")
             .IsRequired();
 
-        builder.Property(r => r.CreatedAt)
-            .HasColumnName("CreatedAt")
-            .HasColumnType("timestamp")
-            .IsRequired();
-
         builder.Property(r => r.Status)
             .HasColumnName("Status")
             .HasColumnType("text")
             .HasConversion<string>()
             .IsRequired();
-
-        builder.Property(r => r.Verdict)
-            .HasColumnName("Verdict")
-            .HasColumnType("text")
-            .IsRequired(false);
 
         builder.Property(r => r.Output)
             .HasColumnName("Output")

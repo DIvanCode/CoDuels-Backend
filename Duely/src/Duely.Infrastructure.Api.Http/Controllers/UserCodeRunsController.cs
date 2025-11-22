@@ -9,19 +9,17 @@ using Microsoft.AspNetCore.Mvc;
 namespace Duely.Infrastructure.Api.Http.Controllers;
 
 [ApiController]
-[Route("duels/{duelId:int}/runs")]
+[Route("runs")]
 [Authorize]
 public sealed class UserCodeRunsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<UserCodeRunDto>> RunUserCodeAsync(
-        [FromRoute] int duelId,
         [FromBody] RunUserCodeRequest request,
         CancellationToken cancellationToken)
     {
         var command = new RunUserCodeCommand
         {
-            DuelId = duelId,
             UserId = userContext.UserId,
             Code = request.Solution,
             Language = request.Language,
@@ -32,30 +30,13 @@ public sealed class UserCodeRunsController(IMediator mediator, IUserContext user
         return this.HandleResult(result);
     }
 
-    [HttpGet]
-    public async Task<ActionResult<List<UserCodeRunListItemDto>>> GetUserRunsAsync(
-        [FromRoute] int duelId,
-        CancellationToken cancellationToken)
-    {
-        var query = new GetUserCodeRunsQuery
-        {
-            DuelId = duelId,
-            UserId = userContext.UserId
-        };
-
-        var result = await mediator.Send(query, cancellationToken);
-        return this.HandleResult(result);
-    }
-
     [HttpGet("{runId:int}")]
     public async Task<ActionResult<UserCodeRunDto>> GetRunAsync(
-        [FromRoute] int duelId,
         [FromRoute] int runId,
         CancellationToken cancellationToken)
     {
         var query = new GetUserCodeRunQuery
         {
-            DuelId = duelId,
             UserId = userContext.UserId,
             RunId = runId
         };

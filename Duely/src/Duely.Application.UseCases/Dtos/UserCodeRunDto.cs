@@ -18,17 +18,11 @@ public sealed class UserCodeRunDto
     public string Input { get; init; } = "";
 
     [JsonPropertyName("status")]
-    public SubmissionStatus Status { get; init; }
-
-    [JsonPropertyName("verdict")]
-    public string? Verdict { get; init; }
+    public UserCodeRunStatus Status { get; init; }
 
     [JsonPropertyName("output")]
     public string? Output { get; init; }
 
     [JsonPropertyName("error")]
     public string? Error { get; init; }
-
-    [JsonPropertyName("created_at")]
-    public DateTime CreatedAt { get; init; }
 }
