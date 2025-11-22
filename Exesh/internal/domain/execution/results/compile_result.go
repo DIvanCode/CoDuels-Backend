@@ -16,3 +16,7 @@ const (
 	CompileStatusOK CompileStatus = "OK"
 	CompileStatusCE CompileStatus = "CE"
 )
+
+func (r CompileResult) ShouldFinishExecution() bool {
+	return r.Status != CompileStatusOK
+}
