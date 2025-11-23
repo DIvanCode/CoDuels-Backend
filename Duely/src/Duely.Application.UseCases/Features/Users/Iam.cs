@@ -26,7 +26,8 @@ public sealed class IamHandler(Context context) : IRequestHandler<IamQuery, Resu
         return new UserDto
         {
             Id = user.Id,
-            Nickname = user.Nickname
+            Nickname = user.Nickname,
+            Rating = user.Rating
         };
     }
 }

@@ -3,6 +3,7 @@ using System;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 {
     [DbContext(typeof(Context))]
-    partial class UnitOfWorkModelSnapshot : ModelSnapshot
+    [Migration("20251116083709_AddUserRating")]
+    partial class AddUserRating
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -205,12 +208,12 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
                 {
                     b.HasOne("Duely.Domain.Models.User", "User1")
-                        .WithMany("DuelsAsUser1")
+                        .WithMany()
                         .HasForeignKey("User1Id")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Duely.Domain.Models.User", "User2")
-                        .WithMany("DuelsAsUser2")
+                        .WithMany()
                         .HasForeignKey("User2Id")
                         .OnDelete(DeleteBehavior.SetNull);
 
@@ -248,13 +251,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
                 {
                     b.Navigation("Submissions");
-                });
-
-            modelBuilder.Entity("Duely.Domain.Models.User", b =>
-                {
-                    b.Navigation("DuelsAsUser1");
-
-                    b.Navigation("DuelsAsUser2");
                 });
 #pragma warning restore 612, 618
         }
