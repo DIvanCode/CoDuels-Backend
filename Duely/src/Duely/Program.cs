@@ -19,6 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Application
 builder.Services.SetupUseCases();
 builder.Services.AddScoped<IOutboxHandler<TestSolutionPayload>, TestSolutionHandler>();
+builder.Services.AddScoped<IOutboxHandler<RunUserCodePayload>, RunUserCodeOutboxHandler>();
 builder.Services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
 builder.Services.SetupBackgroundJobs(builder.Configuration);
 
