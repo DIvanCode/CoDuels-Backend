@@ -31,22 +31,46 @@ public sealed class TryCreateDuelHandler(
             return Result.Ok();
         }
 
-        var user1 = await context.Users.SingleOrDefaultAsync(u => u.Id == pair.Value.User1, cancellationToken);
+        var user1 = await context.Users
+            .Include(u => u.DuelsAsUser1)
+            .Include(u => u.DuelsAsUser2)
+            .SingleOrDefaultAsync(u => u.Id == pair.Value.User1, cancellationToken);
         if (user1 is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.Value.User1);
         }
 
-        var user2 = await context.Users.SingleOrDefaultAsync(u => u.Id == pair.Value.User2, cancellationToken);
+        var user2 = await context.Users
+            .Include(u => u.DuelsAsUser1)
+            .Include(u => u.DuelsAsUser2)
+            .SingleOrDefaultAsync(u => u.Id == pair.Value.User2, cancellationToken);
         if (user2 is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.Value.User2);
         }
-
-        var taskResult = await taskiClient.GetRandomTaskIdAsync(cancellationToken);
-        if (taskResult.IsFailed)
+        
+        var tasksList = await taskiClient.GetTasksListAsync(cancellationToken);
+        if (tasksList.IsFailed)
         {
-            return Result.Fail("Failed to get random task");
+            return Result.Fail("failed to get tasks");
+        }
+        
+        var solvedTasks = user1.Duels.Select(d => d.TaskId)
+            .Union(user2.Duels.Select(d => d.TaskId))
+            .ToList();
+        var tasks = tasksList.Value.Tasks
+            .Select(task => task.Id)
+            .Except(solvedTasks)
+            .ToList();
+        if (tasks.Count == 0)
+        {
+            var randomTaskResult = await taskiClient.GetRandomTaskIdAsync(cancellationToken);
+            if (randomTaskResult.IsFailed)
+            {
+                return randomTaskResult.ToResult();
+            }
+            
+            tasks.Add(randomTaskResult.Value);
         }
 
         var startTime = DateTime.UtcNow;
@@ -54,7 +78,7 @@ public sealed class TryCreateDuelHandler(
 
         var duel = new Duel
         {
-            TaskId = taskResult.Value,
+            TaskId = tasks[Random.Shared.Next(tasks.Count)],
             User1 = user1,
             User2 = user2,
             Status = DuelStatus.InProgress,

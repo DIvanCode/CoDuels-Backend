@@ -23,3 +23,5 @@ message_producer:
   brokers:
     - 0.0.0.0:29092
   topic: taski.testing
+tasks:
+  - 7d971f50363cf0aebbd87d971f50363cf0aebbd8
