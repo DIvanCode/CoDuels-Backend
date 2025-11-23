@@ -67,7 +67,6 @@ public sealed class CheckDuelsForFinishHandler(
             return Result.Ok();
 
         }
-        ratingManager.UpdateRatings(duel);
 
         if (duel.DeadlineTime <= DateTime.UtcNow)
         {
@@ -94,7 +93,8 @@ public sealed class CheckDuelsForFinishHandler(
         duel.Status = DuelStatus.Finished;
         duel.EndTime = DateTime.UtcNow;
         duel.Winner = winner;
-
+        ratingManager.UpdateRatings(duel);
+        
         await context.SaveChangesAsync(cancellationToken);
 
         var message = new DuelFinishedMessage { DuelId = duel.Id };
