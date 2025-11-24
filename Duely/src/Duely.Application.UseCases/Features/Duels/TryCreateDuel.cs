@@ -19,6 +19,7 @@ public sealed class TryCreateDuelHandler(
     ITaskiClient taskiClient,
     IMessageSender messageSender,
     IOptions<DuelOptions> duelOptions,
+    ITaskService taskService,
     Context context)
     : IRequestHandler<TryCreateDuelCommand, Result>
 {
@@ -48,37 +49,20 @@ public sealed class TryCreateDuelHandler(
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.Value.User2);
         }
-        
-        var tasksList = await taskiClient.GetTasksListAsync(cancellationToken);
-        if (tasksList.IsFailed)
+
+        var taskResult = await ChooseTaskAsync(user1, user2, cancellationToken);
+        if (taskResult.IsFailed)
         {
-            return Result.Fail("failed to get tasks");
-        }
-        
-        var solvedTasks = user1.Duels.Select(d => d.TaskId)
-            .Union(user2.Duels.Select(d => d.TaskId))
-            .ToList();
-        var tasks = tasksList.Value.Tasks
-            .Select(task => task.Id)
-            .Except(solvedTasks)
-            .ToList();
-        if (tasks.Count == 0)
-        {
-            var randomTaskResult = await taskiClient.GetRandomTaskIdAsync(cancellationToken);
-            if (randomTaskResult.IsFailed)
-            {
-                return randomTaskResult.ToResult();
-            }
-            
-            tasks.Add(randomTaskResult.Value);
+            return taskResult.ToResult();
         }
 
+        var taskId = taskResult.Value;
         var startTime = DateTime.UtcNow;
         var deadlineTime = startTime.AddMinutes(duelOptions.Value.MaxDurationMinutes);
 
         var duel = new Duel
         {
-            TaskId = tasks[Random.Shared.Next(tasks.Count)],
+            TaskId = taskId,
             User1 = user1,
             User2 = user2,
             Status = DuelStatus.InProgress,
@@ -98,5 +82,29 @@ public sealed class TryCreateDuelHandler(
         await messageSender.SendMessage(duel.User2.Id, message, cancellationToken);
 
         return Result.Ok();
+    }
+
+    private async Task<Result<string>> ChooseTaskAsync(User user1, User user2, CancellationToken cancellationToken)
+    {
+        var tasksList = await taskiClient.GetTasksListAsync(cancellationToken);
+        if (tasksList.IsFailed)
+        {
+            return tasksList.ToResult();
+        }
+
+        var chosenTask = taskService.ChooseTask(user1, user2,
+            tasksList.Value.Tasks.Select(t => new DuelTask(t.Id, t.Level)).ToList());
+        if (chosenTask is not null)
+        {
+            return chosenTask.Id;
+        }
+        
+        var randomTaskResult = await taskiClient.GetRandomTaskIdAsync(cancellationToken);
+        if (randomTaskResult.IsFailed)
+        {
+            return randomTaskResult.ToResult();
+        }
+
+        return randomTaskResult.Value;
     }
 }

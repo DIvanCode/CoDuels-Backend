@@ -12,6 +12,8 @@ public sealed class Duel
     public DateTime? EndTime { get; set; }
     public User? Winner { get; set; }
     public List<Submission> Submissions { get; set; } = [];
+    public int? User1RatingDelta { get; set; }
+    public int? User2RatingDelta { get; set; }
 }
 
 public enum DuelStatus

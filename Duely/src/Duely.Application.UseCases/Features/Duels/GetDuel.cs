@@ -35,7 +35,7 @@ public sealed class GetDuelHandler(Context context) : IRequestHandler<GetDuelQue
             OpponentId = duel.User1.Id == query.UserId ? duel.User2.Id : duel.User1.Id,
             Status = duel.Status,
             StartTime = duel.StartTime,
-            DeadlineTime = duel.DeadlineTime
+            DeadlineTime = duel.DeadlineTime,
         };
 
         if (duel.EndTime is not null)

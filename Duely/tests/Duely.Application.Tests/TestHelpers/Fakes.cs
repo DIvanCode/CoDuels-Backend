@@ -27,7 +27,8 @@ public sealed class TaskiClientSuccessFake : ITaskiClient
             Tasks = _tasks
                 .Select(task => new TaskResponse
                 {
-                    Id = task
+                    Id = task,
+                    Level = 1
                 })
                 .ToList()
         }));

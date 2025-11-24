@@ -25,7 +25,9 @@ public sealed class GetUserDuelsHandler(Context context)
             return new EntityNotFoundError(nameof(User), nameof(User.Id), query.UserId);
         }
         var duels = await context.Duels
-            .Where(d =>(d.User1 != null && d.User1.Id == query.UserId) || (d.User2 != null && d.User2.Id == query.UserId))
+            .Where(d => d.Status == DuelStatus.Finished &&
+                ((d.User1 != null && d.User1.Id == query.UserId) ||
+                 (d.User2 != null && d.User2.Id == query.UserId)))
             .OrderByDescending(d => d.StartTime) 
             .Select(d => new DuelHistoryItemDto
             {
@@ -36,9 +38,10 @@ public sealed class GetUserDuelsHandler(Context context)
                 OpponentNickname = d.User1 != null && d.User1.Id == query.UserId
                     ? d.User2!.Nickname
                     : d.User1!.Nickname,
-                WinnerNickname = d.Status == DuelStatus.Finished && d.Winner != null 
-                    ? d.Winner.Nickname 
-                    : null
+                WinnerNickname = d.Winner != null ? d.Winner.Nickname : null,
+                RatingDelta = d.User1 != null && d.User1.Id == query.UserId
+                    ? d.User1RatingDelta!.Value
+                    : d.User2RatingDelta!.Value
             })
             .ToListAsync(cancellationToken);
 

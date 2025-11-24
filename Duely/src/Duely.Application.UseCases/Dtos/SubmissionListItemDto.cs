@@ -11,6 +11,9 @@ public sealed class SubmissionListItemDto
     [JsonPropertyName("status"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required SubmissionStatus Status { get; init; }
 
+    [JsonPropertyName("language")]
+    public required string Language { get; init; }
+    
     [JsonPropertyName("created_at")]
     public required DateTime CreatedAt { get; init; }
 

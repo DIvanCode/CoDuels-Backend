@@ -17,8 +17,8 @@ public sealed class SubmissionDto
     [JsonPropertyName("status"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required SubmissionStatus Status { get; init; }
 
-    [JsonPropertyName("submit_time")]
-    public required DateTime SubmitTime { get; init; }
+    [JsonPropertyName("created_at")]
+    public required DateTime CreatedAt { get; init; }
 
     [JsonPropertyName("message")]
     public string? Message { get; init; }

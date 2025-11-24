@@ -56,9 +56,16 @@ public class GetUserDuelsHandlerTests : ContextBasedTest
         duel1.Status = DuelStatus.Finished;
         duel1.EndTime = DateTime.UtcNow.AddMinutes(-3);
         duel1.Winner = u1;
-        var duel2 = EntityFactory.MakeDuel(11, u2, u1, "TASK2");
-        duel2.Status = DuelStatus.InProgress;
+        duel1.User1RatingDelta = 1;
+        duel1.User2RatingDelta = -1;
+        var duel2 = EntityFactory.MakeDuel(11, u1, u2, "TASK2");
+        duel2.Status = DuelStatus.Finished;
+        duel2.EndTime = DateTime.UtcNow.AddMinutes(-2);
+        duel2.Winner = u2;
+        duel2.User1RatingDelta = -1;
+        duel2.User2RatingDelta = 1;
         var duelOther = EntityFactory.MakeDuel(12, u2, u3, "TASK3");
+        duelOther.Status = DuelStatus.InProgress;
 
         ctx.Duels.AddRange(duel1, duel2, duelOther);
         await ctx.SaveChangesAsync();
@@ -79,10 +86,12 @@ public class GetUserDuelsHandlerTests : ContextBasedTest
 
         first.OpponentNickname.Should().Be("u2");
         second.OpponentNickname.Should().Be("u2");
-        first.Status.Should().Be(DuelStatus.InProgress);
-        first.WinnerNickname.Should().BeNull();
+        first.Status.Should().Be(DuelStatus.Finished);
+        first.WinnerNickname.Should().Be("u2");
         second.Status.Should().Be(DuelStatus.Finished);
         second.WinnerNickname.Should().Be("u1");
+        first.RatingDelta.Should().Be(-1);
+        second.RatingDelta.Should().Be(1);
     }
 
     [Fact]
@@ -98,6 +107,8 @@ public class GetUserDuelsHandlerTests : ContextBasedTest
         duel.Status = DuelStatus.Finished;
         duel.EndTime = DateTime.UtcNow;
         duel.Winner = u1;
+        duel.User1RatingDelta = 1;
+        duel.User2RatingDelta = -1;
 
         ctx.Duels.Add(duel);
         await ctx.SaveChangesAsync();
@@ -111,5 +122,6 @@ public class GetUserDuelsHandlerTests : ContextBasedTest
         var item = res.Value.Single();
         item.OpponentNickname.Should().Be("u1");
         item.WinnerNickname.Should().Be("u1");
+        item.RatingDelta.Should().Be(-1);
     }
 }
