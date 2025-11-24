@@ -27,12 +27,22 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
             .HasForeignKey("User1Id")
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
+        
+        builder.Property(d => d.User1RatingDelta)
+            .HasColumnName("User1RatingDelta")
+            .HasColumnType("integer")
+            .IsRequired(false);
 
         builder.HasOne(d => d.User2)
             .WithMany(u => u.DuelsAsUser2)
             .HasForeignKey("User2Id")
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
+        
+        builder.Property(d => d.User2RatingDelta)
+            .HasColumnName("User2RatingDelta")
+            .HasColumnType("integer")
+            .IsRequired(false);
 
         builder.Property(d => d.Status)
             .HasColumnName("Status")

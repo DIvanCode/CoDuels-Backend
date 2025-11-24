@@ -22,4 +22,7 @@ public sealed class DuelHistoryItemDto
 
     [JsonPropertyName("end_time")]
     public DateTime? EndTime { get; init; }
+
+    [JsonPropertyName("rating_delta")]
+    public int RatingDelta { get; init; }
 }

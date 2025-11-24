@@ -65,7 +65,6 @@ public sealed class CheckDuelsForFinishHandler(
             await FinishDuelAsync(duel, earliestAccepted.User, cancellationToken);
 
             return Result.Ok();
-
         }
 
         if (duel.DeadlineTime <= DateTime.UtcNow)
@@ -81,7 +80,6 @@ public sealed class CheckDuelsForFinishHandler(
             await FinishDuelAsync(duel, null, cancellationToken);
 
             return Result.Ok();
-
         }
 
         return Result.Ok();

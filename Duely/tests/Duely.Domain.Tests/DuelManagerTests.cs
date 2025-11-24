@@ -1,9 +1,8 @@
-using System;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Xunit;
 
-namespace Duely.Application.Tests.Services;
+namespace Duely.Domain.Tests;
 
 public class DuelManagerTests
 {
