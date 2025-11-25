@@ -41,6 +41,7 @@ public sealed class RunUserCodeOutboxHandler (
         }
 
         run.ExecutionId = execResult.Value.ExecutionId;
+        run.Status = UserCodeRunStatus.Running;
         await context.SaveChangesAsync(cancellationToken);
         
         return Result.Ok();

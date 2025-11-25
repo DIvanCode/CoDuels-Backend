@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 {
     [DbContext(typeof(Context))]
-    [Migration("20251122121624_AddUserCodeRuns")]
+    [Migration("20251124221007_AddUserCodeRuns")]
     partial class AddUserCodeRuns
     {
         /// <inheritdoc />

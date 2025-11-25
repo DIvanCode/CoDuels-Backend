@@ -62,8 +62,8 @@ services:
       Taski__BaseUrl: http://taski:5252/
       Exesh__BaseUrl: http://coordinator:5253/
       Kafka__GroupId: duely
-      Kafka__TaskiTopic: taski_status
-      Kafka__ExeshTopic: exesh_status
+      Kafka__TaskiTopic: taski.testing
+      Kafka__ExeshTopic: exesh.step-updates
       Kafka__BootstrapServers: kafka:9092
     depends_on:
       postgres:
