@@ -22,28 +22,6 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
             .HasColumnType("text")
             .IsRequired();
 
-        builder.HasOne(d => d.User1)
-            .WithMany(u => u.DuelsAsUser1)
-            .HasForeignKey("User1Id")
-            .IsRequired(false)
-            .OnDelete(DeleteBehavior.SetNull);
-        
-        builder.Property(d => d.User1RatingDelta)
-            .HasColumnName("User1RatingDelta")
-            .HasColumnType("integer")
-            .IsRequired(false);
-
-        builder.HasOne(d => d.User2)
-            .WithMany(u => u.DuelsAsUser2)
-            .HasForeignKey("User2Id")
-            .IsRequired(false)
-            .OnDelete(DeleteBehavior.SetNull);
-        
-        builder.Property(d => d.User2RatingDelta)
-            .HasColumnName("User2RatingDelta")
-            .HasColumnType("integer")
-            .IsRequired(false);
-
         builder.Property(d => d.Status)
             .HasColumnName("Status")
             .HasColumnType("text")
@@ -65,10 +43,39 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
             .HasColumnType("timestamp")
             .IsRequired(false);
 
+        builder.HasOne(d => d.User1)
+            .WithMany(u => u.DuelsAsUser1)
+            .HasForeignKey("User1Id")
+            .IsRequired();
+        
+        builder.Property(d => d.User1InitRating)
+            .HasColumnName("User1InitRating")
+            .HasColumnType("integer")
+            .IsRequired();
+        
+        builder.Property(d => d.User1FinalRating)
+            .HasColumnName("User1FinalRating")
+            .HasColumnType("integer")
+            .IsRequired(false);
+
+        builder.HasOne(d => d.User2)
+            .WithMany(u => u.DuelsAsUser2)
+            .HasForeignKey("User2Id")
+            .IsRequired();
+        
+        builder.Property(d => d.User2InitRating)
+            .HasColumnName("User2InitRating")
+            .HasColumnType("integer")
+            .IsRequired();
+        
+        builder.Property(d => d.User2FinalRating)
+            .HasColumnName("User2FinalRating")
+            .HasColumnType("integer")
+            .IsRequired(false);
+
         builder.HasOne(d => d.Winner)
             .WithMany()
-            .IsRequired(false)
-            .OnDelete(DeleteBehavior.SetNull);
+            .IsRequired(false);
 
         builder.HasMany(d => d.Submissions)
             .WithOne(s => s.Duel)
