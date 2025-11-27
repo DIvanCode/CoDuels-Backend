@@ -24,6 +24,7 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
             .Where(d => d.Id == query.DuelId)
             .Include(d => d.User1)
             .Include(d => d.User2)
+            .Include(duel => duel.Winner)
             .SingleOrDefaultAsync(cancellationToken);
         if (duel is null)
         {

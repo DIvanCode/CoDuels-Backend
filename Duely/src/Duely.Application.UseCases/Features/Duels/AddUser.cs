@@ -3,12 +3,8 @@ using FluentResults;
 using Duely.Domain.Services.Duels;
 using Duely.Application.UseCases.Errors;
 using Duely.Domain.Models;
-using Duely.Domain.Services.Duels;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
-using Duely.Application.UseCases.Errors;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Duely.Application.UseCases.Features.Duels;
 

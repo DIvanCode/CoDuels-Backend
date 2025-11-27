@@ -31,6 +31,7 @@ public sealed class CheckDuelsForFinishHandler(
             ).OrderBy(d => d.DeadlineTime)
             .Include(d => d.User1)
             .Include(d => d.User2)
+            .Include(duel => duel.Winner)
             .Include(d => d.Submissions
                 .OrderBy(s => s.SubmitTime))
             .ThenInclude(s => s.User)
