@@ -60,6 +60,7 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
             Status = duel.Status,
             StartTime = duel.StartTime,
             DeadlineTime = duel.DeadlineTime,
+            EndTime = duel.EndTime,
             RatingChanges = ratingChanges
         };
     }
