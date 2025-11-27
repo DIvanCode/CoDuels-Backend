@@ -68,6 +68,7 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
                     Status = duel.Status,
                     StartTime = duel.StartTime,
                     DeadlineTime = duel.DeadlineTime,
+                    EndTime = duel.EndTime,
                     RatingChanges = ratingChanges
                 };
             })
