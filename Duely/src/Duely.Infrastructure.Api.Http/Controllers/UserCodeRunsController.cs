@@ -21,7 +21,7 @@ public sealed class UserCodeRunsController(IMediator mediator, IUserContext user
         var command = new RunUserCodeCommand
         {
             UserId = userContext.UserId,
-            Code = request.Solution,
+            Code = request.Code,
             Language = request.Language,
             Input = request.Input
         };

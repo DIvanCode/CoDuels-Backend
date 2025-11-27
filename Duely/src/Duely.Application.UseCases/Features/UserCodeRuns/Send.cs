@@ -66,7 +66,7 @@ public sealed class RunUserCodeHandler(Context context)
             return new UserCodeRunDto
             {
                 RunId = run.Id,
-                Solution = run.Code,
+                Code = run.Code,
                 Language = run.Language,
                 Input = run.Input,
                 Status = run.Status,

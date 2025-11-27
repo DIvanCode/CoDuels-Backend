@@ -2,7 +2,6 @@ using System.Text.Json;
 using FluentResults;
 using Duely.Application.UseCases.Payloads;     
 using Duely.Domain.Models;
-using System.Runtime.CompilerServices;
 namespace Duely.Application.UseCases.Features.Outbox.Relay;
 
 public sealed class OutboxDispatcher(

@@ -4,8 +4,8 @@ namespace Duely.Infrastructure.Api.Http.Requests.UserCodeRuns;
 
 public sealed class RunUserCodeRequest
 {
-    [JsonPropertyName("solution")]
-    public required string Solution { get; init; }
+    [JsonPropertyName("code")]
+    public required string Code { get; init; }
 
     [JsonPropertyName("language")]
     public required string Language { get; init; }

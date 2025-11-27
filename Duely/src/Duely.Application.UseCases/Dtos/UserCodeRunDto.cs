@@ -8,8 +8,8 @@ public sealed class UserCodeRunDto
     [JsonPropertyName("run_id")]
     public int RunId { get; init; }
 
-    [JsonPropertyName("solution")]
-    public string Solution { get; init; } = "";
+    [JsonPropertyName("code")]
+    public string Code { get; init; } = "";
 
     [JsonPropertyName("language")]
     public string Language { get; init; } = "";

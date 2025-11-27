@@ -21,10 +21,6 @@ public class ExeshStepsBuilder
 
         var lang = NormalizeLanguage(language);
 
-/*
-[{"code":{"type": "inline", "content": "print(input()[::-1])\n"},"name": "run code", "type": "run_py", "run_input": {"type": "inline", "content": "hello\n"}, "time_limit": 2000, "show_output": true, "memory_limit": 256}] 
-*/
-
         return lang switch
         {
             KnownLanguage.Python =>
