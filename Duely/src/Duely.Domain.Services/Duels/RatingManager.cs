@@ -5,62 +5,60 @@ namespace Duely.Domain.Services.Duels;
 public interface IRatingManager
 {
     void UpdateRatings(Duel duel);
+    Dictionary<DuelResult, int> GetRatingChanges(Duel duel, int rating, int anotherRating);
 }
 public sealed class RatingManager : IRatingManager
 {
     public void UpdateRatings(Duel duel)
     {
-        var user1 = duel.User1;
-        var user2 = duel.User2;
-
-        double r1 = user1.Rating;
-        double r2 = user2.Rating;
-
-        double score1;
-        double score2;
+        var rating1 = duel.User1InitRating;
+        var rating2 = duel.User2InitRating;
         
-        if (duel.Winner is null)
-        {
-            score1 = 0.5;
-            score2 = 0.5;
-        }
-        else if (duel.Winner.Id == user1.Id)
-        {
-            score1 = 1.0;
-            score2 = 0.0;
-        }
-        else
-        {
-            score1 = 0.0;
-            score2 = 1.0;
-        }
+        var ratingChanges1 = GetRatingChanges(duel, rating1, rating2);
+        var ratingChanges2 = GetRatingChanges(duel, rating2, rating1);
 
-        double expected1 = 1.0 / (1.0 + Math.Pow(10, (r2 - r1) / 400.0));
-        double expected2 = 1.0 / (1.0 + Math.Pow(10, (r1 - r2) / 400.0));
+        var result1 = duel.Winner == null
+            ? DuelResult.Draw
+            : duel.Winner!.Id == duel.User1.Id
+                ? DuelResult.Win
+                : DuelResult.Lose;
+        var result2 = duel.Winner == null
+            ? DuelResult.Draw
+            : duel.Winner!.Id == duel.User2.Id
+                ? DuelResult.Win
+                : DuelResult.Lose;
 
-        var k1 = GetK(user1.Rating);
-        var k2 = GetK(user2.Rating);
-
-        var newRating1 = (int)Math.Round(r1 + k1 * (score1 - expected1));
-        var newRating2 = (int)Math.Round(r2 + k2 * (score2 - expected2));
-
-        duel.User1RatingDelta = newRating1 - user1.Rating;
-        duel.User2RatingDelta = newRating2 - user2.Rating;
-
-        user1.Rating = newRating1;
-        user2.Rating = newRating2;
+        var newRating1 = ratingChanges1[result1];
+        var newRating2 = ratingChanges2[result2];
+        
+        duel.User1FinalRating = newRating1;
+        duel.User1.Rating = newRating1;
+        
+        duel.User2FinalRating = newRating2;
+        duel.User2.Rating = newRating2;
     }
+
+    public Dictionary<DuelResult, int> GetRatingChanges(Duel duel, int rating, int anotherRating)
+    {
+        var expected = 1.0 / (1.0 + Math.Pow(10, (anotherRating - rating) / 400.0));
+        var k = GetK(rating);
+
+        return new Dictionary<DuelResult, int>
+        {
+            [DuelResult.Win] = (int)Math.Round(rating + k * (1.0 - expected)),
+            [DuelResult.Draw] = (int)Math.Round(rating + k * (0.5 - expected)),
+            [DuelResult.Lose] = (int)Math.Round(rating + k * (0.0 - expected))
+        };
+    }
+    
     private static int GetK(int rating)
     {
-        if (rating < 1600)
-            return 40;
-
-        if (rating < 2000)
-            return 32;
-
-        if (rating < 2200)
-            return 24;
-
-        return 16;
+        return rating switch
+        {
+            < 1600 => 40,
+            < 2000 => 32,
+            < 2200 => 24,
+            _ => 16
+        };
     }
 }

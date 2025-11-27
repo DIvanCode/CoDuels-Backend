@@ -128,12 +128,14 @@ public class TaskServiceTests
         {
             Id = id,
             TaskId = task,
-            User1 = u1,
-            User2 = u2,
             Status = DuelStatus.Finished,
             StartTime = DateTime.UtcNow,
             DeadlineTime = DateTime.UtcNow.AddMinutes(30),
-            EndTime = DateTime.UtcNow
+            EndTime = DateTime.UtcNow,
+            User1 = u1,
+            User1InitRating = 1500,
+            User2 = u2,
+            User2InitRating = 1500
         };
         u1.DuelsAsUser1.Add(duel);
         u2.DuelsAsUser2.Add(duel);

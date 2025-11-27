@@ -33,12 +33,11 @@ public sealed class DuelsController(
         var result = await mediator.Send(query, cancellationToken);
         return this.HandleResult(result);
     }
-
-    [HttpGet]
-    public async Task<ActionResult<List<DuelHistoryItemDto>>> GetUserDuelsHistoryAsync(
-        CancellationToken cancellationToken)
+    
+    [HttpGet("current")]
+    public async Task<ActionResult<DuelDto>> GetCurrentAsync(CancellationToken cancellationToken)
     {
-        var query = new GetUserDuelsQuery
+        var query = new GetCurrentDuelQuery
         {
             UserId = userContext.UserId
         };
@@ -47,17 +46,50 @@ public sealed class DuelsController(
         return this.HandleResult(result);
     }
 
-    [HttpGet("connect")]
-    public async Task Connect(CancellationToken cancellationToken)
+    [HttpGet]
+    public async Task<ActionResult<List<DuelDto>>> GetHistoryAsync(
+        [FromQuery] int userId,
+        CancellationToken cancellationToken)
     {
+        var query = new GetDuelsHistoryQuery
+        {
+            UserId = userId
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpGet("connect")]
+    public async Task<IActionResult> ConnectAsync(CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Connected user {userContext.UserId}");
+        
+        var query = new GetCurrentDuelQuery
+        {
+            UserId = userContext.UserId
+        };
+        
+        var currentDuel = await mediator.Send(query, cancellationToken);
+        if (currentDuel.IsFailed)
+        {
+            var command = new AddUserCommand
+            {
+                UserId = userContext.UserId
+            };
+            var addUserResult = await mediator.Send(command, cancellationToken);
+            if (addUserResult.IsFailed)
+            {
+                return this.HandleResult(addUserResult);
+            }
+        }
+        
+        connections.AddConnection(userContext.UserId, HttpContext.Response);
+        
         Response.Headers.Append("Cache-Control", "no-cache");
         Response.Headers.Append("Content-Type", "text/event-stream");
         Response.Headers.Append("Connection", "keep-alive");
-
-        connections.AddConnection(userContext.UserId, HttpContext.Response);
-
-        await mediator.Send(new AddUserCommand { UserId = userContext.UserId }, cancellationToken);
-
+        
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -69,8 +101,23 @@ public sealed class DuelsController(
         }
         finally
         {
-            Console.WriteLine($"==== Disconnect user {userContext.UserId} ====");
+            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            cancellationToken = cancellationTokenSource.Token;
+           
+            currentDuel = await mediator.Send(query, cancellationToken);
+            if (currentDuel.IsFailed)
+            {
+                var command = new RemoveUserCommand
+                {
+                    UserId = userContext.UserId
+                };
+                await mediator.Send(command, cancellationToken);    
+            }
+            
+            Console.WriteLine($"Disconnected user {userContext.UserId}");
             connections.RemoveConnection(userContext.UserId);
         }
+        
+        return Ok();
     }
 }

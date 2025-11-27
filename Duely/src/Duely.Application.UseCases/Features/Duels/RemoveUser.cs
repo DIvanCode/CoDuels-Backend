@@ -8,15 +8,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
-public sealed class AddUserCommand : IRequest<Result>
+public sealed class RemoveUserCommand : IRequest<Result>
 {
     public required int UserId { get; init; }
 }
 
-public sealed class AddUserHandler(Context context, IDuelManager duelManager)
-    : IRequestHandler<AddUserCommand, Result>
+public sealed class RemoveUserHandler(Context context, IDuelManager duelManager)
+    : IRequestHandler<RemoveUserCommand, Result>
 {
-    public async Task<Result> Handle(AddUserCommand command, CancellationToken cancellationToken)
+    public async Task<Result> Handle(RemoveUserCommand command, CancellationToken cancellationToken)
     {
         var user = await context.Users.SingleOrDefaultAsync(
             u => u.Id == command.UserId,
@@ -26,13 +26,13 @@ public sealed class AddUserHandler(Context context, IDuelManager duelManager)
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
 
-        if (duelManager.IsUserWaiting(user.Id))
+        if (!duelManager.IsUserWaiting(user.Id))
         {
-            return new EntityAlreadyExistsError(nameof(User), nameof(User.Id), user.Id);
+            return new EntityNotFoundError(nameof(User), nameof(User.Id), user.Id);
         }
         
-        duelManager.AddUser(user.Id, user.Rating, DateTime.UtcNow);
-        Console.WriteLine($"Added user {user.Id}");
+        duelManager.RemoveUser(user.Id);
+        Console.WriteLine($"Removed user {user.Id}");
         
         return Result.Ok();
     }

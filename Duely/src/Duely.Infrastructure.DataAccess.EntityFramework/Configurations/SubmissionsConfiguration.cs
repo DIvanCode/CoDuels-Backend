@@ -19,8 +19,7 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
 
         builder.HasOne(s => s.User)
             .WithMany()
-            .IsRequired()
-            .OnDelete(DeleteBehavior.Cascade);
+            .IsRequired();
 
         builder.Property(s => s.Code)
             .HasColumnName("Code")
