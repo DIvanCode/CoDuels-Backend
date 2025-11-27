@@ -1,3 +1,5 @@
+using Duely.Infrastructure.Gateway.Exesh.Abstracts; 
+
 namespace Duely.Application.UseCases.Features.UserCodeRuns;
 
 public class ExeshStepsBuilder
@@ -5,19 +7,12 @@ public class ExeshStepsBuilder
     private const int DefaultTimeLimitMs = 2000;
     private const int DefaultMemoryLimitMb = 256;
 
-    public static object[] BuildRunSteps(string code, string language, string input)
+    public static ExeshStep[] BuildRunSteps(string code, string language, string input)
     {
-        var codeSource = new
-        {
-            type = "inline",
-            content = code + "\n"
-        };
+        var codeSource = new InlineSource(code + "\n");
 
-        var inputSource = new
-        {
-            type = "inline",
-            content = input + "\n"
-        };
+
+        var inputSource = new InlineSource(input + "\n");
 
         var lang = NormalizeLanguage(language);
 
@@ -25,59 +20,42 @@ public class ExeshStepsBuilder
         {
             KnownLanguage.Python =>
             [
-                new
-                {
-                    name = "run code",
-                    type = "run_py",
-                    code = codeSource,
-                    run_input = inputSource,
-                    time_limit = DefaultTimeLimitMs,
-                    memory_limit = DefaultMemoryLimitMb,
-                    show_output = true
-                }
+                new RunPyStep(
+                    Code: codeSource,
+                    RunInput: inputSource,
+                    TimeLimitMs: DefaultTimeLimitMs,
+                    MemoryLimitMb: DefaultMemoryLimitMb,
+                    ShowOutput: true
+                )
             ],
 
             KnownLanguage.Golang =>
             [
-                new
-                {
-                    name = "run code",
-                    type = "run_go",
-                    code = codeSource,
-                    run_input = inputSource,
-                    time_limit = DefaultTimeLimitMs,
-                    memory_limit = DefaultMemoryLimitMb,
-                    show_output = true
-                }
+                new RunGoStep(
+                    Code: codeSource,
+                    RunInput: inputSource,
+                    TimeLimitMs: DefaultTimeLimitMs,
+                    MemoryLimitMb: DefaultMemoryLimitMb,
+                    ShowOutput: true
+                )
             ],
 
             KnownLanguage.Cpp =>
             [
-                new
-                {
-                    name = "compile code",
-                    type = "compile_cpp",
-                    code = codeSource
-                },
-                new
-                {
-                    name = "run code",
-                    type = "run_cpp",
-                    compiled_code = new
-                    {
-                        type = "other_step",
-                        step_name = "compile code"
-                    },
-                    run_input = inputSource,
-                    time_limit = DefaultTimeLimitMs,
-                    memory_limit = DefaultMemoryLimitMb,
-                    show_output = true
-                }
+                new CompileCppStep(codeSource),
+
+                new RunCppStep(
+                    CompiledCode: new OtherStepSource("compile code"),
+                    RunInput: inputSource,
+                    TimeLimitMs: DefaultTimeLimitMs,
+                    MemoryLimitMb: DefaultMemoryLimitMb,
+                    ShowOutput: true
+                )
             ],
 
             _ => throw new NotSupportedException($"Language '{language}' is not supported for runs.")
         };
-        
+
     }
 
 

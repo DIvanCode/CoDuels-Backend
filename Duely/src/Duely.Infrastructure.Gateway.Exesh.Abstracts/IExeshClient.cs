@@ -4,7 +4,7 @@ namespace Duely.Infrastructure.Gateway.Exesh.Abstracts;
 
 public interface IExeshClient
 {
-    Task<Result<ExecuteResponse>> ExecuteAsync(object[] steps, CancellationToken ct);
+    Task<Result<ExecuteResponse>> ExecuteAsync(ExeshStep[] steps, CancellationToken ct);
 }
 
 public sealed record ExecuteResponse(string ExecutionId);
