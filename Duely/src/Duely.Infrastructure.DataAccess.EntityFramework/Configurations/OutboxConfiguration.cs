@@ -44,5 +44,10 @@ public sealed class OutboxConfiguration : IEntityTypeConfiguration<OutboxMessage
             .HasColumnName("RetryAt")
             .HasColumnType("timestamp")    
             .IsRequired(false);
+
+        builder.Property(o => o.RetryUntil)
+            .HasColumnName("RetryUntil")
+            .HasColumnType("timestamp")
+            .IsRequired();
     }
 }

@@ -8,6 +8,8 @@ public sealed class OutboxMessage
     public OutboxStatus Status { get; set; } = OutboxStatus.ToDo;
     public int Retries { get; set; } = 0;
     public DateTime? RetryAt { get; set; }
+
+    public required DateTime RetryUntil { get; init; }
 }
 
 public enum OutboxStatus
