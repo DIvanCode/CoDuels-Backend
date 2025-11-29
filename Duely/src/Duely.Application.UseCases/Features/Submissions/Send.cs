@@ -30,7 +30,7 @@ public sealed class SendSubmissionHandler(Context context)
         }
 
         var user = await context.Users.SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
-        var retryUntil = duel.EndTime!.Value.AddMinutes(5);
+        var retryUntil = duel.DeadlineTime.AddMinutes(5);
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
