@@ -4,31 +4,33 @@ using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
-using Duely.Application.UseCases.Features.Submissions;
+using Duely.Application.UseCases.Features.UserCodeRuns;
 
 namespace Duely.Infrastructure.MessageBus.Kafka;
-public sealed class TaskiSubmissionStatusConsumer : BackgroundService
+
+public sealed class ExeshSubmissionStatusConsumer : BackgroundService
 {
-    private readonly IConsumer<string, TaskiStatusEvent> _consumer;
+    private readonly IConsumer<string, ExeshStatusEvent> _consumer;
     private readonly string _topic;
     private readonly IServiceScopeFactory _scopeFactory;
 
-    public TaskiSubmissionStatusConsumer(IServiceScopeFactory scopeFactory, IOptions<KafkaOptions> kafkaOptions)
+    public ExeshSubmissionStatusConsumer(IServiceScopeFactory scopeFactory, IOptions<KafkaOptions> kafkaOptions)
     {
         _scopeFactory = scopeFactory;
 
-        _topic = kafkaOptions.Value.TaskiTopic;
+        _topic = kafkaOptions.Value.ExeshTopic;
         var config = new ConsumerConfig
         {
             BootstrapServers = kafkaOptions.Value.BootstrapServers,
-            GroupId = kafkaOptions.Value.GroupId
+            GroupId = kafkaOptions.Value.GroupId,
+            AutoOffsetReset = AutoOffsetReset.Earliest
         };
 
-        _consumer = new ConsumerBuilder<string, TaskiStatusEvent>(config)
-            .SetValueDeserializer(new KafkaValueDeserializer<TaskiStatusEvent>())
+        _consumer = new ConsumerBuilder<string, ExeshStatusEvent>(config)
+            .SetValueDeserializer(new KafkaValueDeserializer<ExeshStatusEvent>())
             .Build();
     }
-    
+
     protected override Task ExecuteAsync(CancellationToken cancellationToken)
     {
         Task.Run(() => ConsumeAsync(cancellationToken), cancellationToken);
@@ -37,9 +39,9 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
 
     private async Task ConsumeAsync(CancellationToken cancellationToken)
     {
-        _consumer.Subscribe(_topic);
 
-        try
+        _consumer.Subscribe(_topic);
+        try 
         {
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -57,20 +59,18 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
 
                 using var scope = _scopeFactory.CreateScope();
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                if (int.TryParse(@event.SolutionId, out var submissionId))
+
+                var command = new UpdateUserCodeRunStatusCommand
                 {
-                    var command = new UpdateSubmissionStatusCommand
-                    {
-                        SubmissionId = submissionId,
-                        Type = @event.Type,
-                        Verdict = @event.Verdict,
-                        Message = @event.Message,
-                        Error = @event.Error
-                    };
+                    ExecutionId = @event.ExecutionId,
+                    Type = @event.Type,
+                    StepName = @event.StepName,
+                    Status = @event.Status,
+                    Output = @event.Output,
+                    Error = @event.Error
+                };
 
-                    await mediator.Send(command, cancellationToken);
-                }
-
+                await mediator.Send(command, cancellationToken);
             }
         }
         catch (Exception)
@@ -84,7 +84,7 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
         _consumer.Close();
         await base.StopAsync(cancellationToken);
     }
-    
+
     private sealed class KafkaValueDeserializer<T> : IDeserializer<T>
     {
         public T Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)

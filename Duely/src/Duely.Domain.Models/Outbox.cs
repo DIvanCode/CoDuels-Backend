@@ -20,5 +20,6 @@ public enum OutboxStatus
 public enum OutboxType
 {
     TestSolution = 0,
-    SendMessage = 1
+    SendMessage = 1,
+    RunUserCode = 2
 }

@@ -3,6 +3,7 @@ using System;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 {
     [DbContext(typeof(Context))]
-    partial class UnitOfWorkModelSnapshot : ModelSnapshot
+    [Migration("20251124221007_AddUserCodeRuns")]
+    partial class AddUserCodeRuns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -53,27 +56,11 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("TaskId");
 
-                    b.Property<int?>("User1FinalRating")
-                        .HasColumnType("integer")
-                        .HasColumnName("User1FinalRating");
-
-                    b.Property<int>("User1Id")
+                    b.Property<int?>("User1Id")
                         .HasColumnType("integer");
 
-                    b.Property<int>("User1InitRating")
-                        .HasColumnType("integer")
-                        .HasColumnName("User1InitRating");
-
-                    b.Property<int?>("User2FinalRating")
-                        .HasColumnType("integer")
-                        .HasColumnName("User2FinalRating");
-
-                    b.Property<int>("User2Id")
+                    b.Property<int?>("User2Id")
                         .HasColumnType("integer");
-
-                    b.Property<int>("User2InitRating")
-                        .HasColumnType("integer")
-                        .HasColumnName("User2InitRating");
 
                     b.Property<int?>("WinnerId")
                         .HasColumnType("integer");
@@ -203,12 +190,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("PasswordSalt");
 
-                    b.Property<int>("Rating")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1500)
-                        .HasColumnName("Rating");
-
                     b.Property<string>("RefreshToken")
                         .HasColumnType("text")
                         .HasColumnName("RefreshToken");
@@ -272,20 +253,19 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
                 {
                     b.HasOne("Duely.Domain.Models.User", "User1")
-                        .WithMany("DuelsAsUser1")
+                        .WithMany()
                         .HasForeignKey("User1Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Duely.Domain.Models.User", "User2")
-                        .WithMany("DuelsAsUser2")
+                        .WithMany()
                         .HasForeignKey("User2Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Duely.Domain.Models.User", "Winner")
                         .WithMany()
-                        .HasForeignKey("WinnerId");
+                        .HasForeignKey("WinnerId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User1");
 
@@ -327,13 +307,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
                 {
                     b.Navigation("Submissions");
-                });
-
-            modelBuilder.Entity("Duely.Domain.Models.User", b =>
-                {
-                    b.Navigation("DuelsAsUser1");
-
-                    b.Navigation("DuelsAsUser2");
                 });
 #pragma warning restore 612, 618
         }
