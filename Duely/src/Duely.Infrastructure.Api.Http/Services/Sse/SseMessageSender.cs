@@ -9,10 +9,7 @@ public sealed class SseMessageSender(ISseConnectionManager connections) : IMessa
 {
     public async Task SendMessage(int userId, Message message, CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.Serialize(message, message.GetType());
-
         var response = connections.GetConnection(userId);
-
         if (response is null)
         {
             return;
@@ -20,18 +17,19 @@ public sealed class SseMessageSender(ISseConnectionManager connections) : IMessa
 
         try
         {
-            Console.WriteLine($"==== Send message {message.Type} to user {userId}: {json} ====");
+            Console.WriteLine($"Sending message {message.Type} to user {userId}");
+            
+            var json = JsonSerializer.Serialize(message, message.GetType());
+            
             await response.WriteAsync($"event: {message.Type}\n", cancellationToken);
-            Console.WriteLine("==== Ok sent event type ====");
             await response.WriteAsync($"data: {json}\n\n", cancellationToken);
-            Console.WriteLine("==== Ok sent json data ====");
             await response.Body.FlushAsync(cancellationToken);
-            Console.WriteLine("==== Ok sent message ====");
+            
+            Console.WriteLine($"Ok sent message {message.Type} to user {userId}");
         }
         catch
         {
-            Console.WriteLine("==== Failed to sent message ====");
-            connections.RemoveConnection(userId);
+            Console.WriteLine($"Failed to send message {message.Type} to user {userId}");
         }
     }
 }

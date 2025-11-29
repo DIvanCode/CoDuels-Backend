@@ -53,11 +53,27 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("TaskId");
 
-                    b.Property<int?>("User1Id")
+                    b.Property<int?>("User1FinalRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User1FinalRating");
+
+                    b.Property<int>("User1Id")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("User2Id")
+                    b.Property<int>("User1InitRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User1InitRating");
+
+                    b.Property<int?>("User2FinalRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User2FinalRating");
+
+                    b.Property<int>("User2Id")
                         .HasColumnType("integer");
+
+                    b.Property<int>("User2InitRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User2InitRating");
 
                     b.Property<int?>("WinnerId")
                         .HasColumnType("integer");
@@ -187,6 +203,12 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("PasswordSalt");
 
+                    b.Property<int>("Rating")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1500)
+                        .HasColumnName("Rating");
+
                     b.Property<string>("RefreshToken")
                         .HasColumnType("text")
                         .HasColumnName("RefreshToken");
@@ -250,19 +272,20 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
                 {
                     b.HasOne("Duely.Domain.Models.User", "User1")
-                        .WithMany()
+                        .WithMany("DuelsAsUser1")
                         .HasForeignKey("User1Id")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Duely.Domain.Models.User", "User2")
-                        .WithMany()
+                        .WithMany("DuelsAsUser2")
                         .HasForeignKey("User2Id")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Duely.Domain.Models.User", "Winner")
                         .WithMany()
-                        .HasForeignKey("WinnerId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("WinnerId");
 
                     b.Navigation("User1");
 
@@ -304,6 +327,13 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
                 {
                     b.Navigation("Submissions");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.User", b =>
+                {
+                    b.Navigation("DuelsAsUser1");
+
+                    b.Navigation("DuelsAsUser2");
                 });
 #pragma warning restore 612, 618
         }

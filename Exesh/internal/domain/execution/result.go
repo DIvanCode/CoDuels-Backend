@@ -11,6 +11,7 @@ type (
 		GetType() ResultType
 		GetDoneAt() time.Time
 		GetError() error
+		ShouldFinishExecution() bool
 	}
 
 	ResultDetails struct {
@@ -46,4 +47,8 @@ func (r ResultDetails) GetError() error {
 		return nil
 	}
 	return errors.New(r.Error)
+}
+
+func (r ResultDetails) ShouldFinishExecution() bool {
+	panic("this panic would never happen!")
 }

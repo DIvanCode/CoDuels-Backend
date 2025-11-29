@@ -10,31 +10,38 @@ public sealed class UsersConfiguration : IEntityTypeConfiguration<User>
     {
         builder.ToTable("Users");
 
-        builder.HasKey(s => s.Id);
+        builder.HasKey(u => u.Id);
 
-        builder.Property(s => s.Id)
+        builder.Property(u => u.Id)
             .HasColumnName("Id")
             .ValueGeneratedOnAdd()
             .UseIdentityByDefaultColumn();
 
-        builder.Property(s => s.Nickname)
+        builder.Property(u => u.Nickname)
             .HasColumnName("Nickname")
             .HasColumnType("text")
             .IsRequired();
 
-        builder.Property(s => s.PasswordHash)
+        builder.Property(u => u.PasswordHash)
             .HasColumnName("PasswordHash")
             .HasColumnType("text")
             .IsRequired();
 
-        builder.Property(s => s.PasswordSalt)
+        builder.Property(u => u.PasswordSalt)
             .HasColumnName("PasswordSalt")
             .HasColumnType("text")
             .IsRequired();
         
-        builder.Property(s => s.RefreshToken)
+        builder.Property(u => u.RefreshToken)
             .HasColumnName("RefreshToken")
             .HasColumnType("text")
             .IsRequired(false);
+
+        builder.Property(s => s.Rating)
+            .HasColumnName("Rating")
+            .HasColumnType("integer")  
+            .HasDefaultValue(1500)
+            .IsRequired();
+        
     }
 }

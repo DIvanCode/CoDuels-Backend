@@ -1,0 +1,20 @@
+name: Exesh
+on:
+  pull_request:
+    paths:
+      - Exesh/**
+defaults:
+  run:
+    shell: bash
+    working-directory: Exesh
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "^1.24.0"
+      - name: Run tests
+        run: go test -v ./...

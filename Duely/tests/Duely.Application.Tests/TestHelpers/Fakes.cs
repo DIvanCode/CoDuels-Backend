@@ -7,17 +7,31 @@ namespace Duely.Application.Tests.TestHelpers;
 
 public sealed class TaskiClientSuccessFake : ITaskiClient
 {
-    private readonly string _taskId;
+    private readonly string[] _tasks;
+    private readonly string _randomTask;
     private readonly bool _testSolutionSucceeds;
 
-    public TaskiClientSuccessFake(string taskId = "TASK-1", bool testSolutionSucceeds = true)
+    public TaskiClientSuccessFake(string[]? tasks = null, string? randomTask = null, bool testSolutionSucceeds = true)
     {
-        _taskId = taskId;
+        _tasks = tasks ?? ["TASK-1"];
+        _randomTask = randomTask ?? _tasks[Random.Shared.Next(_tasks.Length)];
         _testSolutionSucceeds = testSolutionSucceeds;
     }
 
     public Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken)
-        => Task.FromResult(Result.Ok(_taskId));
+        => Task.FromResult(Result.Ok(_randomTask));
+
+    public Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken)
+        => Task.FromResult(Result.Ok(new TaskListResponse
+        {
+            Tasks = _tasks
+                .Select(task => new TaskResponse
+                {
+                    Id = task,
+                    Level = 1
+                })
+                .ToList()
+        }));
 
     public Task<Result> TestSolutionAsync(
         string taskId, string solutionId, string solution, string language, CancellationToken cancellationToken)
@@ -37,6 +51,9 @@ public sealed class TaskiClientFailFake : ITaskiClient
 
     public Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken)
         => Task.FromResult(Result.Fail<string>(_error));
+
+    public Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken)
+        => Task.FromResult(Result.Fail<TaskListResponse>(_error));
 
     public Task<Result> TestSolutionAsync(
         string taskId, string solutionId, string solution, string language, CancellationToken cancellationToken)

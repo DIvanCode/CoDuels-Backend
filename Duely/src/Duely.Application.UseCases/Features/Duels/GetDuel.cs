@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Errors;
 using Duely.Domain.Models;
+using Duely.Domain.Services.Duels;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
@@ -14,7 +15,8 @@ public sealed class GetDuelQuery : IRequest<Result<DuelDto>>
     public required int DuelId { get; init; }
 }
 
-public sealed class GetDuelHandler(Context context) : IRequestHandler<GetDuelQuery, Result<DuelDto>>
+public sealed class GetDuelHandler(Context context, IRatingManager ratingManager)
+    : IRequestHandler<GetDuelQuery, Result<DuelDto>>
 {
     public async Task<Result<DuelDto>> Handle(GetDuelQuery query, CancellationToken cancellationToken)
     {
@@ -22,39 +24,44 @@ public sealed class GetDuelHandler(Context context) : IRequestHandler<GetDuelQue
             .Where(d => d.Id == query.DuelId)
             .Include(d => d.User1)
             .Include(d => d.User2)
+            .Include(duel => duel.Winner)
             .SingleOrDefaultAsync(cancellationToken);
         if (duel is null)
         {
             return new EntityNotFoundError(nameof(Duel), nameof(Duel.Id), query.DuelId);
         }
 
-        var duelDto = new DuelDto
+        var winnerId = duel.Winner?.Id;
+        var ratingChanges = new Dictionary<int, Dictionary<DuelResult, int>>
+        {
+            [duel.User1.Id] = ratingManager.GetRatingChanges(duel, duel.User1InitRating, duel.User2InitRating),
+            [duel.User2.Id] = ratingManager.GetRatingChanges(duel, duel.User2InitRating, duel.User1InitRating)
+        };
+        
+        return new DuelDto
         {
             Id = duel.Id,
             TaskId = duel.TaskId,
-            OpponentId = duel.User1.Id == query.UserId ? duel.User2.Id : duel.User1.Id,
+            Participants = [
+                new UserDto
+                {
+                    Id = duel.User1.Id,
+                    Nickname = duel.User1.Nickname,
+                    Rating = duel.User1InitRating
+                },
+                new UserDto
+                {
+                    Id = duel.User2.Id,
+                    Nickname = duel.User2.Nickname,
+                    Rating = duel.User2InitRating
+                }
+            ],
+            WinnerId = winnerId,
             Status = duel.Status,
             StartTime = duel.StartTime,
-            DeadlineTime = duel.DeadlineTime
+            DeadlineTime = duel.DeadlineTime,
+            EndTime = duel.EndTime,
+            RatingChanges = ratingChanges
         };
-
-        if (duel.EndTime is not null)
-        {
-            duelDto.EndTime = duel.EndTime;
-            if (duel.Winner is null)
-            {
-                duelDto.Result = DuelResult.Draw;
-            }
-            else if (duel.Winner.Id == query.UserId)
-            {
-                duelDto.Result = DuelResult.Win;
-            }
-            else
-            {
-                duelDto.Result = DuelResult.Lose;
-            }
-        }
-
-        return duelDto;
     }
 }

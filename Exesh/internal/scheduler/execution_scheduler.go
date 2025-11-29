@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"exesh/internal/config"
 	"exesh/internal/domain/execution"
 	"fmt"
@@ -33,9 +34,9 @@ type (
 	}
 
 	executionStorage interface {
+		GetForUpdate(context.Context, execution.ID) (*execution.Execution, error)
 		GetForSchedule(context.Context, time.Time) (*execution.Execution, error)
-		Update(context.Context, execution.Execution) error
-		Finish(context.Context, execution.ID) error
+		Save(context.Context, execution.Execution) error
 	}
 
 	jobFactory interface {
@@ -87,7 +88,15 @@ func NewExecutionScheduler(
 }
 
 func (s *ExecutionScheduler) Start(ctx context.Context) {
-	go s.runExecutionScheduler(ctx)
+	go func() {
+		err := s.runExecutionScheduler(ctx)
+		if errors.Is(err, context.Canceled) {
+			err = nil
+		}
+		if err != nil {
+			s.log.Error("execution scheduler exited with error", slog.Any("error", err))
+		}
+	}()
 }
 
 func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
@@ -107,14 +116,12 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 			continue
 		}
 
-		s.log.Info("begin execution scheduler loop")
+		s.log.Info("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
 
+		s.changeNowExecutions(+1)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-			s.changeNowExecutions(+1)
-
 			e, err := s.executionStorage.GetForSchedule(ctx, time.Now().Add(-s.cfg.ExecutionRetryAfter))
 			if err != nil {
-				s.changeNowExecutions(-1)
 				return fmt.Errorf("failed to get execution for schedule from storage: %w", err)
 			}
 			if e == nil {
@@ -125,24 +132,21 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 
 			e.SetScheduled(time.Now())
 
-			if err = s.executionStorage.Update(ctx, *e); err != nil {
-				s.changeNowExecutions(-1)
-				return fmt.Errorf("failed to update execution in storage %s: %w", e.ID.String(), err)
-			}
-
 			execCtx, err := e.BuildContext()
 			if err != nil {
-				s.changeNowExecutions(-1)
 				return fmt.Errorf("failed to build execution context: %w", err)
 			}
 			if err = s.scheduleExecution(ctx, &execCtx); err != nil {
-				s.changeNowExecutions(-1)
 				return fmt.Errorf("failed to schedule execution: %w", err)
+			}
 
+			if err = s.executionStorage.Save(ctx, *e); err != nil {
+				return fmt.Errorf("failed to update execution in storage %s: %w", e.ID.String(), err)
 			}
 
 			return nil
 		}); err != nil {
+			s.changeNowExecutions(-1)
 			s.log.Error("failed to schedule execution", slog.Any("error", err))
 		}
 	}
@@ -160,110 +164,125 @@ func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, execCtx *exe
 	}
 
 	for _, step := range execCtx.PickSteps() {
-		s.scheduleStep(ctx, execCtx, step)
+		if err = s.scheduleStep(ctx, execCtx, step); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (s *ExecutionScheduler) scheduleStep(ctx context.Context, execCtx *execution.Context, step execution.Step) {
-	s.log.Info("schedule step", slog.Any("step_name", step.GetName()))
+func (s *ExecutionScheduler) scheduleStep(
+	ctx context.Context,
+	execCtx *execution.Context,
+	step execution.Step,
+) error {
+	if execCtx.IsDone() {
+		return nil
+	}
+
+	s.log.Info("schedule step", slog.Any("step", step.GetName()))
 
 	job, err := s.jobFactory.Create(ctx, execCtx, step)
 	if err != nil {
 		s.log.Error("failed to create job for step", slog.Any("step_name", step.GetName()), slog.Any("error", err))
-		return
+		return fmt.Errorf("failed to create job for step %s: %w", step.GetName(), err)
 	}
 
 	s.jobScheduler.Schedule(ctx, job, func(ctx context.Context, result execution.Result) {
 		if result.GetError() != nil {
-			if err = s.failStep(ctx, execCtx, step, result); err != nil {
-				s.log.Error("failed to fail step", slog.Any("step_name", step.GetName()), slog.Any("error", err))
-			}
+			s.failStep(ctx, execCtx, step, result)
 		} else {
-			if err = s.doneStep(ctx, execCtx, step, result); err != nil {
-				s.log.Error("failed to done step", slog.Any("step_name", step.GetName()), slog.Any("error", err))
-			}
+			s.doneStep(ctx, execCtx, step, result)
 		}
 	})
 
 	execCtx.ScheduledStep(step, job)
+
+	return nil
 }
 
-func (s *ExecutionScheduler) failStep(ctx context.Context, execCtx *execution.Context, step execution.Step, result execution.Result) error {
+func (s *ExecutionScheduler) failStep(
+	ctx context.Context,
+	execCtx *execution.Context,
+	step execution.Step,
+	result execution.Result,
+) {
 	if execCtx.IsDone() {
-		return nil
+		return
 	}
 
-	defer s.changeNowExecutions(-1)
+	s.log.Info("fail step",
+		slog.Any("step", step.GetName()),
+		slog.Any("execution", execCtx.ExecutionID.String()),
+		slog.Any("error", result.GetError()),
+	)
 
-	execCtx.FailStep(step.GetName())
+	s.finishExecution(ctx, execCtx, result.GetError())
+}
 
-	msg, err := s.messageFactory.CreateExecutionFinishedError(execCtx, result.GetError().Error())
-	if err != nil {
-		return fmt.Errorf("failed to create message for result: %w", err)
+func (s *ExecutionScheduler) doneStep(
+	ctx context.Context,
+	execCtx *execution.Context,
+	step execution.Step,
+	result execution.Result,
+) {
+	if execCtx.IsDone() {
+		return
 	}
-	if err = s.messageSender.Send(ctx, msg); err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
+
+	s.log.Info("done step",
+		slog.Any("step", step.GetName()),
+		slog.Any("execution", execCtx.ExecutionID.String()),
+	)
 
 	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-		if err = s.executionStorage.Finish(ctx, execCtx.ExecutionID); err != nil {
+		e, err := s.executionStorage.GetForUpdate(ctx, execCtx.ExecutionID)
+		if err != nil {
+			return fmt.Errorf("failed to get execution for update from storage: %w", err)
+		}
+		if e == nil {
+			return fmt.Errorf("failed to get execution for update from storage: not found")
+		}
+
+		msg, err := s.messageFactory.CreateForStep(execCtx, step, result)
+		if err != nil {
+			return fmt.Errorf("failed to create message for step: %w", err)
+		}
+		if err = s.messageSender.Send(ctx, msg); err != nil {
+			return fmt.Errorf("failed to send message for step: %w", err)
+		}
+
+		execCtx.DoneStep(step.GetName())
+
+		e.SetScheduled(time.Now())
+
+		if err = s.executionStorage.Save(ctx, *e); err != nil {
 			return err
 		}
 		return nil
 	}); err != nil {
-		s.log.Error("failed to finish execution in storage", slog.Any("error", err))
-		return fmt.Errorf("failed to finish execution in storage: %w", err)
+		s.log.Error("failed to update execution in storage for done step", slog.Any("error", err))
+		s.finishExecution(
+			ctx,
+			execCtx,
+			fmt.Errorf("failed to update execution in storage for done step %s: %w", step.GetName(), err))
+		return
 	}
 
-	return nil
-}
-
-func (s *ExecutionScheduler) doneStep(ctx context.Context, execCtx *execution.Context, step execution.Step, result execution.Result) error {
-	if execCtx.IsDone() {
-		return nil
+	if execCtx.IsDone() || result.ShouldFinishExecution() {
+		s.finishExecution(ctx, execCtx, nil)
+		return
 	}
 
-	execCtx.DoneStep(step.GetName())
-
-	msg, err := s.messageFactory.CreateForStep(execCtx, step, result)
-	if err != nil {
-		return fmt.Errorf("failed to create message for result: %w", err)
-	}
-	if err = s.messageSender.Send(ctx, msg); err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-
-	if execCtx.IsDone() {
-		defer s.changeNowExecutions(-1)
-
-		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-			if err = s.executionStorage.Finish(ctx, execCtx.ExecutionID); err != nil {
-				return err
-			}
-			return nil
-		}); err != nil {
-			s.log.Error("failed to finish execution in storage", slog.Any("error", err))
-			return fmt.Errorf("failed to finish execution in storage: %w", err)
+	for _, step = range execCtx.PickSteps() {
+		if err := s.scheduleStep(ctx, execCtx, step); err != nil {
+			s.log.Error("failed to schedule step",
+				slog.Any("step", step.GetName()),
+				slog.Any("error", err))
+			s.finishExecution(ctx, execCtx, fmt.Errorf("failed to schedule step %s: %w", step.GetName(), err))
 		}
-
-		msg, err := s.messageFactory.CreateExecutionFinished(execCtx)
-		if err != nil {
-			return fmt.Errorf("failed to create execution finished message: %w", err)
-		}
-		if err = s.messageSender.Send(ctx, msg); err != nil {
-			return fmt.Errorf("failed to send %s message: %w", msg.GetType(), err)
-		}
-
-		return nil
 	}
-
-	for _, step := range execCtx.PickSteps() {
-		s.scheduleStep(ctx, execCtx, step)
-	}
-
-	return nil
 }
 
 func (s *ExecutionScheduler) getNowExecutions() int {
@@ -278,4 +297,59 @@ func (s *ExecutionScheduler) changeNowExecutions(delta int) {
 	defer s.mu.Unlock()
 
 	s.nowExecutions += delta
+}
+
+func (s *ExecutionScheduler) finishExecution(
+	ctx context.Context,
+	execCtx *execution.Context,
+	execError error,
+) {
+	if execCtx.IsForceDone() {
+		return
+	}
+
+	if execError == nil {
+		s.log.Info("finish execution", slog.String("execution", execCtx.ExecutionID.String()))
+	} else {
+		s.log.Warn("finish execution with error",
+			slog.String("execution", execCtx.ExecutionID.String()),
+			slog.Any("error", execError))
+	}
+
+	defer s.changeNowExecutions(-1)
+
+	execCtx.ForceDone()
+
+	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
+		e, err := s.executionStorage.GetForUpdate(ctx, execCtx.ExecutionID)
+		if err != nil {
+			return fmt.Errorf("failed to get execution for update from storage: %w", err)
+		}
+		if e == nil {
+			return fmt.Errorf("failed to get execution for update from storage: not found")
+		}
+
+		var msg execution.Message
+		if execError == nil {
+			msg, err = s.messageFactory.CreateExecutionFinished(execCtx)
+		} else {
+			msg, err = s.messageFactory.CreateExecutionFinishedError(execCtx, execError.Error())
+		}
+		if err != nil {
+			return fmt.Errorf("failed to create execution finished message: %w", err)
+		}
+		if err = s.messageSender.Send(ctx, msg); err != nil {
+			return fmt.Errorf("failed to send execution finished message: %w", err)
+		}
+
+		e.SetFinished(time.Now())
+
+		if err = s.executionStorage.Save(ctx, *e); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		s.log.Error("failed to finish execution in storage", slog.Any("error", err))
+		return
+	}
 }

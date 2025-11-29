@@ -16,8 +16,11 @@ public sealed class DuelMakingJob(IServiceProvider sp, IOptions<DuelMakingJobOpt
             using (var scope = sp.CreateScope())
             {
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-
-                await mediator.Send(new TryCreateDuelCommand(), cancellationToken);
+                var result = await mediator.Send(new TryCreateDuelCommand(), cancellationToken);
+                if (result.IsFailed)
+                {
+                    Console.WriteLine(string.Join("\n", result.Errors.Select(e => e.Message)));
+                }
             }
 
             await Task.Delay(options.Value.CheckPairIntervalMs, cancellationToken);

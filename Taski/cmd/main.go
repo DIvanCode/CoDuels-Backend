@@ -11,6 +11,7 @@ import (
 	"syscall"
 	getFileAPI "taski/internal/api/task/file"
 	getAPI "taski/internal/api/task/get"
+	listAPI "taski/internal/api/task/list"
 	randomTaskAPI "taski/internal/api/task/random"
 	"taski/internal/api/testing/execute"
 	testAPI "taski/internal/api/testing/test"
@@ -21,14 +22,15 @@ import (
 	"taski/internal/storage/postgres"
 	getFileUC "taski/internal/usecase/task/usecase/file"
 	getUC "taski/internal/usecase/task/usecase/get"
+	listUC "taski/internal/usecase/task/usecase/list"
 	randomTaskUC "taski/internal/usecase/task/usecase/random"
 	testUC "taski/internal/usecase/testing/usecase/test"
 	"taski/internal/usecase/testing/usecase/update"
 
 	fs "github.com/DIvanCode/filestorage/pkg/filestorage"
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
-	"github.com/go-chi/chi/middleware"
 )
 
 func main() {
@@ -59,7 +61,6 @@ func main() {
 		MaxAge:           300,
 	}))
 
-
 	fileStorage, err := fs.New(log, cfg.FileStorage, mux)
 	if err != nil {
 		log.Error("failed to create filestorage", slog.String("error", err.Error()))
@@ -80,7 +81,10 @@ func main() {
 	getTaskUseCase := getUC.NewUseCase(log, taskStorage)
 	getAPI.NewHandler(log, getTaskUseCase).Register(mux)
 
-	randomTaskUseCase := randomTaskUC.NewUseCase(log)
+	taskListUseCase := listUC.NewUseCase(log, taskStorage, cfg.Tasks)
+	listAPI.NewHandler(log, taskListUseCase).Register(mux)
+
+	randomTaskUseCase := randomTaskUC.NewUseCase(log, cfg.Tasks)
 	randomTaskAPI.NewHandler(log, randomTaskUseCase).Register(mux)
 
 	getTaskFileUseCase := getFileUC.NewUseCase(log, taskStorage)

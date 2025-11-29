@@ -21,3 +21,7 @@ const (
 	RunStatusTL RunStatus = "TL"
 	RunStatusML RunStatus = "ML"
 )
+
+func (r RunResult) ShouldFinishExecution() bool {
+	return r.Status != RunStatusOK
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"sync"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type (
 
 		workerPool workerPool
 
+		mu              sync.Mutex
 		workerArtifacts map[string]map[execution.JobID]time.Time
 	}
 
@@ -36,6 +38,9 @@ func NewArtifactRegistry(log *slog.Logger, cfg config.ArtifactRegistryConfig, wo
 }
 
 func (r *ArtifactRegistry) GetWorker(jobID execution.JobID) (workerID string, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	workers := make([]string, 0)
 	for worker, artifacts := range r.workerArtifacts {
 		if trashTime, ok := artifacts[jobID]; ok && r.workerPool.IsAlive(worker) {
@@ -57,6 +62,9 @@ func (r *ArtifactRegistry) GetWorker(jobID execution.JobID) (workerID string, er
 }
 
 func (r *ArtifactRegistry) PutArtifact(workerID string, jobID execution.JobID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	artifacts := r.workerArtifacts[workerID]
 	if artifacts == nil {
 		artifacts = make(map[execution.JobID]time.Time)

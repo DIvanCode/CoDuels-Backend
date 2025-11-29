@@ -5,6 +5,8 @@ using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
+using Duely.Infrastructure.Gateway.Client.Abstracts;
+using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -26,7 +28,9 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         sender.Setup(s => s.SendMessage(1, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         sender.Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        var ratingManager = new Mock<IRatingManager>();
+
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object,ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -57,8 +61,10 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
         sender.Setup(s => s.SendMessage(1, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         sender.Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        
+        var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object,ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -81,7 +87,10 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         ctx.AddRange(u1, u2, duel); await ctx.SaveChangesAsync();
 
         var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        
+        var ratingManager = new Mock<IRatingManager>();
+
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object, ratingManager.Object);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
@@ -110,7 +119,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        var ratingManager = new Mock<IRatingManager>();
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object,ratingManager.Object);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
@@ -143,7 +153,9 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         sender.Setup(s => s.SendMessage(1, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         sender.Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        var ratingManager = new Mock<IRatingManager>();
+
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object, ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -187,8 +199,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 
         // Сообщения отправляться не должны
         var sender = new Moq.Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
-
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        var ratingManager = new Mock<IRatingManager>();
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object, ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -235,8 +247,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var sender = new Moq.Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
         sender.Setup(s => s.SendMessage(u1.Id, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         sender.Setup(s => s.SendMessage(u2.Id, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object);
+        var ratingManager = new Mock<IRatingManager>();
+        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object, ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();

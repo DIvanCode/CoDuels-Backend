@@ -36,7 +36,7 @@ public sealed class GetSubmissionHandler(Context context)
             Solution = submission.Code,
             Language = submission.Language,
             Status = submission.Status,
-            SubmitTime = submission.SubmitTime,
+            CreatedAt = submission.SubmitTime,
             Message = submission.Message,
             Verdict = submission.Verdict
         };

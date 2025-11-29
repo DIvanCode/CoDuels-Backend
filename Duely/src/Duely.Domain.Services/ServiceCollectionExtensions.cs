@@ -14,6 +14,9 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<DuelOptions>(configuration.GetSection(DuelOptions.SectionName));
         services.AddSingleton<IDuelManager, DuelManager>();
+
+        services.AddScoped<IRatingManager, RatingManager>();
+        services.AddScoped<ITaskService, TaskService>();
         
         services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));
         services.AddTransient<ITokenService, TokenService>();
