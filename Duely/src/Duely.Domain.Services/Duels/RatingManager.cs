@@ -28,8 +28,8 @@ public sealed class RatingManager : IRatingManager
                 ? DuelResult.Win
                 : DuelResult.Lose;
 
-        var newRating1 = ratingChanges1[result1];
-        var newRating2 = ratingChanges2[result2];
+        var newRating1 = rating1 + ratingChanges1[result1];
+        var newRating2 = rating2 + ratingChanges2[result2];
         
         duel.User1FinalRating = newRating1;
         duel.User1.Rating = newRating1;
@@ -45,9 +45,9 @@ public sealed class RatingManager : IRatingManager
 
         return new Dictionary<DuelResult, int>
         {
-            [DuelResult.Win] = (int)Math.Round(rating + k * (1.0 - expected)),
-            [DuelResult.Draw] = (int)Math.Round(rating + k * (0.5 - expected)),
-            [DuelResult.Lose] = (int)Math.Round(rating + k * (0.0 - expected))
+            [DuelResult.Win] = (int)Math.Round(k * (1.0 - expected)),
+            [DuelResult.Draw] = (int)Math.Round(k * (0.5 - expected)),
+            [DuelResult.Lose] = (int)Math.Round(k * (0.0 - expected))
         };
     }
     
