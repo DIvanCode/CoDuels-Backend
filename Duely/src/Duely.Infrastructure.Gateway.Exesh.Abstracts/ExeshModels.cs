@@ -14,6 +14,12 @@ public sealed record OtherStepSource(
     [property: JsonPropertyName("step_name")] string StepName
 ) : ExeshSource("other_step");
 
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(RunPyStep), "run_py")]
+[JsonDerivedType(typeof(RunGoStep), "run_go")]
+[JsonDerivedType(typeof(CompileCppStep), "compile_cpp")]
+[JsonDerivedType(typeof(RunCppStep), "run_cpp")]
 public abstract record ExeshStep(
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("type")] string Type
