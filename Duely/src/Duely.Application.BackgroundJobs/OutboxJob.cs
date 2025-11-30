@@ -43,13 +43,9 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
 
                     var result = await dispatcher.DispatchAsync(message, cancellationToken);
 
-                    now = DateTime.UtcNow;
+                    var processedAt = DateTime.UtcNow;
 
-                    if (now >= message.RetryUntil)
-                    {
-                        db.Outbox.Remove(message);
-                    }
-                    else if (result.IsSuccess)
+                    if (processedAt >= message.RetryUntil || result.IsSuccess)
                     {
                         db.Outbox.Remove(message);
                     }
@@ -61,7 +57,7 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                             outboxOptions.InitialRetryDelayMs,
                             outboxOptions.MaxRetryDelayMs,
                             message.Retries);
-                        message.RetryAt = DateTime.UtcNow.AddMilliseconds(RetryDelayMs);
+                        message.RetryAt = processedAt.AddMilliseconds(RetryDelayMs);
                     }
                 
                     await db.SaveChangesAsync(cancellationToken);
