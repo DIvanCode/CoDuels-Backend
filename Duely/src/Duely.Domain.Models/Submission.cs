@@ -11,6 +11,7 @@ public sealed class Submission
     public required SubmissionStatus Status { get; set; }
     public string? Verdict { get; set; }
     public string? Message { get; set; }
+    public bool IsUpsolve { get; set; } = false;
 }
 
 public enum SubmissionStatus

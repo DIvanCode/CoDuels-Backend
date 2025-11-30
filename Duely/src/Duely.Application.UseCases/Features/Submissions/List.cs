@@ -35,7 +35,8 @@ public sealed class GetUserSubmissionsHandler(Context context)
                 Status = s.Status,
                 Language = s.Language,
                 CreatedAt = s.SubmitTime,
-                Verdict = s.Verdict
+                Verdict = s.Verdict,
+                IsUpsolve = s.IsUpsolve
             })
             .ToListAsync(cancellationToken);
 

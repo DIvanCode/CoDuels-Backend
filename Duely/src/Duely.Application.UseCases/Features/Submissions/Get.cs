@@ -38,7 +38,8 @@ public sealed class GetSubmissionHandler(Context context)
             Status = submission.Status,
             CreatedAt = submission.SubmitTime,
             Message = submission.Message,
-            Verdict = submission.Verdict
+            Verdict = submission.Verdict,
+            IsUpsolve = submission.IsUpsolve
         };
     }
 }

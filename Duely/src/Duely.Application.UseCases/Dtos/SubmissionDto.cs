@@ -25,4 +25,8 @@ public sealed class SubmissionDto
 
     [JsonPropertyName("verdict")]
     public string? Verdict { get; init; }
+
+    [JsonPropertyName("is_upsolve")]
+    public bool IsUpsolve { get; set; } = false;
+
 }

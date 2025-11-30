@@ -51,6 +51,12 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
             .HasColumnName("Message")
             .HasColumnType("text")
             .IsRequired(false);
+        
+        builder.Property(s => s.IsUpsolve)
+            .HasColumnName("IsUpsolve")
+            .HasColumnType("boolean")
+            .HasDefaultValue(false)
+            .IsRequired();
 
         builder.HasOne(s => s.Duel)
             .WithMany(d => d.Submissions)
