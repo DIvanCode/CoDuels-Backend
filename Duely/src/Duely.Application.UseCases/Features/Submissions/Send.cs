@@ -34,6 +34,7 @@ public sealed class SendSubmissionHandler(Context context)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
+        var isUpsolve = duel.Status == DuelStatus.Finished;
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -44,7 +45,8 @@ public sealed class SendSubmissionHandler(Context context)
                 Code = command.Code,
                 Language = command.Language,
                 SubmitTime = DateTime.UtcNow,
-                Status = SubmissionStatus.Queued
+                Status = SubmissionStatus.Queued,
+                IsUpsolve = isUpsolve
             };
 
             context.Submissions.Add(submission);
@@ -70,7 +72,8 @@ public sealed class SendSubmissionHandler(Context context)
                 Status = submission.Status,
                 CreatedAt = submission.SubmitTime,
                 Message = submission.Message,
-                Verdict = submission.Verdict
+                Verdict = submission.Verdict,
+                IsUpsolve = submission.IsUpsolve
             };
         }
         catch

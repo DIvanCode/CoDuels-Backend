@@ -3,6 +3,7 @@ using System;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 {
     [DbContext(typeof(Context))]
-    partial class UnitOfWorkModelSnapshot : ModelSnapshot
+    [Migration("20251130190755_AddSubmissionIsUpsolve")]
+    partial class AddSubmissionIsUpsolve
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
