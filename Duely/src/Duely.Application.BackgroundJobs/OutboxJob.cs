@@ -22,6 +22,10 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                 var db = scope.ServiceProvider.GetRequiredService<Context>();
                 var dispatcher = scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>();
                 var now = DateTime.UtcNow;
+                await db.Outbox
+                    .Where(m => m.RetryUntil <= now)
+                    .ExecuteDeleteAsync(cancellationToken);
+                now = DateTime.UtcNow;
                 var message = await db.Outbox
                     .Where(m => m.Status == OutboxStatus.ToDo 
                     && (m.RetryUntil > now)
