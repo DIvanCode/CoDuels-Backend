@@ -22,23 +22,34 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                 var db = scope.ServiceProvider.GetRequiredService<Context>();
                 var dispatcher = scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>();
                 var now = DateTime.UtcNow;
+                await db.Outbox
+                    .Where(m => m.RetryUntil <= now)
+                    .ExecuteDeleteAsync(cancellationToken);
+                now = DateTime.UtcNow;
                 var message = await db.Outbox
-                    .Where(m => m.Status == OutboxStatus.ToDo
+                    .Where(m => m.Status == OutboxStatus.ToDo 
+                    && (m.RetryUntil > now)
                     || (m.Status == OutboxStatus.ToRetry
                         && m.RetryAt != null
-                        && m.RetryAt <= now)
+                        && m.RetryAt <= now
+                        && m.RetryUntil > now)
                     || (m.Status == OutboxStatus.InProgress
                         && m.RetryAt != null
-                        && m.RetryAt <= now))
+                        && m.RetryAt <= now
+                        && m.RetryUntil > now))
                     .OrderBy(m => m.Id)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (message is not null)
                 {
                     if (cancellationToken.IsCancellationRequested) break;
+                    message.Status = OutboxStatus.InProgress;
+                    await db.SaveChangesAsync(cancellationToken);
 
                     var result = await dispatcher.DispatchAsync(message, cancellationToken);
 
-                    if (result.IsSuccess)
+                    var processedAt = DateTime.UtcNow;
+
+                    if (processedAt >= message.RetryUntil || result.IsSuccess)
                     {
                         db.Outbox.Remove(message);
                     }
@@ -46,7 +57,11 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                     {
                         message.Retries++;
                         message.Status = OutboxStatus.ToRetry;
-                        message.RetryAt = DateTime.UtcNow.AddMilliseconds(outboxOptions.RetryDelayMs);
+                        var RetryDelayMs = CalculateRetryDelayMs(
+                            outboxOptions.InitialRetryDelayMs,
+                            outboxOptions.MaxRetryDelayMs,
+                            message.Retries);
+                        message.RetryAt = processedAt.AddMilliseconds(RetryDelayMs);
                     }
                 
                     await db.SaveChangesAsync(cancellationToken);
@@ -54,5 +69,16 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
             }
             await Task.Delay(TimeSpan.FromMilliseconds(outboxOptions.CheckIntervalMs),cancellationToken);
         }
+    }
+    private static int CalculateRetryDelayMs(int initialDelayMs, int maxDelayMs, int retries)
+    {
+        if (retries <= 0)
+            return initialDelayMs;
+
+        long delay = (long)initialDelayMs << (retries - 1);
+        if (delay > maxDelayMs)
+            delay = maxDelayMs;
+
+        return (int)delay;
     }
 }

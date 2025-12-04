@@ -50,14 +50,15 @@ public sealed class RunUserCodeHandler(Context context)
             await context.SaveChangesAsync(cancellationToken);
 
             var payload = JsonSerializer.Serialize(new RunUserCodePayload(run.Id, run.Code, run.Language, run.Input));
-
+            var retryUntil = DateTime.UtcNow.AddMinutes(5);
             context.Outbox.Add(new OutboxMessage
                 {
                     Type = OutboxType.RunUserCode,
                     Status = OutboxStatus.ToDo,
                     Retries = 0,
                     RetryAt = null,
-                    Payload = payload
+                    Payload = payload,
+                    RetryUntil = retryUntil
                 });
 
                 await context.SaveChangesAsync(cancellationToken);

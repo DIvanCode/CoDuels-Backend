@@ -30,6 +30,7 @@ public sealed class SendSubmissionHandler(Context context)
         }
 
         var user = await context.Users.SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
+        var retryUntil = duel.DeadlineTime.AddMinutes(5);
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
@@ -59,7 +60,8 @@ public sealed class SendSubmissionHandler(Context context)
                 Status = OutboxStatus.ToDo,
                 Retries = 0,
                 RetryAt = null,
-                Payload = payload
+                Payload = payload,
+                RetryUntil = retryUntil
             });
 
             await context.SaveChangesAsync(cancellationToken);
