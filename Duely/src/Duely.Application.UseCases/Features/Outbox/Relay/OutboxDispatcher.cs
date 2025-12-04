@@ -4,7 +4,10 @@ using Duely.Application.UseCases.Payloads;
 using Duely.Domain.Models;
 namespace Duely.Application.UseCases.Features.Outbox.Relay;
 
-public sealed class OutboxDispatcher(IOutboxHandler<TestSolutionPayload> testSolutionHandler) : IOutboxDispatcher
+public sealed class OutboxDispatcher(
+    IOutboxHandler<TestSolutionPayload> testSolutionHandler,
+    IOutboxHandler<RunUserCodePayload> runUserCodeHandler
+    ) : IOutboxDispatcher
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -13,6 +16,10 @@ public sealed class OutboxDispatcher(IOutboxHandler<TestSolutionPayload> testSol
         if (message.Type == OutboxType.TestSolution)
         {
             return Handle(testSolutionHandler, message.Payload, cancellationToken);
+        }
+        if (message.Type == OutboxType.RunUserCode)
+        {
+            return Handle(runUserCodeHandler, message.Payload, cancellationToken);
         }
         if (message.Type == OutboxType.SendMessage)
         {

@@ -12,7 +12,7 @@ using Duely.Domain.Models;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
-public sealed class TryCreateDuelCommand : IRequest<Result> { }
+public sealed class TryCreateDuelCommand : IRequest<Result>;
 
 public sealed class TryCreateDuelHandler(
     IDuelManager duelManager,
@@ -63,11 +63,13 @@ public sealed class TryCreateDuelHandler(
         var duel = new Duel
         {
             TaskId = taskId,
-            User1 = user1,
-            User2 = user2,
             Status = DuelStatus.InProgress,
             StartTime = startTime,
-            DeadlineTime = deadlineTime
+            DeadlineTime = deadlineTime,
+            User1 = user1,
+            User1InitRating = user1.Rating,
+            User2 = user2,
+            User2InitRating = user2.Rating,
         };
 
         context.Duels.Add(duel);
@@ -80,6 +82,8 @@ public sealed class TryCreateDuelHandler(
 
         await messageSender.SendMessage(duel.User1.Id, message, cancellationToken);
         await messageSender.SendMessage(duel.User2.Id, message, cancellationToken);
+        
+        Console.WriteLine($"Started duel {duel.Id}");
 
         return Result.Ok();
     }

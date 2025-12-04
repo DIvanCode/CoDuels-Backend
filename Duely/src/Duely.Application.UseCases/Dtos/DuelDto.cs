@@ -3,13 +3,6 @@ using Duely.Domain.Models;
 
 namespace Duely.Application.UseCases.Dtos;
 
-public enum DuelResult
-{
-    Win = 0,
-    Lose = 1,
-    Draw = 2
-}
-
 public sealed class DuelDto
 {
     [JsonPropertyName("id")]
@@ -18,8 +11,11 @@ public sealed class DuelDto
     [JsonPropertyName("task_id")]
     public required string TaskId { get; init; }
 
-    [JsonPropertyName("opponent_id")]
-    public required int OpponentId { get; init; }
+    [JsonPropertyName("participants")]
+    public required UserDto[] Participants { get; init; }
+
+    [JsonPropertyName("winner_id")]
+    public int? WinnerId { get; set; }
 
     [JsonPropertyName("status"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required DuelStatus Status { get; init; }
@@ -30,9 +26,9 @@ public sealed class DuelDto
     [JsonPropertyName("deadline_time")]
     public required DateTime DeadlineTime { get; init; }
 
-    [JsonPropertyName("result"), JsonConverter(typeof(JsonStringEnumConverter))]
-    public DuelResult? Result { get; set; }
-
     [JsonPropertyName("end_time")]
     public DateTime? EndTime { get; set; }
+    
+    [JsonPropertyName("rating_changes")]
+    public required Dictionary<int, Dictionary<DuelResult, int>> RatingChanges { get; init; }
 }

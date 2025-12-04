@@ -27,12 +27,14 @@ public class RatingManagerTests
         {
             Id = id,
             TaskId = "TASK",
-            User1 = u1,
-            User2 = u2,
             Status = DuelStatus.Finished,
             StartTime = DateTime.UtcNow,
             DeadlineTime = DateTime.UtcNow.AddMinutes(30),
-            EndTime = DateTime.UtcNow
+            EndTime = DateTime.UtcNow,
+            User1 = u1,
+            User1InitRating = u1.Rating,
+            User2 = u2,
+            User2InitRating = u2.Rating
         };
     }
 

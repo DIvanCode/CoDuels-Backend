@@ -53,19 +53,27 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("TaskId");
 
-                    b.Property<int?>("User1Id")
+                    b.Property<int?>("User1FinalRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User1FinalRating");
+
+                    b.Property<int>("User1Id")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("User1RatingDelta")
+                    b.Property<int>("User1InitRating")
                         .HasColumnType("integer")
-                        .HasColumnName("User1RatingDelta");
+                        .HasColumnName("User1InitRating");
 
-                    b.Property<int?>("User2Id")
+                    b.Property<int?>("User2FinalRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User2FinalRating");
+
+                    b.Property<int>("User2Id")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("User2RatingDelta")
+                    b.Property<int>("User2InitRating")
                         .HasColumnType("integer")
-                        .HasColumnName("User2RatingDelta");
+                        .HasColumnName("User2InitRating");
 
                     b.Property<int?>("WinnerId")
                         .HasColumnType("integer");
@@ -141,6 +149,12 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Property<int>("DuelId")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsUpsolve")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("IsUpsolve");
+
                     b.Property<string>("Language")
                         .IsRequired()
                         .HasColumnType("text")
@@ -214,22 +228,74 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.UserCodeRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Code");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text")
+                        .HasColumnName("Error");
+
+                    b.Property<string>("ExecutionId")
+                        .HasColumnType("text")
+                        .HasColumnName("ExecutionId");
+
+                    b.Property<string>("Input")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Input");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Language");
+
+                    b.Property<string>("Output")
+                        .HasColumnType("text")
+                        .HasColumnName("Output");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Status");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserCodeRuns", (string)null);
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
                 {
                     b.HasOne("Duely.Domain.Models.User", "User1")
                         .WithMany("DuelsAsUser1")
                         .HasForeignKey("User1Id")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Duely.Domain.Models.User", "User2")
                         .WithMany("DuelsAsUser2")
                         .HasForeignKey("User2Id")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Duely.Domain.Models.User", "Winner")
                         .WithMany()
-                        .HasForeignKey("WinnerId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("WinnerId");
 
                     b.Navigation("User1");
 
@@ -253,6 +319,17 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .IsRequired();
 
                     b.Navigation("Duel");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserCodeRun", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });

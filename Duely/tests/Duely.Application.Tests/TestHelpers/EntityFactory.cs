@@ -28,11 +28,13 @@ public static class EntityFactory
         {
             Id = id,
             TaskId = taskId,
-            User1 = u1,
-            User2 = u2,
             Status = DuelStatus.InProgress,
             StartTime = start.Value,
-            DeadlineTime = deadline.Value
+            DeadlineTime = deadline.Value,
+            User1 = u1,
+            User2 = u2,
+            User1InitRating = 1500,
+            User2InitRating = 1500
         };
     }
 

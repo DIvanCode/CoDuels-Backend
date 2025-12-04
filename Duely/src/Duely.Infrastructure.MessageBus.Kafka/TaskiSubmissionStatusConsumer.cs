@@ -17,7 +17,7 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
     {
         _scopeFactory = scopeFactory;
 
-        _topic = kafkaOptions.Value.Topic;
+        _topic = kafkaOptions.Value.TaskiTopic;
         var config = new ConsumerConfig
         {
             BootstrapServers = kafkaOptions.Value.BootstrapServers,

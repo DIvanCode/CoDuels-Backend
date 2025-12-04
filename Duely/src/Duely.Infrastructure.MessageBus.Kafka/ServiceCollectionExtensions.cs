@@ -9,5 +9,6 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
         services.AddHostedService<TaskiSubmissionStatusConsumer>();
+        services.AddHostedService<ExeshSubmissionStatusConsumer>();
     }
 }
