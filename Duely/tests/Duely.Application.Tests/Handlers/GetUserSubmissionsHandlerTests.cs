@@ -11,7 +11,7 @@ using Xunit;
 public class GetUserSubmissionsHandlerTests : ContextBasedTest
 {
     [Fact]
-    public async Task NotFound_when_user_not_part_of_duel()
+    public async Task Forbidden_when_user_not_part_of_duel()
     {
         var ctx = Context;
 
@@ -27,7 +27,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
         var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 3, DuelId = 10 }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
+        res.Errors.Should().ContainSingle(e => e is ForbiddenError);
     }
 
     [Fact]
