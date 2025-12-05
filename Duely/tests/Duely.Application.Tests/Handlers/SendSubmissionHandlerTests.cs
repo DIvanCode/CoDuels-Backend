@@ -14,7 +14,7 @@ using Xunit;
 internal sealed class DummySubmissionRateLimiter : ISubmissionRateLimiter
 {
     public Task<bool> IsLimitExceededAsync(int userId, CancellationToken cancellationToken)
-        => Task.FromResult(true);
+        => Task.FromResult(false);
 }
 
 public class SendSubmissionHandlerTests : ContextBasedTest
