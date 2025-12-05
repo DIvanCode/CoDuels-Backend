@@ -37,7 +37,7 @@ public class GetSubmissionHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task NotFound_when_not_matches_user_or_duel()
+    public async Task Forbidden_when_not_matches_user_or_duel()
     {
         var ctx = Context;
 
@@ -57,6 +57,6 @@ public class GetSubmissionHandlerTests : ContextBasedTest
         }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
+        res.Errors.Should().ContainSingle(e => e is ForbiddenError);
     }
 }

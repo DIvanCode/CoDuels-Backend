@@ -23,18 +23,29 @@ public sealed class SendSubmissionHandler(Context context)
 {
     public async Task<Result<SubmissionDto>> Handle(SendSubmissionCommand command, CancellationToken cancellationToken)
     {
-        var duel = await context.Duels.SingleOrDefaultAsync(d => d.Id == command.DuelId, cancellationToken);
+        var duel = await context.Duels
+            .Include(d => d.User1)
+            .Include(d => d.User2)
+            .SingleOrDefaultAsync(d => d.Id == command.DuelId, cancellationToken);
+
         if (duel is null)
         {
             return new EntityNotFoundError(nameof(Duel), nameof(Duel.Id), command.DuelId);
         }
 
         var user = await context.Users.SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
-        var retryUntil = duel.DeadlineTime.AddMinutes(5);
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
+
+        if (duel.User1.Id != command.UserId && duel.User2.Id != command.UserId)
+        {
+            return new ForbiddenError("You can't send a submission to a duel that isn't yours.");
+        }
+        
+        var retryUntil = duel.DeadlineTime.AddMinutes(5);
+        
         var isUpsolve = duel.Status == DuelStatus.Finished;
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         try
