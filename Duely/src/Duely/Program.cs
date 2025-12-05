@@ -10,6 +10,10 @@ using Hellang.Middleware.ProblemDetails;
 using Duely.Application.UseCases.Features.Outbox.Relay;
 using Duely.Application.UseCases.Features.Outbox.Handlers;
 using Duely.Application.UseCases.Payloads;
+using Duely.Application.UseCases.Features.RateLimiting;
+using Duely.Infrastructure.Api.Http.Validators.Submissions;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -22,6 +26,8 @@ builder.Services.AddScoped<IOutboxHandler<TestSolutionPayload>, TestSolutionHand
 builder.Services.AddScoped<IOutboxHandler<RunUserCodePayload>, RunUserCodeOutboxHandler>();
 builder.Services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
 builder.Services.SetupBackgroundJobs(builder.Configuration);
+builder.Services.AddScoped<ISubmissionRateLimiter, SubmissionRateLimiter>();
+builder.Services.AddScoped<IRunUserCodeLimiter, RunUserCodeLimiter>();
 
 // Domain
 builder.Services.SetupDomainServices(builder.Configuration);
@@ -32,6 +38,9 @@ builder.Services.SetupDataAccessEntityFramework(builder.Configuration);
 builder.Services.SetupTasksGateway(builder.Configuration);
 builder.Services.SetupExeshGateway(builder.Configuration);
 builder.Services.SetupMessageBusKafka(builder.Configuration);
+
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<SendRequestValidator>();
 
 var app = builder.Build();
 

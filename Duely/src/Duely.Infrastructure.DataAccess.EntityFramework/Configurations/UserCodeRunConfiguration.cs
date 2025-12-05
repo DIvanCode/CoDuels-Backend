@@ -57,5 +57,11 @@ public sealed class UserCodeRunConfiguration : IEntityTypeConfiguration<UserCode
             .HasColumnName("ExecutionId")
             .HasColumnType("text")
             .IsRequired(false);
+
+        builder.Property(u => u.CreatedAt)
+            .HasColumnName("CreatedAt")
+            .HasColumnType("timestamp")
+            .IsRequired();
+
     }
 }

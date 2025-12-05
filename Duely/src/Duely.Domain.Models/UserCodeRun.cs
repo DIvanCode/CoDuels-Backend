@@ -1,3 +1,7 @@
+using System.ComponentModel;
+using System.Dynamic;
+using System.Runtime.CompilerServices;
+
 namespace Duely.Domain.Models;
 
 public sealed class UserCodeRun
@@ -11,6 +15,7 @@ public sealed class UserCodeRun
     public string? Output { get; set; }
     public string? Error { get; set; }
     public string? ExecutionId { get; set; }
+    public required DateTime CreatedAt { get; init; }
 }
 
 public enum UserCodeRunStatus

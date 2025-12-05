@@ -1,5 +1,6 @@
 using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
+using Duely.Application.UseCases.Features.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MediatR;
 using FluentResults;
@@ -18,11 +19,17 @@ public sealed record SendSubmissionCommand : IRequest<Result<SubmissionDto>>
     public required string Language { get; init; }
 }
 
-public sealed class SendSubmissionHandler(Context context)
+public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimiter submissionLimiter)
     : IRequestHandler<SendSubmissionCommand, Result<SubmissionDto>>
 {
     public async Task<Result<SubmissionDto>> Handle(SendSubmissionCommand command, CancellationToken cancellationToken)
     {
+
+        if (await submissionLimiter.IsLimitExceededAsync(command.UserId, cancellationToken))
+        {
+            return new RateLimitExceededError("You can't send more than 5 submissions per minute.");
+        }
+
         var duel = await context.Duels.SingleOrDefaultAsync(d => d.Id == command.DuelId, cancellationToken);
         if (duel is null)
         {
