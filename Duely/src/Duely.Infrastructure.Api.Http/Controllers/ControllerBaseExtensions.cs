@@ -24,6 +24,7 @@ public static class ControllerBaseExtensions
             AuthenticationError => StatusCodes.Status401Unauthorized,
             EntityNotFoundError => StatusCodes.Status404NotFound,
             EntityAlreadyExistsError => StatusCodes.Status409Conflict,
+            RateLimitExceededError => StatusCodes.Status429TooManyRequests,
             _ => StatusCodes.Status500InternalServerError
         };
 
