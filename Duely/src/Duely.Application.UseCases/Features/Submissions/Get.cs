@@ -21,13 +21,18 @@ public sealed class GetSubmissionHandler(Context context)
     public async Task<Result<SubmissionDto>> Handle(GetSubmissionQuery query, CancellationToken cancellationToken)
     {
         var submission = await context.Submissions
-            .Where(s => s.Id == query.SubmissionId && s.User.Id == query.UserId && s.Duel.Id == query.DuelId)
+            .Where(s => s.Id == query.SubmissionId && s.Duel.Id == query.DuelId)
             .Include(s => s.User)
             .Include(s => s.Duel)
             .SingleOrDefaultAsync(cancellationToken);
         if (submission is null)
         {
             return new EntityNotFoundError(nameof(Submission), nameof(Submission.Id), query.SubmissionId);
+        }
+
+        if (submission.User.Id != query.UserId)
+        {
+            return new ForbiddenError("You can't get a submission that isn't yours.");
         }
 
         return new SubmissionDto

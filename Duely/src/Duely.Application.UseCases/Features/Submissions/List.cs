@@ -19,12 +19,21 @@ public sealed class GetUserSubmissionsHandler(Context context)
 {
     public async Task<Result<List<SubmissionListItemDto>>> Handle(GetUserSubmissionsQuery query, CancellationToken cancellationToken)
     {
-        var duelExistsForUser = await context.Duels
-            .AnyAsync(d => d.Id == query.DuelId && ((d.User1 != null && d.User1.Id == query.UserId) || (d.User2 != null && d.User2.Id == query.UserId)), cancellationToken);
-        if (!duelExistsForUser)
+        var duel = await context.Duels
+            .Include(d => d.User1)
+            .Include(d => d.User2)
+            .SingleOrDefaultAsync(d => d.Id == query.DuelId, cancellationToken);
+            
+        if (duel is null)
         {
             return new EntityNotFoundError(nameof(Duel), nameof(Duel.Id), query.DuelId);
         }
+
+        if (duel.User1.Id != query.UserId && duel.User2.Id != query.UserId)
+        {
+            return new ForbiddenError("You can't get submissions from a duel that isn't yours.");
+        }
+
         var items = await context.Duels
             .Where(d => d.Id == query.DuelId)
             .SelectMany(d => d.Submissions.Where(s => s.User.Id == query.UserId))

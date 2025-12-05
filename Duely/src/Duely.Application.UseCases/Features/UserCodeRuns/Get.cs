@@ -21,11 +21,16 @@ public sealed class GetUserCodeRunHandler(Context context)
     {
         var run = await context.UserCodeRuns
             .Include(r => r.User)
-            .SingleOrDefaultAsync(r => r.Id == query.RunId && r.User.Id == query.UserId, cancellationToken);
+            .SingleOrDefaultAsync(r => r.Id == query.RunId, cancellationToken);
 
         if (run is null)
         {
             return new EntityNotFoundError(nameof(UserCodeRun), nameof(UserCodeRun.Id), query.RunId);
+        }
+
+        if (run.User.Id != query.UserId)
+        {
+            return new ForbiddenError("You can't get a run that isn't yours.");
         }
 
         return new UserCodeRunDto
