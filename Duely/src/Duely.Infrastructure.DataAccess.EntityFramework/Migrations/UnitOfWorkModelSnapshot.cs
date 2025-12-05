@@ -242,6 +242,10 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("Code");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("CreatedAt");
+
                     b.Property<string>("Error")
                         .HasColumnType("text")
                         .HasColumnName("Error");

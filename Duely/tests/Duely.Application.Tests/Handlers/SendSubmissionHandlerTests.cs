@@ -4,10 +4,18 @@ using System.Threading.Tasks;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Submissions;
+using Duely.Application.UseCases.Features.RateLimiting;
 using Duely.Domain.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+
+
+internal sealed class DummySubmissionRateLimiter : ISubmissionRateLimiter
+{
+    public Task<bool> IsLimitExceededAsync(int userId, CancellationToken cancellationToken)
+        => Task.FromResult(true);
+}
 
 public class SendSubmissionHandlerTests : ContextBasedTest
 {
@@ -15,8 +23,9 @@ public class SendSubmissionHandlerTests : ContextBasedTest
     public async Task NotFound_when_duel_absent()
     {
         var ctx = Context;
+        var limiter = new DummySubmissionRateLimiter();
 
-        var handler = new SendSubmissionHandler(ctx);
+        var handler = new SendSubmissionHandler(ctx, limiter);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
@@ -42,7 +51,9 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         ctx.Duels.Add(duel);
         await ctx.SaveChangesAsync();
 
-        var handler = new SendSubmissionHandler(ctx);
+        var limiter = new DummySubmissionRateLimiter();
+
+        var handler = new SendSubmissionHandler(ctx, limiter);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
@@ -68,7 +79,9 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         ctx.Duels.Add(duel);
         await ctx.SaveChangesAsync();
 
-        var handler = new SendSubmissionHandler(ctx);
+        var limiter = new DummySubmissionRateLimiter();
+
+        var handler = new SendSubmissionHandler(ctx, limiter);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
