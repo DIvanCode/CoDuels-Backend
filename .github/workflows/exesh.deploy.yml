@@ -6,7 +6,7 @@ defaults:
     shell: bash
     working-directory: Exesh
 jobs:
-  Test:
+  Deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Login to Docker Hub
