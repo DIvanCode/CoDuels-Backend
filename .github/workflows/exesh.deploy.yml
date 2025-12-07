@@ -1,5 +1,10 @@
 name: ExeshDeploy
-on: pull_request
+on: 
+  push:
+    paths:
+      - Exesh/**
+    branches:
+      - master
 
 defaults:
   run:

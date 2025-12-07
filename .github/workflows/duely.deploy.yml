@@ -1,5 +1,10 @@
 name: DuelyDeploy
-on: pull_request
+on: 
+  push:
+    paths:
+      - Duely/**
+    branches:
+      - master
 
 defaults:
   run:

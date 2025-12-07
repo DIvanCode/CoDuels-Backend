@@ -1,5 +1,10 @@
 name: TaskiDeploy
-on: pull_request
+on: 
+  push:
+    paths:
+      - Taski/**
+    branches:
+      - master
 
 defaults:
   run:
