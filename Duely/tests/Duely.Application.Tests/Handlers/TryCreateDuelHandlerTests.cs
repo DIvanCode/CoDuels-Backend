@@ -11,10 +11,19 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Moq;
+using System.Linq;
+using System.Text.Json;
+using Duely.Application.UseCases.Payloads;
+
 using Xunit;
 
 public class TryCreateDuelHandlerTests : ContextBasedTest
 {
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    private static SendMessagePayload ReadSendPayload(OutboxMessage m)
+        => JsonSerializer.Deserialize<SendMessagePayload>(m.Payload, Json)!;
+
     [Fact]
     public async Task Does_nothing_when_no_pair()
     {
@@ -29,12 +38,13 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var sender = new Mock<IMessageSender>(MockBehavior.Strict);
         var options = Options.Create(new DuelOptions { MaxDurationMinutes = 30 });
 
-        var handler = new TryCreateDuelHandler(duelManager.Object, taski, sender.Object, options, taskService.Object, ctx);
+        var handler = new TryCreateDuelHandler(duelManager.Object, taski, options, taskService.Object, ctx);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         (await ctx.Duels.CountAsync()).Should().Be(0);
-        sender.VerifyNoOtherCalls();
+        (await ctx.Outbox.AsNoTracking().ToListAsync())
+        .Should().BeEmpty();
     }
 
     [Fact]
@@ -64,7 +74,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var options = Options.Create(new DuelOptions { MaxDurationMinutes = 30 });
 
-        var handler = new TryCreateDuelHandler(duelManager.Object, taski, sender.Object, options, taskService.Object, ctx);
+        var handler = new TryCreateDuelHandler(duelManager.Object, taski, options, taskService.Object, ctx);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -75,7 +85,22 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         duel.User1!.Id.Should().Be(1);
         duel.User2!.Id.Should().Be(2);
 
-        sender.VerifyAll();
+        var messages = await ctx.Outbox.AsNoTracking()
+        .Where(m => m.Type == OutboxType.SendMessage)
+        .ToListAsync();
+
+        messages.Should().HaveCount(2);
+
+        foreach (var m in messages)
+        {
+            m.Status.Should().Be(OutboxStatus.ToDo);
+            m.RetryUntil.Should().Be(duel.DeadlineTime.AddMinutes(5));
+
+            var p = ReadSendPayload(m);
+            p.Type.Should().Be(MessageType.DuelStarted);
+            p.DuelId.Should().Be(duel.Id);
+            (p.UserId == u1.Id || p.UserId == u2.Id).Should().BeTrue();
+        }
     }
     
     [Fact]
@@ -109,7 +134,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var options = Options.Create(new DuelOptions { MaxDurationMinutes = 30 });
 
-        var handler = new TryCreateDuelHandler(duelManager.Object, taski, sender.Object, options, taskService.Object, ctx);
+        var handler = new TryCreateDuelHandler(duelManager.Object, taski, options, taskService.Object, ctx);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
         var duel = await ctx.Duels
@@ -122,6 +147,19 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         duel.User1!.Id.Should().Be(1);
         duel.User2!.Id.Should().Be(2);
 
-        sender.VerifyAll();
+        var messages = await ctx.Outbox.AsNoTracking()
+        .Where(m => m.Type == OutboxType.SendMessage)
+        .ToListAsync();
+
+        messages.Should().HaveCount(2);
+
+        foreach (var m in messages)
+        {
+            m.RetryUntil.Should().Be(duel.DeadlineTime.AddMinutes(5));
+
+            var p = ReadSendPayload(m);
+            p.Type.Should().Be(MessageType.DuelStarted);
+            p.DuelId.Should().Be(duel.Id);
+        }
     }
 }

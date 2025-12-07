@@ -6,7 +6,8 @@ namespace Duely.Application.UseCases.Features.Outbox.Relay;
 
 public sealed class OutboxDispatcher(
     IOutboxHandler<TestSolutionPayload> testSolutionHandler,
-    IOutboxHandler<RunUserCodePayload> runUserCodeHandler
+    IOutboxHandler<RunUserCodePayload> runUserCodeHandler,
+    IOutboxHandler<SendMessagePayload> sendMessageHandler
     ) : IOutboxDispatcher
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -23,7 +24,7 @@ public sealed class OutboxDispatcher(
         }
         if (message.Type == OutboxType.SendMessage)
         {
-            
+            return Handle(sendMessageHandler, message.Payload, cancellationToken);
         }
     
         return Task.FromResult(Result.Ok());

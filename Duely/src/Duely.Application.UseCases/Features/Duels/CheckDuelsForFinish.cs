@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Services.Duels;
 using MediatR;
 using FluentResults;
+using System.Text.Json;
+using Duely.Application.UseCases.Payloads;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
@@ -13,7 +15,6 @@ public sealed class CheckDuelsForFinishCommand : IRequest<Result>;
 
 public sealed class CheckDuelsForFinishHandler(
     Context context,
-    IMessageSender messageSender,
     IRatingManager ratingManager
     ) 
     : IRequestHandler<CheckDuelsForFinishCommand, Result>
@@ -92,9 +93,39 @@ public sealed class CheckDuelsForFinishHandler(
         
         await context.SaveChangesAsync(cancellationToken);
 
-        var message = new DuelFinishedMessage { DuelId = duel.Id };
+        var retryUntil = duel.DeadlineTime.AddMinutes(5);
+        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 
-        await messageSender.SendMessage(duel.User1.Id, message, cancellationToken);
-        await messageSender.SendMessage(duel.User2.Id, message, cancellationToken);
+        var payload1 = JsonSerializer.Serialize(
+            new SendMessagePayload(duel.User1.Id, MessageType.DuelFinished, duel.Id),
+            jsonOptions
+        );
+
+        var payload2 = JsonSerializer.Serialize(
+            new SendMessagePayload(duel.User2.Id, MessageType.DuelFinished, duel.Id),
+            jsonOptions
+        );
+
+        context.Outbox.Add(new OutboxMessage
+        {
+            Type = OutboxType.SendMessage,
+            Payload = payload1,
+            Status = OutboxStatus.ToDo,
+            Retries = 0,
+            RetryAt = null,
+            RetryUntil = retryUntil
+        });
+
+        context.Outbox.Add(new OutboxMessage
+        {
+            Type = OutboxType.SendMessage,
+            Payload = payload2,
+            Status = OutboxStatus.ToDo,
+            Retries = 0,
+            RetryAt = null,
+            RetryUntil = retryUntil
+        });
+
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

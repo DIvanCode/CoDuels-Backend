@@ -11,9 +11,17 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
+using System.Linq;
+using System.Text.Json;
+using Duely.Application.UseCases.Payloads;
 
 public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 {
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    private static SendMessagePayload ReadSendPayload(OutboxMessage m)
+        => JsonSerializer.Deserialize<SendMessagePayload>(m.Payload, Json)!;
+
     [Fact]
     public async Task Finishes_by_time_as_draw()
     {
@@ -30,7 +38,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object,ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -39,8 +47,12 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Status.Should().Be(DuelStatus.Finished);
         d.Winner.Should().BeNull();
         d.EndTime.Should().NotBeNull();
+        var messages = await ctx.Outbox.AsNoTracking()
+        .Where(m => m.Type == OutboxType.SendMessage)
+        .ToListAsync();
 
-        sender.VerifyAll();
+        messages.Should().HaveCount(2);
+
     }
 
     [Fact]
@@ -64,7 +76,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object,ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx,ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -73,7 +85,20 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Status.Should().Be(DuelStatus.Finished);
         d.Winner!.Id.Should().Be(1);
 
-        sender.VerifyAll();
+        var messages = await ctx.Outbox.AsNoTracking()
+        .Where(m => m.Type == OutboxType.SendMessage)
+        .ToListAsync();
+
+        messages.Should().HaveCount(2);
+
+        foreach (var m in messages)
+        {
+            m.RetryUntil.Should().Be(duel.DeadlineTime.AddMinutes(5));
+
+            var p = ReadSendPayload(m);
+            p.Type.Should().Be(MessageType.DuelFinished);
+            p.DuelId.Should().Be(duel.Id);
+        }
     }
 
     [Fact]
@@ -85,18 +110,15 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var u2 = EntityFactory.MakeUser(2, "u2");
         var duel = EntityFactory.MakeDuel(30, u1, u2, "TASK", start: DateTime.UtcNow, deadline: DateTime.UtcNow.AddMinutes(15));
         ctx.AddRange(u1, u2, duel); await ctx.SaveChangesAsync();
-
-        var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
         
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object, ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         (await ctx.Duels.AsNoTracking().SingleAsync(d => d.Id == 30)).Status.Should().Be(DuelStatus.InProgress);
-        sender.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -118,16 +140,18 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         ctx.AddRange(u1, u2, duel, earlierRunning, laterAccepted);
         await ctx.SaveChangesAsync();
 
-        var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
         var ratingManager = new Mock<IRatingManager>();
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object,ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx,ratingManager.Object);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
+        var messages = await ctx.Outbox.AsNoTracking()
+            .Where(m => m.Type == OutboxType.SendMessage)
+            .ToListAsync();
 
+        messages.Should().HaveCount(0 );
         res.IsSuccess.Should().BeTrue();
         var d = await ctx.Duels.AsNoTracking().SingleAsync(x => x.Id == 40);
         d.Status.Should().Be(DuelStatus.InProgress); // не завершаем
-        sender.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -149,13 +173,9 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         ctx.AddRange(u1, u2, duel, earliestAccepted, laterRunning);
         await ctx.SaveChangesAsync();
 
-        var sender = new Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
-        sender.Setup(s => s.SendMessage(1, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        sender.Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object, ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -163,8 +183,6 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var d = await ctx.Duels.AsNoTracking().Include(x => x.Winner).SingleAsync(x => x.Id == 50);
         d.Status.Should().Be(DuelStatus.Finished);
         d.Winner!.Id.Should().Be(1);
-
-        sender.VerifyAll();
     }
 
     [Fact]
@@ -198,9 +216,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         // Сообщения отправляться не должны
-        var sender = new Moq.Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>(MockBehavior.Strict);
         var ratingManager = new Mock<IRatingManager>();
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object, ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -209,8 +226,6 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Status.Should().Be(DuelStatus.InProgress, "есть ещё выполняющиеся посылки");
         d.EndTime.Should().BeNull();
         d.Winner.Should().BeNull();
-
-        sender.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -244,11 +259,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         ctx.AddRange(u1, u2, duel, lateRunning);
         await ctx.SaveChangesAsync();
 
-        var sender = new Moq.Mock<Duely.Infrastructure.Gateway.Client.Abstracts.IMessageSender>();
-        sender.Setup(s => s.SendMessage(u1.Id, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        sender.Setup(s => s.SendMessage(u2.Id, It.IsAny<Message>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var ratingManager = new Mock<IRatingManager>();
-        var handler = new CheckDuelsForFinishHandler(ctx, sender.Object, ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -258,6 +270,6 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Winner.Should().BeNull("ни у кого нет Accepted до дедлайна");
         d.EndTime.Should().NotBeNull();
 
-        sender.VerifyAll();
+
     }
 }

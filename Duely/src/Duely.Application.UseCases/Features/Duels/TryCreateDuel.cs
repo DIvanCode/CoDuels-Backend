@@ -9,6 +9,9 @@ using Duely.Application.UseCases.Errors;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models;
+using System.Text.Json;
+using Duely.Application.UseCases.Payloads;
+
 
 namespace Duely.Application.UseCases.Features.Duels;
 
@@ -17,7 +20,6 @@ public sealed class TryCreateDuelCommand : IRequest<Result>;
 public sealed class TryCreateDuelHandler(
     IDuelManager duelManager,
     ITaskiClient taskiClient,
-    IMessageSender messageSender,
     IOptions<DuelOptions> duelOptions,
     ITaskService taskService,
     Context context)
@@ -74,14 +76,41 @@ public sealed class TryCreateDuelHandler(
 
         context.Duels.Add(duel);
         await context.SaveChangesAsync(cancellationToken);
+        var retryUntil = duel.DeadlineTime.AddMinutes(5);
 
-        var message = new DuelStartedMessage
+        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
+        var payload1 = JsonSerializer.Serialize(
+            new SendMessagePayload(duel.User1.Id, MessageType.DuelStarted, duel.Id),
+            jsonOptions
+        );
+
+        var payload2 = JsonSerializer.Serialize(
+            new SendMessagePayload(duel.User2.Id, MessageType.DuelStarted, duel.Id),
+            jsonOptions
+        );
+
+        context.Outbox.Add(new OutboxMessage
         {
-            DuelId = duel.Id,
-        };
+            Type = OutboxType.SendMessage,
+            Payload = payload1,
+            Status = OutboxStatus.ToDo,
+            Retries = 0,
+            RetryAt = null,
+            RetryUntil = retryUntil
+        });
 
-        await messageSender.SendMessage(duel.User1.Id, message, cancellationToken);
-        await messageSender.SendMessage(duel.User2.Id, message, cancellationToken);
+        context.Outbox.Add(new OutboxMessage
+        {
+            Type = OutboxType.SendMessage,
+            Payload = payload2,
+            Status = OutboxStatus.ToDo,
+            Retries = 0,
+            RetryAt = null,
+            RetryUntil = retryUntil
+        });
+
+        await context.SaveChangesAsync(cancellationToken);
         
         Console.WriteLine($"Started duel {duel.Id}");
 
