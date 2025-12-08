@@ -1,0 +1,35 @@
+name: DuelyDeploy
+on: 
+  push:
+    paths:
+      - Duely/**
+    branches:
+      - master
+
+defaults:
+  run:
+    shell: bash
+    working-directory: Duely
+jobs:
+  Deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: actions/checkout@v3
+      - name: Build and push Migration
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: docker.io/eewynell/coduels-duely:latest
+          context: Duely
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: docker.io/eewynell/coduels-duely-migration:latest
+          context: Duely
+          target: migration
