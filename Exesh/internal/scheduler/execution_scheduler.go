@@ -92,7 +92,7 @@ func NewExecutionScheduler(
 		Name: "now_executions",
 		Help: "Count of currently running executions",
 	}, func() float64 {
-		return float64(s.GetNowExecutions())
+		return float64(s.getNowExecutions())
 	})
 
 	return s
@@ -128,12 +128,12 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 			break
 		}
 
-		if s.GetNowExecutions() == s.cfg.MaxConcurrency {
+		if s.getNowExecutions() == s.cfg.MaxConcurrency {
 			s.log.Info("skip execution scheduler loop (max concurrency reached)")
 			continue
 		}
 
-		s.log.Info("begin execution scheduler loop", slog.Int("now_executions", s.GetNowExecutions()))
+		s.log.Info("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
 
 		s.changeNowExecutions(+1)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
@@ -302,7 +302,7 @@ func (s *ExecutionScheduler) doneStep(
 	}
 }
 
-func (s *ExecutionScheduler) GetNowExecutions() int {
+func (s *ExecutionScheduler) getNowExecutions() int {
 	return int(s.nowExecutions.Load())
 }
 
