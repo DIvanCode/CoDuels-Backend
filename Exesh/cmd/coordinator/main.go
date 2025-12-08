@@ -27,6 +27,8 @@ import (
 
 	"github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -75,11 +77,24 @@ func main() {
 	messageFactory := factory.NewMessageFactory(log)
 	messageSender := sender.NewKafkaSender(log, cfg.Sender)
 
+	promRegistry := prometheus.NewRegistry()
+	promRegistry.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+	promCoordReg := prometheus.WrapRegistererWithPrefix("coduels_exesh_coordinator_", promRegistry)
+
 	jobScheduler := schedule.NewJobScheduler(log)
-	exectuionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
+	executionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
 		jobFactory, jobScheduler, messageFactory, messageSender)
 
-	exectuionScheduler.Start(ctx)
+	err = executionScheduler.RegisterMetrics(promCoordReg)
+	if err != nil {
+		log.Error("could not register metrics from execution scheduler", slog.Any("err", err))
+		return
+	}
+
+	executionScheduler.Start(ctx)
 
 	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage)
 	executeAPI.NewHandler(log, executeUseCase).Register(mux)
@@ -99,7 +114,7 @@ func main() {
 
 	msrv := &http.Server{
 		Addr:    cfg.HttpServer.MetricsAddr,
-		Handler: promhttp.Handler(),
+		Handler: promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{}),
 	}
 
 	go func() {

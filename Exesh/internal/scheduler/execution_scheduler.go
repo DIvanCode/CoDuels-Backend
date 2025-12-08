@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"sync/atomic"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type (
@@ -26,6 +28,8 @@ type (
 		messageSender  messageSender
 
 		nowExecutions atomic.Int64
+
+		nowExecutionsGauge prometheus.Collector
 	}
 
 	unitOfWork interface {
@@ -68,7 +72,7 @@ func NewExecutionScheduler(
 	messageFactory messageFactory,
 	messageSender messageSender,
 ) *ExecutionScheduler {
-	return &ExecutionScheduler{
+	s := &ExecutionScheduler{
 		log: log,
 		cfg: cfg,
 
@@ -83,6 +87,21 @@ func NewExecutionScheduler(
 
 		nowExecutions: atomic.Int64{},
 	}
+
+	s.nowExecutionsGauge = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "now_executions",
+		Help: "Count of currently running executions",
+	}, func() float64 {
+		return float64(s.GetNowExecutions())
+	})
+
+	return s
+}
+
+func (s *ExecutionScheduler) RegisterMetrics(r prometheus.Registerer) error {
+	return errors.Join(
+		r.Register(s.nowExecutionsGauge),
+	)
 }
 
 func (s *ExecutionScheduler) Start(ctx context.Context) {
