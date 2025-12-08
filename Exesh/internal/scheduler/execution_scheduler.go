@@ -7,7 +7,7 @@ import (
 	"exesh/internal/domain/execution"
 	"fmt"
 	"log/slog"
-	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -25,8 +25,7 @@ type (
 		messageFactory messageFactory
 		messageSender  messageSender
 
-		mu            sync.Mutex
-		nowExecutions int
+		nowExecutions atomic.Int64
 	}
 
 	unitOfWork interface {
@@ -82,8 +81,7 @@ func NewExecutionScheduler(
 		messageFactory: messageFactory,
 		messageSender:  messageSender,
 
-		mu:            sync.Mutex{},
-		nowExecutions: 0,
+		nowExecutions: atomic.Int64{},
 	}
 }
 
@@ -111,12 +109,12 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 			break
 		}
 
-		if s.getNowExecutions() == s.cfg.MaxConcurrency {
+		if s.GetNowExecutions() == s.cfg.MaxConcurrency {
 			s.log.Info("skip execution scheduler loop (max concurrency reached)")
 			continue
 		}
 
-		s.log.Info("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
+		s.log.Info("begin execution scheduler loop", slog.Int("now_executions", s.GetNowExecutions()))
 
 		s.changeNowExecutions(+1)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
@@ -285,18 +283,12 @@ func (s *ExecutionScheduler) doneStep(
 	}
 }
 
-func (s *ExecutionScheduler) getNowExecutions() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.nowExecutions
+func (s *ExecutionScheduler) GetNowExecutions() int {
+	return int(s.nowExecutions.Load())
 }
 
 func (s *ExecutionScheduler) changeNowExecutions(delta int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.nowExecutions += delta
+	s.nowExecutions.Add(int64(delta))
 }
 
 func (s *ExecutionScheduler) finishExecution(
