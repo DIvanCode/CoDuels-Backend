@@ -22,6 +22,9 @@ import (
 	"github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 )
 
 func main() {
@@ -61,6 +64,12 @@ func main() {
 
 	worker.NewWorker(log, cfg.Worker, jobExecutor).Start(ctx)
 
+	promRegistry := prometheus.NewRegistry()
+	promRegistry.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 
 	stop := make(chan os.Signal, 1)
@@ -73,7 +82,7 @@ func main() {
 
 	msrv := &http.Server{
 		Addr:    cfg.HttpServer.MetricsAddr,
-		Handler: promhttp.Handler(),
+		Handler: promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{}),
 	}
 
 	go func() {
