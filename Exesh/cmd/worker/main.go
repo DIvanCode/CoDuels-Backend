@@ -2,14 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
-	flog "log"
-	"log/slog"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-
+	"errors"
 	"exesh/internal/config"
 	"exesh/internal/executor"
 	"exesh/internal/executor/executors"
@@ -18,9 +11,17 @@ import (
 	"exesh/internal/provider/providers/adapter"
 	"exesh/internal/runtime/docker"
 	"exesh/internal/worker"
+	"fmt"
+	flog "log"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -70,8 +71,17 @@ func main() {
 		Handler: mux,
 	}
 
+	msrv := &http.Server{
+		Addr:    cfg.HttpServer.MetricsAddr,
+		Handler: promhttp.Handler(),
+	}
+
 	go func() {
 		_ = srv.ListenAndServe()
+	}()
+
+	go func() {
+		_ = msrv.ListenAndServe()
 	}()
 
 	log.Info("server started")
@@ -79,7 +89,7 @@ func main() {
 	<-stop
 	log.Info("stopping server")
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := errors.Join(srv.Shutdown(ctx), msrv.Shutdown(ctx)); err != nil {
 		log.Error("failed to stop server", slog.Any("error", err))
 		return
 	}
