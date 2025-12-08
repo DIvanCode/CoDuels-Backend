@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	executeAPI "exesh/internal/api/execute"
 	heartbeatAPI "exesh/internal/api/heartbeat"
 	"exesh/internal/config"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/DIvanCode/filestorage/pkg/filestorage"
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -95,8 +97,19 @@ func main() {
 		Handler: mux,
 	}
 
+	msrv := &http.Server{
+		Addr:    cfg.HttpServer.MetricsAddr,
+		Handler: promhttp.Handler(),
+	}
+
 	go func() {
 		_ = srv.ListenAndServe()
+	}()
+
+	go func() {
+		if cfg.HttpServer.MetricsAddr != "" {
+			_ = msrv.ListenAndServe()
+		}
 	}()
 
 	log.Info("server started")
@@ -104,7 +117,7 @@ func main() {
 	<-stop
 	log.Info("stopping server")
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := errors.Join(srv.Shutdown(ctx), msrv.Shutdown(ctx)); err != nil {
 		log.Error("failed to stop server", slog.Any("error", err))
 		return
 	}
@@ -122,7 +135,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 		err = fmt.Errorf("failed setup logger for env %s", env)
 	}
 
-	return
+	return log, err
 }
 
 func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
@@ -136,7 +149,7 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	unitOfWork, err = postgres.NewUnitOfWork(cfg)
 	if err != nil {
 		err = fmt.Errorf("failed to create unit of work: %w", err)
-		return
+		return unitOfWork, executionStorage, err
 	}
 
 	err = unitOfWork.Do(ctx, func(ctx context.Context) error {
@@ -146,7 +159,7 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 		return nil
 	})
 
-	return
+	return unitOfWork, executionStorage, err
 }
 
 func setupInputProvider(cfg config.InputProviderConfig, filestorageAdapter *adapter.FilestorageAdapter) *provider.InputProvider {

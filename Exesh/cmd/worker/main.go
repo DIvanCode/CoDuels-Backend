@@ -81,7 +81,9 @@ func main() {
 	}()
 
 	go func() {
-		_ = msrv.ListenAndServe()
+		if cfg.HttpServer.MetricsAddr != "" {
+			_ = msrv.ListenAndServe()
+		}
 	}()
 
 	log.Info("server started")
