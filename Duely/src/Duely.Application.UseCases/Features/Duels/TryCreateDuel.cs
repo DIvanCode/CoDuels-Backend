@@ -61,7 +61,7 @@ public sealed class TryCreateDuelHandler(
         var taskId = taskResult.Value;
         var startTime = DateTime.UtcNow;
         var deadlineTime = startTime.AddMinutes(duelOptions.Value.MaxDurationMinutes);
-
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         var duel = new Duel
         {
             TaskId = taskId,
@@ -77,17 +77,12 @@ public sealed class TryCreateDuelHandler(
         context.Duels.Add(duel);
         await context.SaveChangesAsync(cancellationToken);
         var retryUntil = duel.DeadlineTime.AddMinutes(5);
-
-        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-
         var payload1 = JsonSerializer.Serialize(
-            new SendMessagePayload(duel.User1.Id, MessageType.DuelStarted, duel.Id),
-            jsonOptions
+            new SendMessagePayload(duel.User1.Id, MessageType.DuelStarted, duel.Id)
         );
 
         var payload2 = JsonSerializer.Serialize(
-            new SendMessagePayload(duel.User2.Id, MessageType.DuelStarted, duel.Id),
-            jsonOptions
+            new SendMessagePayload(duel.User2.Id, MessageType.DuelStarted, duel.Id)
         );
 
         context.Outbox.Add(new OutboxMessage
@@ -111,7 +106,7 @@ public sealed class TryCreateDuelHandler(
         });
 
         await context.SaveChangesAsync(cancellationToken);
-        
+        await transaction.CommitAsync(cancellationToken);
         Console.WriteLine($"Started duel {duel.Id}");
 
         return Result.Ok();
