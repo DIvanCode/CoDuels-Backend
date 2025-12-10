@@ -9,6 +9,9 @@ using Duely.Application.UseCases.Errors;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models;
+using System.Text.Json;
+using Duely.Application.UseCases.Payloads;
+
 
 namespace Duely.Application.UseCases.Features.Duels;
 
@@ -17,7 +20,6 @@ public sealed class TryCreateDuelCommand : IRequest<Result>;
 public sealed class TryCreateDuelHandler(
     IDuelManager duelManager,
     ITaskiClient taskiClient,
-    IMessageSender messageSender,
     IOptions<DuelOptions> duelOptions,
     ITaskService taskService,
     Context context)
@@ -59,7 +61,7 @@ public sealed class TryCreateDuelHandler(
         var taskId = taskResult.Value;
         var startTime = DateTime.UtcNow;
         var deadlineTime = startTime.AddMinutes(duelOptions.Value.MaxDurationMinutes);
-
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         var duel = new Duel
         {
             TaskId = taskId,
@@ -74,15 +76,37 @@ public sealed class TryCreateDuelHandler(
 
         context.Duels.Add(duel);
         await context.SaveChangesAsync(cancellationToken);
+        var retryUntil = duel.DeadlineTime.AddMinutes(5);
+        var payload1 = JsonSerializer.Serialize(
+            new SendMessagePayload(duel.User1.Id, MessageType.DuelStarted, duel.Id)
+        );
 
-        var message = new DuelStartedMessage
+        var payload2 = JsonSerializer.Serialize(
+            new SendMessagePayload(duel.User2.Id, MessageType.DuelStarted, duel.Id)
+        );
+
+        context.Outbox.Add(new OutboxMessage
         {
-            DuelId = duel.Id,
-        };
+            Type = OutboxType.SendMessage,
+            Payload = payload1,
+            Status = OutboxStatus.ToDo,
+            Retries = 0,
+            RetryAt = null,
+            RetryUntil = retryUntil
+        });
 
-        await messageSender.SendMessage(duel.User1.Id, message, cancellationToken);
-        await messageSender.SendMessage(duel.User2.Id, message, cancellationToken);
-        
+        context.Outbox.Add(new OutboxMessage
+        {
+            Type = OutboxType.SendMessage,
+            Payload = payload2,
+            Status = OutboxStatus.ToDo,
+            Retries = 0,
+            RetryAt = null,
+            RetryUntil = retryUntil
+        });
+
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         Console.WriteLine($"Started duel {duel.Id}");
 
         return Result.Ok();
