@@ -3,6 +3,7 @@ using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Payloads;
 using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
+using Duely.Application.UseCases.Features.RateLimiting;
 using FluentResults;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -18,11 +19,17 @@ public sealed class RunUserCodeCommand : IRequest<Result<UserCodeRunDto>>
     public required string Input { get; init; }
 }
 
-public sealed class RunUserCodeHandler(Context context)
+public sealed class RunUserCodeHandler(Context context, IRunUserCodeLimiter runUserCodeLimiter)
     : IRequestHandler<RunUserCodeCommand, Result<UserCodeRunDto>>
 {
     public async Task<Result<UserCodeRunDto>> Handle(RunUserCodeCommand command, CancellationToken cancellationToken)
     {
+
+        if (await runUserCodeLimiter.IsLimitExceededAsync(command.UserId, cancellationToken))
+        {
+            return new RateLimitExceededError("Too many code runs.");
+        }
+
         var user = await context.Users
             .SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
 
@@ -43,7 +50,8 @@ public sealed class RunUserCodeHandler(Context context)
                 Status = UserCodeRunStatus.Queued,
                 Output = null,
                 Error = null,
-                ExecutionId = null
+                ExecutionId = null,
+                CreatedAt = DateTime.UtcNow
             };
 
             context.UserCodeRuns.Add(run);

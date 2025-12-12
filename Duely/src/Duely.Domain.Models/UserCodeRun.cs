@@ -11,6 +11,7 @@ public sealed class UserCodeRun
     public string? Output { get; set; }
     public string? Error { get; set; }
     public string? ExecutionId { get; set; }
+    public required DateTime CreatedAt { get; init; }
 }
 
 public enum UserCodeRunStatus

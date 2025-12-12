@@ -17,7 +17,7 @@ public sealed class UserCodeRunDto
     [JsonPropertyName("input")]
     public string Input { get; init; } = "";
 
-    [JsonPropertyName("status")]
+    [JsonPropertyName("status"), JsonConverter(typeof(JsonStringEnumConverter))]
     public UserCodeRunStatus Status { get; init; }
 
     [JsonPropertyName("output")]
