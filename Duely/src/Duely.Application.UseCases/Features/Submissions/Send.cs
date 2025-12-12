@@ -41,7 +41,7 @@ public sealed class SendSubmissionHandler(Context context)
 
         if (duel.User1.Id != command.UserId && duel.User2.Id != command.UserId)
         {
-            return new ForbiddenError("You can't send a submission to a duel that isn't yours.");
+            return new ForbiddenError(nameof(Duel), "send submission to", nameof(Duel.Id), command.DuelId);
         }
         
         var retryUntil = duel.DeadlineTime.AddMinutes(5);

@@ -31,7 +31,7 @@ public sealed class GetUserSubmissionsHandler(Context context)
 
         if (duel.User1.Id != query.UserId && duel.User2.Id != query.UserId)
         {
-            return new ForbiddenError("You can't get submissions from a duel that isn't yours.");
+            return new ForbiddenError(nameof(Duel), "get submissions from", nameof(Duel.Id), query.DuelId);
         }
 
         var items = await context.Duels

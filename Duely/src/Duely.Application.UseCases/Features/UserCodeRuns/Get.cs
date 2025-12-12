@@ -30,7 +30,7 @@ public sealed class GetUserCodeRunHandler(Context context)
 
         if (run.User.Id != query.UserId)
         {
-            return new ForbiddenError("You can't get a run that isn't yours.");
+            return new ForbiddenError(nameof(UserCodeRun), "get", nameof(UserCodeRun.Id), query.RunId);
         }
 
         return new UserCodeRunDto

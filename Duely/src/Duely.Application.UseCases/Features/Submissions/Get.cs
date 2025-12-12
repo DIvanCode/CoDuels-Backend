@@ -32,7 +32,7 @@ public sealed class GetSubmissionHandler(Context context)
 
         if (submission.User.Id != query.UserId)
         {
-            return new ForbiddenError("You can't get a submission that isn't yours.");
+            return new ForbiddenError(nameof(Submission), "get", nameof(Submission.Id), query.SubmissionId);
         }
 
         return new SubmissionDto

@@ -33,7 +33,7 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
 
         if (duel.User1.Id != query.UserId && duel.User2.Id != query.UserId)
         {
-            return new ForbiddenError("You can't get a duel that isn't yours.");
+            return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);  
         }
 
         var winnerId = duel.Winner?.Id;
