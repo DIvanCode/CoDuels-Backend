@@ -1,12 +1,12 @@
-﻿using System.Text.Json;
-using Duely.Infrastructure.Api.Http.Services;
+﻿using Duely.Infrastructure.Api.Http.Services;
 using Duely.Infrastructure.Api.Http.Services.Sse;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentValidation;
+using FluentValidation.AspNetCore;
+using System.Reflection;
 using Hellang.Middleware.ProblemDetails;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -74,6 +74,10 @@ public static class ServiceCollectionExtensions
                 }
             });
         });
+
+        services
+            .AddValidatorsFromAssembly(Assembly.GetExecutingAssembly())
+            .AddFluentValidationAutoValidation();
     }
 
     private static void ConfigureGlobalExceptionHandling(ProblemDetailsOptions options, IWebHostEnvironment environment)
