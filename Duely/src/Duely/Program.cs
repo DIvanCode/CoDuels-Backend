@@ -39,6 +39,9 @@ builder.Services.SetupTasksGateway(builder.Configuration);
 builder.Services.SetupExeshGateway(builder.Configuration);
 builder.Services.SetupMessageBusKafka(builder.Configuration);
 
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<SendRequestValidator>();
+
 var app = builder.Build();
 
 app.UseApiHttp();
