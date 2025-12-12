@@ -27,7 +27,7 @@ public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimite
 
         if (await submissionLimiter.IsLimitExceededAsync(command.UserId, cancellationToken))
         {
-            return new RateLimitExceededError("You can't send more than 5 submissions per minute.");
+            return new RateLimitExceededError("Too many submissions.");
         }
 
         var duel = await context.Duels.SingleOrDefaultAsync(d => d.Id == command.DuelId, cancellationToken);

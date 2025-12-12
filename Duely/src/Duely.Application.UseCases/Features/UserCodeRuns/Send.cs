@@ -27,7 +27,7 @@ public sealed class RunUserCodeHandler(Context context, IRunUserCodeLimiter runU
 
         if (await runUserCodeLimiter.IsLimitExceededAsync(command.UserId, cancellationToken))
         {
-            return new RateLimitExceededError("You can't run code more than 10 times per minute.");
+            return new RateLimitExceededError("Too many code runs.");
         }
 
         var user = await context.Users
