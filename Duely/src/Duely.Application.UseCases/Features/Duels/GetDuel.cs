@@ -31,6 +31,11 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
             return new EntityNotFoundError(nameof(Duel), nameof(Duel.Id), query.DuelId);
         }
 
+        if (duel.User1.Id != query.UserId && duel.User2.Id != query.UserId)
+        {
+            return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);  
+        }
+
         var winnerId = duel.Winner?.Id;
         var ratingChanges = new Dictionary<int, Dictionary<DuelResult, int>>
         {
