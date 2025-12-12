@@ -21,7 +21,7 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
 // Application
-builder.Services.SetupUseCases();
+builder.Services.SetupUseCases(builder.Configuration);
 builder.Services.AddScoped<IOutboxHandler<TestSolutionPayload>, TestSolutionHandler>();
 builder.Services.AddScoped<IOutboxHandler<RunUserCodePayload>, RunUserCodeOutboxHandler>();
 builder.Services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
