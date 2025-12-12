@@ -10,6 +10,7 @@ using Hellang.Middleware.ProblemDetails;
 using Duely.Application.UseCases.Features.Outbox.Relay;
 using Duely.Application.UseCases.Features.Outbox.Handlers;
 using Duely.Application.UseCases.Payloads;
+using Duely.Application.UseCases.Features.RateLimiting;
 
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -17,11 +18,14 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
 // Application
-builder.Services.SetupUseCases();
+builder.Services.SetupUseCases(builder.Configuration);
 builder.Services.AddScoped<IOutboxHandler<TestSolutionPayload>, TestSolutionHandler>();
 builder.Services.AddScoped<IOutboxHandler<RunUserCodePayload>, RunUserCodeOutboxHandler>();
+builder.Services.AddScoped<IOutboxHandler<SendMessagePayload>, SendMessageOutboxHandler>();
 builder.Services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
 builder.Services.SetupBackgroundJobs(builder.Configuration);
+builder.Services.AddScoped<ISubmissionRateLimiter, SubmissionRateLimiter>();
+builder.Services.AddScoped<IRunUserCodeLimiter, RunUserCodeLimiter>();
 
 // Domain
 builder.Services.SetupDomainServices(builder.Configuration);
