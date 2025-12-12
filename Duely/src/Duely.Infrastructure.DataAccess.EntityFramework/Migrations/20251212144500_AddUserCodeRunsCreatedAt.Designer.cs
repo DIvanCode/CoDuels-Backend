@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 {
     [DbContext(typeof(Context))]
-    [Migration("20251205150727_AddUserCodeRuns")]
-    partial class AddUserCodeRuns
+    [Migration("20251212144500_AddUserCodeRunsCreatedAt")]
+    partial class AddUserCodeRunsCreatedAt
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
