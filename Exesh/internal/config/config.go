@@ -4,7 +4,8 @@ import "time"
 
 type (
 	HttpServerConfig struct {
-		Addr string `yaml:"addr"`
+		Addr        string `yaml:"addr"`
+		MetricsAddr string `yaml:"metrics_addr"`
 	}
 
 	InputProviderConfig struct {

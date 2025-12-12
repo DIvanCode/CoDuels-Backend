@@ -1,6 +1,7 @@
 env: docker
 http_server:
   addr: 0.0.0.0:5253
+  metrics_addr: 0.0.0.0:9090
 storage:
   connection_string: host=exesh_postgres port=5432 database=exesh user=coordinator password=secret
   init_timeout: 60s

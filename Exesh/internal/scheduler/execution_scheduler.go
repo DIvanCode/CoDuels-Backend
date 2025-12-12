@@ -7,8 +7,10 @@ import (
 	"exesh/internal/domain/execution"
 	"fmt"
 	"log/slog"
-	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type (
@@ -25,8 +27,9 @@ type (
 		messageFactory messageFactory
 		messageSender  messageSender
 
-		mu            sync.Mutex
-		nowExecutions int
+		nowExecutions atomic.Int64
+
+		nowExecutionsGauge prometheus.Collector
 	}
 
 	unitOfWork interface {
@@ -69,7 +72,7 @@ func NewExecutionScheduler(
 	messageFactory messageFactory,
 	messageSender messageSender,
 ) *ExecutionScheduler {
-	return &ExecutionScheduler{
+	s := &ExecutionScheduler{
 		log: log,
 		cfg: cfg,
 
@@ -82,9 +85,23 @@ func NewExecutionScheduler(
 		messageFactory: messageFactory,
 		messageSender:  messageSender,
 
-		mu:            sync.Mutex{},
-		nowExecutions: 0,
+		nowExecutions: atomic.Int64{},
 	}
+
+	s.nowExecutionsGauge = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "now_executions",
+		Help: "Count of currently running executions",
+	}, func() float64 {
+		return float64(s.getNowExecutions())
+	})
+
+	return s
+}
+
+func (s *ExecutionScheduler) RegisterMetrics(r prometheus.Registerer) error {
+	return errors.Join(
+		r.Register(s.nowExecutionsGauge),
+	)
 }
 
 func (s *ExecutionScheduler) Start(ctx context.Context) {
@@ -286,17 +303,11 @@ func (s *ExecutionScheduler) doneStep(
 }
 
 func (s *ExecutionScheduler) getNowExecutions() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.nowExecutions
+	return int(s.nowExecutions.Load())
 }
 
 func (s *ExecutionScheduler) changeNowExecutions(delta int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.nowExecutions += delta
+	s.nowExecutions.Add(int64(delta))
 }
 
 func (s *ExecutionScheduler) finishExecution(

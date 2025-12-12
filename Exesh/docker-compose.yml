@@ -38,6 +38,7 @@ services:
       - coduels
     ports:
       - "5253:5253"
+      - "9080:9090"
     environment:
       CONFIG_PATH: /config/coordinator/docker.yml
     depends_on:
@@ -57,6 +58,7 @@ services:
       - coduels
     ports:
       - "5254:5254"
+      - "9081:9091"
     environment:
       CONFIG_PATH: /config/worker-1/docker.yml
     volumes:
@@ -74,6 +76,7 @@ services:
       - coduels
     ports:
       - "5255:5255"
+      - "9082:9092"
     environment:
       CONFIG_PATH: /config/worker-2/docker.yml
     volumes:
