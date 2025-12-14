@@ -11,7 +11,7 @@ using Duely.Application.UseCases.Features.Outbox.Relay;
 using Duely.Application.UseCases.Features.Outbox.Handlers;
 using Duely.Application.UseCases.Payloads;
 using Duely.Application.UseCases.Features.RateLimiting;
-
+using Duely.Infrastructure.Telemetry;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -36,9 +36,11 @@ builder.Services.SetupDataAccessEntityFramework(builder.Configuration);
 builder.Services.SetupTasksGateway(builder.Configuration);
 builder.Services.SetupExeshGateway(builder.Configuration);
 builder.Services.SetupMessageBusKafka(builder.Configuration);
+builder.Services.SetupTelemetry(builder.Configuration);
 
 var app = builder.Build();
 
 app.UseApiHttp();
 app.UseProblemDetails();
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
 app.Run();

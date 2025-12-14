@@ -6,6 +6,7 @@ public interface IDuelManager
     void AddUser(int userId, int rating, DateTime utcNow);
     void RemoveUser(int userId);
     (int User1, int User2)? TryGetPair();
+    int GetWaitingUsersCount();
 }
 
 public sealed class DuelManager : IDuelManager
@@ -181,6 +182,14 @@ public sealed class DuelManager : IDuelManager
             return (fbA.UserId, fbB.UserId);   
         }
     }
+    public int GetWaitingUsersCount()
+    {
+        lock (_waitingUsers)
+        {
+            return _waitingUsers.Count;
+        }
+    }
+
 
     private static int GetWindowFor(WaitingUser user, DateTime now)
     {
