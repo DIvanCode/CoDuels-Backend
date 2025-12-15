@@ -14,7 +14,8 @@ public static class EntityFactory
             Id = id,
             Nickname = nickname,
             PasswordSalt = salt,
-            PasswordHash = hash
+            PasswordHash = hash,
+            CreatedAt = DateTime.UtcNow
         };
     }
 

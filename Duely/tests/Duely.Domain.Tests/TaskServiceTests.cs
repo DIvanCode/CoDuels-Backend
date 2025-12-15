@@ -116,7 +116,8 @@ public class TaskServiceTests
             Nickname = $"user{id}",
             PasswordSalt = "salt",
             PasswordHash = "hash",
-            Rating = rating
+            Rating = rating,
+            CreatedAt = DateTime.UtcNow
         };
 
         return user;

@@ -37,7 +37,7 @@ public class LoginHandlerTests : ContextBasedTest
     {
         var ctx = Context;
         var (salt, hash) = Make("correct");
-        ctx.Users.Add(new User { Id = 1, Nickname = "neo", PasswordSalt = salt, PasswordHash = hash });
+        ctx.Users.Add(new User { Id = 1, Nickname = "neo", PasswordSalt = salt, PasswordHash = hash, CreatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
         var tokenSvc = new Mock<ITokenService>(MockBehavior.Strict);
@@ -55,7 +55,7 @@ public class LoginHandlerTests : ContextBasedTest
     {
         var ctx = Context;
         var (salt, hash) = Make("secret");
-        ctx.Users.Add(new User { Id = 2, Nickname = "trinity", PasswordSalt = salt, PasswordHash = hash });
+        ctx.Users.Add(new User { Id = 2, Nickname = "trinity", PasswordSalt = salt, PasswordHash = hash, CreatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
         var tokenSvc = new Mock<ITokenService>();

@@ -12,4 +12,7 @@ public sealed class UserDto
 
     [JsonPropertyName("rating")]
     public required int Rating { get; init; }
+
+    [JsonPropertyName("created_at")]
+    public required DateTime CreatedAt { get; init; }
 }

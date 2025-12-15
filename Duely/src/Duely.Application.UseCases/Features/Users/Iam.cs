@@ -27,7 +27,8 @@ public sealed class IamHandler(Context context) : IRequestHandler<IamQuery, Resu
         {
             Id = user.Id,
             Nickname = user.Nickname,
-            Rating = user.Rating
+            Rating = user.Rating,
+            CreatedAt = user.CreatedAt
         };
     }
 }

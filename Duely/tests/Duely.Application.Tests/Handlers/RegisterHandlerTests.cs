@@ -16,7 +16,7 @@ public class RegisterHandlerTests : ContextBasedTest
     {
         var ctx = Context;
 
-        ctx.Users.Add(new User { Id = 1, Nickname = "alice", PasswordHash = "h", PasswordSalt = "s" });
+        ctx.Users.Add(new User { Id = 1, Nickname = "alice", PasswordHash = "h", PasswordSalt = "s", CreatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
         var handler = new RegisterHandler(ctx);
