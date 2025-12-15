@@ -60,7 +60,7 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
                     Id = duel.User2.Id,
                     Nickname = duel.User2.Nickname,
                     Rating = duel.User2InitRating,
-                    CreatedAt = duel.User1.CreatedAt
+                    CreatedAt = duel.User2.CreatedAt
                 }
             ],
             WinnerId = winnerId,
