@@ -31,7 +31,7 @@ public sealed class UsersConfiguration : IEntityTypeConfiguration<User>
             .HasColumnName("PasswordSalt")
             .HasColumnType("text")
             .IsRequired();
-        
+
         builder.Property(u => u.RefreshToken)
             .HasColumnName("RefreshToken")
             .HasColumnType("text")
@@ -39,8 +39,13 @@ public sealed class UsersConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(s => s.Rating)
             .HasColumnName("Rating")
-            .HasColumnType("integer")  
+            .HasColumnType("integer")
             .HasDefaultValue(1500)
+            .IsRequired();
+
+        builder.Property(u => u.CreatedAt)
+            .HasColumnName("CreatedAt")
+            .HasColumnType("timestamp")
             .IsRequired();
         
     }

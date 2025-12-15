@@ -35,7 +35,7 @@ public class RefreshHandlerTests : ContextBasedTest
     {
         var ctx = Context;
 
-        var user = new User { Id = 2, Nickname = "trinity", PasswordHash = "h", PasswordSalt = "s", RefreshToken = "OLD" };
+        var user = new User { Id = 2, Nickname = "trinity", PasswordHash = "h", PasswordSalt = "s", RefreshToken = "OLD", CreatedAt = DateTime.UtcNow };
         ctx.Users.Add(user);
         await ctx.SaveChangesAsync();
 
