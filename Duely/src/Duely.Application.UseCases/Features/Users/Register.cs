@@ -30,7 +30,8 @@ public sealed class RegisterHandler(Context context) : IRequestHandler<RegisterC
         {
             Nickname = command.Nickname,
             PasswordHash = passwordHash.ToString(),
-            PasswordSalt = passwordSalt.ToString()
+            PasswordSalt = passwordSalt.ToString(),
+            CreatedAt = DateTime.UtcNow
         };
 
         context.Users.Add(user);

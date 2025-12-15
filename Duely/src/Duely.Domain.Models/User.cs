@@ -10,6 +10,7 @@ public sealed class User
     public required string PasswordSalt { get; init; }
     public string? RefreshToken { get; set; }
     public int Rating { get; set; } = 1500;
+    public required DateTime CreatedAt { get; init; }
 
     // Such strange approach is used because of navigation properties of EF Core
     // Do not use DuelsAsUser1 and DuelsAsUser2 explicitly

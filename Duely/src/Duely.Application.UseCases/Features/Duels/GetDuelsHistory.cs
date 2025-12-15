@@ -55,13 +55,15 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
                         {
                             Id = duel.User1.Id,
                             Nickname = duel.User1.Nickname,
-                            Rating = duel.User1InitRating
+                            Rating = duel.User1InitRating,
+                            CreatedAt = duel.User1.CreatedAt
                         },
                         new UserDto
                         {
                             Id = duel.User2.Id,
                             Nickname = duel.User2.Nickname,
-                            Rating = duel.User2InitRating
+                            Rating = duel.User2InitRating,
+                            CreatedAt = duel.User1.CreatedAt
                         }
                     ],
                     WinnerId = winnerId,
