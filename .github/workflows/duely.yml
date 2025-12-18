@@ -27,24 +27,22 @@ jobs:
           name: code-coverage-report
           path: Duely/tests/**/TestResults/**/*.cobertura.xml
       - name: Generate report file
-        run: |
-          mkdir -p Duely/tests/coverage_report
-          echo "test" > Duely/tests/coverage_report/SummaryGithub.md
+        run: echo "test" > SummaryGithub.md
       - name: ReportGenerator
         uses: danielpalme/ReportGenerator-GitHub-Action@5.5.1
         with:
           reports: Duely/tests/**/TestResults/**/*.cobertura.xml
-          targetdir: Duely/tests/coverage_report
+          targetdir: .
           reporttypes: HtmlInline;Cobertura
           verbosity: Info
           toolpath: reportgeneratortool
       - name: Add comment with coverage to PR
         if: github.event_name == 'pull_request'
-        run: gh pr comment $PR_NUMBER --edit-last --create-if-none --body-file Duely/tests/coverage_report/SummaryGithub.md
+        run: gh pr comment $PR_NUMBER --edit-last --create-if-none --body-file SummaryGithub.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.number }}
       - name: Publish coverage in build summary
-        run: cat Duely/tests/coverage_report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+        run: cat SummaryGithub.md >> $GITHUB_STEP_SUMMARY
         shell: bash
 
