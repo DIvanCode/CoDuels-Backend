@@ -31,6 +31,7 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           path: Duely/tests/coverage_report/SummaryGithub.md
+          message: test
           recreate: true
       - name: ReportGenerator
         uses: danielpalme/ReportGenerator-GitHub-Action@5.5.1
@@ -44,7 +45,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: gh pr comment $PR_NUMBER --edit-last --create-if-none --body-file Duely/tests/coverage_report/SummaryGithub.md
         env:
-          GH_TOKEN: ${{ secrets.TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.number }}
       - name: Publish coverage in build summary
         run: cat Duely/tests/coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
