@@ -30,11 +30,11 @@ jobs:
         run: |
           mkdir -p Duely/tests/coverage_report
           echo "test" > Duely/tests/coverage_report/SummaryGithub.md
-      - name: Add comment to PR
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          path: Duely/tests/coverage_report/SummaryGithub.md
+#      - name: Add comment to PR
+#        if: github.event_name == 'pull_request'
+#        uses: marocchino/sticky-pull-request-comment@v2
+#        with:
+#          path: Duely/tests/coverage_report/SummaryGithub.md
       - name: ReportGenerator
         uses: danielpalme/ReportGenerator-GitHub-Action@5.5.1
         with:
