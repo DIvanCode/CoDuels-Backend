@@ -72,11 +72,8 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 		}
 
 		if w.getFreeSlots() == 0 {
-			w.log.Info("skip heartbeat loop (no free slots)")
 			continue
 		}
-
-		w.log.Info("begin heartbeat loop")
 
 		w.mu.Lock()
 
@@ -121,7 +118,6 @@ func (w *Worker) runWorker(ctx context.Context) {
 
 		job := w.jobs.Dequeue()
 		if job == nil {
-			w.log.Info("skip worker loop (no jobs to do)")
 			w.changeFreeSlots(+1)
 			continue
 		}
