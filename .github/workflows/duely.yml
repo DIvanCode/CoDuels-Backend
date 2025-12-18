@@ -45,6 +45,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.number }}
       - name: Publish coverage in build summary
-        run: cat SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+        run: cat reports/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
         shell: bash
 
