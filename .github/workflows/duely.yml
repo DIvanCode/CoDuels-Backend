@@ -15,8 +15,8 @@ jobs:
       - name: Setup .NET 8.0.x
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
-          dotnet-quality: 'ga'
+          dotnet-version: 8.0.x
+          dotnet-quality: ga
       - name: Run tests with code coverage
         run: dotnet test --configuration Release --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
       - name: Upload coverage report artifact
@@ -36,7 +36,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: gh pr comment $PR_NUMBER --edit-last --create-if-none --body-file Duely/tests/coverage_report/SummaryGithub.md
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.TOKEN }}
           PR_NUMBER: ${{ github.event.number }}
       - name: Publish coverage in build summary
         run: cat Duely/tests/coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
