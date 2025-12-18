@@ -10,6 +10,7 @@ import (
 	"taski/internal/domain/testing"
 	"taski/internal/domain/testing/events"
 	"taski/internal/domain/testing/messages"
+	"time"
 )
 
 type (
@@ -73,111 +74,137 @@ func (uc *UseCase) Update(ctx context.Context, command Command) error {
 		}
 		defer unlock()
 
+		finished := false
+
 		var msg testing.Message
 		switch t.GetType() {
 		case task.WriteCode:
 			switch command.Event.GetType() {
 			case testing.StartExecutionEvent:
-				fmt.Printf("[%s] started testing\n", sol.ID)
+				uc.log.Info("started testing", slog.Any("sol_id", sol.ID))
 				msg = messages.NewStartTestingMessage(sol.ID)
 			case testing.CompileStepEvent:
 				event := command.Event.(*events.CompileStepEvent)
+				uc.log.Info("processed compile step",
+					slog.Any("sol_id", sol.ID),
+					slog.Any("step", event.StepName),
+					slog.Any("status", event.CompileStatus),
+				)
 				switch event.CompileStatus {
 				case events.CompileStatusOK:
-					fmt.Printf("[%s] %s step OK\n", sol.ID, event.StepName)
 					if strings.Contains(event.StepName, "suspect") {
 						msg = messages.NewUpdateStatusMessage(sol.ID, "Compiled successfully")
 					}
 				case events.CompileStatusCE:
-					fmt.Printf("[%s] %s step CE\n", sol.ID, event.StepName)
 					if strings.Contains(event.StepName, "suspect") {
 						msg = messages.NewFinishTestingMessageWithMessage(sol.ID, "Compilation Error", event.Error)
 					} else {
 						msg = messages.NewFinishTestingMessageWithError(sol.ID, "Testing failed")
 					}
+					finished = true
 				default:
 					return fmt.Errorf("unknown compile status: %s", event.CompileStatus)
 				}
 			case testing.RunStepEvent:
 				event := command.Event.(*events.RunStepEvent)
+
 				testID, err := strconv.Atoi(event.StepName[strings.LastIndex(event.StepName, "_")+1:])
 				if err != nil {
 					return fmt.Errorf("failed to parse test id: %s", err)
 				}
+
+				uc.log.Info("processed run step",
+					slog.Any("sol_id", sol.ID),
+					slog.Any("step", event.StepName),
+					slog.Any("status", event.RunStatus),
+				)
+
 				prevTestedPrefix := sol.GetTestedPrefix()
 				switch event.RunStatus {
 				case events.RunStatusOK:
-					fmt.Printf("[%s] %s step OK\n", sol.ID, event.StepName)
 				case events.RunStatusTL:
-					fmt.Printf("[%s] %s step TL\n", sol.ID, event.StepName)
+					sol.Status[testID] = "-"
 					if strings.Contains(event.StepName, "suspect") {
-						sol.Status[testID] = "-"
 						testedPrefix := sol.GetTestedPrefix()
 						if prevTestedPrefix < testedPrefix {
 							msg = messages.NewFinishTestingMessage(sol.ID, fmt.Sprintf("Time Limit on test %d", testID))
+							finished = true
 						}
 					} else {
 						msg = messages.NewFinishTestingMessageWithError(sol.ID, "Testing failed")
+						finished = true
 					}
 				case events.RunStatusML:
-					fmt.Printf("[%s] %s step ML\n", sol.ID, event.StepName)
+					sol.Status[testID] = "-"
 					if strings.Contains(event.StepName, "suspect") {
-						sol.Status[testID] = "-"
 						testedPrefix := sol.GetTestedPrefix()
 						if prevTestedPrefix < testedPrefix {
 							msg = messages.NewFinishTestingMessage(sol.ID, fmt.Sprintf("Memory Limit on test %d", testID))
+							finished = true
 						}
 					} else {
 						msg = messages.NewFinishTestingMessageWithError(sol.ID, "Testing failed")
+						finished = true
 					}
 				case events.RunStatusRE:
-					fmt.Printf("[%s] %s step RE\n", sol.ID, event.StepName)
+					sol.Status[testID] = "-"
 					if strings.Contains(event.StepName, "suspect") {
-						sol.Status[testID] = "-"
 						testedPrefix := sol.GetTestedPrefix()
 						if prevTestedPrefix < testedPrefix {
 							msg = messages.NewFinishTestingMessage(sol.ID, fmt.Sprintf("Runtime error on test %d", testID))
+							finished = true
 						}
 					} else {
 						msg = messages.NewFinishTestingMessageWithError(sol.ID, "Testing failed")
+						finished = true
 					}
 				default:
 					return fmt.Errorf("unknown run status: %s", event.RunStatus)
 				}
 			case testing.CheckStepEvent:
 				event := command.Event.(*events.CheckStepEvent)
+
 				testID, err := strconv.Atoi(event.StepName[strings.LastIndex(event.StepName, "_")+1:])
 				if err != nil {
 					return fmt.Errorf("failed to parse test id: %s", err)
 				}
+
+				uc.log.Info("processed check step",
+					slog.Any("sol_id", sol.ID),
+					slog.Any("step", event.StepName),
+					slog.Any("status", event.CheckStatus),
+				)
+
 				prevTestedPrefix := sol.GetTestedPrefix()
 				switch event.CheckStatus {
 				case events.CheckStatusOK:
-					fmt.Printf("[%s] %s step OK\n", sol.ID, event.StepName)
 					sol.Status[testID] = "+"
 					testedPrefix := sol.GetTestedPrefix()
 					if prevTestedPrefix < testedPrefix {
 						msg = messages.NewUpdateStatusMessage(sol.ID, fmt.Sprintf("Test %d passed", testID))
 					}
 				case events.CheckStatusWA:
-					fmt.Printf("[%s] %s step WA\n", sol.ID, event.StepName)
 					sol.Status[testID] = "-"
 					testedPrefix := sol.GetTestedPrefix()
 					if prevTestedPrefix < testedPrefix {
 						msg = messages.NewFinishTestingMessage(sol.ID, fmt.Sprintf("Wrong answer on test %d", testID))
+						finished = true
 					}
 				default:
 					return fmt.Errorf("unknown run status: %s", event.CheckStatus)
 				}
 			case testing.FinishExecutionEvent:
 				event := command.Event.(*events.FinishExecutionEvent)
+
+				uc.log.Info("finished testing", slog.Any("sol_id", sol.ID))
+
 				if event.Error != "" {
-					fmt.Printf("[%s] finished testing with error: %s\n", sol.ID, event.Error)
 					msg = messages.NewFinishTestingMessageWithError(sol.ID, event.Error)
+					finished = true
 				} else {
-					fmt.Printf("[%s] finished testing\n", sol.ID)
 					if sol.AllTestsPassed() {
 						msg = messages.NewFinishTestingMessage(sol.ID, "Accepted")
+						finished = true
 					}
 				}
 			default:
@@ -191,6 +218,11 @@ func (uc *UseCase) Update(ctx context.Context, command Command) error {
 			}
 		default:
 			return fmt.Errorf("cannot work with task of type %s", t.GetType())
+		}
+
+		if finished && sol.FinishedAt == nil {
+			finishedAt := time.Now()
+			sol.FinishedAt = &finishedAt
 		}
 
 		if err = uc.solutionStorage.Update(ctx, sol); err != nil {

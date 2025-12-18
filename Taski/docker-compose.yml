@@ -34,6 +34,7 @@ services:
       - coduels
     ports:
       - "5252:5252"
+      - "9077:9077"
     environment:
       CONFIG_PATH: /config/docker.yml
     depends_on:

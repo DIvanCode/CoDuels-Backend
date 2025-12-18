@@ -11,18 +11,20 @@ import (
 
 type (
 	Config struct {
-		Env             string                `yaml:"env"`
-		HttpServer      HttpServerConfig      `yaml:"http_server"`
-		FileStorage     filestorage.Config    `yaml:"filestorage"`
-		Db              DbConfig              `yaml:"db"`
-		Execute         ExecuteConfig         `yaml:"execute"`
-		EventConsumer   EventConsumerConfig   `yaml:"event_consumer"`
-		MessageProducer MessageProducerConfig `yaml:"message_producer"`
-		Tasks           TasksList             `yaml:"tasks"`
+		Env              string                 `yaml:"env"`
+		HttpServer       HttpServerConfig       `yaml:"http_server"`
+		FileStorage      filestorage.Config     `yaml:"filestorage"`
+		Db               DbConfig               `yaml:"db"`
+		Execute          ExecuteConfig          `yaml:"execute"`
+		EventConsumer    EventConsumerConfig    `yaml:"event_consumer"`
+		MessageProducer  MessageProducerConfig  `yaml:"message_producer"`
+		MetricsCollector MetricsCollectorConfig `yaml:"metrics_collector"`
+		Tasks            TasksList              `yaml:"tasks"`
 	}
 
 	HttpServerConfig struct {
-		Addr string `yaml:"addr"`
+		Addr        string `yaml:"addr"`
+		MetricsAddr string `yaml:"metrics_addr"`
 	}
 
 	DbConfig struct {
@@ -45,6 +47,10 @@ type (
 	MessageProducerConfig struct {
 		Brokers []string `yaml:"brokers"`
 		Topic   string   `yaml:"topic"`
+	}
+
+	MetricsCollectorConfig struct {
+		CollectInterval time.Duration `yaml:"collect_interval"`
 	}
 
 	TasksList []string
