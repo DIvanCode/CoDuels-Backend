@@ -1,7 +1,7 @@
 env: docker
 http_server:
   addr: 0.0.0.0:5252
-  metrics_addr: 0.0.0.0:9077
+  metrics_addr: 0.0.0.0:9090
 filestorage:
   root_dir: file_storage
   trasher:
