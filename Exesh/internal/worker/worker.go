@@ -72,8 +72,11 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 		}
 
 		if w.getFreeSlots() == 0 {
+			w.log.Debug("skip heartbeat loop (no free slots)")
 			continue
 		}
+
+		w.log.Debug("begin heartbeat loop")
 
 		w.mu.Lock()
 
@@ -118,12 +121,13 @@ func (w *Worker) runWorker(ctx context.Context) {
 
 		job := w.jobs.Dequeue()
 		if job == nil {
+			w.log.Debug("skip worker loop (no jobs to do)")
 			w.changeFreeSlots(+1)
 			continue
 		}
 
 		js, _ := json.Marshal(job)
-		w.log.Info("picked job", slog.Any("job_id", (*job).GetID()), slog.String("job", string(js)))
+		w.log.Debug("picked job", slog.Any("job_id", (*job).GetID()), slog.String("job", string(js)))
 
 		result := w.jobExecutor.Execute(ctx, *job)
 
