@@ -143,7 +143,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 			}
 			if e == nil {
 				s.changeNowExecutions(-1)
-				s.log.Info("no executions to schedule")
+				s.log.Debug("no executions to schedule")
 				return nil
 			}
 
