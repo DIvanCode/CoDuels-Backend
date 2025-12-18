@@ -16,5 +16,10 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
-      - name: Run tests
-        run: dotnet test Duely.sln
+      - name: Run tests with code coverage
+        run: dotnet test --configuration Release --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-report
+          path: TestResults/**/*.cobertura.xml
