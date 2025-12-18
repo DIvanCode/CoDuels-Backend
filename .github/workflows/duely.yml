@@ -27,9 +27,7 @@ jobs:
           name: code-coverage-report
           path: Duely/tests/**/TestResults/**/*.cobertura.xml
       - name: Generate report file
-        run: |
-          mkdir -p reports
-          echo "test" > reports/SummaryGithub.md
+        run: mkdir -p reports
       - name: ReportGenerator
         uses: danielpalme/ReportGenerator-GitHub-Action@5.5.1
         with:
