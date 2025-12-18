@@ -45,11 +45,33 @@ jobs:
           path: reports
       - name: Add comment with coverage to PR
         if: github.event_name == 'pull_request'
-        run: gh pr comment $PR_NUMBER --edit-last --create-if-none --body-file reports/SummaryGithub.md
+        run: |
+          # Проверяем, существует ли файл с отчетом
+          if [ -f "reports/SummaryGithub.md" ]; then
+            # Читаем содержимое файла
+            REPORT_CONTENT=$(cat reports/SummaryGithub.md)
+          
+            # Проверяем, не пустой ли отчет
+            if [ -n "$REPORT_CONTENT" ]; then
+              # Создаем комментарий с отчетом
+              echo "$REPORT_CONTENT" > report_content.md
+              gh pr comment $PR_NUMBER --body-file report_content.md
+            else
+              echo "Report file is empty"
+              gh pr comment $PR_NUMBER --body "Code coverage report could not be generated."
+            fi
+          else
+            echo "Report file not found"
+            gh pr comment $PR_NUMBER --body "Code coverage report file was not generated."
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.number }}
       - name: Publish coverage in build summary
-        run: cat reports/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
-        shell: bash
-
+        run: |
+          if [ -f "reports/SummaryGithub.md" ]; then
+            cat reports/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
+            echo "Report file not found" >> $GITHUB_STEP_SUMMARY
+          fi
