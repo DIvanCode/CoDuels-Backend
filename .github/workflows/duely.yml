@@ -27,7 +27,9 @@ jobs:
           name: code-coverage-report
           path: Duely/tests/**/TestResults/**/*.cobertura.xml
       - name: Generate report file
-        run: mkdir Duely/tests/coverage_report && echo "test" > Duely/tests/coverage_report/SummaryGithub.md
+        run: |
+          mkdir Duely/tests/coverage_report
+          echo "test" > Duely/tests/coverage_report/SummaryGithub.md
       - name: Add comment to PR
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
