@@ -6,14 +6,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.BackgroundJobs;
 
-public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> options) : BackgroundService
+public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> options, ILogger<OutboxJob> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         var outboxOptions = options.Value;
+
+        logger.LogInformation("OutboxJob started. IntervalMs = {IntervalMs}", outboxOptions.CheckIntervalMs);
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -22,9 +25,16 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                 var db = scope.ServiceProvider.GetRequiredService<Context>();
                 var dispatcher = scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>();
                 var now = DateTime.UtcNow;
-                await db.Outbox
+
+                var deleted = await db.Outbox
                     .Where(m => m.RetryUntil <= now)
                     .ExecuteDeleteAsync(cancellationToken);
+
+                if (deleted > 0)
+                {
+                    logger.LogWarning("Outbox expired messages deleted. Count = {Count}", deleted);
+                }
+
                 now = DateTime.UtcNow;
                 var message = await db.Outbox
                     .Where(m => m.Status == OutboxStatus.ToDo 
@@ -45,7 +55,21 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                     message.Status = OutboxStatus.InProgress;
                     await db.SaveChangesAsync(cancellationToken);
 
+                    logger.LogDebug("Outbox dispatch start. MessageId = {MessageId}, Type = {Type}, Retries = {Retries}",
+                        message.Id, message.Type, message.Retries
+                    );
+
                     var result = await dispatcher.DispatchAsync(message, cancellationToken);
+
+                    if (result.IsFailed)
+                    {
+                        foreach (var error in result.Errors)
+                        {
+                            logger.LogWarning("Outbox dispatch failed. MessageId = {MessageId}, Type = {Type}: {Reason}",
+                                message.Id, message.Type, error.Message
+                            );
+                        }
+                    }
 
                     var processedAt = DateTime.UtcNow;
 
@@ -62,6 +86,10 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                             outboxOptions.MaxRetryDelayMs,
                             message.Retries);
                         message.RetryAt = processedAt.AddMilliseconds(RetryDelayMs);
+
+                        logger.LogDebug("Outbox retry scheduled. MessageId = {MessageId}, Type = {Type}, Retries = {Retries}, RetryAt = {RetryAt}",
+                            message.Id, message.Type, message.Retries, message.RetryAt
+                        );
                     }
                 
                     await db.SaveChangesAsync(cancellationToken);

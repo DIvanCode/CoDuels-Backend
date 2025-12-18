@@ -3,7 +3,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
-using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Application.UseCases.Errors;
 using Duely.Domain.Services.Duels;
@@ -11,6 +10,7 @@ using Duely.Domain.Models.Messages;
 using Duely.Domain.Models;
 using System.Text.Json;
 using Duely.Application.UseCases.Payloads;
+using Microsoft.Extensions.Logging;
 
 
 namespace Duely.Application.UseCases.Features.Duels;
@@ -22,7 +22,8 @@ public sealed class TryCreateDuelHandler(
     ITaskiClient taskiClient,
     IOptions<DuelOptions> duelOptions,
     ITaskService taskService,
-    Context context)
+    Context context,
+    ILogger<TryCreateDuelHandler> logger)
     : IRequestHandler<TryCreateDuelCommand, Result>
 {
     public async Task<Result> Handle(TryCreateDuelCommand request, CancellationToken cancellationToken)
@@ -33,6 +34,8 @@ public sealed class TryCreateDuelHandler(
         {
             return Result.Ok();
         }
+
+        logger.LogDebug("Pair selected: {User1} vs {User2}", pair.Value.User1, pair.Value.User2);
 
         var user1 = await context.Users
             .Include(u => u.DuelsAsUser1)
@@ -107,7 +110,10 @@ public sealed class TryCreateDuelHandler(
 
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        Console.WriteLine($"Started duel {duel.Id}");
+
+        logger.LogInformation("Duel started. DuelId = {DuelId}, Users = {User1}, {User2}, TaskId = {TaskId}, Deadline = {Deadline}",
+            duel.Id, duel.User1.Id, duel.User2.Id, duel.TaskId, duel.DeadlineTime
+        );
 
         return Result.Ok();
     }

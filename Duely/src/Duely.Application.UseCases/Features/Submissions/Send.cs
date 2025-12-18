@@ -7,7 +7,8 @@ using FluentResults;
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Errors;
 using System.Text.Json;
-using Duely.Application.UseCases.Payloads; 
+using Duely.Application.UseCases.Payloads;
+using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Submissions;
 
@@ -19,13 +20,16 @@ public sealed record SendSubmissionCommand : IRequest<Result<SubmissionDto>>
     public required string Language { get; init; }
 }
 
-public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimiter submissionLimiter)
+public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimiter submissionLimiter, ILogger<SendSubmissionHandler> logger)
     : IRequestHandler<SendSubmissionCommand, Result<SubmissionDto>>
 {
     public async Task<Result<SubmissionDto>> Handle(SendSubmissionCommand command, CancellationToken cancellationToken)
     {
         if (await submissionLimiter.IsLimitExceededAsync(command.UserId, cancellationToken))
         {
+            logger.LogWarning("Submission rate limit exceeded. UserId = {UserId}, DuelId = {DuelId}",
+                command.UserId, command.DuelId
+            );
             return new RateLimitExceededError("Too many submissions.");
         }
 
@@ -69,6 +73,12 @@ public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimite
 
             context.Submissions.Add(submission);
             await context.SaveChangesAsync(cancellationToken);
+
+            logger.LogInformation("Submission created. SubmissionId = {SubmissionId}, DuelId = {DuelId}, UserId = {UserId}, Language = {Language}, IsUpsolve = {IsUpsolve}",
+                submission.Id, duel.Id, user.Id, submission.Language, submission.IsUpsolve
+            );
+
+
             var payload = JsonSerializer.Serialize(new TestSolutionPayload(duel.TaskId, submission.Id, submission.Code, submission.Language));
 
             context.Outbox.Add(new OutboxMessage
@@ -80,6 +90,11 @@ public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimite
                 Payload = payload,
                 RetryUntil = retryUntil
             });
+
+            logger.LogDebug("Submission test queued via outbox. SubmissionId={SubmissionId} RetryUntil={RetryUntil}",
+                submission.Id, retryUntil
+            );
+
 
             await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -97,6 +112,9 @@ public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimite
         }
         catch
         {
+            logger.LogError("Submission transaction failed. UserId = {UserId}, DuelId = {DuelId}",
+                command.UserId, command.DuelId
+            );
             await transaction.RollbackAsync(cancellationToken);
             throw;
         }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MediatR;
 using FluentResults;
 using Duely.Application.UseCases.Errors;
+using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Submissions;
 
@@ -16,13 +17,14 @@ public sealed class UpdateSubmissionStatusCommand : IRequest<Result>
     public string? Error { get; init; }
 }
 
-public sealed class UpdateSubmissionStatusHandler(Context context) : IRequestHandler<UpdateSubmissionStatusCommand, Result>
+public sealed class UpdateSubmissionStatusHandler(Context context, ILogger<UpdateSubmissionStatusHandler> logger) : IRequestHandler<UpdateSubmissionStatusCommand, Result>
 {
     public async Task<Result> Handle(UpdateSubmissionStatusCommand command, CancellationToken cancellationToken)
     {
         var submission = await context.Submissions.SingleOrDefaultAsync(s => s.Id == command.SubmissionId, cancellationToken);
         if (submission is null)
         {
+            logger.LogWarning("UpdateSubmissionStatusHandler failed: Submission {SubmissionId} not found", command.SubmissionId);
             return new EntityNotFoundError(nameof(Submission), nameof(Submission.Id), command.SubmissionId);
         }
 
@@ -47,6 +49,10 @@ public sealed class UpdateSubmissionStatusHandler(Context context) : IRequestHan
             submission.Status = SubmissionStatus.Done;
             submission.Verdict = command.Verdict;
             submission.Message = null;
+
+            logger.LogInformation("Testing submission is completed. SubmissionId = {SubmissionId}, Verdict = {Verdict}",
+                submission.Id, command.Verdict
+            );
         }
         if (!string.IsNullOrEmpty(command.Message))
         {
