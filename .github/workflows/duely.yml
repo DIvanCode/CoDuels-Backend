@@ -30,7 +30,7 @@ jobs:
           reports: Duely/tests/**/TestResults/**/*.cobertura.xml
           targetdir: Duely/tests/coverage_report
           reporttypes: HtmlInline;Cobertura
-          verbosity: Info'
+          verbosity: Info
           toolpath: reportgeneratortool
       - name: Add comment to PR
         if: github.event_name == 'pull_request'
