@@ -10,6 +10,8 @@ defaults:
 jobs:
   Test:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
       - name: Setup .NET 8.0.x
