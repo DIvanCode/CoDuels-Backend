@@ -5,10 +5,7 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>
-          
-          <ExcludeByFile>**/Migrations/*</ExcludeByFile>
-          <ExcludeByFile>**/obj/**/*</ExcludeByFile>
-          <ExcludeByFile>**/bin/**/*</ExcludeByFile>
+          <Exclude>[*Duely.Infrastructure.Gateway*]*,[*Duely.Infrastructure.*]*Migrations*</Exclude>
         </Configuration>
       </DataCollector>
     </DataCollectors>
