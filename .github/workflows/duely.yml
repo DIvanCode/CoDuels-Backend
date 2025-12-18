@@ -35,7 +35,7 @@ jobs:
         with:
           reports: Duely/tests/**/TestResults/**/*.cobertura.xml
           targetdir: reports
-          reporttypes: HtmlInline;Cobertura,Html,MarkdownSummaryGithub
+          reporttypes: HtmlInline,Cobertura,Html,MarkdownSummaryGithub
           verbosity: Info
           toolpath: reportgeneratortool
       - name: Add comment with coverage to PR
