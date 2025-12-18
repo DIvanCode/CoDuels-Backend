@@ -5,7 +5,7 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Exclude>[*Duely.Infrastructure.Gateway*]*,[*Duely.Infrastructure.*]*Migrations*</Exclude>
+          <Exclude>[*Duely.Infrastructure*]*</Exclude>
         </Configuration>
       </DataCollector>
     </DataCollectors>
