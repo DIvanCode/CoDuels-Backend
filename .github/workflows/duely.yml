@@ -3,10 +3,6 @@ on:
   pull_request:
     paths:
       - Duely/**
-defaults:
-  run:
-    shell: bash
-    working-directory: Duely
 jobs:
   Test:
     runs-on: ubuntu-latest
@@ -20,47 +16,66 @@ jobs:
           dotnet-version: 8.0.x
           dotnet-quality: ga
       - name: Run tests with code coverage
-        run: dotnet test --configuration Release --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
-      - name: Create reports directory outside working directory
-        run: mkdir -p ../reports
+        run: |
+          cd Duely
+          dotnet test --configuration Release --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+      - name: Find coverage files
+        run: |
+          echo "Looking for coverage files..."
+          find . -name "*.cobertura.xml" -type f 2>/dev/null | head -20
+          echo "Looking in Duely directory..."
+          find Duely -name "*.cobertura.xml" -type f 2>/dev/null
+      - name: Create reports directory
+        run: mkdir -p reports
       - name: ReportGenerator
         uses: danielpalme/ReportGenerator-GitHub-Action@5.5.1
         with:
-          reports: tests/**/TestResults/**/*.cobertura.xml  # Относительно working-directory
-          targetdir: ../reports
-          reporttypes: MarkdownSummaryGithub;HtmlInline;Cobertura;Html
+          reports: "**/TestResults/**/*.cobertura.xml"
+          targetdir: reports
+          reporttypes: MarkdownSummaryGithub
           verbosity: Info
           toolpath: reportgeneratortool
-      - name: Upload coverage report artifact reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: CoverageReport
-          path: ../reports
       - name: Add comment with coverage to PR
         if: github.event_name == 'pull_request'
         run: |
-          # Всегда поднимаемся на уровень выше для работы с reports
-          cd ..
-          
           if [ -f "reports/SummaryGithub.md" ]; then
-            echo "Found report at reports/SummaryGithub.md"
             gh pr comment $PR_NUMBER --body-file reports/SummaryGithub.md
           else
-            echo "Report file not found. Looking for SummaryGithub.md in:"
-            find . -name "SummaryGithub.md" -type f 2>/dev/null
-            gh pr comment $PR_NUMBER --body "Code coverage report file was not generated."
+            echo "Report file not found. Checking reports directory..."
+            ls -la reports/ 2>/dev/null || echo "No reports directory"
+          
+            # Попробуем найти файл в другой локации
+            FOUND_FILE=$(find . -name "SummaryGithub.md" -type f 2>/dev/null | head -1)
+            if [ -n "$FOUND_FILE" ]; then
+              echo "Found report at: $FOUND_FILE"
+              gh pr comment $PR_NUMBER --body-file "$FOUND_FILE"
+            else
+              echo "Creating simple coverage report..."
+              COVERAGE_FILES=$(find . -name "*.cobertura.xml" -type f 2>/dev/null | wc -l)
+              gh pr comment $PR_NUMBER --body "Code coverage report: Found $COVERAGE_FILES coverage files but could not generate full report."
+            fi
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.number }}
       - name: Publish coverage in build summary
         run: |
-          # Поднимаемся на уровень выше для доступа к reports
-          cd ..
-          
           if [ -f "reports/SummaryGithub.md" ]; then
             cat reports/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
           else
-            echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
-            echo "Report file not found" >> $GITHUB_STEP_SUMMARY
+            # Ищем файл в других местах
+            FOUND_FILE=$(find . -name "SummaryGithub.md" -type f 2>/dev/null | head -1)
+            if [ -n "$FOUND_FILE" ]; then
+              cat "$FOUND_FILE" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
+              echo "Report file not found" >> $GITHUB_STEP_SUMMARY
+              echo "Found coverage files:" >> $GITHUB_STEP_SUMMARY
+              find . -name "*.cobertura.xml" -type f 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "No coverage files found" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
+      - name: Upload coverage report artifact reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: CoverageReport
+          path: reports
