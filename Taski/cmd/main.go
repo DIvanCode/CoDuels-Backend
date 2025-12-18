@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	flog "log"
 	"log/slog"
@@ -17,6 +18,7 @@ import (
 	testAPI "taski/internal/api/testing/test"
 	"taski/internal/config"
 	"taski/internal/consumer"
+	"taski/internal/metrics"
 	"taski/internal/producer"
 	"taski/internal/storage/filestorage"
 	"taski/internal/storage/postgres"
@@ -31,6 +33,9 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -76,12 +81,12 @@ func main() {
 
 	executeClient := execute.NewExecuteClient(log, cfg.Execute.Endpoint)
 
-	taskStorage := filestorage.NewTaskStorage(fileStorage)
+	taskStorage := filestorage.NewTaskStorage(fileStorage, cfg.Tasks)
 
 	getTaskUseCase := getUC.NewUseCase(log, taskStorage)
 	getAPI.NewHandler(log, getTaskUseCase).Register(mux)
 
-	taskListUseCase := listUC.NewUseCase(log, taskStorage, cfg.Tasks)
+	taskListUseCase := listUC.NewUseCase(log, taskStorage)
 	listAPI.NewHandler(log, taskListUseCase).Register(mux)
 
 	randomTaskUseCase := randomTaskUC.NewUseCase(log, cfg.Tasks)
@@ -101,6 +106,21 @@ func main() {
 	eventConsumer.Start(ctx)
 	defer func() { _ = eventConsumer.Close() }()
 
+	promRegistry := prometheus.NewRegistry()
+	promRegistry.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+	promRegisterer := prometheus.WrapRegistererWithPrefix("coduels_taski_", promRegistry)
+
+	metricsCollector := metrics.NewMetricsCollector(log, cfg.MetricsCollector, taskStorage, unitOfWork, solutionStorage)
+	err = metricsCollector.RegisterMetrics(promRegisterer)
+	if err != nil {
+		log.Error("could not register metrics", slog.Any("err", err))
+		return
+	}
+	metricsCollector.Start(ctx)
+
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 
 	stop := make(chan os.Signal, 1)
@@ -111,8 +131,19 @@ func main() {
 		Handler: mux,
 	}
 
+	msrv := &http.Server{
+		Addr:    cfg.HttpServer.MetricsAddr,
+		Handler: promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{}),
+	}
+
 	go func() {
 		_ = srv.ListenAndServe()
+	}()
+
+	go func() {
+		if cfg.HttpServer.MetricsAddr != "" {
+			_ = msrv.ListenAndServe()
+		}
 	}()
 
 	log.Info("server started")
@@ -120,7 +151,7 @@ func main() {
 	<-stop
 	log.Info("stopping server")
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := errors.Join(srv.Shutdown(ctx), msrv.Shutdown(ctx)); err != nil {
 		log.Error("failed to stop server", slog.Any("error", err))
 		return
 	}

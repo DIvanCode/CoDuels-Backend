@@ -23,26 +23,32 @@ const (
 			solution text,
 			language varchar(16),
 			tests integer,
-			status jsonb
+			status jsonb,
+		    created_at timestamp,
+		    finished_at timestamp NULL
 		);
 	`
-
 	insertQuery = `
-		INSERT INTO Solutions(id, task_id, execution_id, solution, language, tests, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7);
+		INSERT INTO Solutions(id, task_id, execution_id, solution, language, tests, status, created_at, finished_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 	`
 
 	updateQuery = `
 		UPDATE Solutions
-		SET task_id=$2, execution_id=$3, solution=$4, language=$5, tests=$6, status=$7
+		SET task_id=$2, execution_id=$3, solution=$4, language=$5, tests=$6, status=$7, created_at=$8, finished_at=$9
 		WHERE id=$1;
 	`
 
 	selectByExecutionQuery = `
-		SELECT id, task_id, execution_id, solution, language, tests, status
+		SELECT id, task_id, execution_id, solution, language, tests, status, created_at, finished_at
 		FROM Solutions
 		WHERE execution_id=$1
 		FOR UPDATE;
+	`
+
+	selectAllSolutionsQuery = `
+		SELECT id, task_id, execution_id, solution, language, tests, status, created_at, finished_at
+		FROM Solutions
 	`
 )
 
@@ -60,7 +66,16 @@ func (s *SolutionStorage) Create(ctx context.Context, sol testing.Solution) erro
 	tx := extractTx(ctx)
 
 	if _, err := tx.ExecContext(ctx, insertQuery,
-		sol.ID, sol.TaskID.String(), sol.ExecutionID, sol.Solution, sol.Lang, sol.Tests, sol.Status); err != nil {
+		sol.ID,
+		sol.TaskID.String(),
+		sol.ExecutionID,
+		sol.Solution,
+		sol.Lang,
+		sol.Tests,
+		sol.Status,
+		sol.CreatedAt,
+		sol.FinishedAt,
+	); err != nil {
 		return fmt.Errorf("failed to do insert query: %w", err)
 	}
 
@@ -71,7 +86,16 @@ func (s *SolutionStorage) Update(ctx context.Context, sol testing.Solution) erro
 	tx := extractTx(ctx)
 
 	if _, err := tx.ExecContext(ctx, updateQuery,
-		sol.ID, sol.TaskID.String(), sol.ExecutionID, sol.Solution, sol.Lang, sol.Tests, sol.Status); err != nil {
+		sol.ID,
+		sol.TaskID.String(),
+		sol.ExecutionID,
+		sol.Solution,
+		sol.Lang,
+		sol.Tests,
+		sol.Status,
+		sol.CreatedAt,
+		sol.FinishedAt,
+	); err != nil {
 		return fmt.Errorf("failed to do update query: %w", err)
 	}
 
@@ -84,8 +108,17 @@ func (s *SolutionStorage) GetByExecutionID(ctx context.Context, executionID test
 	sol = testing.Solution{}
 	var taskID string
 	var status json.RawMessage
-	if err = tx.QueryRowContext(ctx, selectByExecutionQuery, executionID).
-		Scan(&sol.ID, &taskID, &sol.ExecutionID, &sol.Solution, &sol.Lang, &sol.Tests, &status); err != nil {
+	if err = tx.QueryRowContext(ctx, selectByExecutionQuery, executionID).Scan(
+		&sol.ID,
+		&taskID,
+		&sol.ExecutionID,
+		&sol.Solution,
+		&sol.Lang,
+		&sol.Tests,
+		&status,
+		&sol.CreatedAt,
+		&sol.FinishedAt,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = fmt.Errorf("solution with execution id %s not found", executionID)
 			return
@@ -101,6 +134,49 @@ func (s *SolutionStorage) GetByExecutionID(ctx context.Context, executionID test
 	if err = json.Unmarshal(status, &sol.Status); err != nil {
 		err = fmt.Errorf("failed to unmarshal status: %w", err)
 		return
+	}
+
+	return
+}
+
+func (s *SolutionStorage) GetAll(ctx context.Context) (solutions []testing.Solution, err error) {
+	tx := extractTx(ctx)
+
+	var rows *sql.Rows
+	rows, err = tx.QueryContext(ctx, selectAllSolutionsQuery)
+	if err != nil {
+		err = fmt.Errorf("failed to do select query: %w", err)
+		return
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var sol testing.Solution
+		var taskID string
+		var status json.RawMessage
+		if err = rows.Scan(
+			&sol.ID,
+			&taskID,
+			&sol.ExecutionID,
+			&sol.Solution,
+			&sol.Lang,
+			&sol.Tests,
+			&status,
+			&sol.CreatedAt,
+			&sol.FinishedAt,
+		); err != nil {
+			err = fmt.Errorf("failed to do select query: %w", err)
+			return
+		}
+		if err = sol.TaskID.FromString(taskID); err != nil {
+			err = fmt.Errorf("failed to unmarshal task id: %w", err)
+			return
+		}
+		if err = json.Unmarshal(status, &sol.Status); err != nil {
+			err = fmt.Errorf("failed to unmarshal status: %w", err)
+			return
+		}
+		solutions = append(solutions, sol)
 	}
 
 	return

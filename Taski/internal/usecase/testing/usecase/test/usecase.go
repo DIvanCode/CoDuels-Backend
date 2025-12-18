@@ -10,6 +10,7 @@ import (
 	"taski/internal/domain/testing"
 	"taski/internal/domain/testing/sources"
 	"taski/internal/domain/testing/steps"
+	"time"
 
 	"github.com/DIvanCode/filestorage/pkg/bucket"
 )
@@ -96,6 +97,7 @@ func (uc *UseCase) Test(ctx context.Context, command Command) error {
 			Lang:        command.Lang,
 			Tests:       len(testsStatus),
 			Status:      testsStatus,
+			CreatedAt:   time.Now(),
 		}
 		if err := uc.solutionStorage.Create(ctx, sol); err != nil {
 			uc.log.Error("failed to save solution to storage", slog.String("solution_id", string(sol.ID)), slog.Any("err", err))

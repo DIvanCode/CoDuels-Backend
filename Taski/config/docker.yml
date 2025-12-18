@@ -1,6 +1,7 @@
 env: docker
 http_server:
   addr: 0.0.0.0:5252
+  metrics_addr: 0.0.0.0:9090
 filestorage:
   root_dir: file_storage
   trasher:
@@ -23,5 +24,7 @@ message_producer:
   brokers:
     - kafka:9092
   topic: taski.testing
+metrics_collector:
+  collect_interval: 5s
 tasks:
   - 7d971f50363cf0aebbd87d971f50363cf0aebbd8

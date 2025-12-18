@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"taski/internal/config"
 	"taski/internal/domain/task"
 	"taski/internal/domain/task/tasks"
 
@@ -15,7 +16,8 @@ import (
 
 type (
 	TaskStorage struct {
-		fs fileStorage
+		fs        fileStorage
+		tasksList config.TasksList
 	}
 
 	fileStorage interface {
@@ -24,9 +26,10 @@ type (
 	}
 )
 
-func NewTaskStorage(fs fileStorage) *TaskStorage {
+func NewTaskStorage(fs fileStorage, tasksList config.TasksList) *TaskStorage {
 	return &TaskStorage{
-		fs: fs,
+		fs:        fs,
+		tasksList: tasksList,
 	}
 }
 
@@ -118,4 +121,24 @@ func (ts *TaskStorage) GetFile(taskID task.ID, file string) (r io.ReadCloser, un
 	}
 
 	return
+}
+
+func (ts *TaskStorage) GetList() ([]task.Task, error) {
+	list := make([]task.Task, len(ts.tasksList))
+	for i := range ts.tasksList {
+		var taskID task.ID
+		if err := taskID.FromString(ts.tasksList[i]); err != nil {
+			return nil, fmt.Errorf("failed to parse task id")
+		}
+
+		t, unlock, err := ts.Get(taskID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get task from storage")
+		}
+		unlock()
+
+		list[i] = t
+	}
+
+	return list, nil
 }
