@@ -32,7 +32,7 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
 
                 if (deleted > 0)
                 {
-                    logger.LogWarning("Outbox expired messages deleted. Count = {Count}", deleted);
+                    logger.LogInformation("Outbox expired messages deleted. Count = {Count}", deleted);
                 }
 
                 now = DateTime.UtcNow;
@@ -63,12 +63,7 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
 
                     if (result.IsFailed)
                     {
-                        foreach (var error in result.Errors)
-                        {
-                            logger.LogWarning("Outbox dispatch failed. MessageId = {MessageId}, Type = {Type}: {Reason}",
-                                message.Id, message.Type, error.Message
-                            );
-                        }
+                        logger.LogWarning("Outbox dispatch failed: {Reason}", string.Join("\n", result.Errors.Select(error => error.Message)));
                     }
 
                     var processedAt = DateTime.UtcNow;

@@ -21,10 +21,7 @@ public sealed class DuelMakingJob(IServiceProvider sp, IOptions<DuelMakingJobOpt
                 var result = await mediator.Send(new TryCreateDuelCommand(), cancellationToken);
                 if (result.IsFailed)
                 {
-                    foreach (var error in result.Errors)
-                    {
-                        logger.LogWarning("TryCreateDuel failed: {Reason}", error.Message);
-                    }
+                    logger.LogWarning("TryCreateDuel failed: {Reason}", string.Join("\n", result.Errors.Select(error => error.Message)));
                 }
             }
 

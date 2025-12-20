@@ -81,7 +81,7 @@ public sealed class CheckDuelsForFinishHandler(
             await FinishDuelAsync(duel, null, cancellationToken);
             
             logger.LogInformation("Duel finished. DuelId = {DuelId}, Reason = {Reason}",
-                duel.Id, "Accepted"
+                duel.Id, "Deadline"
             );
             
             return Result.Ok();
