@@ -1,6 +1,5 @@
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Domain.Models;
-using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Duely.Domain.Models.Messages;
 using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Services.Duels;
@@ -8,6 +7,7 @@ using MediatR;
 using FluentResults;
 using System.Text.Json;
 using Duely.Application.UseCases.Payloads;
+using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
@@ -15,7 +15,8 @@ public sealed class CheckDuelsForFinishCommand : IRequest<Result>;
 
 public sealed class CheckDuelsForFinishHandler(
     Context context,
-    IRatingManager ratingManager
+    IRatingManager ratingManager,
+    ILogger<CheckDuelsForFinishHandler> logger
     ) 
     : IRequestHandler<CheckDuelsForFinishCommand, Result>
 {
@@ -60,7 +61,10 @@ public sealed class CheckDuelsForFinishHandler(
             }
 
             await FinishDuelAsync(duel, earliestAccepted.User, cancellationToken);
-            Console.WriteLine($"Finished duel {duel.Id}");
+
+            logger.LogInformation("Duel finished. DuelId = {DuelId}, WinnerId = {Winner}, Reason = {Reason}",
+                duel.Id, duel.Winner.Id, "Accepted"
+            );
 
             return Result.Ok();
         }
@@ -75,7 +79,10 @@ public sealed class CheckDuelsForFinishHandler(
             }
 
             await FinishDuelAsync(duel, null, cancellationToken);
-            Console.WriteLine($"Finished duel {duel.Id}");
+            
+            logger.LogInformation("Duel finished. DuelId = {DuelId}, Reason = {Reason}",
+                duel.Id, "Deadline"
+            );
             
             return Result.Ok();
         }

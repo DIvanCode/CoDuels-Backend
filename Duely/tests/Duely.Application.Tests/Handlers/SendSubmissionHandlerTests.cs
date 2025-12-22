@@ -9,6 +9,7 @@ using Duely.Domain.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 
 internal sealed class DummySubmissionRateLimiter : ISubmissionRateLimiter
@@ -25,7 +26,7 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         var ctx = Context;
         var limiter = new DummySubmissionRateLimiter();
 
-        var handler = new SendSubmissionHandler(ctx, limiter);
+        var handler = new SendSubmissionHandler(ctx, limiter, NullLogger<SendSubmissionHandler>.Instance);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
@@ -53,7 +54,7 @@ public class SendSubmissionHandlerTests : ContextBasedTest
 
         var limiter = new DummySubmissionRateLimiter();
 
-        var handler = new SendSubmissionHandler(ctx, limiter);
+        var handler = new SendSubmissionHandler(ctx, limiter, NullLogger<SendSubmissionHandler>.Instance);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
@@ -81,7 +82,7 @@ public class SendSubmissionHandlerTests : ContextBasedTest
 
         var limiter = new DummySubmissionRateLimiter();
 
-        var handler = new SendSubmissionHandler(ctx, limiter);
+        var handler = new SendSubmissionHandler(ctx, limiter, NullLogger<SendSubmissionHandler>.Instance);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {

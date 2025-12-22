@@ -14,6 +14,7 @@ using Moq;
 using System.Linq;
 using System.Text.Json;
 using Duely.Application.UseCases.Payloads;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using Xunit;
 
@@ -38,7 +39,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var sender = new Mock<IMessageSender>(MockBehavior.Strict);
         var options = Options.Create(new DuelOptions { MaxDurationMinutes = 30 });
 
-        var handler = new TryCreateDuelHandler(duelManager.Object, taski, options, taskService.Object, ctx);
+        var handler = new TryCreateDuelHandler(duelManager.Object, taski, options, taskService.Object, ctx, NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -74,7 +75,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var options = Options.Create(new DuelOptions { MaxDurationMinutes = 30 });
 
-        var handler = new TryCreateDuelHandler(duelManager.Object, taski, options, taskService.Object, ctx);
+        var handler = new TryCreateDuelHandler(duelManager.Object, taski, options, taskService.Object, ctx, NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -134,7 +135,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var options = Options.Create(new DuelOptions { MaxDurationMinutes = 30 });
 
-        var handler = new TryCreateDuelHandler(duelManager.Object, taski, options, taskService.Object, ctx);
+        var handler = new TryCreateDuelHandler(duelManager.Object, taski, options, taskService.Object, ctx, NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
         var duel = await ctx.Duels

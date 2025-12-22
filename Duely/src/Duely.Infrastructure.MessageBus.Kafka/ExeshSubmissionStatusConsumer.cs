@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Duely.Application.UseCases.Features.UserCodeRuns;
+using Microsoft.Extensions.Logging;
 
 namespace Duely.Infrastructure.MessageBus.Kafka;
 
@@ -14,9 +15,13 @@ public sealed class ExeshSubmissionStatusConsumer : BackgroundService
     private readonly string _topic;
     private readonly IServiceScopeFactory _scopeFactory;
 
-    public ExeshSubmissionStatusConsumer(IServiceScopeFactory scopeFactory, IOptions<KafkaOptions> kafkaOptions)
+    private readonly ILogger<ExeshSubmissionStatusConsumer> _logger;
+
+    public ExeshSubmissionStatusConsumer(IServiceScopeFactory scopeFactory, IOptions<KafkaOptions> kafkaOptions, ILogger<ExeshSubmissionStatusConsumer> logger)
     {
         _scopeFactory = scopeFactory;
+
+        _logger = logger;
 
         _topic = kafkaOptions.Value.ExeshTopic;
         var config = new ConsumerConfig
@@ -41,7 +46,10 @@ public sealed class ExeshSubmissionStatusConsumer : BackgroundService
     {
 
         _consumer.Subscribe(_topic);
-        try 
+        
+        _logger.LogInformation("Kafka consumer started. Topic={Topic}", _topic);
+
+        try
         {
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -73,9 +81,9 @@ public sealed class ExeshSubmissionStatusConsumer : BackgroundService
                 await mediator.Send(command, cancellationToken);
             }
         }
-        catch (Exception)
+        catch (Exception e)
         {
-
+            _logger.LogError(e, "Kafka consumer crashed. Topic={Topic}", _topic);
         }
     }
 

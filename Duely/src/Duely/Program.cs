@@ -43,4 +43,7 @@ var app = builder.Build();
 app.UseApiHttp();
 app.UseProblemDetails();
 app.UseOpenTelemetryPrometheusScrapingEndpoint();
+
+app.Logger.LogInformation("Duely started");
+
 app.Run();

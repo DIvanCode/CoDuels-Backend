@@ -9,6 +9,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 public class RefreshHandlerTests : ContextBasedTest
 {
@@ -19,7 +20,7 @@ public class RefreshHandlerTests : ContextBasedTest
 
         // Никаких пользователей в БД с таким токеном нет
         var tokenSvc = new Mock<ITokenService>(MockBehavior.Strict);
-        var handler = new RefreshHandler(ctx, tokenSvc.Object);
+        var handler = new RefreshHandler(ctx, tokenSvc.Object, NullLogger<RefreshHandler>.Instance);
 
         var res = await handler.Handle(new RefreshCommand { RefreshToken = "NOPE" }, CancellationToken.None);
 
@@ -43,7 +44,7 @@ public class RefreshHandlerTests : ContextBasedTest
         tokenSvc.Setup(s => s.GenerateTokens(It.Is<User>(u => u.Id == 2)))
                 .Returns(("ACCESS2", "REFRESH2"));
 
-        var handler = new RefreshHandler(ctx, tokenSvc.Object);
+        var handler = new RefreshHandler(ctx, tokenSvc.Object, NullLogger<RefreshHandler>.Instance);
 
         var res = await handler.Handle(new RefreshCommand { RefreshToken = "OLD" }, CancellationToken.None);
 

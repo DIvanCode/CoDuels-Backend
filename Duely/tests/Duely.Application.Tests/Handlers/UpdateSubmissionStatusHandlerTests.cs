@@ -6,6 +6,7 @@ using Duely.Domain.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
 {
@@ -20,7 +21,7 @@ public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
         var sub = EntityFactory.MakeSubmission(100, duel, u1, status: SubmissionStatus.Queued);
         ctx.AddRange(u1, u2, duel, sub); await ctx.SaveChangesAsync();
 
-        var handler = new UpdateSubmissionStatusHandler(ctx);
+        var handler = new UpdateSubmissionStatusHandler(ctx, NullLogger<UpdateSubmissionStatusHandler>.Instance);
         var res = await handler.Handle(new UpdateSubmissionStatusCommand {
             SubmissionId = 100, Type = "status" }, CancellationToken.None);
 
@@ -39,7 +40,7 @@ public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
         var sub = EntityFactory.MakeSubmission(100, duel, u1, status: SubmissionStatus.Running, message: "processing");
         ctx.AddRange(u1, u2, duel, sub); await ctx.SaveChangesAsync();
 
-        var handler = new UpdateSubmissionStatusHandler(ctx);
+        var handler = new UpdateSubmissionStatusHandler(ctx, NullLogger<UpdateSubmissionStatusHandler>.Instance);
         var res = await handler.Handle(new UpdateSubmissionStatusCommand {
             SubmissionId = 100, Type = "status", Verdict = "Accepted"}, CancellationToken.None);
 
@@ -62,7 +63,7 @@ public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
         var sub = EntityFactory.MakeSubmission(100, duel, u1, status: SubmissionStatus.Running, message: "processing");
         ctx.AddRange(u1, u2, duel, sub); await ctx.SaveChangesAsync();
 
-        var handler = new UpdateSubmissionStatusHandler(ctx);
+        var handler = new UpdateSubmissionStatusHandler(ctx, NullLogger<UpdateSubmissionStatusHandler>.Instance);
         var res = await handler.Handle(new UpdateSubmissionStatusCommand {
             SubmissionId = 100, Type = "status", Error = "boom" }, CancellationToken.None);
 

@@ -4,6 +4,7 @@ using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Users;
 
@@ -13,13 +14,15 @@ public sealed class RegisterCommand : IRequest<Result>
     public required string Password { get; init; }
 }
 
-public sealed class RegisterHandler(Context context) : IRequestHandler<RegisterCommand, Result>
+public sealed class RegisterHandler(Context context, ILogger<RegisterHandler> logger) : IRequestHandler<RegisterCommand, Result>
 {
     public async Task<Result> Handle(RegisterCommand command, CancellationToken cancellationToken)
     {
         var user = await context.Users.SingleOrDefaultAsync(u => u.Nickname == command.Nickname, cancellationToken);
         if (user is not null)
         {
+            logger.LogWarning("Register rejected: nickname {Nickname} already exists", command.Nickname);
+
             return new EntityAlreadyExistsError(nameof(User), nameof(User.Nickname), command.Nickname);
         }
 
@@ -36,6 +39,8 @@ public sealed class RegisterHandler(Context context) : IRequestHandler<RegisterC
 
         context.Users.Add(user);
         await context.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("User registered. UserId = {UserId}, Nickname = {Nickname}", user.Id, user.Nickname);
 
         return Result.Ok();
     }

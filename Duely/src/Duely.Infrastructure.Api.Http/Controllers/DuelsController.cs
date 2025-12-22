@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Duely.Infrastructure.Api.Http.Controllers;
@@ -17,7 +18,8 @@ public sealed class DuelsController(
     IMediator mediator,
     IUserContext userContext,
     ISseConnectionManager connections,
-    IOptions<SseConnectionOptions> options) : ControllerBase
+    IOptions<SseConnectionOptions> options,
+    ILogger<DuelsController> logger) : ControllerBase
 {
     [HttpGet("{duelId:int}")]
     public async Task<ActionResult<DuelDto>> GetAsync(
@@ -63,7 +65,7 @@ public sealed class DuelsController(
     [HttpGet("connect")]
     public async Task<IActionResult> ConnectAsync(CancellationToken cancellationToken)
     {
-        Console.WriteLine($"Connected user {userContext.UserId}");
+        logger.LogInformation("Connected user {UserId}", userContext.UserId);
         
         var query = new GetCurrentDuelQuery
         {
@@ -80,6 +82,11 @@ public sealed class DuelsController(
             var addUserResult = await mediator.Send(command, cancellationToken);
             if (addUserResult.IsFailed)
             {
+                foreach (var error in addUserResult.Errors)
+                {
+                    logger.LogWarning("SSE connect failed: {Reason}", error.Message);
+                }
+
                 return this.HandleResult(addUserResult);
             }
         }
@@ -113,8 +120,9 @@ public sealed class DuelsController(
                 };
                 await mediator.Send(command, cancellationToken);    
             }
-            
-            Console.WriteLine($"Disconnected user {userContext.UserId}");
+
+            logger.LogInformation("Disconnected user {UserId}", userContext.UserId);
+
             connections.RemoveConnection(userContext.UserId);
         }
         

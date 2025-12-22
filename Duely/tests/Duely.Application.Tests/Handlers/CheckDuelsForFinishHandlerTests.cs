@@ -14,6 +14,8 @@ using Xunit;
 using System.Linq;
 using System.Text.Json;
 using Duely.Application.UseCases.Payloads;
+using Microsoft.Extensions.Logging.Abstractions;
+
 
 public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 {
@@ -38,7 +40,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -76,7 +78,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx,ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx,ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -113,7 +115,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
@@ -141,7 +143,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var ratingManager = new Mock<IRatingManager>();
-        var handler = new CheckDuelsForFinishHandler(ctx,ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx,ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
         var messages = await ctx.Outbox.AsNoTracking()
@@ -175,7 +177,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -217,7 +219,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 
         // Сообщения отправляться не должны
         var ratingManager = new Mock<IRatingManager>();
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -260,7 +262,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var ratingManager = new Mock<IRatingManager>();
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
