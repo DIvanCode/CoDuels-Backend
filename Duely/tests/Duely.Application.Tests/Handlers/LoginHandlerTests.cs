@@ -9,6 +9,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 public class LoginHandlerTests : ContextBasedTest
 {
@@ -23,7 +24,7 @@ public class LoginHandlerTests : ContextBasedTest
     {
         var ctx = Context;
         var tokenSvc = new Mock<ITokenService>(MockBehavior.Strict);
-        var handler = new LoginHandler(ctx, tokenSvc.Object);
+        var handler = new LoginHandler(ctx, tokenSvc.Object, NullLogger<LoginHandler>.Instance);
 
         var res = await handler.Handle(new LoginCommand { Nickname = "ghost", Password = "x" }, CancellationToken.None);
 
@@ -41,7 +42,7 @@ public class LoginHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var tokenSvc = new Mock<ITokenService>(MockBehavior.Strict);
-        var handler = new LoginHandler(ctx, tokenSvc.Object);
+        var handler = new LoginHandler(ctx, tokenSvc.Object, NullLogger<LoginHandler>.Instance);
 
         var res = await handler.Handle(new LoginCommand { Nickname = "neo", Password = "wrong" }, CancellationToken.None);
 
@@ -62,7 +63,7 @@ public class LoginHandlerTests : ContextBasedTest
         tokenSvc.Setup(s => s.GenerateTokens(It.Is<User>(u => u.Id == 2)))
                 .Returns(("ACCESS", "REFRESH")).Verifiable();
 
-        var handler = new LoginHandler(ctx, tokenSvc.Object);
+        var handler = new LoginHandler(ctx, tokenSvc.Object, NullLogger<LoginHandler>.Instance);
         var res = await handler.Handle(new LoginCommand { Nickname = "trinity", Password = "secret" }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();

@@ -8,6 +8,7 @@ using Duely.Domain.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 public class RegisterHandlerTests : ContextBasedTest
 {
@@ -19,7 +20,7 @@ public class RegisterHandlerTests : ContextBasedTest
         ctx.Users.Add(new User { Id = 1, Nickname = "alice", PasswordHash = "h", PasswordSalt = "s", CreatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
-        var handler = new RegisterHandler(ctx);
+        var handler = new RegisterHandler(ctx, NullLogger<RegisterHandler>.Instance);
 
         var password = $"test-only-{Guid.NewGuid():N}";
 
@@ -38,7 +39,7 @@ public class RegisterHandlerTests : ContextBasedTest
     {
         var ctx = Context;
 
-        var handler = new RegisterHandler(ctx);
+        var handler = new RegisterHandler(ctx, NullLogger<RegisterHandler>.Instance);
 
         var password = $"test-only-{Guid.NewGuid():N}";
 
