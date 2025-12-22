@@ -1,0 +1,37 @@
+{
+    "id": "0c5fe950363fc0aeb7d80c5fe950363fc0aeb7d8",
+    "title": "RMQ",
+    "type": "write_code",
+    "level": 1,
+    "statement": "statement.md",
+    "tl": 1000,
+    "ml": 256,
+    "tests": [
+        {
+            "id": 1,
+            "input": "tests/01",
+            "output": "tests/01.out",
+            "visible": true
+        },
+        {
+            "id": 2,
+            "input": "tests/02",
+            "output": "tests/02.out",
+            "visible": false
+        },
+        {
+            "id": 3,
+            "input": "tests/03",
+            "output": "tests/03.out",
+            "visible": false
+        }
+    ],
+    "checker": {
+        "path": "checker.cpp",
+        "lang": "C++"
+    },
+    "solution": {
+        "path": "solution.cpp",
+        "lang": "C++"
+    }
+}

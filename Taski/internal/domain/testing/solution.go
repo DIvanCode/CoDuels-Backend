@@ -1,6 +1,9 @@
 package testing
 
-import "taski/internal/domain/task"
+import (
+	"taski/internal/domain/task"
+	"time"
+)
 
 type (
 	Solution struct {
@@ -11,6 +14,8 @@ type (
 		Lang        task.Language  `json:"lang"`
 		Tests       int            `json:"tests"`
 		Status      map[int]string `json:"status"`
+		CreatedAt   time.Time      `json:"created_at"`
+		FinishedAt  *time.Time     `json:"finished_at"`
 	}
 
 	SolutionID string
@@ -29,4 +34,8 @@ func (s Solution) AllTestsPassed() bool {
 		}
 	}
 	return true
+}
+
+func (s Solution) ProcessTime() time.Duration {
+	return s.FinishedAt.Sub(s.CreatedAt)
 }

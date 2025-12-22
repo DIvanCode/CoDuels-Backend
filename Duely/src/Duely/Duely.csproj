@@ -25,6 +25,7 @@
       <ProjectReference Include="..\Duely.Application.BackgroundJobs\Duely.Application.BackgroundJobs.csproj" />
       <ProjectReference Include="..\Duely.Infrastructure.MessageBus.Kafka\Duely.Infrastructure.MessageBus.Kafka.csproj" />
       <ProjectReference Include="..\Duely.Infrastructure.Gateway.Exesh.Abstracts\Duely.Infrastructure.Gateway.Exesh.Abstracts.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.Telemetry\Duely.Infrastructure.Telemetry.csproj" />
     </ItemGroup>
 
 </Project>

@@ -129,11 +129,11 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 		}
 
 		if s.getNowExecutions() == s.cfg.MaxConcurrency {
-			s.log.Info("skip execution scheduler loop (max concurrency reached)")
+			s.log.Debug("skip execution scheduler loop (max concurrency reached)")
 			continue
 		}
 
-		s.log.Info("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
+		s.log.Debug("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
 
 		s.changeNowExecutions(+1)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
@@ -143,7 +143,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 			}
 			if e == nil {
 				s.changeNowExecutions(-1)
-				s.log.Info("no executions to schedule")
+				s.log.Debug("no executions to schedule")
 				return nil
 			}
 
