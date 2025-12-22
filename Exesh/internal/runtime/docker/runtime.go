@@ -155,7 +155,11 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	}
 
 	// force larger deadline because the submission may just hang waiting for input
-	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Duration(params.Limits.Time))
+	timeout := 30 * time.Second
+	if params.Limits.Time != 0 {
+		timeout = 10 * time.Duration(params.Limits.Time)
+	}
+	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	var insp container.InspectResponse
