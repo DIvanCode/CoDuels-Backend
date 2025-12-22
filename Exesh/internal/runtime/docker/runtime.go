@@ -5,12 +5,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"exesh/internal/runtime"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"exesh/internal/runtime"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -76,8 +77,9 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	cpuPolicy(int64(params.Limits.Time) / int64(time.Second))(hostConfig)
 	memoryPolicy(int64(params.Limits.Memory))(hostConfig)
 
+	// we do not know why, but without StdinOnce, without CloseWrite stdin is not closed, and with it - stdout is empty
 	cr, err := dr.client.ContainerCreate(ctx,
-		&container.Config{Image: dr.baseImage, Cmd: cmd, OpenStdin: true},
+		&container.Config{Image: dr.baseImage, Cmd: cmd, OpenStdin: true, StdinOnce: true},
 		hostConfig,
 		&network.NetworkingConfig{},
 		&v1.Platform{OS: "linux", Architecture: "amd64"},
@@ -144,8 +146,7 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	if params.Stdin != nil {
 		go func(r io.Reader) {
 			_, _ = io.Copy(hjr.Conn, params.Stdin)
-			// BUG: why does this "CloseWrite" cause stdout to be empty
-			// hjr.CloseWrite()
+			hjr.CloseWrite()
 		}(params.Stdin)
 	}
 
