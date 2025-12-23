@@ -135,7 +135,7 @@ func setupOutputProvider(cfg config.OutputProviderConfig, filestorageAdapter *ad
 func setupJobExecutor(log *slog.Logger, inputProvider *provider.InputProvider, outputProvider *provider.OutputProvider) (*executor.JobExecutor, error) {
 	gccRT, err := docker.New(
 		docker.WithDefaultClient(),
-		docker.WithBaseImage("gcc"),
+		docker.WithBaseImage("docker.io/eewynell/gcc:15.2.0"),
 		docker.WithRestrictivePolicy(),
 	)
 	if err != nil {
