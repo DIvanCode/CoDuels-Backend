@@ -23,8 +23,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Domain.Services", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Application.BackgroundJobs", "src\Duely.Application.BackgroundJobs\Duely.Application.BackgroundJobs.csproj", "{B1A348B2-0D59-489D-8EB6-230620CA5F35}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CA2ED3F1-2B10-4664-A25C-DF6F5454A7DE}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Gateway.Exesh.Abstracts", "src\Duely.Infrastructure.Gateway.Exesh.Abstracts\Duely.Infrastructure.Gateway.Exesh.Abstracts.csproj", "{CC498E2E-3556-4845-86D7-5BCB31F3559E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Gateway.Exesh", "src\Duely.Infrastructure.Gateway.Exesh\Duely.Infrastructure.Gateway.Exesh.csproj", "{88ECE808-99F8-44E2-B602-F4A2EB2A8756}"
@@ -105,10 +103,5 @@ Global
 		{3A93E8DA-3343-4863-A64D-2E90F9675396}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3A93E8DA-3343-4863-A64D-2E90F9675396}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3A93E8DA-3343-4863-A64D-2E90F9675396}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{CC498E2E-3556-4845-86D7-5BCB31F3559E} = {CA2ED3F1-2B10-4664-A25C-DF6F5454A7DE}
-		{88ECE808-99F8-44E2-B602-F4A2EB2A8756} = {CA2ED3F1-2B10-4664-A25C-DF6F5454A7DE}
-		{3A93E8DA-3343-4863-A64D-2E90F9675396} = {CA2ED3F1-2B10-4664-A25C-DF6F5454A7DE}
 	EndGlobalSection
 EndGlobal
