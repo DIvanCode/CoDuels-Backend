@@ -23,7 +23,7 @@ job_factory:
 execution_scheduler:
   executions_interval: 3s
   max_concurrency: 10
-  execution_retry_after: 15s
+  execution_retry_after: 300s
 worker_pool:
   worker_die_after: 10s
 artifact_registry:

@@ -4,13 +4,13 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"errors"
+	"exesh/internal/runtime"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
-
-	"exesh/internal/runtime"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -76,8 +76,9 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	cpuPolicy(int64(params.Limits.Time) / int64(time.Second))(hostConfig)
 	memoryPolicy(int64(params.Limits.Memory))(hostConfig)
 
+	// we do not know why, but without StdinOnce, without CloseWrite stdin is not closed, and with it - stdout is empty
 	cr, err := dr.client.ContainerCreate(ctx,
-		&container.Config{Image: dr.baseImage, Cmd: cmd, OpenStdin: true},
+		&container.Config{Image: dr.baseImage, Cmd: cmd, OpenStdin: true, StdinOnce: true},
 		hostConfig,
 		&network.NetworkingConfig{},
 		&v1.Platform{OS: "linux", Architecture: "amd64"},
@@ -144,8 +145,7 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	if params.Stdin != nil {
 		go func(r io.Reader) {
 			_, _ = io.Copy(hjr.Conn, params.Stdin)
-			// BUG: why the fuck does this "CloseWrite" cause stdout to be empty
-			// hjr.CloseWrite()
+			hjr.CloseWrite()
 		}(params.Stdin)
 	}
 
@@ -154,15 +154,32 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		return fmt.Errorf("start container: %w", err)
 	}
 
+	// force larger deadline because the submission may just hang waiting for input
+	timeout := 10 * time.Second
+	if params.Limits.Time != 0 {
+		timeout = 5 * time.Duration(params.Limits.Time)
+	}
+	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	var insp container.InspectResponse
 	for {
-		insp, err = dr.client.ContainerInspect(ctx, cr.ID)
+		insp, err = dr.client.ContainerInspect(ctxTimeout, cr.ID)
 		if err != nil {
 			return fmt.Errorf("inspect container: %w", err)
 		}
 
 		if !insp.State.Running {
 			break
+		}
+
+		select {
+		case <-ctxTimeout.Done():
+			if errors.Is(ctxTimeout.Err(), context.DeadlineExceeded) {
+				return runtime.ErrTimeout
+			}
+			return ctx.Err()
+		case <-time.After(1 * time.Second):
 		}
 	}
 

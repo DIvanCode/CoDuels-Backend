@@ -65,6 +65,10 @@ func (dp *dummyOutputProvider) Locate(ctx context.Context, out execution.Output)
 	return out.GetFile(), func() {}, nil
 }
 
+func (dp *dummyOutputProvider) Reserve(ctx context.Context, out execution.Output) (path string, unlock func() error, smth func() error, err error) {
+	return out.GetFile(), func() error { return nil }, func() error { return nil }, nil
+}
+
 func (dp *dummyOutputProvider) Read(ctx context.Context, out execution.Output) (r io.Reader, unlock func(), err error) {
 	unlock = func() {}
 	f, err := os.OpenFile(out.GetFile(), os.O_RDONLY, 0o755)
@@ -124,7 +128,6 @@ func main() {
 		runJobId, inputs.NewArtifactInput("a.checker.out", checkJobId, workerID),
 		inputs.NewArtifactInput("correct.txt", checkJobId, workerID),
 		inputs.NewArtifactInput("out.txt", checkJobId, workerID),
-		outputs.NewArtifactOutput("verdict.txt", checkJobId),
 	)))
 	fmt.Printf("check: %#v\n", checkResult)
 }
