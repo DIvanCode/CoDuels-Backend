@@ -5,13 +5,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"exesh/internal/runtime"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
-
-	"exesh/internal/runtime"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -156,9 +155,9 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	}
 
 	// force larger deadline because the submission may just hang waiting for input
-	timeout := 30 * time.Second
+	timeout := 10 * time.Second
 	if params.Limits.Time != 0 {
-		timeout = 10 * time.Duration(params.Limits.Time)
+		timeout = 5 * time.Duration(params.Limits.Time)
 	}
 	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
