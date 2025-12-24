@@ -54,7 +54,7 @@ public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimite
             return new ForbiddenError(nameof(Duel), "send submission to", nameof(Duel.Id), command.DuelId);
         }
         
-        var retryUntil = duel.DeadlineTime < DateTime.UtcNow ? duel.DeadlineTime.AddMinutes(5) : DateTime.UtcNow.AddMinutes(5);
+        var retryUntil = duel.DeadlineTime > DateTime.UtcNow ? duel.DeadlineTime.AddMinutes(5) : DateTime.UtcNow.AddMinutes(5);
         
         var isUpsolve = duel.Status == DuelStatus.Finished;
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
