@@ -6,6 +6,7 @@
         <Configuration>
           <Format>cobertura</Format>
           <Exclude>[*Duely.Infrastructure*]*</Exclude>
+          <Exclude>[*]*ServiceCollectionExtensions*</Exclude>
         </Configuration>
       </DataCollector>
     </DataCollectors>
