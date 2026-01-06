@@ -18,8 +18,13 @@ public sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration<D
             .ValueGeneratedOnAdd()
             .UseIdentityByDefaultColumn();
 
-        builder.Property(c => c.ShowOpponentCode)
-            .HasColumnName("ShowOpponentCode")
+        builder.Property(c => c.IsRated)
+            .HasColumnName("IsRated")
+            .HasColumnType("boolean")
+            .IsRequired();
+        
+        builder.Property(c => c.ShouldShowOpponentCode)
+            .HasColumnName("ShouldShowOpponentCode")
             .HasColumnType("boolean")
             .IsRequired();
 
@@ -43,7 +48,7 @@ public sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration<D
             .HasColumnName("TasksConfigurations")
             .HasConversion(
                 obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
-                str => JsonSerializer.Deserialize<List<DuelTaskConfiguration>>(str, new JsonSerializerOptions())!);
+                str => JsonSerializer.Deserialize<Dictionary<char, DuelTaskConfiguration>>(str, new JsonSerializerOptions())!);
     }
 }
 

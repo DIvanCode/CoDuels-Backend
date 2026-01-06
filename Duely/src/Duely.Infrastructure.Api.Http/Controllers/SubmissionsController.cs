@@ -17,13 +17,13 @@ public sealed class SubmissionsController(IMediator mediator, IUserContext userC
     public async Task<ActionResult<SubmissionDto>> SendSubmissionAsync(
         [FromRoute] int duelId,
         [FromBody] SendSubmissionRequest request,
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
     {
         var command = new SendSubmissionCommand
         {
             DuelId = duelId,
             UserId = userContext.UserId,
+            TaskKey = request.TaskKey,
             Code = request.Submission,
             Language = request.Language
         };
@@ -35,12 +35,14 @@ public sealed class SubmissionsController(IMediator mediator, IUserContext userC
     [HttpGet]
     public async Task<ActionResult<List<SubmissionListItemDto>>> GetUserSubmissionsAsync(
         [FromRoute] int duelId,
+        [FromQuery] char taskKey,
         CancellationToken cancellationToken)
     {
         var query = new GetUserSubmissionsQuery
         {
             DuelId = duelId,
-            UserId = userContext.UserId
+            UserId = userContext.UserId,
+            TaskKey = taskKey
         };
 
         var result = await mediator.Send(query, cancellationToken);

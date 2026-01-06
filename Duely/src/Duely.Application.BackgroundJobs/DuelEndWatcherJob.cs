@@ -18,8 +18,13 @@ public sealed class DuelEndWatcherJob(IServiceProvider sp, IOptions<DuelEndWatch
             using (var scope = sp.CreateScope())
             {
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-
-                await mediator.Send(new CheckDuelsForFinishCommand(), cancellationToken);
+                var result = await mediator.Send(new CheckDuelsForFinishCommand(), cancellationToken);
+                if (result.IsFailed)
+                {
+                    logger.LogWarning(
+                        "CheckDuelsForFinishCommand failed: {Reason}",
+                        string.Join("\n", result.Errors.Select(error => error.Message)));
+                }
             }
 
             await Task.Delay(options.Value.CheckIntervalMs, cancellationToken);

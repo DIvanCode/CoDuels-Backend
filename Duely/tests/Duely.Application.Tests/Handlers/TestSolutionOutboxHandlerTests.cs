@@ -1,13 +1,12 @@
-using System.Threading;
-using System.Threading.Tasks;
-using Duely.Application.UseCases.Features.Outbox.Handlers;
-using Duely.Application.UseCases.Payloads;
+using Duely.Application.Services.Outbox.Handlers;
+using Duely.Application.Services.Outbox.Payloads;
 using Duely.Domain.Models;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentAssertions;
 using FluentResults;
 using Moq;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class TestSolutionOutboxHandlerTests
 {
@@ -61,4 +60,3 @@ public class TestSolutionOutboxHandlerTests
         result.Errors.Should().ContainSingle(e => e.Message == "Client error");
     }
 }
-

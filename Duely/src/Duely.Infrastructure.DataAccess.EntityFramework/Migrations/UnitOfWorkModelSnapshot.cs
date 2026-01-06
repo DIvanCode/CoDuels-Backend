@@ -31,6 +31,9 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("ConfigurationId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("DeadlineTime")
                         .HasColumnType("timestamp")
                         .HasColumnName("DeadlineTime");
@@ -48,10 +51,10 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("Status");
 
-                    b.Property<string>("TaskId")
+                    b.Property<string>("Tasks")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("TaskId");
+                        .HasColumnName("Tasks");
 
                     b.Property<int?>("User1FinalRating")
                         .HasColumnType("integer")
@@ -80,6 +83,8 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ConfigurationId");
+
                     b.HasIndex("User1Id");
 
                     b.HasIndex("User2Id");
@@ -98,13 +103,17 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("IsRated")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsRated");
+
                     b.Property<int>("MaxDurationMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("MaxDurationMinutes");
 
-                    b.Property<bool>("ShowOpponentCode")
+                    b.Property<bool>("ShouldShowOpponentCode")
                         .HasColumnType("boolean")
-                        .HasColumnName("ShowOpponentCode");
+                        .HasColumnName("ShouldShowOpponentCode");
 
                     b.Property<string>("TasksConfigurations")
                         .IsRequired()
@@ -208,6 +217,11 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Property<DateTime>("SubmitTime")
                         .HasColumnType("timestamp")
                         .HasColumnName("SubmitTime");
+
+                    b.Property<string>("TaskKey")
+                        .IsRequired()
+                        .HasColumnType("varchar(1)")
+                        .HasColumnName("TaskKey");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
@@ -325,6 +339,12 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
                 {
+                    b.HasOne("Duely.Domain.Models.DuelConfiguration", "Configuration")
+                        .WithMany()
+                        .HasForeignKey("ConfigurationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Duely.Domain.Models.User", "User1")
                         .WithMany("DuelsAsUser1")
                         .HasForeignKey("User1Id")
@@ -340,6 +360,8 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.HasOne("Duely.Domain.Models.User", "Winner")
                         .WithMany()
                         .HasForeignKey("WinnerId");
+
+                    b.Navigation("Configuration");
 
                     b.Navigation("User1");
 

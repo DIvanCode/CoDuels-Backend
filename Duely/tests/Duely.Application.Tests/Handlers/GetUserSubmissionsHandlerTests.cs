@@ -1,12 +1,10 @@
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Submissions;
 using Duely.Domain.Models;
 using FluentAssertions;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class GetUserSubmissionsHandlerTests : ContextBasedTest
 {
@@ -24,7 +22,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var handler = new GetUserSubmissionsHandler(ctx);
-        var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 3, DuelId = 10 }, CancellationToken.None);
+        var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 3, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is ForbiddenError);
@@ -40,13 +38,13 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
         ctx.Users.AddRange(u1, u2);
         var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK");
         ctx.Duels.Add(duel);
-        ctx.Submissions.Add(EntityFactory.MakeSubmission(1, duel, u1, time: System.DateTime.UtcNow.AddMinutes(1), status: SubmissionStatus.Running));
-        ctx.Submissions.Add(EntityFactory.MakeSubmission(2, duel, u1, time: System.DateTime.UtcNow.AddMinutes(2), status: SubmissionStatus.Done, verdict: "Accepted"));
-        ctx.Submissions.Add(EntityFactory.MakeSubmission(3, duel, u2, time: System.DateTime.UtcNow.AddMinutes(3)));
+        ctx.Submissions.Add(EntityFactory.MakeSubmission(1, duel, u1, time: System.DateTime.UtcNow.AddMinutes(1), status: SubmissionStatus.Running, taskKey: 'A'));
+        ctx.Submissions.Add(EntityFactory.MakeSubmission(2, duel, u1, time: System.DateTime.UtcNow.AddMinutes(2), status: SubmissionStatus.Done, verdict: "Accepted", taskKey: 'A'));
+        ctx.Submissions.Add(EntityFactory.MakeSubmission(3, duel, u2, time: System.DateTime.UtcNow.AddMinutes(3), taskKey: 'A'));
         await ctx.SaveChangesAsync();
 
         var handler = new GetUserSubmissionsHandler(ctx);
-        var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 1, DuelId = 10 }, CancellationToken.None);
+        var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 1, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Select(i => i.SubmissionId).Should().ContainInOrder(1, 2);

@@ -1,10 +1,10 @@
+using Duely.Application.Services.Outbox.Payloads;
+using Duely.Application.Services.Outbox.Relay;
+using Duely.Domain.Models;
+using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentResults;
-using Duely.Application.UseCases.Payloads;        
-using Duely.Application.UseCases.Features.Outbox.Relay;     
-using Duely.Domain.Models;                                  
-using Duely.Infrastructure.Gateway.Tasks.Abstracts;         
 
-namespace Duely.Application.UseCases.Features.Outbox.Handlers;
+namespace Duely.Application.Services.Outbox.Handlers;
 
 public sealed class TestSolutionHandler(ITaskiClient client): IOutboxHandler<TestSolutionPayload>
 {

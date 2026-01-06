@@ -1,8 +1,9 @@
 using System.Text.Json;
-using FluentResults;
-using Duely.Application.UseCases.Payloads;     
+using Duely.Application.Services.Outbox.Payloads;
 using Duely.Domain.Models;
-namespace Duely.Application.UseCases.Features.Outbox.Relay;
+using FluentResults;
+
+namespace Duely.Application.Services.Outbox.Relay;
 
 public sealed class OutboxDispatcher(
     IOutboxHandler<TestSolutionPayload> testSolutionHandler,

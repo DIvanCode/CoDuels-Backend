@@ -1,11 +1,11 @@
-using Duely.Application.UseCases.Features.Outbox.Relay;
-using Duely.Application.UseCases.Payloads;
+using Duely.Application.Services.Outbox.Payloads;
+using Duely.Application.Services.Outbox.Relay;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentResults;
 
-namespace Duely.Application.UseCases.Features.Outbox.Handlers;
+namespace Duely.Application.Services.Outbox.Handlers;
 
 public sealed class SendMessageOutboxHandler(IMessageSender sender)
     : IOutboxHandler<SendMessagePayload>

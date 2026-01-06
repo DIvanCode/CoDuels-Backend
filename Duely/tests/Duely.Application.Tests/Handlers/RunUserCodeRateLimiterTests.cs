@@ -1,13 +1,10 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using Duely.Application.Services.RateLimiting;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Features.RateLimiting;
 using Duely.Domain.Models;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class RunUserCodeRateLimiterTests : ContextBasedTest
 {
@@ -185,4 +182,3 @@ public class RunUserCodeRateLimiterTests : ContextBasedTest
         result.Should().BeFalse();
     }
 }
-

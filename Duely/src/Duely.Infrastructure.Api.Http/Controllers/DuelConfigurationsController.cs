@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Duely.Infrastructure.Api.Http.Controllers;
 
 [ApiController]
-[Route("duel-configurations")]
+[Route("configurations")]
 [Authorize]
 public sealed class DuelConfigurationsController(IMediator mediator) : ControllerBase
 {
@@ -19,7 +19,7 @@ public sealed class DuelConfigurationsController(IMediator mediator) : Controlle
     {
         var command = new CreateDuelConfigurationCommand
         {
-            ShowOpponentCode = request.ShowOpponentCode,
+            ShouldShowOpponentCode = request.ShouldShowOpponentCode,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,
             TasksOrder = request.TasksOrder,
@@ -49,7 +49,7 @@ public sealed class DuelConfigurationsController(IMediator mediator) : Controlle
         var command = new UpdateDuelConfigurationCommand
         {
             Id = id,
-            ShowOpponentCode = request.ShowOpponentCode,
+            ShouldShowOpponentCode = request.ShouldShowOpponentCode,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,
             TasksOrder = request.TasksOrder,

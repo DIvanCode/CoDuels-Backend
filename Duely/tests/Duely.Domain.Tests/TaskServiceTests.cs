@@ -1,43 +1,20 @@
 ﻿using Duely.Domain.Models;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Duely.Domain.Tests;
 
 public class TaskServiceTests
 {
-    private static readonly IOptions<DuelOptions> Options = new OptionsWrapper<DuelOptions>(new DuelOptions
-    {
-        RatingToTaskLevelMapping =
-        [
-            new RatingToTaskLevelMappingItem
-            {
-                Rating = "0-599",
-                Level = 1
-            },
-            new RatingToTaskLevelMappingItem
-            {
-                Rating = "600-899",
-                Level = 2
-            },
-            new RatingToTaskLevelMappingItem
-            {
-                Rating = "900-1199",
-                Level = 3
-            }
-        ]
-    });
-    
     [Fact]
     public void ChooseTask_NoTasksProvided_ReturnsNull()
     {
         var user1 = CreateUser(1, 0);
         var user2 = CreateUser(2, 0);
         
-        var tasksService = new TaskService(Options);
-        var task = tasksService.ChooseTask(user1, user2, new List<DuelTask>().AsReadOnly());
+        var tasksService = new TaskService();
+        var task = tasksService.ChooseTask(user1, user2, 1, new List<DuelTask>().AsReadOnly());
         
         task.Should().BeNull();
     }
@@ -48,10 +25,10 @@ public class TaskServiceTests
         var user1 = CreateUser(1, 0);
         var user2 = CreateUser(2, 0);
         CreateDuel(1, user1, user2, "task-1");
-        var tasks = new List<DuelTask> {new("task-1", 1)};
+        var tasks = new List<DuelTask> { new("task-1", 1, []) };
         
-        var tasksService = new TaskService(Options);
-        var task = tasksService.ChooseTask(user1, user2, tasks.AsReadOnly());
+        var tasksService = new TaskService();
+        var task = tasksService.ChooseTask(user1, user2, 1, tasks.AsReadOnly());
         
         task.Should().BeNull();
     }
@@ -62,10 +39,14 @@ public class TaskServiceTests
         var user1 = CreateUser(1, 0);
         var user2 = CreateUser(2, 0);
         CreateDuel(1, user1, user2, "task-1");
-        var tasks = new List<DuelTask> {new("task-1", 1), new("task-2", 1)};
+        var tasks = new List<DuelTask>
+        {
+            new("task-1", 1, []),
+            new("task-2", 1, [])
+        };
         
-        var tasksService = new TaskService(Options);
-        var task = tasksService.ChooseTask(user1, user2, tasks.AsReadOnly());
+        var tasksService = new TaskService();
+        var task = tasksService.ChooseTask(user1, user2, 1, tasks.AsReadOnly());
 
         task.Should().NotBeNull();
         task!.Id.Should().Be("task-2");
@@ -73,14 +54,19 @@ public class TaskServiceTests
     }
     
     [Fact]
-    public void ChooseTask_ChooseByRating_ReturnsBestTask()
+    public void ChooseTask_ChooseByTaskLevel_ReturnsBestTask()
     {
         var user1 = CreateUser(1, 700);
         var user2 = CreateUser(2, 700);
-        var tasks = new List<DuelTask> {new("task-1", 1), new("task-2", 2), new("task-3", 3)};
+        var tasks = new List<DuelTask>
+        {
+            new("task-1", 1, []),
+            new("task-2", 2, []),
+            new("task-3", 3, [])
+        };
         
-        var tasksService = new TaskService(Options);
-        var task = tasksService.ChooseTask(user1, user2, tasks.AsReadOnly());
+        var tasksService = new TaskService();
+        var task = tasksService.ChooseTask(user1, user2, 2, tasks.AsReadOnly());
 
         task.Should().NotBeNull();
         task!.Id.Should().Be("task-2");
@@ -88,15 +74,20 @@ public class TaskServiceTests
     }
     
     [Fact]
-    public void ChooseTask_ChooseByRating_BestTaskSolved_ReturnsClosestToBestTask()
+    public void ChooseTask_ChooseByTaskLevel_BestTaskSolved_ReturnsClosestToBestTask()
     {
         var user1 = CreateUser(1, 400);
         var user2 = CreateUser(2, 400);
         CreateDuel(1, user1, user2, "task-1");
-        var tasks = new List<DuelTask> {new("task-1", 1), new("task-2", 2), new("task-3", 3)};
+        var tasks = new List<DuelTask>
+        {
+            new("task-1", 1, []),
+            new("task-2", 2, []),
+            new("task-3", 3, [])
+        };
         
-        var tasksService = new TaskService(Options);
-        var task = tasksService.ChooseTask(user1, user2, tasks.AsReadOnly());
+        var tasksService = new TaskService();
+        var task = tasksService.ChooseTask(user1, user2, 1, tasks.AsReadOnly());
 
         task.Should().NotBeNull();
         task!.Id.Should().Be("task-2");
@@ -125,11 +116,34 @@ public class TaskServiceTests
     
     private static Duel CreateDuel(int id, User u1, User u2, string task)
     {
+        const char taskKey = 'A';
+        var configuration = new DuelConfiguration
+        {
+            Id = id,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                [taskKey] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        };
+        
         var duel = new Duel
         {
             Id = id,
-            TaskId = task,
+            Configuration = configuration,
             Status = DuelStatus.Finished,
+            Tasks = new Dictionary<char, DuelTask>
+            {
+                [taskKey] = new(task, 1, [])
+            },
             StartTime = DateTime.UtcNow,
             DeadlineTime = DateTime.UtcNow.AddMinutes(30),
             EndTime = DateTime.UtcNow,

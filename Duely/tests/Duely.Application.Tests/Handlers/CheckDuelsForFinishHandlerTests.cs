@@ -1,21 +1,16 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Text.Json;
+using Duely.Application.Services.Outbox.Payloads;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
-using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Moq;
-using Xunit;
-using System.Linq;
-using System.Text.Json;
-using Duely.Application.UseCases.Payloads;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
+namespace Duely.Application.Tests.Handlers;
 
 public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 {
@@ -50,8 +45,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Winner.Should().BeNull();
         d.EndTime.Should().NotBeNull();
         var messages = await ctx.Outbox.AsNoTracking()
-        .Where(m => m.Type == OutboxType.SendMessage)
-        .ToListAsync();
+            .Where(m => m.Type == OutboxType.SendMessage)
+            .ToListAsync();
 
         messages.Should().HaveCount(2);
 
@@ -88,8 +83,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Winner!.Id.Should().Be(1);
 
         var messages = await ctx.Outbox.AsNoTracking()
-        .Where(m => m.Type == OutboxType.SendMessage)
-        .ToListAsync();
+            .Where(m => m.Type == OutboxType.SendMessage)
+            .ToListAsync();
 
         messages.Should().HaveCount(2);
 

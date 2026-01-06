@@ -67,11 +67,32 @@ public class GetDuelHandlerTests : ContextBasedTest
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
         ctx.Users.AddRange(u1, u2);
+        var configuration = new DuelConfiguration
+        {
+            Id = 0,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        };
         var duel = new Duel
         {
             Id = 10,
-            TaskId = "TASK-10",
+            Configuration = configuration,
             Status = DuelStatus.InProgress,
+            Tasks = new Dictionary<char, DuelTask>
+            {
+                ['A'] = new("TASK-10", 1, [])
+            },
             StartTime = DateTime.UtcNow,
             DeadlineTime = DateTime.UtcNow.AddMinutes(30),
             User1 = u1,
@@ -108,7 +129,8 @@ public class GetDuelHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Id.Should().Be(10);
-        res.Value.TaskId.Should().Be("TASK-10");
+        res.Value.Tasks.Should().ContainKey('A');
+        res.Value.Tasks['A'].Id.Should().Be("TASK-10");
         res.Value.Participants.Should().HaveCount(2);
         res.Value.Participants.Should().Contain(p => p.Id == 1 && p.Rating == 1500);
         res.Value.Participants.Should().Contain(p => p.Id == 2 && p.Rating == 1600);

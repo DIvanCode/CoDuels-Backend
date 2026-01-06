@@ -1,15 +1,12 @@
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using Duely.Application.Services.RateLimiting;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.UserCodeRuns;
-using Duely.Application.UseCases.Features.RateLimiting;
 using Duely.Domain.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
-using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Duely.Application.Tests.Handlers;
 
 internal sealed class DummyRunUserCodeLimiter : IRunUserCodeLimiter
 {
@@ -117,4 +114,3 @@ internal sealed class DummyRunUserCodeLimiterExceeded : IRunUserCodeLimiter
     public Task<bool> IsLimitExceededAsync(int userId, CancellationToken cancellationToken)
         => Task.FromResult(true);
 }
-

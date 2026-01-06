@@ -1,20 +1,15 @@
-using Duely.Application.UseCases.Payloads;
-using Duely.Application.UseCases.Features.Outbox.Relay;
+using Duely.Application.Services.Outbox.Payloads;
+using Duely.Application.Services.Outbox.Relay;
 using Duely.Domain.Models;
+using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.Gateway.Exesh.Abstracts;
-using Duely.Application.UseCases.Features.UserCodeRuns;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
-using Duely.Infrastructure.DataAccess.EntityFramework;
 
+namespace Duely.Application.Services.Outbox.Handlers;
 
-
-namespace Duely.Application.UseCases.Features.Outbox.Handlers;
-
-public sealed class RunUserCodeOutboxHandler (
-    IExeshClient client,
-    Context context
-) : IOutboxHandler<RunUserCodePayload>
+public sealed class RunUserCodeOutboxHandler(IExeshClient client, Context context)
+    : IOutboxHandler<RunUserCodePayload>
 {
     public OutboxType Type => OutboxType.RunUserCode;
 

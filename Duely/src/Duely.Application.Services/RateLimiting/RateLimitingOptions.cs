@@ -1,5 +1,4 @@
-namespace Duely.Application.UseCases.Features.RateLimiting;
-
+namespace Duely.Application.Services.RateLimiting;
 
 public sealed class RateLimitingOptions
 {

@@ -1,12 +1,11 @@
-using System.Threading;
-using System.Threading.Tasks;
-using Duely.Application.UseCases.Features.Outbox;
-using Duely.Application.UseCases.Features.Outbox.Relay;
+using Duely.Application.Services.Outbox;
+using Duely.Application.Services.Outbox.Relay;
 using Duely.Domain.Models;
 using FluentAssertions;
 using FluentResults;
 using Moq;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class ExecuteOutboxMessageHandlerTests
 {
@@ -64,4 +63,3 @@ public class ExecuteOutboxMessageHandlerTests
         result.Errors.Should().ContainSingle(e => e.Message == "Dispatcher error");
     }
 }
-

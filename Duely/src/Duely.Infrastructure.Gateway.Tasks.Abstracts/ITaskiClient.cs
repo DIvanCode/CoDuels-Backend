@@ -10,8 +10,6 @@ public interface ITaskiClient
         string solution,
         string language,
         CancellationToken cancellationToken);
-
-    Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken);
     
     Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken);
 }

@@ -6,7 +6,7 @@ using Duely.Domain.Services.Duels;
 using MediatR;
 using FluentResults;
 using System.Text.Json;
-using Duely.Application.UseCases.Payloads;
+using Duely.Application.Services.Outbox.Payloads;
 using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Duels;
@@ -16,9 +16,7 @@ public sealed class CheckDuelsForFinishCommand : IRequest<Result>;
 public sealed class CheckDuelsForFinishHandler(
     Context context,
     IRatingManager ratingManager,
-    ILogger<CheckDuelsForFinishHandler> logger
-    ) 
-    : IRequestHandler<CheckDuelsForFinishCommand, Result>
+    ILogger<CheckDuelsForFinishHandler> logger) : IRequestHandler<CheckDuelsForFinishCommand, Result>
 {
     public async Task<Result> Handle(CheckDuelsForFinishCommand request, CancellationToken cancellationToken)
     {
@@ -63,7 +61,7 @@ public sealed class CheckDuelsForFinishHandler(
             await FinishDuelAsync(duel, earliestAccepted.User, cancellationToken);
 
             logger.LogInformation("Duel finished. DuelId = {DuelId}, WinnerId = {Winner}, Reason = {Reason}",
-                duel.Id, duel.Winner.Id, "Accepted"
+                duel.Id, duel.Winner?.Id, "Accepted"
             );
 
             return Result.Ok();

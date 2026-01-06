@@ -1,13 +1,26 @@
 using Duely.Domain.Models;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Duely.Domain.Tests;
 
 public class RatingManagerTests
 {
-    private readonly RatingManager _ratingManager = new();
+    private readonly RatingManager _ratingManager = new(
+        Options.Create(new DuelOptions
+        {
+            DefaultMaxDurationMinutes = 30,
+            RatingToTaskLevelMapping =
+            [
+                new RatingToTaskLevelMappingItem
+                {
+                    Rating = "0-1599",
+                    Level = 1
+                }
+            ]
+        }));
 
     private static User CreateUser(int id, int rating)
     {
@@ -24,11 +37,34 @@ public class RatingManagerTests
 
     private static Duel CreateDuel(int id, User u1, User u2)
     {
+        const char taskKey = 'A';
+        var configuration = new DuelConfiguration
+        {
+            Id = id,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                [taskKey] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        };
+        
         return new Duel
         {
             Id = id,
-            TaskId = "TASK",
+            Configuration = configuration,
             Status = DuelStatus.Finished,
+            Tasks = new Dictionary<char, DuelTask>
+            {
+                [taskKey] = new("TASK", 1, [])
+            },
             StartTime = DateTime.UtcNow,
             DeadlineTime = DateTime.UtcNow.AddMinutes(30),
             EndTime = DateTime.UtcNow,

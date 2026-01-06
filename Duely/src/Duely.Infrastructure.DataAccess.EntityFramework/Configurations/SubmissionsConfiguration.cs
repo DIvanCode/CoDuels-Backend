@@ -21,6 +21,11 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
             .WithMany()
             .IsRequired();
 
+        builder.Property(s => s.TaskKey)
+            .HasColumnName("TaskKey")
+            .HasColumnType("varchar(1)")
+            .IsRequired();
+
         builder.Property(s => s.Code)
             .HasColumnName("Code")
             .HasColumnType("text")

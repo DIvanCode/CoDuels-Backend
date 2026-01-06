@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Duely.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -17,10 +18,16 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
             .ValueGeneratedOnAdd()
             .UseIdentityByDefaultColumn();
 
-        builder.Property(d => d.TaskId)
-            .HasColumnName("TaskId")
-            .HasColumnType("text")
+        builder.HasOne(d => d.Configuration)
+            .WithMany()
+            .HasPrincipalKey(c => c.Id)
             .IsRequired();
+
+        builder.Property(d => d.Tasks)
+            .HasColumnName("Tasks")
+            .HasConversion(
+                obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
+                str => JsonSerializer.Deserialize<Dictionary<char, DuelTask>>(str, new JsonSerializerOptions())!);
 
         builder.Property(d => d.Status)
             .HasColumnName("Status")

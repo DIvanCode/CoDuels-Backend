@@ -1,8 +1,8 @@
-using Duely.Infrastructure.Gateway.Exesh.Abstracts; 
+using Duely.Infrastructure.Gateway.Exesh.Abstracts;
 
-namespace Duely.Application.UseCases.Features.UserCodeRuns;
+namespace Duely.Application.Services;
 
-public class ExeshStepsBuilder
+public static class ExeshStepsBuilder
 {
     private const int DefaultTimeLimitMs = 2000;
     private const int DefaultMemoryLimitMb = 256;

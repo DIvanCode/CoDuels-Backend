@@ -2,14 +2,12 @@ using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace Duely.Application.UseCases.Features.RateLimiting;
-
+namespace Duely.Application.Services.RateLimiting;
 
 public interface ISubmissionRateLimiter
 {
     Task<bool> IsLimitExceededAsync(int userId, CancellationToken cancellationToken);
 }
-
 
 public class SubmissionRateLimiter(Context context, IOptions<RateLimitingOptions> options) : ISubmissionRateLimiter
 {

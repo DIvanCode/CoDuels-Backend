@@ -30,6 +30,7 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
         var duels = await context.Duels
             .Where(d => d.Status == DuelStatus.Finished &&
                         (d.User1.Id == query.UserId || d.User2.Id == query.UserId))
+            .Include(duel => duel.Configuration)
             .Include(duel => duel.User1)
             .Include(duel => duel.User2)
             .Include(duel => duel.Winner)
@@ -49,7 +50,8 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
                 return new DuelDto
                 {
                     Id = duel.Id,
-                    TaskId = duel.TaskId,
+                    IsRated = duel.Configuration.IsRated,
+                    ShouldShowOpponentCode = duel.Configuration.ShouldShowOpponentCode,
                     Participants = [
                         new UserDto
                         {
@@ -71,7 +73,15 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
                     StartTime = duel.StartTime,
                     DeadlineTime = duel.DeadlineTime,
                     EndTime = duel.EndTime,
-                    RatingChanges = ratingChanges
+                    RatingChanges = ratingChanges,
+                    TasksOrder = duel.Configuration.TasksOrder,
+                    // TODO: Return only visible tasks
+                    Tasks = duel.Tasks.ToDictionary(
+                        task => task.Key,
+                        task => new DuelTaskDto
+                        {
+                            Id = task.Value.Id
+                        })
                 };
             })
             .ToList();

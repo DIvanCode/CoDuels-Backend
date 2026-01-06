@@ -28,17 +28,17 @@ public sealed class GetDuelConfigurationHandler(Context context)
         return new DuelConfigurationDto
         {
             Id = configuration.Id,
-            ShowOpponentCode = configuration.ShowOpponentCode,
+            ShouldShowOpponentCode = configuration.ShouldShowOpponentCode,
             MaxDurationMinutes = configuration.MaxDurationMinutes,
             TasksCount = configuration.TasksCount,
             TasksOrder = configuration.TasksOrder,
-            Tasks = configuration.TasksConfigurations
-                .Select(c => new DuelTaskConfigurationDto
+            Tasks = configuration.TasksConfigurations.ToDictionary(
+                task => task.Key,
+                task => new DuelTaskConfigurationDto
                 {
-                    Order = c.Order,
-                    Level = c.Level,
-                    Topics = c.Topics
-                }).ToList()
+                    Level = task.Value.Level,
+                    Topics = task.Value.Topics
+                })
         };
     }
 }

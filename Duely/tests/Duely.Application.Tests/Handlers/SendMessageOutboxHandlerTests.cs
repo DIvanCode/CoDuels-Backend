@@ -1,13 +1,12 @@
-using System.Threading;
-using System.Threading.Tasks;
-using Duely.Application.UseCases.Features.Outbox.Handlers;
-using Duely.Application.UseCases.Payloads;
+using Duely.Application.Services.Outbox.Handlers;
+using Duely.Application.Services.Outbox.Payloads;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentAssertions;
 using Moq;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class SendMessageOutboxHandlerTests
 {
@@ -76,4 +75,3 @@ public class SendMessageOutboxHandlerTests
         sender.VerifyNoOtherCalls();
     }
 }
-

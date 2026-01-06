@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
-namespace Duely.Infrastructure.Gateway.Tasks;
+
+namespace Duely.Infrastructure.Gateway.Tasks.Abstracts;
 
 public sealed class TestRequest
 {

@@ -8,11 +8,11 @@ namespace Duely.Application.UseCases.Features.DuelConfigurations;
 
 public sealed class CreateDuelConfigurationCommand : IRequest<Result<DuelConfigurationDto>>
 {
-    public required bool ShowOpponentCode { get; init; }
+    public required bool ShouldShowOpponentCode { get; init; }
     public required int MaxDurationMinutes { get; init; }
     public required int TasksCount { get; init; }
     public required DuelTasksOrder TasksOrder { get; init; }
-    public required List<DuelTaskConfiguration> TasksConfigurations { get; init; }
+    public required Dictionary<char, DuelTaskConfiguration> TasksConfigurations { get; init; }
 }
 
 public sealed class CreateDuelConfigurationHandler(Context context)
@@ -24,7 +24,7 @@ public sealed class CreateDuelConfigurationHandler(Context context)
     {
         var configuration = new DuelConfiguration
         {
-            ShowOpponentCode = request.ShowOpponentCode,
+            ShouldShowOpponentCode = request.ShouldShowOpponentCode,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,
             TasksOrder = request.TasksOrder,
@@ -37,17 +37,17 @@ public sealed class CreateDuelConfigurationHandler(Context context)
         return new DuelConfigurationDto
         {
             Id = configuration.Id,
-            ShowOpponentCode = configuration.ShowOpponentCode,
+            ShouldShowOpponentCode = configuration.ShouldShowOpponentCode,
             MaxDurationMinutes = configuration.MaxDurationMinutes,
             TasksCount = configuration.TasksCount,
             TasksOrder = configuration.TasksOrder,
-            Tasks = configuration.TasksConfigurations
-                .Select(c => new DuelTaskConfigurationDto
+            Tasks = configuration.TasksConfigurations.ToDictionary(
+                task => task.Key,
+                task => new DuelTaskConfigurationDto
                 {
-                    Order = c.Order,
-                    Level = c.Level,
-                    Topics = c.Topics
-                }).ToList()
+                    Level = task.Value.Level,
+                    Topics = task.Value.Topics
+                })
         };
     }
 }

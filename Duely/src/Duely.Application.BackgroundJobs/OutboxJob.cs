@@ -1,7 +1,7 @@
-using Duely.Application.UseCases.Features.Outbox;     
-using Duely.Domain.Models;                
+using Duely.Application.Services.Outbox;
+using Duely.Application.Services.Outbox.Relay;
+using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
-using Duely.Application.UseCases.Features.Outbox.Relay;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,17 +25,15 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                 var db = scope.ServiceProvider.GetRequiredService<Context>();
                 var dispatcher = scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>();
                 var now = DateTime.UtcNow;
-
+                
                 var deleted = await db.Outbox
                     .Where(m => m.RetryUntil <= now)
                     .ExecuteDeleteAsync(cancellationToken);
-
                 if (deleted > 0)
                 {
                     logger.LogInformation("Outbox expired messages deleted. Count = {Count}", deleted);
                 }
 
-                now = DateTime.UtcNow;
                 var message = await db.Outbox
                     .Where(m => m.Status == OutboxStatus.ToDo 
                     && (m.RetryUntil > now)
@@ -76,11 +74,11 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                     {
                         message.Retries++;
                         message.Status = OutboxStatus.ToRetry;
-                        var RetryDelayMs = CalculateRetryDelayMs(
+                        var retryDelayMs = CalculateRetryDelayMs(
                             outboxOptions.InitialRetryDelayMs,
                             outboxOptions.MaxRetryDelayMs,
                             message.Retries);
-                        message.RetryAt = processedAt.AddMilliseconds(RetryDelayMs);
+                        message.RetryAt = processedAt.AddMilliseconds(retryDelayMs);
 
                         logger.LogDebug("Outbox retry scheduled. MessageId = {MessageId}, Type = {Type}, Retries = {Retries}, RetryAt = {RetryAt}",
                             message.Id, message.Type, message.Retries, message.RetryAt

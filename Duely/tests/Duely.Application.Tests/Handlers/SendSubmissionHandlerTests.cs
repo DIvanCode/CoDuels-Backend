@@ -1,16 +1,13 @@
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using Duely.Application.Services.RateLimiting;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Submissions;
-using Duely.Application.UseCases.Features.RateLimiting;
 using Duely.Domain.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
 
+namespace Duely.Application.Tests.Handlers;
 
 internal sealed class DummySubmissionRateLimiter : ISubmissionRateLimiter
 {
@@ -32,6 +29,7 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         {
             DuelId = 10,
             UserId = 1,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = "py"
         }, CancellationToken.None);
@@ -60,6 +58,7 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         {
             DuelId = 10,
             UserId = 999,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = "py"
         }, CancellationToken.None);
@@ -88,6 +87,7 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         {
             DuelId = 10,
             UserId = 1,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = "py"
         }, CancellationToken.None);

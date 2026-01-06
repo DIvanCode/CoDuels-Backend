@@ -11,11 +11,11 @@ namespace Duely.Application.UseCases.Features.DuelConfigurations;
 public sealed class UpdateDuelConfigurationCommand : IRequest<Result<DuelConfigurationDto>>
 {
     public required int Id { get; init; }
-    public required bool ShowOpponentCode { get; init; }
+    public required bool ShouldShowOpponentCode { get; init; }
     public required int MaxDurationMinutes { get; init; }
     public required int TasksCount { get; init; }
     public required DuelTasksOrder TasksOrder { get; init; }
-    public required List<DuelTaskConfiguration> TasksConfigurations { get; init; }
+    public required Dictionary<char, DuelTaskConfiguration> TasksConfigurations { get; init; }
 }
 
 public sealed class UpdateDuelConfigurationHandler(Context context)
@@ -33,7 +33,7 @@ public sealed class UpdateDuelConfigurationHandler(Context context)
             return new EntityNotFoundError(nameof(DuelConfiguration), nameof(DuelConfiguration.Id), request.Id);
         }
         
-        configuration.ShowOpponentCode = request.ShowOpponentCode;
+        configuration.ShouldShowOpponentCode = request.ShouldShowOpponentCode;
         configuration.MaxDurationMinutes = request.MaxDurationMinutes;
         configuration.TasksCount = request.TasksCount;
         configuration.TasksOrder = request.TasksOrder;
@@ -44,17 +44,17 @@ public sealed class UpdateDuelConfigurationHandler(Context context)
         return new DuelConfigurationDto
         {
             Id = configuration.Id,
-            ShowOpponentCode = configuration.ShowOpponentCode,
+            ShouldShowOpponentCode = configuration.ShouldShowOpponentCode,
             MaxDurationMinutes = configuration.MaxDurationMinutes,
             TasksCount = configuration.TasksCount,
             TasksOrder = configuration.TasksOrder,
-            Tasks = configuration.TasksConfigurations
-                .Select(c => new DuelTaskConfigurationDto
+            Tasks = configuration.TasksConfigurations.ToDictionary(
+                task => task.Key,
+                task => new DuelTaskConfigurationDto
                 {
-                    Order = c.Order,
-                    Level = c.Level,
-                    Topics = c.Topics
-                }).ToList()
+                    Level = task.Value.Level,
+                    Topics = task.Value.Topics
+                })
         };
     }
 }

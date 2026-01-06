@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Models;
+
 namespace Duely.Infrastructure.DataAccess.EntityFramework;
 
 public sealed class Context : DbContext

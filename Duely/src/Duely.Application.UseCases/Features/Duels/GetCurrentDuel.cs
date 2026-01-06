@@ -22,6 +22,7 @@ public sealed class GetCurrentDuelHandler(Context context, IRatingManager rating
         var duel = await context.Duels
             .Where(d => d.Status == DuelStatus.InProgress && 
                 (d.User1.Id == query.UserId || d.User2.Id == query.UserId))
+            .Include(d => d.Configuration)
             .Include(d => d.User1)
             .Include(d => d.User2)
             .Include(duel => duel.Winner)
@@ -41,7 +42,8 @@ public sealed class GetCurrentDuelHandler(Context context, IRatingManager rating
         return new DuelDto
         {
             Id = duel.Id,
-            TaskId = duel.TaskId,
+            IsRated = duel.Configuration.IsRated,
+            ShouldShowOpponentCode = duel.Configuration.ShouldShowOpponentCode,
             Participants = [
                 new UserDto
                 {
@@ -63,7 +65,15 @@ public sealed class GetCurrentDuelHandler(Context context, IRatingManager rating
             StartTime = duel.StartTime,
             DeadlineTime = duel.DeadlineTime,
             EndTime = duel.EndTime,
-            RatingChanges = ratingChanges
+            RatingChanges = ratingChanges,
+            TasksOrder = duel.Configuration.TasksOrder,
+            // TODO: Return only visible tasks
+            Tasks = duel.Tasks.ToDictionary(
+                task => task.Key,
+                task => new DuelTaskDto
+                {
+                    Id = task.Value.Id
+                })
         };
     }
 }

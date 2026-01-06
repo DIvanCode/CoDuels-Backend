@@ -1,6 +1,7 @@
-using FluentResults;
 using Duely.Domain.Models;
-namespace Duely.Application.UseCases.Features.Outbox.Relay;
+using FluentResults;
+
+namespace Duely.Application.Services.Outbox.Relay;
 
 public interface IOutboxDispatcher
 {

@@ -9,16 +9,16 @@ public enum DuelTasksOrder
 public sealed class DuelConfiguration
 {
     public int Id { get; init; }
-    public bool ShowOpponentCode { get; set; }
+    public bool IsRated { get; set; }
+    public bool ShouldShowOpponentCode { get; set; }
     public int MaxDurationMinutes { get; set; }
     public int TasksCount { get; set; }
     public DuelTasksOrder TasksOrder { get; set; }
-    public List<DuelTaskConfiguration> TasksConfigurations { get; set; }
+    public Dictionary<char, DuelTaskConfiguration> TasksConfigurations { get; set; } = [];
 }
 
 public sealed class DuelTaskConfiguration
 {
-    public required int Order { get; set; }
     public required int Level { get; set; }
     public required string[] Topics { get; set; }
 }
