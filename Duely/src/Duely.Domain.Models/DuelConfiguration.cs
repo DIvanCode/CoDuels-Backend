@@ -1,0 +1,24 @@
+﻿namespace Duely.Domain.Models;
+
+public enum DuelTasksOrder
+{
+    Sequential = 0,
+    Parallel = 1
+}
+
+public sealed class DuelConfiguration
+{
+    public int Id { get; init; }
+    public bool ShowOpponentCode { get; set; }
+    public int MaxDurationMinutes { get; set; }
+    public int TasksCount { get; set; }
+    public DuelTasksOrder TasksOrder { get; set; }
+    public List<DuelTaskConfiguration> TasksConfigurations { get; set; }
+}
+
+public sealed class DuelTaskConfiguration
+{
+    public required int Order { get; set; }
+    public required int Level { get; set; }
+    public required string[] Topics { get; set; }
+}
