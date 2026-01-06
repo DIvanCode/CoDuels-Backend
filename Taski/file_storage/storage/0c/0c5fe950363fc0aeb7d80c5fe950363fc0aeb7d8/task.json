@@ -3,6 +3,10 @@
     "title": "RMQ",
     "type": "write_code",
     "level": 1,
+    "topics": [
+        "структуры данных",
+        "дерево отрезков"
+    ],
     "statement": "statement.md",
     "tl": 1000,
     "ml": 256,

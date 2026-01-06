@@ -2,9 +2,10 @@ package task
 
 type Task interface {
 	GetID() ID
+	GetTitle() string
 	GetType() Type
 	GetLevel() Level
-	GetTitle() string
+	GetTopics() []string
 	GetStatement() string
 	GetTests() []Test
 }
