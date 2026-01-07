@@ -15,7 +15,7 @@ public sealed class GetDuelQuery : IRequest<Result<DuelDto>>
     public required int DuelId { get; init; }
 }
 
-public sealed class GetDuelHandler(Context context, IRatingManager ratingManager)
+public sealed class GetDuelHandler(Context context, IRatingManager ratingManager, ITaskService taskService)
     : IRequestHandler<GetDuelQuery, Result<DuelDto>>
 {
     public async Task<Result<DuelDto>> Handle(GetDuelQuery query, CancellationToken cancellationToken)
@@ -26,6 +26,8 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
             .Include(d => d.User1)
             .Include(d => d.User2)
             .Include(duel => duel.Winner)
+            .Include(d => d.Submissions)
+            .ThenInclude(s => s.User)
             .SingleOrDefaultAsync(cancellationToken);
         if (duel is null)
         {
@@ -43,6 +45,8 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
             [duel.User1.Id] = ratingManager.GetRatingChanges(duel, duel.User1InitRating, duel.User2InitRating),
             [duel.User2.Id] = ratingManager.GetRatingChanges(duel, duel.User2InitRating, duel.User1InitRating)
         };
+
+        var visibleTasks = taskService.GetVisibleTasks(duel, query.UserId);
         
         return new DuelDto
         {
@@ -71,9 +75,7 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
             DeadlineTime = duel.DeadlineTime,
             EndTime = duel.EndTime,
             RatingChanges = ratingChanges,
-            TasksOrder = duel.Configuration.TasksOrder,
-            // TODO: Return only visible tasks
-            Tasks = duel.Tasks.ToDictionary(
+            Tasks = visibleTasks.ToDictionary(
                 task => task.Key,
                 task => new DuelTaskDto
                 {

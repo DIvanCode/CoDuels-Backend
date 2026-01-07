@@ -28,7 +28,7 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetCurrentDuelQuery
         {
@@ -99,7 +99,7 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetCurrentDuelQuery
         {
@@ -139,7 +139,7 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetCurrentDuelQuery
         {
@@ -165,7 +165,7 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetCurrentDuelQuery
         {

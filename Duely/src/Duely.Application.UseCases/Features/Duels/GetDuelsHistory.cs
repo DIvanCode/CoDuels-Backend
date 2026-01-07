@@ -14,7 +14,7 @@ public sealed class GetDuelsHistoryQuery : IRequest<Result<List<DuelDto>>>
     public required int UserId { get; init; }
 }
 
-public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratingManager)
+public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratingManager, ITaskService taskService)
     : IRequestHandler<GetDuelsHistoryQuery, Result<List<DuelDto>>>
 {
     public async Task<Result<List<DuelDto>>> Handle(GetDuelsHistoryQuery query, CancellationToken cancellationToken)
@@ -34,6 +34,8 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
             .Include(duel => duel.User1)
             .Include(duel => duel.User2)
             .Include(duel => duel.Winner)
+            .Include(duel => duel.Submissions)
+            .ThenInclude(s => s.User)
             .OrderByDescending(d => d.StartTime)
             .ToListAsync(cancellationToken);
 
@@ -46,6 +48,8 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
                     [duel.User1.Id] = ratingManager.GetRatingChanges(duel, duel.User1InitRating, duel.User2InitRating),
                     [duel.User2.Id] = ratingManager.GetRatingChanges(duel, duel.User2InitRating, duel.User1InitRating)
                 };
+
+                var visibleTasks = taskService.GetVisibleTasks(duel, query.UserId);
         
                 return new DuelDto
                 {
@@ -74,9 +78,7 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
                     DeadlineTime = duel.DeadlineTime,
                     EndTime = duel.EndTime,
                     RatingChanges = ratingChanges,
-                    TasksOrder = duel.Configuration.TasksOrder,
-                    // TODO: Return only visible tasks
-                    Tasks = duel.Tasks.ToDictionary(
+                    Tasks = visibleTasks.ToDictionary(
                         task => task.Key,
                         task => new DuelTaskDto
                         {

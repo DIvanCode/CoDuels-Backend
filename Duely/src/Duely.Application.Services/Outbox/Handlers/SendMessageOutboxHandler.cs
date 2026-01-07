@@ -18,6 +18,7 @@ public sealed class SendMessageOutboxHandler(IMessageSender sender)
         {
             MessageType.DuelStarted => new DuelStartedMessage { DuelId = payload.DuelId },
             MessageType.DuelFinished => new DuelFinishedMessage { DuelId = payload.DuelId },
+            MessageType.DuelChanged => new DuelChangedMessage { DuelId = payload.DuelId },
             _ => throw new ArgumentOutOfRangeException(nameof(payload.Type), payload.Type, null)
         };
 

@@ -9,6 +9,7 @@ using System.Text.Json;
 using Duely.Application.Services.Outbox.Payloads;
 using Duely.Application.Services.RateLimiting;
 using Microsoft.Extensions.Logging;
+using Duely.Domain.Services.Duels;
 
 namespace Duely.Application.UseCases.Features.Submissions;
 
@@ -21,7 +22,11 @@ public sealed record SendSubmissionCommand : IRequest<Result<SubmissionDto>>
     public required string Language { get; init; }
 }
 
-public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimiter submissionLimiter, ILogger<SendSubmissionHandler> logger)
+public sealed class SendSubmissionHandler(
+    Context context,
+    ISubmissionRateLimiter submissionLimiter,
+    ITaskService taskService,
+    ILogger<SendSubmissionHandler> logger)
     : IRequestHandler<SendSubmissionCommand, Result<SubmissionDto>>
 {
     public async Task<Result<SubmissionDto>> Handle(SendSubmissionCommand command, CancellationToken cancellationToken)
@@ -37,6 +42,9 @@ public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimite
         var duel = await context.Duels
             .Include(d => d.User1)
             .Include(d => d.User2)
+            .Include(d => d.Configuration)
+            .Include(d => d.Submissions)
+            .ThenInclude(s => s.User)
             .SingleOrDefaultAsync(d => d.Id == command.DuelId, cancellationToken);
             
         if (duel is null)
@@ -54,10 +62,20 @@ public sealed class SendSubmissionHandler(Context context, ISubmissionRateLimite
         {
             return new ForbiddenError(nameof(Duel), "send submission to", nameof(Duel.Id), command.DuelId);
         }
+
+        if (duel.Status == DuelStatus.Pending)
+        {
+            return new ForbiddenError(nameof(Duel), "send submission to", nameof(Duel.Id), command.DuelId);
+        }
         
         if (!duel.Tasks.TryGetValue(command.TaskKey, out _))
         {
             return new EntityNotFoundError(nameof(DuelTask), "key", command.TaskKey);
+        }
+
+        if (!taskService.IsTaskVisible(duel, command.UserId, command.TaskKey))
+        {
+            return new ForbiddenError(nameof(DuelTask), "submit to", "key", command.TaskKey);
         }
         
         var isUpsolve = duel.Status == DuelStatus.Finished;

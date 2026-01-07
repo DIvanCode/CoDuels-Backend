@@ -3,6 +3,7 @@ using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Submissions;
 using Duely.Domain.Models;
+using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -22,8 +23,9 @@ public class SendSubmissionHandlerTests : ContextBasedTest
     {
         var ctx = Context;
         var limiter = new DummySubmissionRateLimiter();
+        var taskService = new TaskService();
 
-        var handler = new SendSubmissionHandler(ctx, limiter, NullLogger<SendSubmissionHandler>.Instance);
+        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
@@ -51,8 +53,9 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var limiter = new DummySubmissionRateLimiter();
+        var taskService = new TaskService();
 
-        var handler = new SendSubmissionHandler(ctx, limiter, NullLogger<SendSubmissionHandler>.Instance);
+        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
@@ -80,8 +83,9 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var limiter = new DummySubmissionRateLimiter();
+        var taskService = new TaskService();
 
-        var handler = new SendSubmissionHandler(ctx, limiter, NullLogger<SendSubmissionHandler>.Instance);
+        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {

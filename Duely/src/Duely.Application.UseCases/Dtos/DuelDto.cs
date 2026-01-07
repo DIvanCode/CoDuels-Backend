@@ -35,9 +35,6 @@ public sealed class DuelDto
     [JsonPropertyName("rating_changes")]
     public required Dictionary<int, Dictionary<DuelResult, int>> RatingChanges { get; init; }
     
-    [JsonPropertyName("tasks_order"), JsonConverter(typeof(JsonStringEnumConverter))]
-    public required DuelTasksOrder TasksOrder { get; init; }
-    
     [JsonPropertyName("tasks")]
     public required Dictionary<char, DuelTaskDto> Tasks { get; init; }
 }

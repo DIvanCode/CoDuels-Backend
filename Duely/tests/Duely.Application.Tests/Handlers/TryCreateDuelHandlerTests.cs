@@ -69,12 +69,20 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var taski = new TaskiClientSuccessFake(["TASK-42"]);
         
         var taskService = new Mock<ITaskService>();
-        taskService.Setup(s => s.ChooseTask(
+        taskService.Setup(s => s.TryChooseTasks(
                 It.IsAny<User>(),
                 It.IsAny<User>(),
-                It.IsAny<int>(),
-                It.IsAny<IReadOnlyCollection<DuelTask>>()))
-            .Returns(new DuelTask("TASK-42", 1, []));
+                It.IsAny<DuelConfiguration>(),
+                It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                out It.Ref<Dictionary<char, DuelTask>>.IsAny))
+            .Returns(true)
+            .Callback(new TryChooseTasksCallback((User _, User _, DuelConfiguration _, IReadOnlyCollection<DuelTask> _, out Dictionary<char, DuelTask> chosen) =>
+            {
+                chosen = new Dictionary<char, DuelTask>
+                {
+                    ['A'] = new("TASK-42", 1, [])
+                };
+            }));
 
         var ratingManager = new Mock<IRatingManager>();
         ratingManager.Setup(m => m.GetTaskLevel(It.IsAny<int>())).Returns(1);
@@ -123,7 +131,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
     }
     
     [Fact]
-    public async Task Creates_duel_with_random_task_when_no_chosen_task()
+    public async Task Fails_when_tasks_not_selected()
     {
         var ctx = Context;
 
@@ -137,12 +145,13 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var taski = new TaskiClientSuccessFake(["RANDOM_TASK"]);
         
         var taskService = new Mock<ITaskService>();
-        taskService.Setup(s => s.ChooseTask(
+        taskService.Setup(s => s.TryChooseTasks(
                 It.IsAny<User>(),
                 It.IsAny<User>(),
-                It.IsAny<int>(),
-                It.IsAny<IReadOnlyCollection<DuelTask>>()))
-            .Returns((DuelTask)null!);
+                It.IsAny<DuelConfiguration>(),
+                It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                out It.Ref<Dictionary<char, DuelTask>>.IsAny))
+            .Returns(false);
 
         var ratingManager = new Mock<IRatingManager>();
         ratingManager.Setup(m => m.GetTaskLevel(It.IsAny<int>())).Returns(1);
@@ -163,29 +172,14 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
-        var duel = await ctx.Duels
-            .Include(d => d.User1)
-            .Include(d => d.User2)
-            .SingleAsync();
-        duel.Tasks.Should().ContainKey('A');
-        duel.Tasks['A'].Id.Should().Be("RANDOM_TASK");
-        duel.Status.Should().Be(DuelStatus.InProgress);
-        duel.User1!.Id.Should().Be(1);
-        duel.User2!.Id.Should().Be(2);
-
-        var messages = await ctx.Outbox.AsNoTracking()
-            .Where(m => m.Type == OutboxType.SendMessage)
-            .ToListAsync();
-
-        messages.Should().HaveCount(2);
-
-        foreach (var m in messages)
-        {
-            m.RetryUntil.Should().Be(duel.DeadlineTime.AddMinutes(5));
-
-            var p = ReadSendPayload(m);
-            p.Type.Should().Be(MessageType.DuelStarted);
-            p.DuelId.Should().Be(duel.Id);
-        }
+        res.IsFailed.Should().BeTrue();
+        (await ctx.Duels.AsNoTracking().ToListAsync()).Should().BeEmpty();
     }
+
+    private delegate void TryChooseTasksCallback(
+        User user1,
+        User user2,
+        DuelConfiguration configuration,
+        IReadOnlyCollection<DuelTask> tasks,
+        out Dictionary<char, DuelTask> chosenTasks);
 }

@@ -16,6 +16,7 @@ public sealed class CheckDuelsForFinishCommand : IRequest<Result>;
 public sealed class CheckDuelsForFinishHandler(
     Context context,
     IRatingManager ratingManager,
+    ITaskService taskService,
     ILogger<CheckDuelsForFinishHandler> logger) : IRequestHandler<CheckDuelsForFinishCommand, Result>
 {
     public async Task<Result> Handle(CheckDuelsForFinishCommand request, CancellationToken cancellationToken)
@@ -41,27 +42,14 @@ public sealed class CheckDuelsForFinishHandler(
             return Result.Ok();
         }
 
-        var earliestAccepted = duel.Submissions
-            .Where(s =>
-                s.SubmitTime <= duel.DeadlineTime &&
-                s.Status == SubmissionStatus.Done &&
-                s.Verdict == "Accepted")
-            .OrderBy(s => s.SubmitTime)
-            .FirstOrDefault();
-
-        if (earliestAccepted is not null)
+        var taskWinners = taskService.GetSolvedTaskWinners(duel);
+        if (AreAllTasksSolved(duel, taskWinners))
         {
-            var evenEarlierNotDone = duel.Submissions.Any(s =>
-                s.Status != SubmissionStatus.Done && s.SubmitTime <= earliestAccepted.SubmitTime);
-            if (evenEarlierNotDone)
-            {
-                return Result.Ok();
-            }
-
-            await FinishDuelAsync(duel, earliestAccepted.User, cancellationToken);
+            var winner = GetWinnerBySolvedTasks(duel, taskWinners);
+            await FinishDuelAsync(duel, winner, cancellationToken);
 
             logger.LogInformation("Duel finished. DuelId = {DuelId}, WinnerId = {Winner}, Reason = {Reason}",
-                duel.Id, duel.Winner?.Id, "Accepted"
+                duel.Id, duel.Winner?.Id, "AllTasksSolved"
             );
 
             return Result.Ok();
@@ -76,7 +64,8 @@ public sealed class CheckDuelsForFinishHandler(
                 return Result.Ok();
             }
 
-            await FinishDuelAsync(duel, null, cancellationToken);
+            var winner = GetWinnerBySolvedTasks(duel, taskWinners);
+            await FinishDuelAsync(duel, winner, cancellationToken);
             
             logger.LogInformation("Duel finished. DuelId = {DuelId}, Reason = {Reason}",
                 duel.Id, "Deadline"
@@ -130,5 +119,21 @@ public sealed class CheckDuelsForFinishHandler(
         
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static bool AreAllTasksSolved(Duel duel, IReadOnlyDictionary<char, int> taskWinners)
+        => duel.Tasks.Count > 0 && taskWinners.Count == duel.Tasks.Count;
+
+    private static User? GetWinnerBySolvedTasks(Duel duel, IReadOnlyDictionary<char, int> taskWinners)
+    {
+        var user1Solved = taskWinners.Values.Count(id => id == duel.User1.Id);
+        var user2Solved = taskWinners.Values.Count(id => id == duel.User2.Id);
+
+        if (user1Solved == user2Solved)
+        {
+            return null;
+        }
+
+        return user1Solved > user2Solved ? duel.User1 : duel.User2;
     }
 }

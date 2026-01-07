@@ -20,7 +20,7 @@ public class GetDuelHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -47,7 +47,7 @@ public class GetDuelHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -119,7 +119,7 @@ public class GetDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -159,7 +159,7 @@ public class GetDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -195,7 +195,7 @@ public class GetDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetDuelQuery
         {

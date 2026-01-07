@@ -56,15 +56,6 @@ public sealed class TryCreateDuelHandler(
             return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.Value.User2);
         }
 
-        var avgRating = (user1.Rating + user2.Rating) / 2;
-        var taskLevel = ratingManager.GetTaskLevel(avgRating);
-
-        var taskResult = await ChooseTaskAsync(user1, user2, taskLevel, cancellationToken);
-        if (taskResult.IsFailed)
-        {
-            return taskResult.ToResult();
-        }
-
         var configuration = new DuelConfiguration
         {
             IsRated = true,
@@ -76,11 +67,17 @@ public sealed class TryCreateDuelHandler(
             {
                 [DefaultTaskKey] = new()
                 {
-                    Level = taskLevel,
+                    Level = ratingManager.GetTaskLevel((user1.Rating + user2.Rating) / 2),
                     Topics = []
                 }
             }
         };
+
+        var tasksResult = await ChooseTasksAsync(user1, user2, configuration, cancellationToken);
+        if (tasksResult.IsFailed)
+        {
+            return tasksResult.ToResult();
+        }
 
         var startTime = DateTime.UtcNow;
         var deadlineTime = startTime.AddMinutes(configuration.MaxDurationMinutes);
@@ -88,10 +85,7 @@ public sealed class TryCreateDuelHandler(
         {
             Status = DuelStatus.InProgress,
             Configuration = configuration,
-            Tasks = new Dictionary<char, DuelTask>
-            {
-                [DefaultTaskKey] = new(taskResult.Value.Id, taskResult.Value.Level, taskResult.Value.Topics)
-            },
+            Tasks = tasksResult.Value,
             StartTime = startTime,
             DeadlineTime = deadlineTime,
             User1 = user1,
@@ -139,16 +133,16 @@ public sealed class TryCreateDuelHandler(
 
         logger.LogInformation(
             "Duel started. DuelId = {DuelId}, Users = {User1}, {User2}, TaskId = {TaskId}, Deadline = {Deadline}",
-            duel.Id, duel.User1.Id, duel.User2.Id, taskResult.Value.Id, duel.DeadlineTime
+            duel.Id, duel.User1.Id, duel.User2.Id, duel.Tasks[DefaultTaskKey].Id, duel.DeadlineTime
         );
 
         return Result.Ok();
     }
 
-    private async Task<Result<DuelTask>> ChooseTaskAsync(
+    private async Task<Result<Dictionary<char, DuelTask>>> ChooseTasksAsync(
         User user1,
         User user2,
-        int taskLevel,
+        DuelConfiguration configuration,
         CancellationToken cancellationToken)
     {
         var tasksList = await taskiClient.GetTasksListAsync(cancellationToken);
@@ -157,14 +151,12 @@ public sealed class TryCreateDuelHandler(
             return tasksList.ToResult();
         }
 
-        var tasks = tasksList.Value.Tasks.Select(t => new DuelTask(t.Id, t.Level, t.Topics)).ToList(); 
-        var chosenTask = taskService.ChooseTask(user1, user2, taskLevel, tasks);
-        if (chosenTask is not null)
+        var tasks = tasksList.Value.Tasks.Select(t => new DuelTask(t.Id, t.Level, t.Topics)).ToList();
+        if (!taskService.TryChooseTasks(user1, user2, configuration, tasks, out var chosenTasks))
         {
-            return chosenTask;
+            return new EntityNotFoundError(nameof(DuelTask), "configuration", configuration.Id);
         }
 
-        var randomTask = tasksList.Value.Tasks[Random.Shared.Next(tasksList.Value.Tasks.Count)];
-        return new DuelTask(randomTask.Id, randomTask.Level, randomTask.Topics);
+        return chosenTasks;
     }
 }
