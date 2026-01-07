@@ -103,6 +103,7 @@ public class TaskServiceTests
         var configuration = new DuelConfiguration
         {
             Id = 1,
+            Owner = user1,
             MaxDurationMinutes = 30,
             IsRated = true,
             ShouldShowOpponentCode = false,
@@ -160,7 +161,7 @@ public class TaskServiceTests
     }
 
     [Fact]
-    public void GetVisibleTasks_Sequential_ReturnsUserSolvedAndFirstUnsolved()
+    public void GetVisibleTasks_Sequential_ReturnsSolvedTasksAndFirstUnsolved()
     {
         var user1 = CreateUser(1, 0);
         var user2 = CreateUser(2, 0);
@@ -181,8 +182,114 @@ public class TaskServiceTests
         var visible = tasksService.GetVisibleTasks(duel, user1.Id);
 
         visible.Should().ContainKey('A');
+        visible.Should().ContainKey('B');
         visible.Should().ContainKey('C');
-        visible.Should().NotContainKey('B');
+    }
+
+    [Fact]
+    public void TryChooseTasks_AssignsBestTaskToBestPosition()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+
+        var configuration = new DuelConfiguration
+        {
+            Id = 2,
+            Owner = user1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 2,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 1,
+                    Topics = ["dp"]
+                },
+                ['B'] = new()
+                {
+                    Level = 3,
+                    Topics = ["graphs"]
+                }
+            }
+        };
+
+        var tasks = new List<DuelTask>
+        {
+            new("task-1", 3, ["graphs"]),
+            new("task-2", 1, ["dp", "math"])
+        };
+
+        var tasksService = new TaskService();
+        var success = tasksService.TryChooseTasks(user1, user2, configuration, tasks, out var chosen);
+
+        success.Should().BeTrue();
+        chosen['A'].Id.Should().Be("task-2");
+        chosen['B'].Id.Should().Be("task-1");
+    }
+
+    [Fact]
+    public void TryChooseTasks_PicksBestPartialMatchWhenFullMatchMissing()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+
+        var configuration = new DuelConfiguration
+        {
+            Id = 3,
+            Owner = user1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 3,
+                    Topics = ["dp", "graphs"]
+                }
+            }
+        };
+
+        var tasks = new List<DuelTask>
+        {
+            new("task-1", 3, ["dp"]),
+            new("task-2", 5, ["graphs"])
+        };
+
+        var tasksService = new TaskService();
+        var success = tasksService.TryChooseTasks(user1, user2, configuration, tasks, out var chosen);
+
+        success.Should().BeTrue();
+        chosen['A'].Id.Should().Be("task-1");
+    }
+
+    [Fact]
+    public void GetVisibleTasks_Sequential_ReturnsAllTasksWhenAllSolved()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+        var now = DateTime.UtcNow;
+
+        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        {
+            ['A'] = new("task-1", 1, []),
+            ['B'] = new("task-2", 1, [])
+        });
+
+        duel.Submissions.Add(MakeSubmission(1, duel, user1, 'A', now.AddSeconds(1), SubmissionStatus.Done, "Accepted"));
+        duel.Submissions.Add(MakeSubmission(2, duel, user2, 'B', now.AddSeconds(2), SubmissionStatus.Done, "Accepted"));
+
+        var tasksService = new TaskService();
+
+        var visible = tasksService.GetVisibleTasks(duel, user1.Id);
+
+        visible.Should().ContainKey('A');
+        visible.Should().ContainKey('B');
     }
 
     [Fact]
@@ -231,6 +338,7 @@ public class TaskServiceTests
         var configuration = new DuelConfiguration
         {
             Id = id,
+            Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
             ShouldShowOpponentCode = false,
@@ -278,6 +386,7 @@ public class TaskServiceTests
         var configuration = new DuelConfiguration
         {
             Id = id,
+            Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
             ShouldShowOpponentCode = false,

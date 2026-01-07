@@ -9,6 +9,7 @@ public enum DuelTasksOrder
 public sealed class DuelConfiguration
 {
     public int Id { get; init; }
+    public User? Owner { get; init; }
     public bool IsRated { get; set; }
     public bool ShouldShowOpponentCode { get; set; }
     public int MaxDurationMinutes { get; set; }

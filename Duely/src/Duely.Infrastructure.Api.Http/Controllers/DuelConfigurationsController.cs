@@ -4,13 +4,14 @@ using Duely.Infrastructure.Api.Http.Requests.DuelConfigurations;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Duely.Infrastructure.Api.Http.Services;
 
 namespace Duely.Infrastructure.Api.Http.Controllers;
 
 [ApiController]
 [Route("configurations")]
 [Authorize]
-public sealed class DuelConfigurationsController(IMediator mediator) : ControllerBase
+public sealed class DuelConfigurationsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<DuelConfigurationDto>> CreateAsync(
@@ -19,6 +20,7 @@ public sealed class DuelConfigurationsController(IMediator mediator) : Controlle
     {
         var command = new CreateDuelConfigurationCommand
         {
+            UserId = userContext.UserId,
             ShouldShowOpponentCode = request.ShouldShowOpponentCode,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,
@@ -49,6 +51,7 @@ public sealed class DuelConfigurationsController(IMediator mediator) : Controlle
         var command = new UpdateDuelConfigurationCommand
         {
             Id = id,
+            UserId = userContext.UserId,
             ShouldShowOpponentCode = request.ShouldShowOpponentCode,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,
@@ -65,7 +68,7 @@ public sealed class DuelConfigurationsController(IMediator mediator) : Controlle
         [FromRoute] int id,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new DeleteDuelConfigurationCommand(id), cancellationToken);
+        var result = await mediator.Send(new DeleteDuelConfigurationCommand(id, userContext.UserId), cancellationToken);
         return this.HandleResult(result);
     }
 }

@@ -11,6 +11,7 @@ namespace Duely.Application.UseCases.Features.DuelConfigurations;
 public sealed class UpdateDuelConfigurationCommand : IRequest<Result<DuelConfigurationDto>>
 {
     public required int Id { get; init; }
+    public required int UserId { get; init; }
     public required bool ShouldShowOpponentCode { get; init; }
     public required int MaxDurationMinutes { get; init; }
     public required int TasksCount { get; init; }
@@ -25,12 +26,17 @@ public sealed class UpdateDuelConfigurationHandler(Context context)
         UpdateDuelConfigurationCommand request,
         CancellationToken cancellationToken)
     {
-        var configuration = await context.DuelConfigurations.SingleOrDefaultAsync(
-            c => c.Id == request.Id,
-            cancellationToken);
+        var configuration = await context.DuelConfigurations
+            .Include(c => c.Owner)
+            .SingleOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
         if (configuration is null)
         {
             return new EntityNotFoundError(nameof(DuelConfiguration), nameof(DuelConfiguration.Id), request.Id);
+        }
+
+        if (configuration.Owner?.Id != request.UserId)
+        {
+            return new ForbiddenError(nameof(DuelConfiguration), "update", nameof(DuelConfiguration.Id), request.Id);
         }
         
         configuration.ShouldShowOpponentCode = request.ShouldShowOpponentCode;

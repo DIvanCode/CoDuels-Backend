@@ -282,6 +282,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var configuration = new DuelConfiguration
         {
             Id = 70,
+            Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
             ShouldShowOpponentCode = false,
@@ -341,6 +342,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var configuration = new DuelConfiguration
         {
             Id = 80,
+            Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
             ShouldShowOpponentCode = false,

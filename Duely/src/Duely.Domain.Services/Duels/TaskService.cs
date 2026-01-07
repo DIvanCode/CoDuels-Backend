@@ -59,18 +59,23 @@ public sealed class TaskService : ITaskService
             availableTasks = tasks.ToList();
         }
 
-        foreach (var configEntry in configuration.TasksConfigurations.OrderBy(kv => kv.Key))
+        var remainingConfigurations = configuration.TasksConfigurations
+            .OrderBy(kv => kv.Key)
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        while (remainingConfigurations.Count > 0)
         {
-            var bestTask = SelectBestTask(availableTasks, configEntry.Value);
-            if (bestTask is null)
+            var bestPair = SelectBestTaskAssignment(availableTasks, remainingConfigurations);
+            if (bestPair is null)
             {
                 return false;
             }
 
-            chosenTasks[configEntry.Key] = bestTask;
-            availableTasks.Remove(bestTask);
+            chosenTasks[bestPair.Value.TaskKey] = bestPair.Value.Task;
+            availableTasks.Remove(bestPair.Value.Task);
+            remainingConfigurations.Remove(bestPair.Value.TaskKey);
 
-            if (availableTasks.Count == 0 && chosenTasks.Count < configuration.TasksConfigurations.Count)
+            if (availableTasks.Count == 0 && remainingConfigurations.Count > 0)
             {
                 return false;
             }
@@ -87,8 +92,7 @@ public sealed class TaskService : ITaskService
         }
 
         var winners = GetSolvedTaskWinners(duel);
-        var visibleKeys = new HashSet<char>(
-            winners.Where(kv => kv.Value == userId).Select(kv => kv.Key));
+        var visibleKeys = new HashSet<char>(winners.Keys);
 
         var orderedKeys = duel.Tasks.Keys.OrderBy(k => k).ToList();
         var hasUnsolved = orderedKeys.Any(k => !winners.ContainsKey(k));
@@ -169,9 +173,11 @@ public sealed class TaskService : ITaskService
             {
                 Task = task,
                 TopicMatches = CountTopicMatches(task.Topics, requiredTopics),
-                LevelDiff = Math.Abs(task.Level - configuration.Level)
+                LevelDiff = Math.Abs(task.Level - configuration.Level),
+                FullMatch = requiredTopics.Length > 0 && ContainsAllTopics(task.Topics, requiredTopics)
             })
-            .OrderByDescending(x => x.TopicMatches)
+            .OrderByDescending(x => x.FullMatch)
+            .ThenByDescending(x => x.TopicMatches)
             .ThenBy(x => x.LevelDiff)
             .ThenBy(_ => Random.Shared.Next())
             .First()
@@ -196,5 +202,76 @@ public sealed class TaskService : ITaskService
         }
 
         return count;
+    }
+
+    private static bool ContainsAllTopics(string[] taskTopics, string[] requiredTopics)
+    {
+        if (requiredTopics.Length == 0)
+        {
+            return true;
+        }
+
+        if (taskTopics.Length == 0)
+        {
+            return false;
+        }
+
+        var taskTopicsSet = new HashSet<string>(taskTopics);
+        foreach (var topic in requiredTopics)
+        {
+            if (!taskTopicsSet.Contains(topic))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private readonly record struct TaskAssignment(char TaskKey, DuelTask Task);
+
+    private static TaskAssignment? SelectBestTaskAssignment(
+        IReadOnlyCollection<DuelTask> tasks,
+        IReadOnlyDictionary<char, DuelTaskConfiguration> configurations)
+    {
+        TaskAssignment? bestAssignment = null;
+        var bestScore = (FullMatch: false, TopicMatches: -1, LevelDiff: int.MaxValue);
+
+        foreach (var task in tasks)
+        {
+            foreach (var configEntry in configurations)
+            {
+                var requiredTopics = configEntry.Value.Topics ?? [];
+                var topicMatches = CountTopicMatches(task.Topics, requiredTopics);
+                var levelDiff = Math.Abs(task.Level - configEntry.Value.Level);
+                var fullMatch = ContainsAllTopics(task.Topics, requiredTopics);
+
+                var candidateScore = (fullMatch, topicMatches, levelDiff);
+                if (IsBetterScore(candidateScore, bestScore))
+                {
+                    bestScore = candidateScore;
+                    bestAssignment = new TaskAssignment(configEntry.Key, task);
+                }
+            }
+        }
+
+        return bestAssignment;
+    }
+
+    private static bool IsBetterScore(
+        (bool FullMatch, int TopicMatches, int LevelDiff) candidate,
+        (bool FullMatch, int TopicMatches, int LevelDiff) current)
+    {
+        if (candidate.FullMatch != current.FullMatch)
+        {
+            return candidate.FullMatch;
+        }
+
+        if (candidate.TopicMatches != current.TopicMatches)
+        {
+            return candidate.TopicMatches > current.TopicMatches;
+        }
+
+        return candidate.LevelDiff < current.LevelDiff;
     }
 }

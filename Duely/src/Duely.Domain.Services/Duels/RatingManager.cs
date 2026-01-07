@@ -12,6 +12,13 @@ public sealed class RatingManager(IOptions<DuelOptions> options) : IRatingManage
 {
     public void UpdateRatings(Duel duel)
     {
+        if (!duel.Configuration.IsRated)
+        {
+            duel.User1FinalRating = duel.User1InitRating;
+            duel.User2FinalRating = duel.User2InitRating;
+            return;
+        }
+
         var rating1 = duel.User1InitRating;
         var rating2 = duel.User2InitRating;
         
@@ -41,6 +48,16 @@ public sealed class RatingManager(IOptions<DuelOptions> options) : IRatingManage
 
     public Dictionary<DuelResult, int> GetRatingChanges(Duel duel, int rating, int anotherRating)
     {
+        if (!duel.Configuration.IsRated)
+        {
+            return new Dictionary<DuelResult, int>
+            {
+                [DuelResult.Win] = 0,
+                [DuelResult.Draw] = 0,
+                [DuelResult.Lose] = 0
+            };
+        }
+
         var expected = 1.0 / (1.0 + Math.Pow(10, (anotherRating - rating) / 400.0));
         var k = GetK(rating);
 

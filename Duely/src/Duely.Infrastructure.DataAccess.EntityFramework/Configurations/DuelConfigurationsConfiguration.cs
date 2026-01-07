@@ -18,6 +18,11 @@ public sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration<D
             .ValueGeneratedOnAdd()
             .UseIdentityByDefaultColumn();
 
+        builder.HasOne(c => c.Owner)
+            .WithMany()
+            .HasForeignKey("OwnerId")
+            .IsRequired(false);
+
         builder.Property(c => c.IsRated)
             .HasColumnName("IsRated")
             .HasColumnType("boolean")

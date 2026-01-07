@@ -1,13 +1,16 @@
 using Duely.Application.UseCases.Dtos;
+using Duely.Application.UseCases.Errors;
 using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.DuelConfigurations;
 
 public sealed class CreateDuelConfigurationCommand : IRequest<Result<DuelConfigurationDto>>
 {
+    public required int UserId { get; init; }
     public required bool ShouldShowOpponentCode { get; init; }
     public required int MaxDurationMinutes { get; init; }
     public required int TasksCount { get; init; }
@@ -22,8 +25,18 @@ public sealed class CreateDuelConfigurationHandler(Context context)
         CreateDuelConfigurationCommand request,
         CancellationToken cancellationToken)
     {
+        var user = await context.Users.SingleOrDefaultAsync(
+            u => u.Id == request.UserId,
+            cancellationToken);
+        if (user is null)
+        {
+            return new EntityNotFoundError(nameof(User), nameof(User.Id), request.UserId);
+        }
+        
         var configuration = new DuelConfiguration
         {
+            Owner = user,
+            IsRated = false,
             ShouldShowOpponentCode = request.ShouldShowOpponentCode,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,

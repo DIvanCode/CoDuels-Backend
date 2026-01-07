@@ -13,8 +13,12 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
     [Fact]
     public async Task Updates_configuration_when_found()
     {
+        var owner = EntityFactory.MakeUser(1, "owner");
+        Context.Users.Add(owner);
+
         var config = new DuelConfiguration
         {
+            Owner = owner,
             ShouldShowOpponentCode = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,
@@ -35,6 +39,7 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
         var res = await handler.Handle(new UpdateDuelConfigurationCommand
         {
             Id = config.Id,
+            UserId = owner.Id,
             ShouldShowOpponentCode = true,
             MaxDurationMinutes = 60,
             TasksCount = 2,
@@ -71,6 +76,7 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
         var res = await handler.Handle(new UpdateDuelConfigurationCommand
         {
             Id = 999,
+            UserId = 1,
             ShouldShowOpponentCode = true,
             MaxDurationMinutes = 60,
             TasksCount = 1,
@@ -87,5 +93,99 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
+    }
+
+    [Fact]
+    public async Task Forbidden_when_user_is_not_owner()
+    {
+        var owner = EntityFactory.MakeUser(1, "owner");
+        var other = EntityFactory.MakeUser(2, "other");
+        Context.Users.AddRange(owner, other);
+
+        var config = new DuelConfiguration
+        {
+            Owner = owner,
+            ShouldShowOpponentCode = false,
+            MaxDurationMinutes = 30,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 1,
+                    Topics = ["basics"]
+                }
+            }
+        };
+        Context.DuelConfigurations.Add(config);
+        await Context.SaveChangesAsync();
+
+        var handler = new UpdateDuelConfigurationHandler(Context);
+        var res = await handler.Handle(new UpdateDuelConfigurationCommand
+        {
+            Id = config.Id,
+            UserId = other.Id,
+            ShouldShowOpponentCode = true,
+            MaxDurationMinutes = 60,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 2,
+                    Topics = []
+                }
+            }
+        }, CancellationToken.None);
+
+        res.IsFailed.Should().BeTrue();
+        res.Errors.Should().ContainSingle(e => e is ForbiddenError);
+    }
+
+    [Fact]
+    public async Task Forbidden_when_owner_is_null()
+    {
+        var config = new DuelConfiguration
+        {
+            Owner = null,
+            ShouldShowOpponentCode = false,
+            MaxDurationMinutes = 30,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 1,
+                    Topics = ["basics"]
+                }
+            }
+        };
+        Context.DuelConfigurations.Add(config);
+        await Context.SaveChangesAsync();
+
+        var handler = new UpdateDuelConfigurationHandler(Context);
+        var res = await handler.Handle(new UpdateDuelConfigurationCommand
+        {
+            Id = config.Id,
+            UserId = 1,
+            ShouldShowOpponentCode = true,
+            MaxDurationMinutes = 60,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 2,
+                    Topics = []
+                }
+            }
+        }, CancellationToken.None);
+
+        res.IsFailed.Should().BeTrue();
+        res.Errors.Should().ContainSingle(e => e is ForbiddenError);
     }
 }

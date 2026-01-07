@@ -41,6 +41,7 @@ public class RatingManagerTests
         var configuration = new DuelConfiguration
         {
             Id = id,
+            Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
             ShouldShowOpponentCode = false,
@@ -73,6 +74,29 @@ public class RatingManagerTests
             User2 = u2,
             User2InitRating = u2.Rating
         };
+    }
+
+    [Fact]
+    public void Unrated_duel_does_not_change_ratings_and_returns_zero_changes()
+    {
+        var user1 = CreateUser(1, 1500);
+        var user2 = CreateUser(2, 1500);
+        var duel = CreateDuel(1, user1, user2);
+        duel.Configuration.IsRated = false;
+        duel.Winner = user1;
+
+        var changes = _ratingManager.GetRatingChanges(duel, user1.Rating, user2.Rating);
+
+        changes[DuelResult.Win].Should().Be(0);
+        changes[DuelResult.Draw].Should().Be(0);
+        changes[DuelResult.Lose].Should().Be(0);
+
+        _ratingManager.UpdateRatings(duel);
+
+        user1.Rating.Should().Be(1500);
+        user2.Rating.Should().Be(1500);
+        duel.User1FinalRating.Should().Be(1500);
+        duel.User2FinalRating.Should().Be(1500);
     }
 
     [Fact]

@@ -12,8 +12,12 @@ public class GetDuelConfigurationHandlerTests : ContextBasedTest
     [Fact]
     public async Task Returns_configuration_when_found()
     {
+        var owner = EntityFactory.MakeUser(1, "owner");
+        Context.Users.Add(owner);
+
         var config = new DuelConfiguration
         {
+            Owner = owner,
             ShouldShowOpponentCode = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,

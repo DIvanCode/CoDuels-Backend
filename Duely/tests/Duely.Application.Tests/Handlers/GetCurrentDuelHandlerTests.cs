@@ -50,6 +50,7 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
         var configuration = new DuelConfiguration
         {
             Id = 0,
+            Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
             ShouldShowOpponentCode = false,

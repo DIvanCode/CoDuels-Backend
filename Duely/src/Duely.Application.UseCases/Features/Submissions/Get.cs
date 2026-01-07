@@ -30,19 +30,16 @@ public sealed class GetSubmissionHandler(Context context)
             return new EntityNotFoundError(nameof(Submission), nameof(Submission.Id), query.SubmissionId);
         }
 
-        if (submission.User.Id != query.UserId)
-        {
-            return new ForbiddenError(nameof(Submission), "get", nameof(Submission.Id), query.SubmissionId);
-        }
+        var isOwner = submission.User.Id == query.UserId;
 
         return new SubmissionDto
         {
             SubmissionId = submission.Id,
-            Solution = submission.Code,
+            Solution = isOwner ? submission.Code : string.Empty,
             Language = submission.Language,
             Status = submission.Status,
             CreatedAt = submission.SubmitTime,
-            Message = submission.Message,
+            Message = isOwner ? submission.Message : null,
             Verdict = submission.Verdict,
             IsUpsolve = submission.IsUpsolve
         };

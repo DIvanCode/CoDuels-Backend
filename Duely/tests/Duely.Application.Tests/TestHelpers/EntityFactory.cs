@@ -29,6 +29,7 @@ public static class EntityFactory
         var configuration = new DuelConfiguration
         {
             Id = id,
+            Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
             ShouldShowOpponentCode = false,

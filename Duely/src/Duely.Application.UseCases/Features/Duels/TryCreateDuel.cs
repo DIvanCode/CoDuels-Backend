@@ -58,6 +58,7 @@ public sealed class TryCreateDuelHandler(
 
         var configuration = new DuelConfiguration
         {
+            Owner = null,
             IsRated = true,
             ShouldShowOpponentCode = true,
             MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,

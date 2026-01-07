@@ -1,4 +1,5 @@
 using Duely.Application.Tests.TestHelpers;
+using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.DuelConfigurations;
 using Duely.Domain.Models;
 using FluentAssertions;
@@ -12,9 +13,14 @@ public class CreateDuelConfigurationHandlerTests : ContextBasedTest
     [Fact]
     public async Task Creates_configuration_and_returns_dto()
     {
+        var owner = EntityFactory.MakeUser(1, "owner");
+        Context.Users.Add(owner);
+        await Context.SaveChangesAsync();
+
         var handler = new CreateDuelConfigurationHandler(Context);
         var command = new CreateDuelConfigurationCommand
         {
+            UserId = owner.Id,
             ShouldShowOpponentCode = true,
             MaxDurationMinutes = 45,
             TasksCount = 2,
@@ -47,7 +53,36 @@ public class CreateDuelConfigurationHandlerTests : ContextBasedTest
         res.Value.Tasks['A'].Topics.Should().ContainSingle().Which.Should().Be("arrays");
 
         var entity = await Context.DuelConfigurations.AsNoTracking()
+            .Include(c => c.Owner)
             .SingleAsync(c => c.Id == res.Value.Id);
         entity.TasksConfigurations['B'].Level.Should().Be(3);
+        entity.Owner!.Id.Should().Be(owner.Id);
+    }
+
+    [Fact]
+    public async Task Returns_not_found_when_user_missing()
+    {
+        var handler = new CreateDuelConfigurationHandler(Context);
+        var command = new CreateDuelConfigurationCommand
+        {
+            UserId = 999,
+            ShouldShowOpponentCode = true,
+            MaxDurationMinutes = 45,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        };
+
+        var res = await handler.Handle(command, CancellationToken.None);
+
+        res.IsFailed.Should().BeTrue();
+        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
     }
 }
