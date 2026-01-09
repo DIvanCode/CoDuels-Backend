@@ -30,6 +30,7 @@ public sealed class CheckDuelsForFinishHandler(
                 )
             )
             ).OrderBy(d => d.DeadlineTime)
+            .Include(d => d.Configuration)
             .Include(d => d.User1)
             .Include(d => d.User2)
             .Include(duel => duel.Winner)
