@@ -28,3 +28,7 @@ metrics_collector:
   collect_interval: 5s
 tasks:
   - 7d971f50363cf0aebbd87d971f50363cf0aebbd8
+  - 0c5fe950363fc0aeb7d80c5fe950363fc0aeb7d8
+task_topics:
+  - структуры данных
+  - дерево отрезков

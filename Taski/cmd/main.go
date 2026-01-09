@@ -14,6 +14,7 @@ import (
 	getAPI "taski/internal/api/task/get"
 	listAPI "taski/internal/api/task/list"
 	randomTaskAPI "taski/internal/api/task/random"
+	taskTopicsAPI "taski/internal/api/task/topics"
 	"taski/internal/api/testing/execute"
 	testAPI "taski/internal/api/testing/test"
 	"taski/internal/config"
@@ -26,6 +27,7 @@ import (
 	getUC "taski/internal/usecase/task/usecase/get"
 	listUC "taski/internal/usecase/task/usecase/list"
 	randomTaskUC "taski/internal/usecase/task/usecase/random"
+	taskTopicsUC "taski/internal/usecase/task/usecase/topics"
 	testUC "taski/internal/usecase/testing/usecase/test"
 	"taski/internal/usecase/testing/usecase/update"
 
@@ -88,6 +90,9 @@ func main() {
 
 	taskListUseCase := listUC.NewUseCase(log, taskStorage)
 	listAPI.NewHandler(log, taskListUseCase).Register(mux)
+
+	taskTopicsUseCase := taskTopicsUC.NewUseCase(log, cfg.TaskTopics)
+	taskTopicsAPI.NewHandler(log, taskTopicsUseCase).Register(mux)
 
 	randomTaskUseCase := randomTaskUC.NewUseCase(log, cfg.Tasks)
 	randomTaskAPI.NewHandler(log, randomTaskUseCase).Register(mux)
