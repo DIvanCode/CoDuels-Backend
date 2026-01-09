@@ -20,6 +20,7 @@ type (
 		MessageProducer  MessageProducerConfig  `yaml:"message_producer"`
 		MetricsCollector MetricsCollectorConfig `yaml:"metrics_collector"`
 		Tasks            TasksList              `yaml:"tasks"`
+		TaskTopics       TaskTopicsList         `yaml:"task_topics"`
 	}
 
 	HttpServerConfig struct {
@@ -54,6 +55,8 @@ type (
 	}
 
 	TasksList []string
+
+	TaskTopicsList []string
 )
 
 func MustLoad() (cfg *Config) {

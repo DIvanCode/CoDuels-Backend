@@ -15,6 +15,7 @@ type taskDetailsDto struct {
 	Title     string     `json:"title"`
 	Type      task.Type  `json:"type"`
 	Level     task.Level `json:"level"`
+	Topics    []string   `json:"topics"`
 	Statement string     `json:"statement"`
 }
 
@@ -65,6 +66,7 @@ func (d *taskDetailsDto) setDetails(t task.Task) {
 	d.Title = t.GetTitle()
 	d.Type = t.GetType()
 	d.Level = t.GetLevel()
+	d.Topics = t.GetTopics()
 	d.Statement = t.GetStatement()
 }
 

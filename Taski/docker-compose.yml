@@ -9,7 +9,7 @@ volumes:
 
 services:
   postgres:
-    image: postgres
+    image: postgres:17.7
     container_name: taski_postgres
     networks:
       - coduels

@@ -3,6 +3,7 @@
     "title": "A + B",
     "type": "write_code",
     "level": 1,
+    "topics": [],
     "statement": "statement.md",
     "tl": 1000,
     "ml": 256,
