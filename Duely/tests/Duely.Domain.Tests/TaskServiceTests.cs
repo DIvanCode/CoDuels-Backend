@@ -311,6 +311,194 @@ public class TaskServiceTests
         visible.Should().ContainKey('A');
         visible.Should().ContainKey('B');
     }
+
+    [Fact]
+    public void TryChooseTasks_ReturnsFalse_WhenTasksEmpty()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+        var configuration = new DuelConfiguration
+        {
+            Id = 10,
+            Owner = user1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        };
+
+        var tasksService = new TaskService();
+        var success = tasksService.TryChooseTasks(user1, user2, configuration, [], out var chosen);
+
+        success.Should().BeFalse();
+        chosen.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TryChooseTasks_ReturnsFalse_WhenConfigurationsEmpty()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+        var configuration = new DuelConfiguration
+        {
+            Id = 11,
+            Owner = user1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 0,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>()
+        };
+
+        var tasks = new List<DuelTask> { new("task-1", 1, []) };
+        var tasksService = new TaskService();
+        var success = tasksService.TryChooseTasks(user1, user2, configuration, tasks, out var chosen);
+
+        success.Should().BeFalse();
+        chosen.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TryChooseTasks_ReturnsFalse_WhenNotEnoughTasks()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+        var configuration = new DuelConfiguration
+        {
+            Id = 12,
+            Owner = user1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 2,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new() { Level = 1, Topics = [] },
+                ['B'] = new() { Level = 1, Topics = [] }
+            }
+        };
+
+        var tasks = new List<DuelTask> { new("task-1", 1, []) };
+        var tasksService = new TaskService();
+        var success = tasksService.TryChooseTasks(user1, user2, configuration, tasks, out var chosen);
+
+        success.Should().BeFalse();
+        chosen.Should().ContainKey('A');
+        chosen.Should().NotContainKey('B');
+    }
+
+    [Fact]
+    public void TryChooseTasks_FallsBackToSolvedTasks_WhenAllSolved()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+        CreateDuel(1, user1, user2, "task-1");
+
+        var configuration = new DuelConfiguration
+        {
+            Id = 13,
+            Owner = user1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new() { Level = 1, Topics = [] }
+            }
+        };
+
+        var tasks = new List<DuelTask> { new("task-1", 1, []) };
+        var tasksService = new TaskService();
+        var success = tasksService.TryChooseTasks(user1, user2, configuration, tasks, out var chosen);
+
+        success.Should().BeTrue();
+        chosen.Should().ContainKey('A');
+        chosen['A'].Id.Should().Be("task-1");
+    }
+
+    [Fact]
+    public void GetSolvedTaskWinners_ReturnsEmpty_WhenNoSubmissions()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        {
+            ['A'] = new("task-1", 1, [])
+        });
+
+        var tasksService = new TaskService();
+        var winners = tasksService.GetSolvedTaskWinners(duel);
+
+        winners.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GetSolvedTaskWinners_IgnoresAcceptedAfterDeadline()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+        var now = DateTime.UtcNow;
+        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        {
+            ['A'] = new("task-1", 1, [])
+        });
+        duel.DeadlineTime = now.AddSeconds(5);
+        duel.Submissions.Add(MakeSubmission(1, duel, user1, 'A', now.AddSeconds(10), SubmissionStatus.Done, "Accepted"));
+
+        var tasksService = new TaskService();
+        var winners = tasksService.GetSolvedTaskWinners(duel);
+
+        winners.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GetSolvedTaskWinners_IgnoresAcceptedWhenEarlierNotDoneExists()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+        var now = DateTime.UtcNow;
+
+        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        {
+            ['A'] = new("task-1", 1, [])
+        });
+
+        duel.Submissions.Add(MakeSubmission(1, duel, user1, 'A', now.AddSeconds(1), SubmissionStatus.Queued, null));
+        duel.Submissions.Add(MakeSubmission(2, duel, user2, 'A', now.AddSeconds(2), SubmissionStatus.Done, "Accepted"));
+
+        var tasksService = new TaskService();
+        var winners = tasksService.GetSolvedTaskWinners(duel);
+
+        winners.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void IsTaskVisible_ReturnsFalse_ForHiddenSequentialTask()
+    {
+        var user1 = CreateUser(1, 0);
+        var user2 = CreateUser(2, 0);
+        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        {
+            ['A'] = new("task-1", 1, []),
+            ['B'] = new("task-2", 1, [])
+        });
+
+        var tasksService = new TaskService();
+        tasksService.IsTaskVisible(duel, user1.Id, 'B').Should().BeFalse();
+    }
     
     private static User CreateUser(int id, int rating)
     {

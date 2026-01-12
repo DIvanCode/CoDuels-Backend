@@ -152,4 +152,66 @@ public class RatingManagerTests
         strong.Rating.Should().Be(1608);  
         weak.Rating.Should().Be(1390);   
     }
+
+    [Fact]
+    public void Winner_user2_updates_both_ratings()
+    {
+        var user1 = CreateUser(1, 1500);
+        var user2 = CreateUser(2, 1500);
+        var duel = CreateDuel(1, user1, user2);
+        duel.Winner = user2;
+
+        _ratingManager.UpdateRatings(duel);
+
+        user1.Rating.Should().Be(1480);
+        user2.Rating.Should().Be(1520);
+    }
+
+    [Fact]
+    public void GetTaskLevel_Returns_mapped_level_for_matching_interval()
+    {
+        var ratingManager = new RatingManager(
+            Options.Create(new DuelOptions
+            {
+                DefaultMaxDurationMinutes = 30,
+                RatingToTaskLevelMapping =
+                [
+                    new RatingToTaskLevelMappingItem { Rating = "0-1000", Level = 1 },
+                    new RatingToTaskLevelMappingItem { Rating = "1001-2000", Level = 3 }
+                ]
+            }));
+
+        ratingManager.GetTaskLevel(1500).Should().Be(3);
+        ratingManager.GetTaskLevel(1000).Should().Be(1);
+    }
+
+    [Fact]
+    public void GetTaskLevel_Returns_default_when_no_mapping_matches()
+    {
+        var ratingManager = new RatingManager(
+            Options.Create(new DuelOptions
+            {
+                DefaultMaxDurationMinutes = 30,
+                RatingToTaskLevelMapping =
+                [
+                    new RatingToTaskLevelMappingItem { Rating = "0-999", Level = 2 }
+                ]
+            }));
+
+        ratingManager.GetTaskLevel(1500).Should().Be(1);
+    }
+
+    [Fact]
+    public void GetRatingChanges_Uses_correct_k_for_rating_boundaries()
+    {
+        var user1 = CreateUser(1, 1600);
+        var user2 = CreateUser(2, 1600);
+        var duel = CreateDuel(1, user1, user2);
+
+        var changes = _ratingManager.GetRatingChanges(duel, 1600, 1600);
+
+        changes[DuelResult.Win].Should().Be(16);
+        changes[DuelResult.Draw].Should().Be(0);
+        changes[DuelResult.Lose].Should().Be(-16);
+    }
 }
