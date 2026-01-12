@@ -62,8 +62,11 @@ public sealed class DuelsController(
         return this.HandleResult(result);
     }
 
-    [HttpGet("connect")]
-    public async Task<IActionResult> ConnectAsync(CancellationToken cancellationToken)
+    [HttpGet("start")]
+    public async Task<IActionResult> StartAsync(
+        [FromQuery] string? nickname,
+        [FromQuery] int? configurationId,
+        CancellationToken cancellationToken)
     {
         logger.LogInformation("Connected user {UserId}", userContext.UserId);
         
@@ -77,7 +80,9 @@ public sealed class DuelsController(
         {
             var command = new AddUserCommand
             {
-                UserId = userContext.UserId
+                UserId = userContext.UserId,
+                OpponentNickname = nickname,
+                ConfigurationId = configurationId
             };
             var addUserResult = await mediator.Send(command, cancellationToken);
             if (addUserResult.IsFailed)
@@ -108,6 +113,7 @@ public sealed class DuelsController(
         }
         finally
         {
+           
             using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             cancellationToken = cancellationTokenSource.Token;
            
@@ -127,5 +133,32 @@ public sealed class DuelsController(
         }
         
         return Ok();
+    }
+
+    [HttpGet("requests")]
+    public async Task<ActionResult<List<DuelRequestDto>>> GetRequestsAsync(CancellationToken cancellationToken)
+    {
+        var query = new GetIncomingDuelRequestsQuery
+        {
+            UserId = userContext.UserId
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("requests/{nickname}/deny")]
+    public async Task<ActionResult> DenyRequestAsync(
+        [FromRoute] string nickname,
+        CancellationToken cancellationToken)
+    {
+        var command = new DenyDuelInvitationCommand
+        {
+            UserId = userContext.UserId,
+            OpponentNickname = nickname
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
     }
 }

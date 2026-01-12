@@ -19,6 +19,11 @@ public sealed class SendMessageOutboxHandler(IMessageSender sender)
             MessageType.DuelStarted => new DuelStartedMessage { DuelId = payload.DuelId },
             MessageType.DuelFinished => new DuelFinishedMessage { DuelId = payload.DuelId },
             MessageType.DuelChanged => new DuelChangedMessage { DuelId = payload.DuelId },
+            MessageType.DuelCanceled => new DuelCanceledMessage
+            {
+                OpponentNickname = payload.OpponentNickname
+                    ?? throw new ArgumentException("Opponent nickname is required.", nameof(payload))
+            },
             _ => throw new ArgumentOutOfRangeException(nameof(payload.Type), payload.Type, null)
         };
 

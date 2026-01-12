@@ -23,4 +23,8 @@
       <ProjectReference Include="..\Duely.Infrastructure.DataAccess.EntityFramework\Duely.Infrastructure.DataAccess.EntityFramework.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Remove="Features\Duels\GetPendingDuelRequests.cs" />
+    </ItemGroup>
+
 </Project>

@@ -42,6 +42,18 @@ public sealed class DuelConfigurationsController(IMediator mediator, IUserContex
         return this.HandleResult(result);
     }
 
+    [HttpGet]
+    public async Task<ActionResult<List<DuelConfigurationDto>>> GetAllAsync(CancellationToken cancellationToken)
+    {
+        var query = new GetUserDuelConfigurationsQuery
+        {
+            UserId = userContext.UserId
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpPut("{id:int}")]
     public async Task<ActionResult<DuelConfigurationDto>> UpdateAsync(
         [FromRoute] int id,

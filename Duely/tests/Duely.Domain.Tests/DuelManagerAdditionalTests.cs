@@ -101,7 +101,7 @@ public class DuelManagerAdditionalTests
         var pair = manager.TryGetPair();
 
         pair.Should().NotBeNull();
-        var ids = new[] { pair!.Value.User1, pair.Value.User2 };
+        var ids = new[] { pair!.User1, pair.User2 };
         ids.Should().BeEquivalentTo(new[] { 1, 2 });
     }
 
@@ -120,7 +120,7 @@ public class DuelManagerAdditionalTests
 
         pair.Should().NotBeNull();
         // Должен выбрать пару с минимальной разницей (1 и 2, разница 500)
-        var ids = new[] { pair!.Value.User1, pair.Value.User2 };
+        var ids = new[] { pair!.User1, pair.User2 };
         ids.Should().BeEquivalentTo(new[] { 1, 2 });
     }
 
@@ -141,7 +141,7 @@ public class DuelManagerAdditionalTests
         // Должен выбрать пару с минимальной разницей и большим временем ожидания
         // 1 и 2 имеют разницу 50, но 1 и 3 имеют разницу 100
         // Но 1 и 3 оба ждут дольше (130 секунд)
-        var ids = new[] { pair!.Value.User1, pair.Value.User2 };
+        var ids = new[] { pair!.User1, pair.User2 };
         ids.Should().BeEquivalentTo(new[] { 1, 2 }); // минимальная разница
     }
 
@@ -201,7 +201,7 @@ public class DuelManagerAdditionalTests
         // 1 и 3: min(20, 0) = 0
         // 2 и 3: min(10, 0) = 0
         // Должен выбрать 1 и 2
-        var ids = new[] { pair!.Value.User1, pair.Value.User2 };
+        var ids = new[] { pair!.User1, pair.User2 };
         ids.Should().BeEquivalentTo(new[] { 1, 2 });
     }
 
@@ -216,6 +216,55 @@ public class DuelManagerAdditionalTests
         var pair = manager.TryGetPair();
 
         pair.Should().BeNull();
+    }
+
+    [Fact]
+    public void Invited_users_match_only_when_mutual()
+    {
+        var manager = new DuelManager();
+        var now = DateTime.UtcNow;
+
+        manager.AddUser(1, 1500, now.AddSeconds(-5), expectedOpponentId: 2);
+        manager.AddUser(2, 1500, now.AddSeconds(-4));
+
+        manager.TryGetPair().Should().BeNull();
+
+        manager.RemoveUser(2);
+        manager.AddUser(2, 1500, now.AddSeconds(-3), expectedOpponentId: 1);
+
+        var pair = manager.TryGetPair();
+        pair.Should().NotBeNull();
+        new[] { pair!.User1, pair.User2 }
+            .Should().BeEquivalentTo(new[] { 1, 2 });
+    }
+
+    [Fact]
+    public void Invited_user_is_not_matched_in_regular_queue()
+    {
+        var manager = new DuelManager();
+        var now = DateTime.UtcNow;
+
+        manager.AddUser(1, 1500, now.AddSeconds(-5), expectedOpponentId: 2);
+        manager.AddUser(3, 1500, now.AddSeconds(-4));
+        manager.AddUser(4, 1500, now.AddSeconds(-3));
+
+        var pair = manager.TryGetPair();
+
+        pair.Should().NotBeNull();
+        new[] { pair!.User1, pair.User2 }
+            .Should().BeEquivalentTo(new[] { 3, 4 });
+    }
+
+    [Fact]
+    public void Users_with_different_configurations_do_not_match()
+    {
+        var manager = new DuelManager();
+        var now = DateTime.UtcNow;
+
+        manager.AddUser(1, 1500, now.AddSeconds(-5), configurationId: 10);
+        manager.AddUser(2, 1500, now.AddSeconds(-5), configurationId: 11);
+
+        manager.TryGetPair().Should().BeNull();
     }
 }
 

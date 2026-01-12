@@ -63,11 +63,6 @@ public sealed class SendSubmissionHandler(
             return new ForbiddenError(nameof(Duel), "send submission to", nameof(Duel.Id), command.DuelId);
         }
 
-        if (duel.Status == DuelStatus.Pending)
-        {
-            return new ForbiddenError(nameof(Duel), "send submission to", nameof(Duel.Id), command.DuelId);
-        }
-        
         if (!duel.Tasks.TryGetValue(command.TaskKey, out _))
         {
             return new EntityNotFoundError(nameof(DuelTask), "key", command.TaskKey);

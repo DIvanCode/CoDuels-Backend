@@ -26,7 +26,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var ctx = Context;
 
         var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.TryGetPair()).Returns(((int, int)?)null);
+        duelManager.Setup(m => m.TryGetPair()).Returns((DuelPair?)null);
 
         var taskService = new Mock<ITaskService>();
         var ratingManager = new Mock<IRatingManager>();
@@ -64,7 +64,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         ctx.Users.AddRange(u1, u2); await ctx.SaveChangesAsync();
 
         var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.TryGetPair()).Returns((1, 2));
+        duelManager.Setup(m => m.TryGetPair()).Returns(new DuelPair(1, 2, null));
 
         var taski = new TaskiClientSuccessFake(["TASK-42"]);
         
@@ -129,6 +129,81 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             (p.UserId == u1.Id || p.UserId == u2.Id).Should().BeTrue();
         }
     }
+
+    [Fact]
+    public async Task Creates_duel_with_configuration_from_queue()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        ctx.Users.AddRange(u1, u2);
+
+        var configuration = new DuelConfiguration
+        {
+            Id = 99,
+            Owner = u1,
+            MaxDurationMinutes = 45,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['B'] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        };
+        ctx.DuelConfigurations.Add(configuration);
+        await ctx.SaveChangesAsync();
+
+        var duelManager = new Mock<IDuelManager>();
+        duelManager.Setup(m => m.TryGetPair()).Returns(new DuelPair(1, 2, configuration.Id));
+
+        var taski = new TaskiClientSuccessFake(["TASK-99"]);
+
+        var taskService = new Mock<ITaskService>();
+        taskService.Setup(s => s.TryChooseTasks(
+                It.IsAny<User>(),
+                It.IsAny<User>(),
+                It.IsAny<DuelConfiguration>(),
+                It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                out It.Ref<Dictionary<char, DuelTask>>.IsAny))
+            .Returns(true)
+            .Callback(new TryChooseTasksCallback((User _, User _, DuelConfiguration _, IReadOnlyCollection<DuelTask> _, out Dictionary<char, DuelTask> chosen) =>
+            {
+                chosen = new Dictionary<char, DuelTask>
+                {
+                    ['B'] = new("TASK-99", 1, [])
+                };
+            }));
+
+        var ratingManager = new Mock<IRatingManager>();
+        var options = Options.Create(new DuelOptions
+        {
+            DefaultMaxDurationMinutes = 30,
+            RatingToTaskLevelMapping = []
+        });
+
+        var handler = new TryCreateDuelHandler(
+            duelManager.Object,
+            taski,
+            options,
+            ratingManager.Object,
+            taskService.Object,
+            ctx,
+            NullLogger<TryCreateDuelHandler>.Instance);
+        var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+
+        var duel = await ctx.Duels.Include(d => d.Configuration).SingleAsync();
+        duel.Configuration.Id.Should().Be(configuration.Id);
+        duel.Tasks.Should().ContainKey('B');
+    }
     
     [Fact]
     public async Task Fails_when_tasks_not_selected()
@@ -140,7 +215,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         ctx.Users.AddRange(u1, u2); await ctx.SaveChangesAsync();
 
         var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.TryGetPair()).Returns((1, 2));
+        duelManager.Setup(m => m.TryGetPair()).Returns(new DuelPair(1, 2, null));
 
         var taski = new TaskiClientSuccessFake(["RANDOM_TASK"]);
         

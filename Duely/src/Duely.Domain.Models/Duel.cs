@@ -25,7 +25,6 @@ public sealed class Duel
 
 public enum DuelStatus
 {
-    Pending = 0,
     InProgress = 1,
     Finished = 2
 }

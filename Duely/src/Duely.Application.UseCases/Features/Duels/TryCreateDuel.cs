@@ -36,43 +36,61 @@ public sealed class TryCreateDuelHandler(
             return Result.Ok();
         }
 
-        logger.LogDebug("Pair selected: {User1} vs {User2}", pair.Value.User1, pair.Value.User2);
+        logger.LogDebug("Pair selected: {User1} vs {User2}", pair.User1, pair.User2);
 
         var user1 = await context.Users
             .Include(u => u.DuelsAsUser1)
             .Include(u => u.DuelsAsUser2)
-            .SingleOrDefaultAsync(u => u.Id == pair.Value.User1, cancellationToken);
+            .SingleOrDefaultAsync(u => u.Id == pair.User1, cancellationToken);
         if (user1 is null)
         {
-            return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.Value.User1);
+            return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.User1);
         }
 
         var user2 = await context.Users
             .Include(u => u.DuelsAsUser1)
             .Include(u => u.DuelsAsUser2)
-            .SingleOrDefaultAsync(u => u.Id == pair.Value.User2, cancellationToken);
+            .SingleOrDefaultAsync(u => u.Id == pair.User2, cancellationToken);
         if (user2 is null)
         {
-            return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.Value.User2);
+            return new EntityNotFoundError(nameof(User), nameof(User.Id), pair.User2);
         }
 
-        var configuration = new DuelConfiguration
+        DuelConfiguration configuration;
+        if (pair.ConfigurationId is null)
         {
-            Owner = null,
-            IsRated = true,
-            ShouldShowOpponentCode = true,
-            MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,
-            TasksCount = 1,
-            TasksOrder = DuelTasksOrder.Sequential,
-            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            configuration = new DuelConfiguration
             {
-                [DefaultTaskKey] = new()
+                Owner = null,
+                IsRated = true,
+                ShouldShowOpponentCode = true,
+                MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,
+                TasksCount = 1,
+                TasksOrder = DuelTasksOrder.Sequential,
+                TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
                 {
-                    Level = ratingManager.GetTaskLevel((user1.Rating + user2.Rating) / 2),
-                    Topics = []
+                    [DefaultTaskKey] = new()
+                    {
+                        Level = ratingManager.GetTaskLevel((user1.Rating + user2.Rating) / 2),
+                        Topics = []
+                    }
                 }
+            };
+        }
+        else
+        {
+            var configurationEntity = await context.DuelConfigurations
+                .SingleOrDefaultAsync(c => c.Id == pair.ConfigurationId, cancellationToken);
+            if (configurationEntity is null)
+            {
+                return new EntityNotFoundError(
+                    nameof(DuelConfiguration),
+                    nameof(DuelConfiguration.Id),
+                    pair.ConfigurationId.Value);
             }
-        };
+
+            configuration = configurationEntity;
+        }
 
         var tasksResult = await ChooseTasksAsync(user1, user2, configuration, cancellationToken);
         if (tasksResult.IsFailed)
@@ -134,7 +152,11 @@ public sealed class TryCreateDuelHandler(
 
         logger.LogInformation(
             "Duel started. DuelId = {DuelId}, Users = {User1}, {User2}, TaskId = {TaskId}, Deadline = {Deadline}",
-            duel.Id, duel.User1.Id, duel.User2.Id, duel.Tasks[DefaultTaskKey].Id, duel.DeadlineTime
+            duel.Id,
+            duel.User1.Id,
+            duel.User2.Id,
+            duel.Tasks.Values.FirstOrDefault()?.Id ?? "unknown",
+            duel.DeadlineTime
         );
 
         return Result.Ok();

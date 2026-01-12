@@ -120,34 +120,4 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         outboxMsg.Payload.Should().Contain("py");
     }
 
-    [Fact]
-    public async Task Forbidden_when_duel_pending()
-    {
-        var ctx = Context;
-
-        var u1 = EntityFactory.MakeUser(1, "u1");
-        var u2 = EntityFactory.MakeUser(2, "u2");
-        ctx.Users.AddRange(u1, u2);
-        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK-10");
-        duel.Status = DuelStatus.Pending;
-        ctx.Duels.Add(duel);
-        await ctx.SaveChangesAsync();
-
-        var limiter = new DummySubmissionRateLimiter();
-        var taskService = new TaskService();
-
-        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
-
-        var res = await handler.Handle(new SendSubmissionCommand
-        {
-            DuelId = 10,
-            UserId = 1,
-            TaskKey = 'A',
-            Code = "print(1)",
-            Language = "py"
-        }, CancellationToken.None);
-
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is ForbiddenError);
-    }
 }
