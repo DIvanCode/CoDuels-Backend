@@ -1,16 +1,14 @@
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using Duely.Application.Services.RateLimiting;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Submissions;
-using Duely.Application.UseCases.Features.RateLimiting;
 using Duely.Domain.Models;
+using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
 
+namespace Duely.Application.Tests.Handlers;
 
 internal sealed class DummySubmissionRateLimiter : ISubmissionRateLimiter
 {
@@ -25,13 +23,15 @@ public class SendSubmissionHandlerTests : ContextBasedTest
     {
         var ctx = Context;
         var limiter = new DummySubmissionRateLimiter();
+        var taskService = new TaskService();
 
-        var handler = new SendSubmissionHandler(ctx, limiter, NullLogger<SendSubmissionHandler>.Instance);
+        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
             DuelId = 10,
             UserId = 1,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = "py"
         }, CancellationToken.None);
@@ -53,13 +53,15 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var limiter = new DummySubmissionRateLimiter();
+        var taskService = new TaskService();
 
-        var handler = new SendSubmissionHandler(ctx, limiter, NullLogger<SendSubmissionHandler>.Instance);
+        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
             DuelId = 10,
             UserId = 999,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = "py"
         }, CancellationToken.None);
@@ -81,13 +83,15 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var limiter = new DummySubmissionRateLimiter();
+        var taskService = new TaskService();
 
-        var handler = new SendSubmissionHandler(ctx, limiter, NullLogger<SendSubmissionHandler>.Instance);
+        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
             DuelId = 10,
             UserId = 1,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = "py"
         }, CancellationToken.None);
@@ -115,4 +119,5 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         outboxMsg.Payload.Should().Contain("print(1)");
         outboxMsg.Payload.Should().Contain("py");
     }
+
 }

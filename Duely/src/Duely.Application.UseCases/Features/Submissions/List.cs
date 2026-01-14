@@ -12,6 +12,7 @@ public sealed class GetUserSubmissionsQuery : IRequest<Result<List<SubmissionLis
 {
     public required int UserId { get; init; }
     public required int DuelId { get; init; }
+    public required char TaskKey { get; init; }
 }
 
 public sealed class GetUserSubmissionsHandler(Context context)
@@ -23,7 +24,6 @@ public sealed class GetUserSubmissionsHandler(Context context)
             .Include(d => d.User1)
             .Include(d => d.User2)
             .SingleOrDefaultAsync(d => d.Id == query.DuelId, cancellationToken);
-            
         if (duel is null)
         {
             return new EntityNotFoundError(nameof(Duel), nameof(Duel.Id), query.DuelId);
@@ -31,12 +31,11 @@ public sealed class GetUserSubmissionsHandler(Context context)
 
         if (duel.User1.Id != query.UserId && duel.User2.Id != query.UserId)
         {
-            return new ForbiddenError(nameof(Duel), "get submissions from", nameof(Duel.Id), query.DuelId);
+            return new EntityNotFoundError(nameof(User), nameof(User.Id), query.UserId);
         }
 
-        var items = await context.Duels
-            .Where(d => d.Id == query.DuelId)
-            .SelectMany(d => d.Submissions.Where(s => s.User.Id == query.UserId))
+        var items = await context.Submissions
+            .Where(s => s.Duel.Id == duel.Id && s.User.Id == query.UserId && s.TaskKey == query.TaskKey)
             .OrderBy(s => s.SubmitTime)
             .Select(s => new SubmissionListItemDto
             {

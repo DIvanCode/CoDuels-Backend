@@ -29,7 +29,7 @@ public class DuelManagerTests
         var pair = manager.TryGetPair();
 
         pair.Should().NotBeNull();
-        var ids = new[] { pair!.Value.User1, pair.Value.User2 };
+        var ids = new[] { pair!.User1, pair.User2 };
         ids.Should().BeEquivalentTo(new[] { 1, 2 });
     }
 
@@ -44,8 +44,8 @@ public class DuelManagerTests
         var pair = manager.TryGetPair();
 
         pair.Should().NotBeNull();
-        pair!.Value.User1.Should().Be(1);
-        pair.Value.User2.Should().Be(3);
+        pair!.User1.Should().Be(1);
+        pair.User2.Should().Be(3);
         var secondPair = manager.TryGetPair();
         secondPair.Should().BeNull();
     }
@@ -61,7 +61,7 @@ public class DuelManagerTests
         var pair = manager.TryGetPair();
 
         pair.Should().NotBeNull();
-        var ids = new[] { pair!.Value.User1, pair.Value.User2 };
+        var ids = new[] { pair!.User1, pair.User2 };
         ids.Should().BeEquivalentTo(new[] { 2, 3 });
     }
     [Fact]
@@ -76,7 +76,7 @@ public class DuelManagerTests
 
         pair.Should().NotBeNull();
 
-        var ids = new[] { pair!.Value.User1, pair.Value.User2 };
+        var ids = new[] { pair!.User1, pair.User2 };
         ids.Should().BeEquivalentTo(new[] { 1, 2 }); 
     }
     [Fact]
@@ -91,12 +91,12 @@ public class DuelManagerTests
         var firstPair = manager.TryGetPair();
         firstPair.Should().NotBeNull();
 
-        var firstIds = new[] { firstPair!.Value.User1, firstPair.Value.User2 };
+        var firstIds = new[] { firstPair!.User1, firstPair.User2 };
         firstIds.Should().BeEquivalentTo(new[] { 3, 5 });
         var secondPair = manager.TryGetPair();
         secondPair.Should().NotBeNull();
 
-        var secondIds = new[] { secondPair!.Value.User1, secondPair.Value.User2 };
+        var secondIds = new[] { secondPair!.User1, secondPair.User2 };
         secondIds.Should().BeEquivalentTo(new[] { 1, 4 });
         var thirdPair = manager.TryGetPair();
         thirdPair.Should().BeNull();
@@ -119,7 +119,7 @@ public class DuelManagerTests
 
         var pair = manager.TryGetPair();
         pair.Should().NotBeNull();
-        new[] { pair!.Value.User1, pair.Value.User2 }
+        new[] { pair!.User1, pair.User2 }
             .Should().BeEquivalentTo(new[] { 1, 3 });
     }
     [Fact]
@@ -135,7 +135,7 @@ public class DuelManagerTests
         var pair = manager.TryGetPair();
 
         pair.Should().NotBeNull();
-        new[] { pair!.Value.User1, pair.Value.User2 }
+        new[] { pair!.User1, pair.User2 }
             .Should().BeEquivalentTo(new[] { 1, 2 });
     }
     [Fact]
@@ -161,7 +161,7 @@ public class DuelManagerTests
         var pair = manager.TryGetPair();
 
         pair.Should().NotBeNull();
-        new[] { pair!.Value.User1, pair.Value.User2 }
+        new[] { pair!.User1, pair.User2 }
             .Should().BeEquivalentTo(new[] { 1, 2 });
     }
     [Fact]
@@ -178,7 +178,7 @@ public class DuelManagerTests
         var pair = manager.TryGetPair();
 
         pair.Should().NotBeNull();
-        new[] { pair!.Value.User1, pair.Value.User2 }
+        new[] { pair!.User1, pair.User2 }
             .Should().BeEquivalentTo(new[] { 3, 4 });
     }
     [Fact]

@@ -15,16 +15,19 @@ public sealed class GetDuelQuery : IRequest<Result<DuelDto>>
     public required int DuelId { get; init; }
 }
 
-public sealed class GetDuelHandler(Context context, IRatingManager ratingManager)
+public sealed class GetDuelHandler(Context context, IRatingManager ratingManager, ITaskService taskService)
     : IRequestHandler<GetDuelQuery, Result<DuelDto>>
 {
     public async Task<Result<DuelDto>> Handle(GetDuelQuery query, CancellationToken cancellationToken)
     {
         var duel = await context.Duels
             .Where(d => d.Id == query.DuelId)
+            .Include(d => d.Configuration)
             .Include(d => d.User1)
             .Include(d => d.User2)
             .Include(duel => duel.Winner)
+            .Include(d => d.Submissions)
+            .ThenInclude(s => s.User)
             .SingleOrDefaultAsync(cancellationToken);
         if (duel is null)
         {
@@ -42,11 +45,14 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
             [duel.User1.Id] = ratingManager.GetRatingChanges(duel, duel.User1InitRating, duel.User2InitRating),
             [duel.User2.Id] = ratingManager.GetRatingChanges(duel, duel.User2InitRating, duel.User1InitRating)
         };
+
+        var visibleTasks = taskService.GetVisibleTasks(duel, query.UserId);
         
         return new DuelDto
         {
             Id = duel.Id,
-            TaskId = duel.TaskId,
+            IsRated = duel.Configuration.IsRated,
+            ShouldShowOpponentCode = duel.Configuration.ShouldShowOpponentCode,
             Participants = [
                 new UserDto
                 {
@@ -68,7 +74,13 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
             StartTime = duel.StartTime,
             DeadlineTime = duel.DeadlineTime,
             EndTime = duel.EndTime,
-            RatingChanges = ratingChanges
+            RatingChanges = ratingChanges,
+            Tasks = visibleTasks.ToDictionary(
+                task => task.Key,
+                task => new DuelTaskDto
+                {
+                    Id = task.Value.Id
+                })
         };
     }
 }

@@ -1,5 +1,6 @@
-﻿using System.Reflection;
-using Duely.Application.UseCases.Features.RateLimiting;
+using System.Reflection;
+using FluentValidation;
+using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,7 +11,6 @@ public static class ServiceCollectionExtensions
     public static void SetupUseCases(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddMediatR(config => config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
-
-        services.Configure<RateLimitingOptions>(configuration.GetSection(RateLimitingOptions.SectionName));
+        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
     }
 }

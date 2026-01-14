@@ -1,15 +1,12 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Moq;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class GetCurrentDuelHandlerTests : ContextBasedTest
 {
@@ -31,7 +28,7 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetCurrentDuelQuery
         {
@@ -50,11 +47,33 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
         ctx.Users.AddRange(u1, u2);
+        var configuration = new DuelConfiguration
+        {
+            Id = 0,
+            Owner = u1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        };
         var duel = new Duel
         {
             Id = 10,
-            TaskId = "TASK-10",
+            Configuration = configuration,
             Status = DuelStatus.InProgress,
+            Tasks = new Dictionary<char, DuelTask>
+            {
+                ['A'] = new("TASK-10", 1, [])
+            },
             StartTime = DateTime.UtcNow,
             DeadlineTime = DateTime.UtcNow.AddMinutes(30),
             User1 = u1,
@@ -81,7 +100,7 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetCurrentDuelQuery
         {
@@ -90,7 +109,8 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Id.Should().Be(10);
-        res.Value.TaskId.Should().Be("TASK-10");
+        res.Value.Tasks.Should().ContainKey('A');
+        res.Value.Tasks['A'].Id.Should().Be("TASK-10");
         res.Value.Status.Should().Be(DuelStatus.InProgress);
         res.Value.Participants.Should().HaveCount(2);
         res.Value.Participants.Should().Contain(p => p.Id == 1 && p.Rating == 1500);
@@ -120,7 +140,7 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetCurrentDuelQuery
         {
@@ -146,7 +166,7 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object);
+        var handler = new GetCurrentDuelHandler(ctx, ratingManager.Object, new TaskService());
 
         var res = await handler.Handle(new GetCurrentDuelQuery
         {
@@ -157,4 +177,3 @@ public class GetCurrentDuelHandlerTests : ContextBasedTest
         res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
     }
 }
-

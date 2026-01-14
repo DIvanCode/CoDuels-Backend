@@ -8,8 +8,11 @@ public sealed class DuelDto
     [JsonPropertyName("id")]
     public required int Id { get; init; }
 
-    [JsonPropertyName("task_id")]
-    public required string TaskId { get; init; }
+    [JsonPropertyName("is_rated")]
+    public required bool IsRated { get; init; }
+    
+    [JsonPropertyName("should_show_opponent_code")]
+    public required bool ShouldShowOpponentCode { get; init; }
 
     [JsonPropertyName("participants")]
     public required UserDto[] Participants { get; init; }
@@ -31,4 +34,7 @@ public sealed class DuelDto
     
     [JsonPropertyName("rating_changes")]
     public required Dictionary<int, Dictionary<DuelResult, int>> RatingChanges { get; init; }
+    
+    [JsonPropertyName("tasks")]
+    public required Dictionary<char, DuelTaskDto> Tasks { get; init; }
 }

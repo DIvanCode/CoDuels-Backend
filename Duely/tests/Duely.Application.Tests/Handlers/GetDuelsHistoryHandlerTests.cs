@@ -18,7 +18,7 @@ public class GetDuelsHistoryHandlerTests : ContextBasedTest
     
     public GetDuelsHistoryHandlerTests()
     {
-        _sut = new GetDuelsHistoryHandler(Context, _ratingManagerMock.Object);
+        _sut = new GetDuelsHistoryHandler(Context, _ratingManagerMock.Object, new TaskService());
     }
     
     [Fact]

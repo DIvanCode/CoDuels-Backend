@@ -1,13 +1,12 @@
-using System.Threading;
-using System.Threading.Tasks;
-using Duely.Application.UseCases.Features.Outbox.Handlers;
-using Duely.Application.UseCases.Payloads;
+using Duely.Application.Services.Outbox.Handlers;
+using Duely.Application.Services.Outbox.Payloads;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentAssertions;
 using Moq;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class SendMessageOutboxHandlerTests
 {
@@ -63,6 +62,27 @@ public class SendMessageOutboxHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_SendsDuelCanceledMessage()
+    {
+        var sender = new Mock<IMessageSender>();
+        var handler = new SendMessageOutboxHandler(sender.Object);
+
+        var payload = new SendMessagePayload(2, MessageType.DuelCanceled, 0, "u1");
+
+        sender
+            .Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await handler.HandleAsync(payload, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        sender.Verify(s => s.SendMessage(
+            2,
+            It.Is<DuelCanceledMessage>(m => m.OpponentNickname == "u1"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task HandleAsync_ThrowsForUnknownMessageType()
     {
         var sender = new Mock<IMessageSender>();
@@ -76,4 +96,3 @@ public class SendMessageOutboxHandlerTests
         sender.VerifyNoOtherCalls();
     }
 }
-

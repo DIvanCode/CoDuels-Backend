@@ -44,28 +44,6 @@ public sealed class TaskiClient(HttpClient httpClient, ILogger<TaskiClient> logg
         }
     }
 
-    public async Task<Result<string>> GetRandomTaskIdAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var resp = await httpClient.GetFromJsonAsync<RandomTaskResponse>("task/random", cancellationToken);
-            if (resp is null)
-            {
-                logger.LogWarning("Taski random task returned empty response");
-
-                return Result.Fail<string>("No random task returned from Taski");
-            }
-
-            return Result.Ok(resp.TaskId);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Taski random task request crashed");
-
-            return Result.Fail<string>(e.Message);
-        }
-    }
-
     public async Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken)
     {
         try

@@ -1,9 +1,8 @@
-using Duely.Application.UseCases.Features.UserCodeRuns;
+using Duely.Application.Services;
 using Duely.Infrastructure.Gateway.Exesh.Abstracts;
 using FluentAssertions;
-using Xunit;
 
-namespace Duely.Application.Tests;
+namespace Duely.Application.Tests.Handlers;
 
 public class ExeshStepsBuilderTests
 {

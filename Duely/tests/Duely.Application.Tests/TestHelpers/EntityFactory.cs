@@ -24,12 +24,36 @@ public static class EntityFactory
     {
         start ??= DateTime.UtcNow;
         deadline ??= start.Value.AddMinutes(30);
+        const char taskKey = 'A';
 
+        var configuration = new DuelConfiguration
+        {
+            Id = id,
+            Owner = u1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                [taskKey] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        };
+        
         return new Duel
         {
             Id = id,
-            TaskId = taskId,
+            Configuration = configuration,
             Status = DuelStatus.InProgress,
+            Tasks = new Dictionary<char, DuelTask>
+            {
+                [taskKey] = new(taskId, 1, [])
+            },
             StartTime = start.Value,
             DeadlineTime = deadline.Value,
             User1 = u1,
@@ -42,13 +66,14 @@ public static class EntityFactory
     public static Submission MakeSubmission(int id, Duel duel, User user,
         string code = "print(1)", string language = "python",
         DateTime? time = null, SubmissionStatus status = SubmissionStatus.Queued,
-        string? verdict = null, string? message = null)
+        string? verdict = null, string? message = null, char taskKey = 'A')
     {
         return new Submission
         {
             Id = id,
             Duel = duel,
             User = user,
+            TaskKey = taskKey,
             Code = code,
             Language = language,
             SubmitTime = time ?? DateTime.UtcNow,

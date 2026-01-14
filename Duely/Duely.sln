@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# 
+#
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely", "src\Duely\Duely.csproj", "{DF4F5CE8-1DC0-4905-9BF5-22F4B48A5BC1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Application.UseCases", "src\Duely.Application.UseCases\Duely.Application.UseCases.csproj", "{8B2E991C-60D2-41D6-9E5C-713107FB79A9}"
@@ -32,6 +32,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Domain.Tests", "tests\Duely.Domain.Tests\Duely.Domain.Tests.csproj", "{8E24486F-60CE-4CED-992B-921B7DF40999}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Telemetry", "src\Duely.Infrastructure.Telemetry\Duely.Infrastructure.Telemetry.csproj", "{3A93E8DA-3343-4863-A64D-2E90F9675396}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Application.Services", "src\Duely.Application.Services\Duely.Application.Services.csproj", "{4B1E5937-8D3B-4A67-9C42-B80694C054BD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -103,5 +105,9 @@ Global
 		{3A93E8DA-3343-4863-A64D-2E90F9675396}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3A93E8DA-3343-4863-A64D-2E90F9675396}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3A93E8DA-3343-4863-A64D-2E90F9675396}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B1E5937-8D3B-4A67-9C42-B80694C054BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B1E5937-8D3B-4A67-9C42-B80694C054BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B1E5937-8D3B-4A67-9C42-B80694C054BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B1E5937-8D3B-4A67-9C42-B80694C054BD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

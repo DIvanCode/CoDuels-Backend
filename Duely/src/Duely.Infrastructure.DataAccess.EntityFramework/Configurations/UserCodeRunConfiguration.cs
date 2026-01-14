@@ -2,7 +2,7 @@ using Duely.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Duely.Infrastructure.DataAccess.EntityFramework;
+namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations;
 
 public sealed class UserCodeRunConfiguration : IEntityTypeConfiguration<UserCodeRun>
 {

@@ -4,6 +4,7 @@ using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using System.Reflection;
+using System.Text.Json.Serialization;
 using Hellang.Middleware.ProblemDetails;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -42,9 +43,10 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddMvc();
-        services.AddControllers();
+        services
+            .AddControllers()
+            .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         services.AddEndpointsApiExplorer();
-
 
         services.AddProblemDetails(options => ConfigureGlobalExceptionHandling(options, environment));
 

@@ -1,16 +1,14 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using Duely.Application.Services.Outbox.Handlers;
+using Duely.Application.Services.Outbox.Payloads;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Features.Outbox.Handlers;
-using Duely.Application.UseCases.Payloads;
 using Duely.Domain.Models;
 using Duely.Infrastructure.Gateway.Exesh.Abstracts;
 using FluentAssertions;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class RunUserCodeOutboxHandlerTests : ContextBasedTest
 {
@@ -118,4 +116,3 @@ public class RunUserCodeOutboxHandlerTests : ContextBasedTest
         updatedRun.ExecutionId.Should().BeNull(); // не должно быть установлено при ошибке
     }
 }
-

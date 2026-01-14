@@ -4,8 +4,7 @@ public sealed class DuelOptions
 {
     public const string SectionName = "Duel";
 
-    public int MaxDurationMinutes { get; init; } = 30;
-
+    public required int DefaultMaxDurationMinutes { get; init; } = 30;
     public RatingToTaskLevelMappingItem[] RatingToTaskLevelMapping { get; init; } = [];
 }
 

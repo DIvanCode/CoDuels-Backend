@@ -2,7 +2,7 @@ using Duely.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Duely.Infrastructure.DataAccess.EntityFramework;
+namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations;
 
 public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 {
@@ -19,6 +19,11 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
 
         builder.HasOne(s => s.User)
             .WithMany()
+            .IsRequired();
+
+        builder.Property(s => s.TaskKey)
+            .HasColumnName("TaskKey")
+            .HasColumnType("varchar(1)")
             .IsRequired();
 
         builder.Property(s => s.Code)

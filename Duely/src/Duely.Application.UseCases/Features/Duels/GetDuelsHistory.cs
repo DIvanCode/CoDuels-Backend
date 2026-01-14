@@ -14,7 +14,7 @@ public sealed class GetDuelsHistoryQuery : IRequest<Result<List<DuelDto>>>
     public required int UserId { get; init; }
 }
 
-public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratingManager)
+public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratingManager, ITaskService taskService)
     : IRequestHandler<GetDuelsHistoryQuery, Result<List<DuelDto>>>
 {
     public async Task<Result<List<DuelDto>>> Handle(GetDuelsHistoryQuery query, CancellationToken cancellationToken)
@@ -30,9 +30,12 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
         var duels = await context.Duels
             .Where(d => d.Status == DuelStatus.Finished &&
                         (d.User1.Id == query.UserId || d.User2.Id == query.UserId))
+            .Include(duel => duel.Configuration)
             .Include(duel => duel.User1)
             .Include(duel => duel.User2)
             .Include(duel => duel.Winner)
+            .Include(duel => duel.Submissions)
+            .ThenInclude(s => s.User)
             .OrderByDescending(d => d.StartTime)
             .ToListAsync(cancellationToken);
 
@@ -45,11 +48,14 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
                     [duel.User1.Id] = ratingManager.GetRatingChanges(duel, duel.User1InitRating, duel.User2InitRating),
                     [duel.User2.Id] = ratingManager.GetRatingChanges(duel, duel.User2InitRating, duel.User1InitRating)
                 };
+
+                var visibleTasks = taskService.GetVisibleTasks(duel, query.UserId);
         
                 return new DuelDto
                 {
                     Id = duel.Id,
-                    TaskId = duel.TaskId,
+                    IsRated = duel.Configuration.IsRated,
+                    ShouldShowOpponentCode = duel.Configuration.ShouldShowOpponentCode,
                     Participants = [
                         new UserDto
                         {
@@ -71,7 +77,13 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
                     StartTime = duel.StartTime,
                     DeadlineTime = duel.DeadlineTime,
                     EndTime = duel.EndTime,
-                    RatingChanges = ratingChanges
+                    RatingChanges = ratingChanges,
+                    Tasks = visibleTasks.ToDictionary(
+                        task => task.Key,
+                        task => new DuelTaskDto
+                        {
+                            Id = task.Value.Id
+                        })
                 };
             })
             .ToList();

@@ -1,21 +1,16 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Text.Json;
+using Duely.Application.Services.Outbox.Payloads;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
-using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Moq;
-using Xunit;
-using System.Linq;
-using System.Text.Json;
-using Duely.Application.UseCases.Payloads;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
+namespace Duely.Application.Tests.Handlers;
 
 public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 {
@@ -40,7 +35,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -50,8 +45,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Winner.Should().BeNull();
         d.EndTime.Should().NotBeNull();
         var messages = await ctx.Outbox.AsNoTracking()
-        .Where(m => m.Type == OutboxType.SendMessage)
-        .ToListAsync();
+            .Where(m => m.Type == OutboxType.SendMessage)
+            .ToListAsync();
 
         messages.Should().HaveCount(2);
 
@@ -78,7 +73,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx,ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -88,8 +83,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Winner!.Id.Should().Be(1);
 
         var messages = await ctx.Outbox.AsNoTracking()
-        .Where(m => m.Type == OutboxType.SendMessage)
-        .ToListAsync();
+            .Where(m => m.Type == OutboxType.SendMessage)
+            .ToListAsync();
 
         messages.Should().HaveCount(2);
 
@@ -115,7 +110,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
@@ -143,7 +138,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var ratingManager = new Mock<IRatingManager>();
-        var handler = new CheckDuelsForFinishHandler(ctx,ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
         var messages = await ctx.Outbox.AsNoTracking()
@@ -177,7 +172,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -219,7 +214,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 
         // Сообщения отправляться не должны
         var ratingManager = new Mock<IRatingManager>();
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -262,7 +257,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var ratingManager = new Mock<IRatingManager>();
-        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, NullLogger<CheckDuelsForFinishHandler>.Instance);
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -273,5 +268,127 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.EndTime.Should().NotBeNull();
 
 
+    }
+
+    [Fact]
+    public async Task Finishes_when_all_tasks_solved_by_one_user()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var now = DateTime.UtcNow;
+
+        var configuration = new DuelConfiguration
+        {
+            Id = 70,
+            Owner = u1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 2,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new() { Level = 1, Topics = [] },
+                ['B'] = new() { Level = 1, Topics = [] }
+            }
+        };
+
+        var duel = new Duel
+        {
+            Id = 70,
+            Configuration = configuration,
+            Status = DuelStatus.InProgress,
+            Tasks = new Dictionary<char, DuelTask>
+            {
+                ['A'] = new("TASK-A", 1, []),
+                ['B'] = new("TASK-B", 1, [])
+            },
+            StartTime = now.AddMinutes(-5),
+            DeadlineTime = now.AddMinutes(20),
+            User1 = u1,
+            User2 = u2,
+            User1InitRating = 1500,
+            User2InitRating = 1500
+        };
+
+        var s1 = EntityFactory.MakeSubmission(701, duel, u1, time: now.AddSeconds(1), status: SubmissionStatus.Done, verdict: "Accepted", taskKey: 'A');
+        var s2 = EntityFactory.MakeSubmission(702, duel, u1, time: now.AddSeconds(2), status: SubmissionStatus.Done, verdict: "Accepted", taskKey: 'B');
+
+        ctx.AddRange(u1, u2, duel, s1, s2);
+        await ctx.SaveChangesAsync();
+
+        var ratingManager = new Mock<IRatingManager>();
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
+
+        var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        var updated = await ctx.Duels.AsNoTracking().Include(x => x.Winner).SingleAsync(dd => dd.Id == 70);
+        updated.Status.Should().Be(DuelStatus.Finished);
+        updated.Winner!.Id.Should().Be(u1.Id);
+    }
+
+    [Fact]
+    public async Task Finishes_by_deadline_with_draw_when_tasks_split()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var now = DateTime.UtcNow;
+
+        var configuration = new DuelConfiguration
+        {
+            Id = 80,
+            Owner = u1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentCode = false,
+            TasksCount = 3,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new() { Level = 1, Topics = [] },
+                ['B'] = new() { Level = 1, Topics = [] },
+                ['C'] = new() { Level = 1, Topics = [] }
+            }
+        };
+
+        var duel = new Duel
+        {
+            Id = 80,
+            Configuration = configuration,
+            Status = DuelStatus.InProgress,
+            Tasks = new Dictionary<char, DuelTask>
+            {
+                ['A'] = new("TASK-A", 1, []),
+                ['B'] = new("TASK-B", 1, []),
+                ['C'] = new("TASK-C", 1, [])
+            },
+            StartTime = now.AddMinutes(-50),
+            DeadlineTime = now.AddMinutes(-1),
+            User1 = u1,
+            User2 = u2,
+            User1InitRating = 1500,
+            User2InitRating = 1500
+        };
+
+        var s1 = EntityFactory.MakeSubmission(801, duel, u1, time: now.AddMinutes(-10), status: SubmissionStatus.Done, verdict: "Accepted", taskKey: 'A');
+        var s2 = EntityFactory.MakeSubmission(802, duel, u2, time: now.AddMinutes(-9), status: SubmissionStatus.Done, verdict: "Accepted", taskKey: 'B');
+
+        ctx.AddRange(u1, u2, duel, s1, s2);
+        await ctx.SaveChangesAsync();
+
+        var ratingManager = new Mock<IRatingManager>();
+        var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
+
+        var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        var updated = await ctx.Duels.AsNoTracking().Include(x => x.Winner).SingleAsync(dd => dd.Id == 80);
+        updated.Status.Should().Be(DuelStatus.Finished);
+        updated.Winner.Should().BeNull();
     }
 }

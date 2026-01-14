@@ -1,18 +1,13 @@
-using System;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using Duely.Application.UseCases.Features.Outbox.Relay;
-using Duely.Application.UseCases.Payloads;
+using Duely.Application.Services.Outbox.Payloads;
+using Duely.Application.Services.Outbox.Relay;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
-using Duely.Infrastructure.Gateway.Exesh.Abstracts;
-using Duely.Infrastructure.Gateway.Tasks.Abstracts;
-using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentAssertions;
 using FluentResults;
 using Moq;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class OutboxDispatcherTests
 {
@@ -155,7 +150,7 @@ public class OutboxDispatcherTests
 
         var act = async () => await dispatcher.DispatchAsync(message, CancellationToken.None);
 
-        await act.Should().ThrowAsync<System.Text.Json.JsonException>();
+        await act.Should().ThrowAsync<JsonException>();
         testSolutionHandler.VerifyNoOtherCalls();
     }
 
@@ -222,4 +217,3 @@ public class OutboxDispatcherTests
         sendMessageHandler.VerifyNoOtherCalls();
     }
 }
-
