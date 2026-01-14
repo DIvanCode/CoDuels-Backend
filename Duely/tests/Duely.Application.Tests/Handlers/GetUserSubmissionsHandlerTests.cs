@@ -16,7 +16,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
 
         var res = await handler.Handle(new GetUserSubmissionsQuery
         {
-            TargetUserId = 1,
+            UserId = 1,
             DuelId = 999,
             TaskKey = 'A'
         }, CancellationToken.None);
@@ -39,7 +39,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var handler = new GetUserSubmissionsHandler(ctx);
-        var res = await handler.Handle(new GetUserSubmissionsQuery { TargetUserId = 1, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
+        var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 1, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Should().ContainSingle();
@@ -61,7 +61,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var handler = new GetUserSubmissionsHandler(ctx);
-        var res = await handler.Handle(new GetUserSubmissionsQuery { TargetUserId = 1, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
+        var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 1, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Select(i => i.SubmissionId).Should().ContainInOrder(1, 2);
@@ -82,7 +82,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var handler = new GetUserSubmissionsHandler(ctx);
-        var res = await handler.Handle(new GetUserSubmissionsQuery { TargetUserId = 3, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
+        var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 3, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);

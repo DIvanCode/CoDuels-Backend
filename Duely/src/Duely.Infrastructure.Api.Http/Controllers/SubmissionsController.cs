@@ -36,13 +36,12 @@ public sealed class SubmissionsController(IMediator mediator, IUserContext userC
     public async Task<ActionResult<List<SubmissionListItemDto>>> GetUserSubmissionsAsync(
         [FromRoute] int duelId,
         [FromQuery] char taskKey,
-        [FromQuery] int userId,
         CancellationToken cancellationToken)
     {
         var query = new GetUserSubmissionsQuery
         {
             DuelId = duelId,
-            TargetUserId = userId,
+            UserId = userContext.UserId,
             TaskKey = taskKey
         };
 
