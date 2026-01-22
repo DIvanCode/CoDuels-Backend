@@ -1,4 +1,4 @@
-using Duely.Application.UseCases.Errors;
+using Duely.Application.Services.Errors;
 using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
@@ -7,7 +7,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.DuelConfigurations;
 
-public sealed record DeleteDuelConfigurationCommand(int Id, int UserId) : IRequest<Result>;
+public sealed class DeleteDuelConfigurationCommand : IRequest<Result>
+{
+    public required int Id { get; init; }
+    public required int UserId { get; init; }
+}
 
 public sealed class DeleteDuelConfigurationHandler(Context context)
     : IRequestHandler<DeleteDuelConfigurationCommand, Result>

@@ -1,9 +1,9 @@
+using Duely.Application.Services.Errors;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using MediatR;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Duely.Application.UseCases.Dtos;
-using Duely.Application.UseCases.Errors;
 using Duely.Domain.Models;
 
 namespace Duely.Application.UseCases.Features.Submissions;
@@ -31,17 +31,16 @@ public sealed class GetSubmissionHandler(Context context)
         }
 
         var isOwner = submission.User.Id == query.UserId;
-
         return new SubmissionDto
         {
             SubmissionId = submission.Id,
-            Solution = isOwner ? submission.Code : string.Empty,
+            Solution = isOwner ? submission.Solution : string.Empty,
             Language = submission.Language,
             Status = submission.Status,
             CreatedAt = submission.SubmitTime,
             Message = isOwner ? submission.Message : null,
             Verdict = submission.Verdict,
-            IsUpsolve = submission.IsUpsolve
+            IsUpsolving = submission.IsUpsolving
         };
     }
 }

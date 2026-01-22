@@ -1,4 +1,4 @@
-using Duely.Domain.Models;
+using Duely.Domain.Models.Outbox;
 using FluentResults;
 
 namespace Duely.Application.Services.Outbox.Relay;

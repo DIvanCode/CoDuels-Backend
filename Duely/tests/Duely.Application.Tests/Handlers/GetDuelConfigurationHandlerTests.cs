@@ -1,5 +1,5 @@
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.DuelConfigurations;
 using Duely.Domain.Models;
 using FluentAssertions;
@@ -18,7 +18,7 @@ public class GetDuelConfigurationHandlerTests : ContextBasedTest
         var config = new DuelConfiguration
         {
             Owner = owner,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -35,7 +35,7 @@ public class GetDuelConfigurationHandlerTests : ContextBasedTest
         await Context.SaveChangesAsync();
 
         var handler = new GetDuelConfigurationHandler(Context);
-        var res = await handler.Handle(new GetDuelConfigurationQuery(config.Id), CancellationToken.None);
+        var res = await handler.Handle(new GetDuelConfigurationQuery { Id = config.Id }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Id.Should().Be(config.Id);
@@ -48,7 +48,7 @@ public class GetDuelConfigurationHandlerTests : ContextBasedTest
     public async Task Returns_not_found_when_absent()
     {
         var handler = new GetDuelConfigurationHandler(Context);
-        var res = await handler.Handle(new GetDuelConfigurationQuery(999), CancellationToken.None);
+        var res = await handler.Handle(new GetDuelConfigurationQuery { Id = 999 }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);

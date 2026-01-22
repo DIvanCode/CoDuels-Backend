@@ -1,4 +1,5 @@
 using Duely.Application.Services;
+using Duely.Domain.Models;
 using Duely.Infrastructure.Gateway.Exesh.Abstracts;
 using FluentAssertions;
 
@@ -9,7 +10,7 @@ public class ExeshStepsBuilderTests
     [Fact]
     public void BuildRunSteps_Python_ReturnsRunPyStep()
     {
-        var steps = ExeshStepsBuilder.BuildRunSteps("print('hello')", "python", "input");
+        var steps = ExeshStepsBuilder.BuildRunSteps("print('hello')", Language.Python, "input");
 
         steps.Should().HaveCount(1);
         steps[0].Should().BeOfType<RunPyStep>();
@@ -22,18 +23,9 @@ public class ExeshStepsBuilderTests
     }
 
     [Fact]
-    public void BuildRunSteps_Py_ReturnsRunPyStep()
-    {
-        var steps = ExeshStepsBuilder.BuildRunSteps("print('hello')", "py", "input");
-
-        steps.Should().HaveCount(1);
-        steps[0].Should().BeOfType<RunPyStep>();
-    }
-
-    [Fact]
     public void BuildRunSteps_Golang_ReturnsRunGoStep()
     {
-        var steps = ExeshStepsBuilder.BuildRunSteps("package main\nfunc main() {}", "golang", "input");
+        var steps = ExeshStepsBuilder.BuildRunSteps("package main\nfunc main() {}", Language.Golang, "input");
 
         steps.Should().HaveCount(1);
         steps[0].Should().BeOfType<RunGoStep>();
@@ -46,18 +38,9 @@ public class ExeshStepsBuilderTests
     }
 
     [Fact]
-    public void BuildRunSteps_Go_ReturnsRunGoStep()
-    {
-        var steps = ExeshStepsBuilder.BuildRunSteps("package main\nfunc main() {}", "go", "input");
-
-        steps.Should().HaveCount(1);
-        steps[0].Should().BeOfType<RunGoStep>();
-    }
-
-    [Fact]
     public void BuildRunSteps_Cpp_ReturnsCompileAndRunSteps()
     {
-        var steps = ExeshStepsBuilder.BuildRunSteps("#include <iostream>", "cpp", "input");
+        var steps = ExeshStepsBuilder.BuildRunSteps("#include <iostream>", Language.Cpp, "input");
 
         steps.Should().HaveCount(2);
         steps[0].Should().BeOfType<CompileCppStep>();
@@ -75,28 +58,18 @@ public class ExeshStepsBuilderTests
     }
 
     [Fact]
-    public void BuildRunSteps_CPlusPlus_ReturnsCompileAndRunSteps()
-    {
-        var steps = ExeshStepsBuilder.BuildRunSteps("#include <iostream>", "c++", "input");
-
-        steps.Should().HaveCount(2);
-        steps[0].Should().BeOfType<CompileCppStep>();
-        steps[1].Should().BeOfType<RunCppStep>();
-    }
-
-    [Fact]
     public void BuildRunSteps_UnknownLanguage_ThrowsNotSupportedException()
     {
-        var act = () => ExeshStepsBuilder.BuildRunSteps("code", "unknown", "input");
+        var act = () => ExeshStepsBuilder.BuildRunSteps("code", (Language)999, "input");
 
         act.Should().Throw<NotSupportedException>()
-            .WithMessage("*Language 'unknown' is not supported for runs.*");
+            .WithMessage("*Language '999' is not supported for runs.*");
     }
 
     [Fact]
     public void BuildRunSteps_AddsNewlineToCode()
     {
-        var steps = ExeshStepsBuilder.BuildRunSteps("print(1)", "python", "input");
+        var steps = ExeshStepsBuilder.BuildRunSteps("print(1)", Language.Python, "input");
 
         var step = (RunPyStep)steps[0];
         var codeSource = (InlineSource)step.Code;
@@ -106,31 +79,13 @@ public class ExeshStepsBuilderTests
     [Fact]
     public void BuildRunSteps_AddsNewlineToInput()
     {
-        var steps = ExeshStepsBuilder.BuildRunSteps("print(1)", "python", "test input");
+        var steps = ExeshStepsBuilder.BuildRunSteps("print(1)", Language.Python, "test input");
 
         var step = (RunPyStep)steps[0];
         var inputSource = (InlineSource)step.RunInput;
         inputSource.Content.Should().Be("test input\n");
     }
 
-    [Fact]
-    public void BuildRunSteps_CaseInsensitiveLanguage()
-    {
-        var steps1 = ExeshStepsBuilder.BuildRunSteps("print(1)", "PYTHON", "input");
-        var steps2 = ExeshStepsBuilder.BuildRunSteps("print(1)", "Python", "input");
-        var steps3 = ExeshStepsBuilder.BuildRunSteps("print(1)", "python", "input");
-
-        steps1[0].Should().BeOfType<RunPyStep>();
-        steps2[0].Should().BeOfType<RunPyStep>();
-        steps3[0].Should().BeOfType<RunPyStep>();
-    }
-
-    [Fact]
-    public void BuildRunSteps_TrimsLanguageWhitespace()
-    {
-        var steps = ExeshStepsBuilder.BuildRunSteps("print(1)", "  python  ", "input");
-
-        steps[0].Should().BeOfType<RunPyStep>();
-    }
+    
 }
 

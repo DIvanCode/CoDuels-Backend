@@ -1,5 +1,5 @@
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.DuelConfigurations;
 using Duely.Domain.Models;
 using FluentAssertions;
@@ -19,7 +19,7 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
         var config = new DuelConfiguration
         {
             Owner = owner,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -40,7 +40,7 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
         {
             Id = config.Id,
             UserId = owner.Id,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 60,
             TasksCount = 2,
             TasksOrder = DuelTasksOrder.Parallel,
@@ -77,7 +77,7 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
         {
             Id = 999,
             UserId = 1,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 60,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -105,7 +105,7 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
         var config = new DuelConfiguration
         {
             Owner = owner,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -126,7 +126,7 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
         {
             Id = config.Id,
             UserId = other.Id,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 60,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -150,7 +150,7 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
         var config = new DuelConfiguration
         {
             Owner = null,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -171,7 +171,7 @@ public class UpdateDuelConfigurationHandlerTests : ContextBasedTest
         {
             Id = config.Id,
             UserId = 1,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 60,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,

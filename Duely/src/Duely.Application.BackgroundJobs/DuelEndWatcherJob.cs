@@ -7,7 +7,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.BackgroundJobs;
 
-public sealed class DuelEndWatcherJob(IServiceProvider sp, IOptions<DuelEndWatcherJobOptions> options, ILogger<DuelEndWatcherJob> logger)
+public sealed class DuelEndWatcherJob(
+    IServiceProvider sp,
+    IOptions<DuelEndWatcherJobOptions> options,
+    ILogger<DuelEndWatcherJob> logger)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
@@ -21,8 +24,7 @@ public sealed class DuelEndWatcherJob(IServiceProvider sp, IOptions<DuelEndWatch
                 var result = await mediator.Send(new CheckDuelsForFinishCommand(), cancellationToken);
                 if (result.IsFailed)
                 {
-                    logger.LogWarning(
-                        "CheckDuelsForFinishCommand failed: {Reason}",
+                    logger.LogWarning("failed check duels for finish: {Reason}",
                         string.Join("\n", result.Errors.Select(error => error.Message)));
                 }
             }

@@ -1,3 +1,4 @@
+using Duely.Domain.Models;
 using FluentResults;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 
@@ -28,6 +29,6 @@ public sealed class TaskiClientSuccessFake : ITaskiClient
         }));
 
     public Task<Result> TestSolutionAsync(
-        string taskId, string solutionId, string solution, string language, CancellationToken cancellationToken)
+        string taskId, string solutionId, string solution, Language language, CancellationToken cancellationToken)
         => Task.FromResult(_testSolutionSucceeds ? Result.Ok() : Result.Fail("forced-fail"));
 }

@@ -1,5 +1,5 @@
+using Duely.Application.Services.Errors;
 using Duely.Application.UseCases.Dtos;
-using Duely.Application.UseCases.Errors;
 using Duely.Domain.Services.Users;
 using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
@@ -24,19 +24,13 @@ public sealed class LoginHandler(Context context, ITokenService tokenService, IL
         var user = await context.Users.SingleOrDefaultAsync(u => u.Nickname == command.Nickname, cancellationToken);
         if (user is null)
         {
-            logger.LogWarning("LoginHandler failed: user with nickname {Nickname} is not found", command.Nickname);
-
             return new EntityNotFoundError(nameof(User), nameof(User.Nickname), command.Nickname);
         }
 
         if (!BCrypt.Net.BCrypt.Verify(command.Password + user.PasswordSalt, user.PasswordHash))
         {
-            logger.LogWarning("LoginHandler failed: invalid passward. UserId = {UserId}", user.Id);
-
             return new AuthenticationError();
         }
-
-        logger.LogInformation("Login success. UserId = {UserId}", user.Id);
 
         var (accessToken, refreshToken) = tokenService.GenerateTokens(user);
         user.RefreshToken = refreshToken;

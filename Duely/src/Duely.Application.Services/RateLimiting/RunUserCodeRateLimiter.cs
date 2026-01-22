@@ -13,7 +13,7 @@ public class RunUserCodeLimiter(Context context, IOptions<RateLimitingOptions> o
 {
     public async Task<bool> IsLimitExceededAsync(int userId, CancellationToken cancellationToken)
     {
-        var count = await context.UserCodeRuns
+        var count = await context.CodeRuns
             .Where(r => r.User.Id == userId && r.CreatedAt >= DateTime.UtcNow.AddMinutes(-1))
             .CountAsync(cancellationToken);
 

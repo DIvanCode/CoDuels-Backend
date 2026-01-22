@@ -1,9 +1,9 @@
-using System.Text.Json;
-using Duely.Application.Services.Outbox.Payloads;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +14,8 @@ namespace Duely.Application.Tests.Handlers;
 
 public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
-    private static SendMessagePayload ReadSendPayload(OutboxMessage m)
-        => JsonSerializer.Deserialize<SendMessagePayload>(m.Payload, Json)!;
+    private static SendMessagePayload ReadSendPayload(OutboxMessage message)
+        => (SendMessagePayload)message.Payload;
 
     [Fact]
     public async Task Finishes_by_time_as_draw()
@@ -44,7 +42,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Status.Should().Be(DuelStatus.Finished);
         d.Winner.Should().BeNull();
         d.EndTime.Should().NotBeNull();
-        var messages = await ctx.Outbox.AsNoTracking()
+        var messages = await ctx.OutboxMessages.AsNoTracking()
             .Where(m => m.Type == OutboxType.SendMessage)
             .ToListAsync();
 
@@ -82,7 +80,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         d.Status.Should().Be(DuelStatus.Finished);
         d.Winner!.Id.Should().Be(1);
 
-        var messages = await ctx.Outbox.AsNoTracking()
+        var messages = await ctx.OutboxMessages.AsNoTracking()
             .Where(m => m.Type == OutboxType.SendMessage)
             .ToListAsync();
 
@@ -93,8 +91,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
             m.RetryUntil.Should().Be(duel.DeadlineTime.AddMinutes(5));
 
             var p = ReadSendPayload(m);
-            p.Type.Should().Be(MessageType.DuelFinished);
-            p.DuelId.Should().Be(duel.Id);
+            p.Message.Should().BeOfType<DuelFinishedMessage>()
+                .Which.DuelId.Should().Be(duel.Id);
         }
     }
 
@@ -141,7 +139,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var handler = new CheckDuelsForFinishHandler(ctx, ratingManager.Object, new TaskService(), NullLogger<CheckDuelsForFinishHandler>.Instance);
 
         var res = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
-        var messages = await ctx.Outbox.AsNoTracking()
+        var messages = await ctx.OutboxMessages.AsNoTracking()
             .Where(m => m.Type == OutboxType.SendMessage)
             .ToListAsync();
 
@@ -285,7 +283,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
             Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 2,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -345,7 +343,7 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
             Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 3,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>

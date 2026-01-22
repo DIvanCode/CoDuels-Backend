@@ -12,7 +12,7 @@ public class DuelConfigurationCommandValidatorTests
         var command = new CreateDuelConfigurationCommand
         {
             UserId = 1,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 30,
             TasksCount = 2,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -34,7 +34,7 @@ public class DuelConfigurationCommandValidatorTests
         var command = new CreateDuelConfigurationCommand
         {
             UserId = 1,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 30,
             TasksCount = 2,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -57,7 +57,7 @@ public class DuelConfigurationCommandValidatorTests
         {
             Id = 10,
             UserId = 1,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 30,
             TasksCount = 2,
             TasksOrder = DuelTasksOrder.Sequential,

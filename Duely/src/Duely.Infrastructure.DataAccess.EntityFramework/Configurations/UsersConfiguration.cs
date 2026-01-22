@@ -37,10 +37,14 @@ public sealed class UsersConfiguration : IEntityTypeConfiguration<User>
             .HasColumnType("text")
             .IsRequired(false);
 
+        builder.Property(u => u.AuthTicket)
+            .HasColumnName("AuthTicket")
+            .HasColumnType("text")
+            .IsRequired(false);
+
         builder.Property(s => s.Rating)
             .HasColumnName("Rating")
             .HasColumnType("integer")
-            .HasDefaultValue(1500)
             .IsRequired();
 
         builder.Property(u => u.CreatedAt)

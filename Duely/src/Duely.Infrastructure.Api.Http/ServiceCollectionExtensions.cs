@@ -1,5 +1,5 @@
 ﻿using Duely.Infrastructure.Api.Http.Services;
-using Duely.Infrastructure.Api.Http.Services.Sse;
+using Duely.Infrastructure.Api.Http.Services.WebSockets;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -25,9 +25,10 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         services.AddScoped<IUserContext, UserContext>();
 
-        services.Configure<SseConnectionOptions>(configuration.GetSection(SseConnectionOptions.SectionName));
-        services.AddSingleton<ISseConnectionManager, SseConnectionManager>();
-        services.AddSingleton<IMessageSender, SseMessageSender>();
+        services.Configure<WebSocketConnectionOptions>(configuration.GetSection(WebSocketConnectionOptions.SectionName));
+        services.AddSingleton<IWebSocketConnectionManager, WebSocketConnectionManager>();
+        services.AddSingleton<IMessageSender, WebSocketMessageSender>();
+        services.AddScoped<IUserWebSocketHandler, UserWebSocketHandler>();
 
         services.AddAuthorization();
 

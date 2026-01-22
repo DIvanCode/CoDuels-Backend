@@ -1,18 +1,19 @@
 using System.Text.Json.Serialization;
+using Duely.Domain.Models;
 
 namespace Duely.Infrastructure.Gateway.Tasks.Abstracts;
 
 public sealed class TestRequest
 {
     [JsonPropertyName("task_id")]
-    public string TaskId { get; init; } = string.Empty;
+    public required string TaskId { get; init; }
 
     [JsonPropertyName("solution_id")]
-    public string SolutionId { get; init; } = string.Empty;
+    public required string SolutionId { get; init; }
 
     [JsonPropertyName("solution")]
-    public string Solution { get; init; } = string.Empty;
+    public required string Solution { get; init; }
 
-    [JsonPropertyName("language")]
-    public string Language { get; init; } = string.Empty;
+    [JsonPropertyName("language"), JsonConverter(typeof(JsonStringEnumConverter))]
+    public required Language Language { get; init; }
 }

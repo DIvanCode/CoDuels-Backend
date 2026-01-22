@@ -27,6 +27,7 @@ public class TokenServiceTests
             Nickname = "testuser",
             PasswordHash = "hash",
             PasswordSalt = "salt",
+            Rating = 0,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -46,6 +47,7 @@ public class TokenServiceTests
             Nickname = "testuser",
             PasswordHash = "hash",
             PasswordSalt = "salt",
+            Rating = 0,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -67,6 +69,7 @@ public class TokenServiceTests
             Nickname = "testuser",
             PasswordHash = "hash",
             PasswordSalt = "salt",
+            Rating = 0,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -89,6 +92,7 @@ public class TokenServiceTests
             Nickname = "testuser",
             PasswordHash = "hash",
             PasswordSalt = "salt",
+            Rating = 0,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -107,6 +111,7 @@ public class TokenServiceTests
             Nickname = "testuser",
             PasswordHash = "hash",
             PasswordSalt = "salt",
+            Rating = 0,
             CreatedAt = DateTime.UtcNow
         };
 

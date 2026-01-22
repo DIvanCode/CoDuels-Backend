@@ -1,41 +1,22 @@
-using System.Text.Json;
-using Duely.Application.Services.Outbox.Payloads;
-using Duely.Domain.Models;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using FluentResults;
 
 namespace Duely.Application.Services.Outbox.Relay;
 
 public sealed class OutboxDispatcher(
+    IOutboxHandler<SendMessagePayload> sendMessageHandler,
     IOutboxHandler<TestSolutionPayload> testSolutionHandler,
-    IOutboxHandler<RunUserCodePayload> runUserCodeHandler,
-    IOutboxHandler<SendMessagePayload> sendMessageHandler
-    ) : IOutboxDispatcher
+    IOutboxHandler<RunCodePayload> runUserCodeHandler) : IOutboxDispatcher
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     public Task<Result> DispatchAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
-        if (message.Type == OutboxType.TestSolution)
+        return message.Type switch
         {
-            return Handle(testSolutionHandler, message.Payload, cancellationToken);
-        }
-        if (message.Type == OutboxType.RunUserCode)
-        {
-            return Handle(runUserCodeHandler, message.Payload, cancellationToken);
-        }
-        if (message.Type == OutboxType.SendMessage)
-        {
-            return Handle(sendMessageHandler, message.Payload, cancellationToken);
-        }
-    
-        return Task.FromResult(Result.Ok());
-    }
-
-    private static Task<Result> Handle<TPayload>(IOutboxHandler<TPayload> handler, string payload, CancellationToken cancellationToken)  where TPayload : IOutboxPayload     
-    {
-        var parsed = JsonSerializer.Deserialize<TPayload>(payload, Json);
-        if (parsed is null)
-            return Task.FromResult(Result.Fail($"Invalid {typeof(TPayload).Name} payload"));
-        return handler.HandleAsync(parsed, cancellationToken);
+            OutboxType.SendMessage => sendMessageHandler.HandleAsync((SendMessagePayload)message.Payload, cancellationToken),
+            OutboxType.TestSolution => testSolutionHandler.HandleAsync((TestSolutionPayload)message.Payload, cancellationToken),
+            OutboxType.RunUserCode => runUserCodeHandler.HandleAsync((RunCodePayload)message.Payload, cancellationToken),
+            _ => Task.FromResult(Result.Ok())
+        };
     }
 }

@@ -26,14 +26,15 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
             .HasColumnType("varchar(1)")
             .IsRequired();
 
-        builder.Property(s => s.Code)
-            .HasColumnName("Code")
+        builder.Property(s => s.Solution)
+            .HasColumnName("Solution")
             .HasColumnType("text")
             .IsRequired();
 
         builder.Property(s => s.Language)
             .HasColumnName("Language")
             .HasColumnType("text")
+            .HasConversion<string>()
             .IsRequired();
 
         builder.Property(s => s.SubmitTime)
@@ -57,8 +58,8 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
             .HasColumnType("text")
             .IsRequired(false);
         
-        builder.Property(s => s.IsUpsolve)
-            .HasColumnName("IsUpsolve")
+        builder.Property(s => s.IsUpsolving)
+            .HasColumnName("IsUpsolving")
             .HasColumnType("boolean")
             .HasDefaultValue(false)
             .IsRequired();

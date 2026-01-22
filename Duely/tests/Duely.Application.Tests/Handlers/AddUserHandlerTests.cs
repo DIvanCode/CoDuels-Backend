@@ -1,15 +1,13 @@
-using System.Threading;
-using System.Threading.Tasks;
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
-using Moq;
-using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class AddUserHandlerTests : ContextBasedTest
 {
@@ -165,7 +163,7 @@ public class AddUserHandlerTests : ContextBasedTest
             Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -199,28 +197,35 @@ public class AddUserHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Forbidden_when_accepting_invitation_with_configuration()
+    public async Task Success_adds_user_when_invitation_contains_configuration()
     {
         var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
         ctx.Users.AddRange(u1, u2);
+        ctx.DuelConfigurations.Add(new DuelConfiguration
+        {
+            Id = 10,
+            Owner = u1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentSolution = false,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        });
         await ctx.SaveChangesAsync();
 
         var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.GetWaitingUsers())
-            .Returns(new[]
-            {
-                new WaitingUser
-                {
-                    UserId = u2.Id,
-                    Rating = u2.Rating,
-                    EnqueuedAt = DateTime.UtcNow,
-                    ExpectedOpponentId = u1.Id,
-                    ConfigurationId = null
-                }
-            });
+        duelManager.Setup(m => m.IsUserWaiting(u1.Id)).Returns(false);
 
         var handler = new AddUserHandler(ctx, duelManager.Object, NullLogger<AddUserHandler>.Instance);
 
@@ -231,16 +236,15 @@ public class AddUserHandlerTests : ContextBasedTest
             ConfigurationId = 10
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is ForbiddenError);
+        res.IsSuccess.Should().BeTrue();
         duelManager.Verify(
             m => m.AddUser(
-                It.IsAny<int>(),
-                It.IsAny<int>(),
+                u1.Id,
+                u1.Rating,
                 It.IsAny<DateTime>(),
-                It.IsAny<int?>(),
-                It.IsAny<int?>()),
-            Times.Never);
+                u2.Id,
+                10),
+            Times.Once);
     }
 
     [Fact]
@@ -269,4 +273,3 @@ public class AddUserHandlerTests : ContextBasedTest
             Times.Never);
     }
 }
-

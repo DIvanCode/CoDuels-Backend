@@ -1,9 +1,9 @@
-using System.Text.Json;
-using Duely.Application.Services.Outbox.Payloads;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -15,10 +15,8 @@ namespace Duely.Application.Tests.Handlers;
 
 public class TryCreateDuelHandlerTests : ContextBasedTest
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     private static SendMessagePayload ReadSendPayload(OutboxMessage m)
-        => JsonSerializer.Deserialize<SendMessagePayload>(m.Payload, Json)!;
+        => (SendMessagePayload)m.Payload;
 
     [Fact]
     public async Task Does_nothing_when_no_pair()
@@ -50,7 +48,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         (await ctx.Duels.CountAsync()).Should().Be(0);
-        (await ctx.Outbox.AsNoTracking().ToListAsync())
+        (await ctx.OutboxMessages.AsNoTracking().ToListAsync())
             .Should().BeEmpty();
     }
 
@@ -112,7 +110,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         duel.User1!.Id.Should().Be(1);
         duel.User2!.Id.Should().Be(2);
 
-        var messages = await ctx.Outbox.AsNoTracking()
+        var messages = await ctx.OutboxMessages.AsNoTracking()
             .Where(m => m.Type == OutboxType.SendMessage)
             .ToListAsync();
 
@@ -124,8 +122,8 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             m.RetryUntil.Should().Be(duel.DeadlineTime.AddMinutes(5));
 
             var p = ReadSendPayload(m);
-            p.Type.Should().Be(MessageType.DuelStarted);
-            p.DuelId.Should().Be(duel.Id);
+            p.Message.Should().BeOfType<DuelStartedMessage>()
+                .Which.DuelId.Should().Be(duel.Id);
             (p.UserId == u1.Id || p.UserId == u2.Id).Should().BeTrue();
         }
     }
@@ -145,7 +143,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             Owner = u1,
             MaxDurationMinutes = 45,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>

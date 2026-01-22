@@ -44,7 +44,7 @@ public class RatingManagerTests
             Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>

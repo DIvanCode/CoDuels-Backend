@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace Duely.Infrastructure.MessageBus.Kafka;
@@ -5,14 +6,11 @@ namespace Duely.Infrastructure.MessageBus.Kafka;
 
 public sealed class ExeshStatusEvent
 {
-    [JsonPropertyName("execution_id")]
+    [JsonPropertyName("execution_id"), Required]
     public required string ExecutionId { get; init; }
 
-    [JsonPropertyName("type")]
+    [JsonPropertyName("type"), Required]
     public required string Type { get; init; }
-
-    [JsonPropertyName("step_name")]
-    public string? StepName { get; init; }
 
     [JsonPropertyName("status")]    
     public string? Status { get; init; }

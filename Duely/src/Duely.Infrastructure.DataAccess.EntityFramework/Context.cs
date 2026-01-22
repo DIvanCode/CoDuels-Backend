@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Outbox;
 
 namespace Duely.Infrastructure.DataAccess.EntityFramework;
 
@@ -10,8 +11,8 @@ public sealed class Context : DbContext
     public DbSet<Duel> Duels => Set<Duel>();
     public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
     public DbSet<Submission> Submissions => Set<Submission>();
-    public DbSet<OutboxMessage> Outbox => Set<OutboxMessage>();
-    public DbSet<UserCodeRun> UserCodeRuns => Set<UserCodeRun>();
+    public DbSet<CodeRun> CodeRuns => Set<CodeRun>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public Context(DbContextOptions<Context> options) : base(options)
     {

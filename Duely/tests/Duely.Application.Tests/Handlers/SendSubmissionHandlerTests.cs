@@ -1,8 +1,10 @@
+using Duely.Application.Services.Errors;
 using Duely.Application.Services.RateLimiting;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Submissions;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -25,15 +27,15 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         var limiter = new DummySubmissionRateLimiter();
         var taskService = new TaskService();
 
-        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
+        var handler = new SendSubmissionHandler(ctx, limiter, taskService);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
             DuelId = 10,
             UserId = 1,
             TaskKey = 'A',
-            Code = "print(1)",
-            Language = "py"
+            Solution = "print(1)",
+            Language = Language.Python
         }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
@@ -55,15 +57,15 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         var limiter = new DummySubmissionRateLimiter();
         var taskService = new TaskService();
 
-        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
+        var handler = new SendSubmissionHandler(ctx, limiter, taskService);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
             DuelId = 10,
             UserId = 999,
             TaskKey = 'A',
-            Code = "print(1)",
-            Language = "py"
+            Solution = "print(1)",
+            Language = Language.Python
         }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
@@ -85,15 +87,15 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         var limiter = new DummySubmissionRateLimiter();
         var taskService = new TaskService();
 
-        var handler = new SendSubmissionHandler(ctx, limiter, taskService, NullLogger<SendSubmissionHandler>.Instance);
+        var handler = new SendSubmissionHandler(ctx, limiter, taskService);
 
         var res = await handler.Handle(new SendSubmissionCommand
         {
             DuelId = 10,
             UserId = 1,
             TaskKey = 'A',
-            Code = "print(1)",
-            Language = "py"
+            Solution = "print(1)",
+            Language = Language.Python
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue($"errors: {string.Join(" | ", res.Errors.Select(e => e.Message))}");
@@ -108,16 +110,18 @@ public class SendSubmissionHandlerTests : ContextBasedTest
         sub.Status.Should().Be(SubmissionStatus.Queued);
         sub.User!.Id.Should().Be(1);
         sub.Duel!.Id.Should().Be(10);
-        sub.Language.Should().Be("py");
-        sub.Code.Should().Be("print(1)");
+        sub.Language.Should().Be(Language.Python);
+        sub.Solution.Should().Be("print(1)");
 
-        // Проверяем, что Outbox содержит сообщение TestSolution
-        var outboxMsg = await ctx.Outbox.AsNoTracking().SingleAsync();
+        // Проверяем, что OutboxMessages содержит сообщение TestSolution
+        var outboxMsg = await ctx.OutboxMessages.AsNoTracking().SingleAsync();
         outboxMsg.Type.Should().Be(OutboxType.TestSolution);
         outboxMsg.Status.Should().Be(OutboxStatus.ToDo);
-        outboxMsg.Payload.Should().Contain("TASK-10");
-        outboxMsg.Payload.Should().Contain("print(1)");
-        outboxMsg.Payload.Should().Contain("py");
+        outboxMsg.Payload.Should().BeOfType<TestSolutionPayload>();
+        var payload = (TestSolutionPayload)outboxMsg.Payload;
+        payload.TaskId.Should().Be("TASK-10");
+        payload.Solution.Should().Be("print(1)");
+        payload.Language.Should().Be(Language.Python);
     }
 
 }

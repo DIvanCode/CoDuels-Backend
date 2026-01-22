@@ -1,10 +1,10 @@
 using System.Text.Json;
 using Confluent.Kafka;
+using Duely.Application.UseCases.Features.CodeRuns;
 using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
-using Duely.Application.UseCases.Features.UserCodeRuns;
 using Microsoft.Extensions.Logging;
 
 namespace Duely.Infrastructure.MessageBus.Kafka;
@@ -59,7 +59,7 @@ public sealed class ExeshSubmissionStatusConsumer : BackgroundService
                     continue;
                 }
 
-                var @event = result?.Message?.Value;
+                var @event = result.Message?.Value;
                 if (@event is null)
                 {
                     continue;
@@ -68,11 +68,10 @@ public sealed class ExeshSubmissionStatusConsumer : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-                var command = new UpdateUserCodeRunStatusCommand
+                var command = new UpdateCodeRunCommand
                 {
                     ExecutionId = @event.ExecutionId,
                     Type = @event.Type,
-                    StepName = @event.StepName,
                     Status = @event.Status,
                     Output = @event.Output,
                     Error = @event.Error

@@ -11,8 +11,8 @@ public sealed class SubmissionListItemDto
     [JsonPropertyName("status"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required SubmissionStatus Status { get; init; }
 
-    [JsonPropertyName("language")]
-    public required string Language { get; init; }
+    [JsonPropertyName("language"), JsonConverter(typeof(JsonStringEnumConverter))]
+    public required Language Language { get; init; }
     
     [JsonPropertyName("created_at")]
     public required DateTime CreatedAt { get; init; }
@@ -20,6 +20,6 @@ public sealed class SubmissionListItemDto
     [JsonPropertyName("verdict")]
     public string? Verdict { get; init; }
 
-    [JsonPropertyName("is_upsolve")]
-    public bool IsUpsolve { get; set; } = false;
+    [JsonPropertyName("is_upsolving")]
+    public required bool IsUpsolving { get; set; }
 }

@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Services.Duels;
 using MediatR;
 using FluentResults;
-using System.Text.Json;
-using Duely.Application.Services.Outbox.Payloads;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Duels;
@@ -49,17 +49,16 @@ public sealed class CheckDuelsForFinishHandler(
             var winner = GetWinnerBySolvedTasks(duel, taskWinners);
             await FinishDuelAsync(duel, winner, cancellationToken);
 
-            logger.LogInformation("Duel finished. DuelId = {DuelId}, WinnerId = {Winner}, Reason = {Reason}",
-                duel.Id, duel.Winner?.Id, "AllTasksSolved"
-            );
+            logger.LogInformation("Duel finished (all tasks solved). DuelId = {DuelId}, WinnerId = {Winner}",
+                duel.Id, duel.Winner?.Id);
 
             return Result.Ok();
         }
 
         if (duel.DeadlineTime <= DateTime.UtcNow)
         {
-            var notDoneBeforeDeadline = duel.Submissions.Any(s =>
-                s.Status != SubmissionStatus.Done && s.SubmitTime <= duel.DeadlineTime);
+            var notDoneBeforeDeadline = duel.Submissions
+                .Any(s => s.Status != SubmissionStatus.Done && s.SubmitTime <= duel.DeadlineTime);
             if (notDoneBeforeDeadline)
             {
                 return Result.Ok();
@@ -68,9 +67,7 @@ public sealed class CheckDuelsForFinishHandler(
             var winner = GetWinnerBySolvedTasks(duel, taskWinners);
             await FinishDuelAsync(duel, winner, cancellationToken);
             
-            logger.LogInformation("Duel finished. DuelId = {DuelId}, Reason = {Reason}",
-                duel.Id, "Deadline"
-            );
+            logger.LogInformation("Duel finished (deadline). DuelId = {DuelId}", duel.Id);
             
             return Result.Ok();
         }
@@ -81,6 +78,7 @@ public sealed class CheckDuelsForFinishHandler(
     private async Task FinishDuelAsync(Duel duel, User? winner, CancellationToken cancellationToken)
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        
         duel.Status = DuelStatus.Finished;
         duel.EndTime = DateTime.UtcNow;
         duel.Winner = winner;
@@ -90,35 +88,37 @@ public sealed class CheckDuelsForFinishHandler(
         await context.SaveChangesAsync(cancellationToken);
 
         var retryUntil = duel.DeadlineTime.AddMinutes(5);
-        var payload1 = JsonSerializer.Serialize(
-            new SendMessagePayload(duel.User1.Id, MessageType.DuelFinished, duel.Id)
-        );
-
-        var payload2 = JsonSerializer.Serialize(
-            new SendMessagePayload(duel.User2.Id, MessageType.DuelFinished, duel.Id)
-        );
-
-        context.Outbox.Add(new OutboxMessage
+        
+        context.OutboxMessages.Add(new OutboxMessage
         {
             Type = OutboxType.SendMessage,
-            Payload = payload1,
-            Status = OutboxStatus.ToDo,
-            Retries = 0,
-            RetryAt = null,
+            Payload = new SendMessagePayload
+            {
+                UserId = duel.User1.Id,
+                Message = new DuelFinishedMessage
+                {
+                    DuelId = duel.Id
+                }
+            },
             RetryUntil = retryUntil
         });
 
-        context.Outbox.Add(new OutboxMessage
+        context.OutboxMessages.Add(new OutboxMessage
         {
             Type = OutboxType.SendMessage,
-            Payload = payload2,
-            Status = OutboxStatus.ToDo,
-            Retries = 0,
-            RetryAt = null,
+            Payload = new SendMessagePayload
+            {
+                UserId = duel.User2.Id,
+                Message = new DuelFinishedMessage
+                {
+                    DuelId = duel.Id
+                }
+            },
             RetryUntil = retryUntil
         });
         
         await context.SaveChangesAsync(cancellationToken);
+        
         await transaction.CommitAsync(cancellationToken);
     }
 
