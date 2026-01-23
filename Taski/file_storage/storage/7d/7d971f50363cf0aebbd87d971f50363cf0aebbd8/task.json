@@ -23,10 +23,10 @@
     ],
     "checker": {
         "path": "checker.cpp",
-        "lang": "C++"
+        "lang": "Cpp"
     },
     "solution": {
         "path": "solution.cpp",
-        "lang": "C++"
+        "lang": "Cpp"
     }
 }

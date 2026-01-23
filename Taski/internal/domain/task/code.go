@@ -10,7 +10,7 @@ type (
 )
 
 const (
-	LanguageCpp    Language = "C++"
+	LanguageCpp    Language = "Cpp"
 	LanguagePython Language = "Python"
 	LanguageGo     Language = "Golang"
 )
