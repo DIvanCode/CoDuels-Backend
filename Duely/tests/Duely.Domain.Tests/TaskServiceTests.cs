@@ -1,4 +1,4 @@
-﻿using Duely.Domain.Models;
+using Duely.Domain.Models;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Xunit;
@@ -106,7 +106,7 @@ public class TaskServiceTests
             Owner = user1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -141,7 +141,7 @@ public class TaskServiceTests
         var user2 = CreateUser(2, 0);
         var now = DateTime.UtcNow;
 
-        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        var duel = CreateDuelWithTasks(1, user1, user2, DateTime.UtcNow.AddMinutes(30), new Dictionary<char, DuelTask>
         {
             ['A'] = new("task-1", 1, []),
             ['B'] = new("task-2", 1, [])
@@ -167,7 +167,7 @@ public class TaskServiceTests
         var user2 = CreateUser(2, 0);
         var now = DateTime.UtcNow;
 
-        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        var duel = CreateDuelWithTasks(1, user1, user2, DateTime.UtcNow.AddMinutes(30), new Dictionary<char, DuelTask>
         {
             ['A'] = new("task-1", 1, []),
             ['B'] = new("task-2", 1, []),
@@ -198,7 +198,7 @@ public class TaskServiceTests
             Owner = user1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 2,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -242,7 +242,7 @@ public class TaskServiceTests
             Owner = user1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -275,7 +275,7 @@ public class TaskServiceTests
         var user2 = CreateUser(2, 0);
         var now = DateTime.UtcNow;
 
-        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        var duel = CreateDuelWithTasks(1, user1, user2, DateTime.UtcNow.AddMinutes(30), new Dictionary<char, DuelTask>
         {
             ['A'] = new("task-1", 1, []),
             ['B'] = new("task-2", 1, [])
@@ -298,7 +298,7 @@ public class TaskServiceTests
         var user1 = CreateUser(1, 0);
         var user2 = CreateUser(2, 0);
 
-        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        var duel = CreateDuelWithTasks(1, user1, user2, DateTime.UtcNow.AddMinutes(30), new Dictionary<char, DuelTask>
         {
             ['A'] = new("task-1", 1, []),
             ['B'] = new("task-2", 1, [])
@@ -323,7 +323,7 @@ public class TaskServiceTests
             Owner = user1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -354,7 +354,7 @@ public class TaskServiceTests
             Owner = user1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 0,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>()
@@ -379,7 +379,7 @@ public class TaskServiceTests
             Owner = user1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 2,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -411,7 +411,7 @@ public class TaskServiceTests
             Owner = user1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -434,7 +434,7 @@ public class TaskServiceTests
     {
         var user1 = CreateUser(1, 0);
         var user2 = CreateUser(2, 0);
-        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        var duel = CreateDuelWithTasks(1, user1, user2, DateTime.UtcNow.AddMinutes(30), new Dictionary<char, DuelTask>
         {
             ['A'] = new("task-1", 1, [])
         });
@@ -451,11 +451,10 @@ public class TaskServiceTests
         var user1 = CreateUser(1, 0);
         var user2 = CreateUser(2, 0);
         var now = DateTime.UtcNow;
-        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        var duel = CreateDuelWithTasks(1, user1, user2, now.AddSeconds(5), new Dictionary<char, DuelTask>
         {
             ['A'] = new("task-1", 1, [])
         });
-        duel.DeadlineTime = now.AddSeconds(5);
         duel.Submissions.Add(MakeSubmission(1, duel, user1, 'A', now.AddSeconds(10), SubmissionStatus.Done, "Accepted"));
 
         var tasksService = new TaskService();
@@ -471,7 +470,7 @@ public class TaskServiceTests
         var user2 = CreateUser(2, 0);
         var now = DateTime.UtcNow;
 
-        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        var duel = CreateDuelWithTasks(1, user1, user2, DateTime.UtcNow.AddMinutes(30), new Dictionary<char, DuelTask>
         {
             ['A'] = new("task-1", 1, [])
         });
@@ -490,7 +489,7 @@ public class TaskServiceTests
     {
         var user1 = CreateUser(1, 0);
         var user2 = CreateUser(2, 0);
-        var duel = CreateDuelWithTasks(1, user1, user2, new Dictionary<char, DuelTask>
+        var duel = CreateDuelWithTasks(1, user1, user2, DateTime.UtcNow.AddMinutes(30), new Dictionary<char, DuelTask>
         {
             ['A'] = new("task-1", 1, []),
             ['B'] = new("task-2", 1, [])
@@ -529,7 +528,7 @@ public class TaskServiceTests
             Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -568,6 +567,7 @@ public class TaskServiceTests
         int id,
         User u1,
         User u2,
+        DateTime deadlineTime,
         Dictionary<char, DuelTask> tasks,
         DuelTasksOrder tasksOrder = DuelTasksOrder.Sequential)
     {
@@ -577,7 +577,7 @@ public class TaskServiceTests
             Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = tasks.Count,
             TasksOrder = tasksOrder,
             TasksConfigurations = tasks.ToDictionary(
@@ -596,7 +596,7 @@ public class TaskServiceTests
             Status = DuelStatus.InProgress,
             Tasks = tasks,
             StartTime = DateTime.UtcNow,
-            DeadlineTime = DateTime.UtcNow.AddMinutes(30),
+            DeadlineTime = deadlineTime,
             User1 = u1,
             User1InitRating = 1500,
             User2 = u2,
@@ -619,11 +619,12 @@ public class TaskServiceTests
             Duel = duel,
             User = user,
             TaskKey = taskKey,
-            Code = "code",
-            Language = "lang",
+            Solution = "solution",
+            Language = Language.Cpp,
             SubmitTime = submitTime,
             Status = status,
-            Verdict = verdict
+            Verdict = verdict,
+            IsUpsolving = false
         };
     }
 }

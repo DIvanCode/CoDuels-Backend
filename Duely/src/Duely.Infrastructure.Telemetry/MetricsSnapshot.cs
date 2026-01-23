@@ -13,10 +13,7 @@ public sealed class MetricsSnapshot
 
     public void SetWaitingUsers(long value)
     {
-        lock (_lock)
-        {
-            WaitingUsers = value;
-        }
+        lock (_lock) WaitingUsers = value;
     }
 
     public void SetDuels(Dictionary<string, long> values)
@@ -29,12 +26,12 @@ public sealed class MetricsSnapshot
         lock (_lock) _submissions = values;
     }
 
-    public void SetRuns(Dictionary<string, long> values)
+    public void SetCodeRuns(Dictionary<string, long> values)
     {
         lock (_lock) _runs = values;
     }
 
-    public void SetOutbox(Dictionary<string, long> values)
+    public void SetOutboxMessages(Dictionary<string, long> values)
     {
         lock (_lock) _outbox = values;
     }

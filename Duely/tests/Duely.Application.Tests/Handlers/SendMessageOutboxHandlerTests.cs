@@ -1,7 +1,7 @@
 using Duely.Application.Services.Outbox.Handlers;
-using Duely.Application.Services.Outbox.Payloads;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentAssertions;
 using Moq;
@@ -11,21 +11,19 @@ namespace Duely.Application.Tests.Handlers;
 public class SendMessageOutboxHandlerTests
 {
     [Fact]
-    public void Type_ReturnsSendMessage()
-    {
-        var sender = new Mock<IMessageSender>();
-        var handler = new SendMessageOutboxHandler(sender.Object);
-
-        handler.Type.Should().Be(OutboxType.SendMessage);
-    }
-
-    [Fact]
     public async Task HandleAsync_SendsDuelStartedMessage()
     {
         var sender = new Mock<IMessageSender>();
         var handler = new SendMessageOutboxHandler(sender.Object);
 
-        var payload = new SendMessagePayload(1, MessageType.DuelStarted, 10);
+        var payload = new SendMessagePayload
+        {
+            UserId = 1,
+            Message = new DuelStartedMessage
+            {
+                DuelId = 10
+            }
+        };
 
         sender
             .Setup(s => s.SendMessage(1, It.IsAny<Message>(), It.IsAny<CancellationToken>()))
@@ -46,7 +44,14 @@ public class SendMessageOutboxHandlerTests
         var sender = new Mock<IMessageSender>();
         var handler = new SendMessageOutboxHandler(sender.Object);
 
-        var payload = new SendMessagePayload(2, MessageType.DuelFinished, 20);
+        var payload = new SendMessagePayload
+        {
+            UserId = 2,
+            Message = new DuelFinishedMessage
+            {
+                DuelId = 20
+            }
+        };
 
         sender
             .Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>()))
@@ -62,12 +67,19 @@ public class SendMessageOutboxHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_SendsDuelCanceledMessage()
+    public async Task HandleAsync_SendsDuelInvitationCanceledMessage()
     {
         var sender = new Mock<IMessageSender>();
         var handler = new SendMessageOutboxHandler(sender.Object);
 
-        var payload = new SendMessagePayload(2, MessageType.DuelCanceled, 0, "u1");
+        var payload = new SendMessagePayload
+        {
+            UserId = 2,
+            Message = new DuelInvitationCanceledMessage
+            {
+                OpponentNickname = "u1"
+            }
+        };
 
         sender
             .Setup(s => s.SendMessage(2, It.IsAny<Message>(), It.IsAny<CancellationToken>()))
@@ -78,21 +90,42 @@ public class SendMessageOutboxHandlerTests
         result.IsSuccess.Should().BeTrue();
         sender.Verify(s => s.SendMessage(
             2,
-            It.Is<DuelCanceledMessage>(m => m.OpponentNickname == "u1"),
+            It.Is<DuelInvitationCanceledMessage>(m => m.OpponentNickname == "u1"),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task HandleAsync_ThrowsForUnknownMessageType()
+    public async Task HandleAsync_SendsDuelCodeUpdatedMessage()
     {
         var sender = new Mock<IMessageSender>();
         var handler = new SendMessageOutboxHandler(sender.Object);
 
-        var payload = new SendMessagePayload(1, (MessageType)999, 10); // неизвестный тип
+        var payload = new SendMessagePayload
+        {
+            UserId = 3,
+            Message = new OpponentSolutionUpdatedMessage
+            {
+                DuelId = 11,
+                TaskKey = "A",
+                Solution = "print(1)",
+                Language = Language.Python
+            }
+        };
 
-        var act = async () => await handler.HandleAsync(payload, CancellationToken.None);
+        sender
+            .Setup(s => s.SendMessage(3, It.IsAny<Message>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
-        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
-        sender.VerifyNoOtherCalls();
+        var result = await handler.HandleAsync(payload, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        sender.Verify(s => s.SendMessage(
+            3,
+            It.Is<OpponentSolutionUpdatedMessage>(m =>
+                m.DuelId == 11 &&
+                m.TaskKey == "A" &&
+                m.Solution == "print(1)" &&
+                m.Language == Language.Python),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 }

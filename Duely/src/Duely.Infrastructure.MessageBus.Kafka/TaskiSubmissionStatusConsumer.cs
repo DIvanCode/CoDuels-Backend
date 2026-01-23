@@ -56,7 +56,7 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
                     continue;
                 }
 
-                var @event = result?.Message?.Value;
+                var @event = result.Message?.Value;
                 if (@event is null)
                 {
                     continue;

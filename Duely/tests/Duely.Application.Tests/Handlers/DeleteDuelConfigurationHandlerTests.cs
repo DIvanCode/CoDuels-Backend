@@ -1,5 +1,5 @@
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.DuelConfigurations;
 using Duely.Domain.Models;
 using FluentAssertions;
@@ -18,7 +18,7 @@ public class DeleteDuelConfigurationHandlerTests : ContextBasedTest
         var config = new DuelConfiguration
         {
             Owner = owner,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -35,7 +35,11 @@ public class DeleteDuelConfigurationHandlerTests : ContextBasedTest
         await Context.SaveChangesAsync();
 
         var handler = new DeleteDuelConfigurationHandler(Context);
-        var res = await handler.Handle(new DeleteDuelConfigurationCommand(config.Id, owner.Id), CancellationToken.None);
+        var res = await handler.Handle(new DeleteDuelConfigurationCommand
+        {
+            Id = config.Id,
+            UserId = owner.Id
+        }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         (await Context.DuelConfigurations.AsNoTracking().ToListAsync()).Should().BeEmpty();
@@ -51,7 +55,7 @@ public class DeleteDuelConfigurationHandlerTests : ContextBasedTest
         var config = new DuelConfiguration
         {
             Owner = owner,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -68,7 +72,11 @@ public class DeleteDuelConfigurationHandlerTests : ContextBasedTest
         await Context.SaveChangesAsync();
 
         var handler = new DeleteDuelConfigurationHandler(Context);
-        var res = await handler.Handle(new DeleteDuelConfigurationCommand(config.Id, other.Id), CancellationToken.None);
+        var res = await handler.Handle(new DeleteDuelConfigurationCommand
+        {
+            Id = config.Id,
+            UserId = other.Id
+        }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is ForbiddenError);
@@ -80,7 +88,7 @@ public class DeleteDuelConfigurationHandlerTests : ContextBasedTest
         var config = new DuelConfiguration
         {
             Owner = null,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -97,7 +105,11 @@ public class DeleteDuelConfigurationHandlerTests : ContextBasedTest
         await Context.SaveChangesAsync();
 
         var handler = new DeleteDuelConfigurationHandler(Context);
-        var res = await handler.Handle(new DeleteDuelConfigurationCommand(config.Id, 1), CancellationToken.None);
+        var res = await handler.Handle(new DeleteDuelConfigurationCommand
+        {
+            Id = config.Id,
+            UserId = 1
+        }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is ForbiddenError);
@@ -107,7 +119,11 @@ public class DeleteDuelConfigurationHandlerTests : ContextBasedTest
     public async Task Not_found_when_missing()
     {
         var handler = new DeleteDuelConfigurationHandler(Context);
-        var res = await handler.Handle(new DeleteDuelConfigurationCommand(999, 1), CancellationToken.None);
+        var res = await handler.Handle(new DeleteDuelConfigurationCommand
+        {
+            Id = 999,
+            UserId = 1
+        }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);

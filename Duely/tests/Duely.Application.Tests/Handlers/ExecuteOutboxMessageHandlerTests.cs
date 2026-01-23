@@ -1,6 +1,8 @@
 using Duely.Application.Services.Outbox;
 using Duely.Application.Services.Outbox.Relay;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using FluentAssertions;
 using FluentResults;
 using Moq;
@@ -17,8 +19,13 @@ public class ExecuteOutboxMessageHandlerTests
         {
             Id = 1,
             Type = OutboxType.TestSolution,
-            Payload = "{}",
-            Status = OutboxStatus.ToDo,
+            Payload = new TestSolutionPayload
+            {
+                TaskId = "TASK-1",
+                SubmissionId = 1,
+                Solution = "print(1)",
+                Language = Language.Python
+            },
             RetryUntil = DateTime.UtcNow.AddMinutes(5)
         };
 
@@ -44,8 +51,13 @@ public class ExecuteOutboxMessageHandlerTests
         {
             Id = 1,
             Type = OutboxType.TestSolution,
-            Payload = "{}",
-            Status = OutboxStatus.ToDo,
+            Payload = new TestSolutionPayload
+            {
+                TaskId = "TASK-1",
+                SubmissionId = 1,
+                Solution = "print(1)",
+                Language = Language.Python
+            },
             RetryUntil = DateTime.UtcNow.AddMinutes(5)
         };
 

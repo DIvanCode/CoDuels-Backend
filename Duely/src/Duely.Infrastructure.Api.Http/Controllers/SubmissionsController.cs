@@ -24,7 +24,7 @@ public sealed class SubmissionsController(IMediator mediator, IUserContext userC
             DuelId = duelId,
             UserId = userContext.UserId,
             TaskKey = request.TaskKey,
-            Code = request.Submission,
+            Solution = request.Solution,
             Language = request.Language
         };
 

@@ -1,14 +1,12 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Users;
 using Duely.Domain.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class RegisterHandlerTests : ContextBasedTest
 {
@@ -17,7 +15,7 @@ public class RegisterHandlerTests : ContextBasedTest
     {
         var ctx = Context;
 
-        ctx.Users.Add(new User { Id = 1, Nickname = "alice", PasswordHash = "h", PasswordSalt = "s", CreatedAt = DateTime.UtcNow });
+        ctx.Users.Add(new User { Id = 1, Nickname = "alice", PasswordHash = "h", PasswordSalt = "s", Rating = 0, CreatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
         var handler = new RegisterHandler(ctx, NullLogger<RegisterHandler>.Instance);

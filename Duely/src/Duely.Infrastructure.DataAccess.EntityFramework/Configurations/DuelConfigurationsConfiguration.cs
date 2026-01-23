@@ -28,8 +28,8 @@ public sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration<D
             .HasColumnType("boolean")
             .IsRequired();
         
-        builder.Property(c => c.ShouldShowOpponentCode)
-            .HasColumnName("ShouldShowOpponentCode")
+        builder.Property(c => c.ShouldShowOpponentSolution)
+            .HasColumnName("ShouldShowOpponentSolution")
             .HasColumnType("boolean")
             .IsRequired();
 

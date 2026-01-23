@@ -1,6 +1,6 @@
 using Duely.Application.Services.Outbox.Handlers;
-using Duely.Application.Services.Outbox.Payloads;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentAssertions;
 using FluentResults;
@@ -11,24 +11,21 @@ namespace Duely.Application.Tests.Handlers;
 public class TestSolutionOutboxHandlerTests
 {
     [Fact]
-    public void Type_ReturnsTestSolution()
-    {
-        var client = new Mock<ITaskiClient>();
-        var handler = new TestSolutionHandler(client.Object);
-
-        handler.Type.Should().Be(OutboxType.TestSolution);
-    }
-
-    [Fact]
     public async Task HandleAsync_CallsClientWithCorrectParameters()
     {
         var client = new Mock<ITaskiClient>();
         var handler = new TestSolutionHandler(client.Object);
 
-        var payload = new TestSolutionPayload("TASK-1", 100, "print(1)", "py");
+        var payload = new TestSolutionPayload
+        {
+            TaskId = "TASK-1",
+            SubmissionId = 100,
+            Solution = "print(1)",
+            Language = Language.Python
+        };
 
         client
-            .Setup(c => c.TestSolutionAsync("TASK-1", "100", "print(1)", "py", It.IsAny<CancellationToken>()))
+            .Setup(c => c.TestSolutionAsync("TASK-1", "100", "print(1)", Language.Python, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Ok());
 
         var result = await handler.HandleAsync(payload, CancellationToken.None);
@@ -38,7 +35,7 @@ public class TestSolutionOutboxHandlerTests
             "TASK-1",
             "100",
             "print(1)",
-            "py",
+            Language.Python,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -48,10 +45,16 @@ public class TestSolutionOutboxHandlerTests
         var client = new Mock<ITaskiClient>();
         var handler = new TestSolutionHandler(client.Object);
 
-        var payload = new TestSolutionPayload("TASK-1", 100, "print(1)", "py");
+        var payload = new TestSolutionPayload
+        {
+            TaskId = "TASK-1",
+            SubmissionId = 100,
+            Solution = "print(1)",
+            Language = Language.Python
+        };
 
         client
-            .Setup(c => c.TestSolutionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(c => c.TestSolutionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Language>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Fail("Client error"));
 
         var result = await handler.HandleAsync(payload, CancellationToken.None);

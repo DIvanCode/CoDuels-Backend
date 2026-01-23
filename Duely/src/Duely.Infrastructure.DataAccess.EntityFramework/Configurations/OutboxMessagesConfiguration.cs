@@ -1,0 +1,58 @@
+using System.Text.Json;
+using Duely.Domain.Models;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations;
+
+public sealed class OutboxConfiguration : IEntityTypeConfiguration<OutboxMessage>
+{
+    public void Configure(EntityTypeBuilder<OutboxMessage> builder)
+    {
+        builder.ToTable("Outbox");
+
+        builder.HasKey(o => o.Id);
+
+        builder.Property(o => o.Id)
+            .HasColumnName("Id")
+            .ValueGeneratedOnAdd()
+            .UseIdentityByDefaultColumn();
+
+        builder.Property(o => o.Type)
+            .HasColumnName("Type")
+            .HasColumnType("text")
+            .HasConversion<string>()       
+            .IsRequired();
+
+        builder.Property(o => o.Payload)
+            .HasColumnName("Payload")
+            .HasConversion(
+                obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
+                str => JsonSerializer.Deserialize<OutboxPayload>(str, new JsonSerializerOptions())!)
+            .IsRequired();
+
+        builder.Property(o => o.Status)
+            .HasColumnName("Status")
+            .HasColumnType("text")
+            .HasConversion<string>()      
+            .IsRequired();
+
+        builder.Property(o => o.Retries)
+            .HasColumnName("Retries")
+            .HasColumnType("int")
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder.Property(o => o.RetryAt)
+            .HasColumnName("RetryAt")
+            .HasColumnType("timestamp")    
+            .IsRequired(false);
+
+        builder.Property(o => o.RetryUntil)
+            .HasColumnName("RetryUntil")
+            .HasColumnType("timestamp")
+            .IsRequired();
+    }
+}

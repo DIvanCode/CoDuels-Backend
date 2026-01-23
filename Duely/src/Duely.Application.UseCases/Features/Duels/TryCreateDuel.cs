@@ -1,15 +1,15 @@
+using Duely.Application.Services.Errors;
 using FluentResults;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using Duely.Infrastructure.DataAccess.EntityFramework;
-using Duely.Application.UseCases.Errors;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models;
-using System.Text.Json;
-using Duely.Application.Services.Outbox.Payloads;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Duels;
@@ -36,8 +36,6 @@ public sealed class TryCreateDuelHandler(
             return Result.Ok();
         }
 
-        logger.LogDebug("Pair selected: {User1} vs {User2}", pair.User1, pair.User2);
-
         var user1 = await context.Users
             .Include(u => u.DuelsAsUser1)
             .Include(u => u.DuelsAsUser2)
@@ -63,7 +61,7 @@ public sealed class TryCreateDuelHandler(
             {
                 Owner = null,
                 IsRated = true,
-                ShouldShowOpponentCode = true,
+                ShouldShowOpponentSolution = true,
                 MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,
                 TasksCount = 1,
                 TasksOrder = DuelTasksOrder.Sequential,
@@ -100,11 +98,14 @@ public sealed class TryCreateDuelHandler(
 
         var startTime = DateTime.UtcNow;
         var deadlineTime = startTime.AddMinutes(configuration.MaxDurationMinutes);
+
         var duel = new Duel
         {
             Status = DuelStatus.InProgress,
             Configuration = configuration,
             Tasks = tasksResult.Value,
+            User1Solutions = [],
+            User2Solutions = [],
             StartTime = startTime,
             DeadlineTime = deadlineTime,
             User1 = user1,
@@ -119,30 +120,32 @@ public sealed class TryCreateDuelHandler(
         await context.SaveChangesAsync(cancellationToken);
         
         var retryUntil = duel.DeadlineTime.AddMinutes(5);
-        var payload1 = JsonSerializer.Serialize(
-            new SendMessagePayload(duel.User1.Id, MessageType.DuelStarted, duel.Id)
-        );
-        var payload2 = JsonSerializer.Serialize(
-            new SendMessagePayload(duel.User2.Id, MessageType.DuelStarted, duel.Id)
-        );
 
-        context.Outbox.Add(new OutboxMessage
+        context.OutboxMessages.Add(new OutboxMessage
         {
             Type = OutboxType.SendMessage,
-            Payload = payload1,
-            Status = OutboxStatus.ToDo,
-            Retries = 0,
-            RetryAt = null,
+            Payload = new SendMessagePayload
+            {
+                UserId = duel.User1.Id,
+                Message = new DuelStartedMessage
+                {
+                    DuelId = duel.Id
+                }
+            },
             RetryUntil = retryUntil
         });
 
-        context.Outbox.Add(new OutboxMessage
+        context.OutboxMessages.Add(new OutboxMessage
         {
             Type = OutboxType.SendMessage,
-            Payload = payload2,
-            Status = OutboxStatus.ToDo,
-            Retries = 0,
-            RetryAt = null,
+            Payload = new SendMessagePayload
+            {
+                UserId = duel.User2.Id,
+                Message = new DuelStartedMessage
+                {
+                    DuelId = duel.Id
+                }
+            },
             RetryUntil = retryUntil
         });
 
@@ -150,14 +153,8 @@ public sealed class TryCreateDuelHandler(
         
         await transaction.CommitAsync(cancellationToken);
 
-        logger.LogInformation(
-            "Duel started. DuelId = {DuelId}, Users = {User1}, {User2}, TaskId = {TaskId}, Deadline = {Deadline}",
-            duel.Id,
-            duel.User1.Id,
-            duel.User2.Id,
-            duel.Tasks.Values.FirstOrDefault()?.Id ?? "unknown",
-            duel.DeadlineTime
-        );
+        logger.LogInformation("Duel started. DuelId = {DuelId}, Users = {User1}, {User2}, Deadline = {Deadline}",
+            duel.Id, duel.User1.Id, duel.User2.Id, duel.DeadlineTime);
 
         return Result.Ok();
     }

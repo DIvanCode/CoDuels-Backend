@@ -15,6 +15,7 @@ public static class EntityFactory
             Nickname = nickname,
             PasswordSalt = salt,
             PasswordHash = hash,
+            Rating = 1500,
             CreatedAt = DateTime.UtcNow
         };
     }
@@ -32,7 +33,7 @@ public static class EntityFactory
             Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -54,6 +55,22 @@ public static class EntityFactory
             {
                 [taskKey] = new(taskId, 1, [])
             },
+            User1Solutions = new Dictionary<char, DuelTaskSolution>
+            {
+                [taskKey] = new DuelTaskSolution
+                {
+                    Solution = string.Empty,
+                    Language = Language.Python
+                }
+            },
+            User2Solutions = new Dictionary<char, DuelTaskSolution>
+            {
+                [taskKey] = new DuelTaskSolution
+                {
+                    Solution = string.Empty,
+                    Language = Language.Python
+                }
+            },
             StartTime = start.Value,
             DeadlineTime = deadline.Value,
             User1 = u1,
@@ -64,7 +81,7 @@ public static class EntityFactory
     }
 
     public static Submission MakeSubmission(int id, Duel duel, User user,
-        string code = "print(1)", string language = "python",
+        string solution = "print(1)", Language language = Language.Python,
         DateTime? time = null, SubmissionStatus status = SubmissionStatus.Queued,
         string? verdict = null, string? message = null, char taskKey = 'A')
     {
@@ -74,12 +91,13 @@ public static class EntityFactory
             Duel = duel,
             User = user,
             TaskKey = taskKey,
-            Code = code,
+            Solution = solution,
             Language = language,
             SubmitTime = time ?? DateTime.UtcNow,
             Status = status,
             Verdict = verdict,
-            Message = message
+            Message = message,
+            IsUpsolving = false
         };
     }
 }

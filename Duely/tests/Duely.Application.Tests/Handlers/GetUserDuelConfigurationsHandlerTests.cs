@@ -18,7 +18,7 @@ public class GetUserDuelConfigurationsHandlerTests : ContextBasedTest
         var ownedConfiguration = new DuelConfiguration
         {
             Owner = owner,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             MaxDurationMinutes = 30,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
@@ -35,7 +35,7 @@ public class GetUserDuelConfigurationsHandlerTests : ContextBasedTest
         var otherConfiguration = new DuelConfiguration
         {
             Owner = otherUser,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 45,
             TasksCount = 2,
             TasksOrder = DuelTasksOrder.Parallel,

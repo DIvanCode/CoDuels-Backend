@@ -27,7 +27,7 @@ public sealed class GetUserDuelConfigurationsHandler(Context context)
             .Select(configuration => new DuelConfigurationDto
             {
                 Id = configuration.Id,
-                ShouldShowOpponentCode = configuration.ShouldShowOpponentCode,
+                ShouldShowOpponentSolution = configuration.ShouldShowOpponentSolution,
                 MaxDurationMinutes = configuration.MaxDurationMinutes,
                 TasksCount = configuration.TasksCount,
                 TasksOrder = configuration.TasksOrder,

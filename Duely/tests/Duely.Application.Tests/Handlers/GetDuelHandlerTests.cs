@@ -1,8 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Services.Duels;
@@ -73,7 +73,7 @@ public class GetDuelHandlerTests : ContextBasedTest
             Owner = u1,
             MaxDurationMinutes = 30,
             IsRated = true,
-            ShouldShowOpponentCode = false,
+            ShouldShowOpponentSolution = false,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,
             TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
@@ -137,6 +137,81 @@ public class GetDuelHandlerTests : ContextBasedTest
         res.Value.Participants.Should().Contain(p => p.Id == 2 && p.Rating == 1600);
         res.Value.RatingChanges.Should().ContainKey(1);
         res.Value.RatingChanges.Should().ContainKey(2);
+    }
+
+    [Fact]
+    public async Task Returns_hidden_tasks_with_null_id()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        ctx.Users.AddRange(u1, u2);
+        var configuration = new DuelConfiguration
+        {
+            Id = 0,
+            Owner = u1,
+            MaxDurationMinutes = 30,
+            IsRated = true,
+            ShouldShowOpponentSolution = false,
+            TasksCount = 2,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                },
+                ['B'] = new()
+                {
+                    Level = 1,
+                    Topics = []
+                }
+            }
+        };
+        var duel = new Duel
+        {
+            Id = 10,
+            Configuration = configuration,
+            Status = DuelStatus.InProgress,
+            Tasks = new Dictionary<char, DuelTask>
+            {
+                ['A'] = new("TASK-10", 1, []),
+                ['B'] = new("TASK-20", 1, [])
+            },
+            StartTime = DateTime.UtcNow,
+            DeadlineTime = DateTime.UtcNow.AddMinutes(30),
+            User1 = u1,
+            User1InitRating = 1500,
+            User2 = u2,
+            User2InitRating = 1600
+        };
+        ctx.Duels.Add(duel);
+        await ctx.SaveChangesAsync();
+
+        var ratingManager = new Mock<IRatingManager>();
+        ratingManager.Setup(m => m.GetRatingChanges(It.IsAny<Duel>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(new Dictionary<DuelResult, int>
+            {
+                [DuelResult.Win] = 15,
+                [DuelResult.Draw] = 0,
+                [DuelResult.Lose] = -15
+            });
+
+        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
+
+        var res = await handler.Handle(new GetDuelQuery
+        {
+            UserId = 1,
+            DuelId = 10
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Tasks.Should().ContainKey('A');
+        res.Value.Tasks.Should().ContainKey('B');
+        res.Value.Tasks['A'].Id.Should().Be("TASK-10");
+        res.Value.Tasks['B'].Id.Should().BeNull();
     }
 
     [Fact]

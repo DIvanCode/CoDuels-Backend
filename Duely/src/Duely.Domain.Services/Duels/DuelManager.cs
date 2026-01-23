@@ -3,6 +3,7 @@ namespace Duely.Domain.Services.Duels;
 public interface IDuelManager
 {
     bool IsUserWaiting(int userId);
+    bool TryGetWaitingUser(int userId, out WaitingUser? waitingUser);
     void AddUser(
         int userId,
         int rating,
@@ -25,6 +26,7 @@ public sealed class WaitingUser
     public required DateTime EnqueuedAt { get; init; }
     public required int? ExpectedOpponentId { get; init; }
     public required int? ConfigurationId { get; init; }
+    public required bool IsOpponentAssigned { get; init; }
 }
 
 public sealed class DuelManager : IDuelManager
@@ -41,6 +43,29 @@ public sealed class DuelManager : IDuelManager
         lock (_waitingUsers)
         {
             return _waitingUsers.ContainsKey(userId);   
+        }
+    }
+
+    public bool TryGetWaitingUser(int userId, out WaitingUser? waitingUser)
+    {
+        lock (_waitingUsers)
+        {
+            if (!_waitingUsers.TryGetValue(userId, out var user))
+            {
+                waitingUser = null;
+                return false;
+            }
+
+            waitingUser = new WaitingUser
+            {
+                UserId = user.UserId,
+                Rating = user.Rating,
+                EnqueuedAt = user.EnqueuedAt,
+                ExpectedOpponentId = user.ExpectedOpponentId,
+                ConfigurationId = user.ConfigurationId,
+                IsOpponentAssigned = user.IsOpponentAssigned
+            };
+            return true;
         }
     }
     
@@ -64,7 +89,35 @@ public sealed class DuelManager : IDuelManager
                 Rating = rating,
                 EnqueuedAt = utcNow,
                 ExpectedOpponentId = expectedOpponentId,
-                ConfigurationId = configurationId
+                ConfigurationId = configurationId,
+                IsOpponentAssigned = false
+            };
+
+            if (expectedOpponentId is null ||
+                !_waitingUsers.TryGetValue(expectedOpponentId.Value, out var opponent) ||
+                opponent.ExpectedOpponentId != userId)
+            {
+                return;
+            }
+
+            _waitingUsers[userId] = new WaitingUser
+            {
+                UserId = userId,
+                Rating = rating,
+                EnqueuedAt = utcNow,
+                ExpectedOpponentId = expectedOpponentId,
+                ConfigurationId = configurationId,
+                IsOpponentAssigned = true
+            };
+
+            _waitingUsers[opponent.UserId] = new WaitingUser
+            {
+                UserId = opponent.UserId,
+                Rating = opponent.Rating,
+                EnqueuedAt = opponent.EnqueuedAt,
+                ExpectedOpponentId = opponent.ExpectedOpponentId,
+                ConfigurationId = opponent.ConfigurationId,
+                IsOpponentAssigned = true
             };    
         }
     }
@@ -73,9 +126,25 @@ public sealed class DuelManager : IDuelManager
     {
         lock (_waitingUsers)
         {
-            if (!_waitingUsers.ContainsKey(userId))
+            if (!_waitingUsers.TryGetValue(userId, out var user))
             {
                 return;
+            }
+
+            if (user.IsOpponentAssigned &&
+                user.ExpectedOpponentId is not null &&
+                _waitingUsers.TryGetValue(user.ExpectedOpponentId.Value, out var opponent) &&
+                opponent.ExpectedOpponentId == userId)
+            {
+                _waitingUsers[opponent.UserId] = new WaitingUser
+                {
+                    UserId = opponent.UserId,
+                    Rating = opponent.Rating,
+                    EnqueuedAt = opponent.EnqueuedAt,
+                    ExpectedOpponentId = opponent.ExpectedOpponentId,
+                    ConfigurationId = opponent.ConfigurationId,
+                    IsOpponentAssigned = false
+                };
             }
             
             _waitingUsers.Remove(userId);
@@ -250,7 +319,8 @@ public sealed class DuelManager : IDuelManager
                     Rating = user.Rating,
                     EnqueuedAt = user.EnqueuedAt,
                     ExpectedOpponentId = user.ExpectedOpponentId,
-                    ConfigurationId = user.ConfigurationId
+                    ConfigurationId = user.ConfigurationId,
+                    IsOpponentAssigned = user.IsOpponentAssigned
                 })
                 .ToList()
                 .AsReadOnly();

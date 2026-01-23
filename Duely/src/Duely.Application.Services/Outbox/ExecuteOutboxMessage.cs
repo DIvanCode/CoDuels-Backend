@@ -1,5 +1,5 @@
 using Duely.Application.Services.Outbox.Relay;
-using Duely.Domain.Models;
+using Duely.Domain.Models.Outbox;
 using FluentResults;
 using MediatR;
 

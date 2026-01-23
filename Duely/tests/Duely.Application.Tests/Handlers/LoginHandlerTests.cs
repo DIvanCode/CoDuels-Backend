@@ -1,15 +1,14 @@
-using System.Threading;
-using System.Threading.Tasks;
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Users;
 using Duely.Domain.Models;
 using Duely.Domain.Services.Users;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Moq;
-using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class LoginHandlerTests : ContextBasedTest
 {
@@ -38,7 +37,7 @@ public class LoginHandlerTests : ContextBasedTest
     {
         var ctx = Context;
         var (salt, hash) = Make("correct");
-        ctx.Users.Add(new User { Id = 1, Nickname = "neo", PasswordSalt = salt, PasswordHash = hash, CreatedAt = DateTime.UtcNow });
+        ctx.Users.Add(new User { Id = 1, Nickname = "neo", PasswordSalt = salt, PasswordHash = hash, Rating = 0, CreatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
         var tokenSvc = new Mock<ITokenService>(MockBehavior.Strict);
@@ -56,12 +55,12 @@ public class LoginHandlerTests : ContextBasedTest
     {
         var ctx = Context;
         var (salt, hash) = Make("secret");
-        ctx.Users.Add(new User { Id = 2, Nickname = "trinity", PasswordSalt = salt, PasswordHash = hash, CreatedAt = DateTime.UtcNow });
+        ctx.Users.Add(new User { Id = 2, Nickname = "trinity", PasswordSalt = salt, PasswordHash = hash, Rating = 0, CreatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
         var tokenSvc = new Mock<ITokenService>();
         tokenSvc.Setup(s => s.GenerateTokens(It.Is<User>(u => u.Id == 2)))
-                .Returns(("ACCESS", "REFRESH")).Verifiable();
+            .Returns(("ACCESS", "REFRESH")).Verifiable();
 
         var handler = new LoginHandler(ctx, tokenSvc.Object, NullLogger<LoginHandler>.Instance);
         var res = await handler.Handle(new LoginCommand { Nickname = "trinity", Password = "secret" }, CancellationToken.None);

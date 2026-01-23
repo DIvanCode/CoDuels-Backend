@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Services.Duels;
@@ -28,12 +28,11 @@ public class RemoveUserHandlerTests : ContextBasedTest
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
-        duelManager.Verify(m => m.IsUserWaiting(It.IsAny<int>()), Times.Never);
         duelManager.Verify(m => m.RemoveUser(It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
-    public async Task NotFound_when_user_not_waiting()
+    public async Task Success_when_user_not_waiting()
     {
         var ctx = Context;
 
@@ -42,7 +41,6 @@ public class RemoveUserHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.IsUserWaiting(1)).Returns(false);
 
         var handler = new RemoveUserHandler(ctx, duelManager.Object, NullLogger<RemoveUserHandler>.Instance);
 
@@ -51,9 +49,8 @@ public class RemoveUserHandlerTests : ContextBasedTest
             UserId = 1
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
-        duelManager.Verify(m => m.RemoveUser(It.IsAny<int>()), Times.Never);
+        res.IsSuccess.Should().BeTrue();
+        duelManager.Verify(m => m.RemoveUser(1), Times.Once);
     }
 
     [Fact]
@@ -66,7 +63,6 @@ public class RemoveUserHandlerTests : ContextBasedTest
         await ctx.SaveChangesAsync();
 
         var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.IsUserWaiting(1)).Returns(true);
 
         var handler = new RemoveUserHandler(ctx, duelManager.Object, NullLogger<RemoveUserHandler>.Instance);
 

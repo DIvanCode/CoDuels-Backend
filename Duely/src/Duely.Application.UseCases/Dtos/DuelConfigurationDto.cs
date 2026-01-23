@@ -8,8 +8,8 @@ public sealed class DuelConfigurationDto
     [JsonPropertyName("id")]
     public required int Id { get; init; }
 
-    [JsonPropertyName("should_show_opponent_code")]
-    public required bool ShouldShowOpponentCode { get; init; }
+    [JsonPropertyName("should_show_opponent_solution")]
+    public required bool ShouldShowOpponentSolution { get; init; }
 
     [JsonPropertyName("max_duration_minutes")]
     public required int MaxDurationMinutes { get; init; }

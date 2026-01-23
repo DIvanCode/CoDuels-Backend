@@ -1,10 +1,9 @@
-using System.Threading;
-using System.Threading.Tasks;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Submissions;
 using Duely.Domain.Models;
 using FluentAssertions;
-using Xunit;
+
+namespace Duely.Application.Tests.Handlers;
 
 public class GetSubmissionHandlerTests : ContextBasedTest
 {
@@ -33,7 +32,7 @@ public class GetSubmissionHandlerTests : ContextBasedTest
         res.IsSuccess.Should().BeTrue();
         res.Value.SubmissionId.Should().Be(100);
         res.Value.Verdict.Should().Be("Accepted");
-        res.Value.Solution.Should().Be(sub.Code);
+        res.Value.Solution.Should().Be(sub.Solution);
     }
 
     [Fact]

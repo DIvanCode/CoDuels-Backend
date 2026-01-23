@@ -1,5 +1,5 @@
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Submissions;
 using Duely.Domain.Models;
 using FluentAssertions;

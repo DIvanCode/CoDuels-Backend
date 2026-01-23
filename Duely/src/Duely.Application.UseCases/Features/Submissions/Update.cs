@@ -3,11 +3,10 @@ using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using MediatR;
 using FluentResults;
-using Duely.Application.UseCases.Errors;
-using Microsoft.Extensions.Logging;
-using Duely.Application.Services.Outbox.Payloads;
 using Duely.Domain.Models.Messages;
-using System.Text.Json;
+using Duely.Application.Services.Errors;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 
 namespace Duely.Application.UseCases.Features.Submissions;
 
@@ -20,12 +19,13 @@ public sealed class UpdateSubmissionStatusCommand : IRequest<Result>
     public string? Error { get; init; }
 }
 
-public sealed class UpdateSubmissionStatusHandler(Context context, ILogger<UpdateSubmissionStatusHandler> logger)
+public sealed class UpdateSubmissionStatusHandler(Context context)
     : IRequestHandler<UpdateSubmissionStatusCommand, Result>
 {
     public async Task<Result> Handle(UpdateSubmissionStatusCommand command, CancellationToken cancellationToken)
     {
         var submission = await context.Submissions
+            .Include(s => s.User)
             .Include(s => s.Duel)
             .ThenInclude(d => d.User1)
             .Include(s => s.Duel)
@@ -33,7 +33,6 @@ public sealed class UpdateSubmissionStatusHandler(Context context, ILogger<Updat
             .SingleOrDefaultAsync(s => s.Id == command.SubmissionId, cancellationToken);
         if (submission is null)
         {
-            logger.LogWarning("UpdateSubmissionStatusHandler failed: Submission {SubmissionId} not found", command.SubmissionId);
             return new EntityNotFoundError(nameof(Submission), nameof(Submission.Id), command.SubmissionId);
         }
 
@@ -59,35 +58,35 @@ public sealed class UpdateSubmissionStatusHandler(Context context, ILogger<Updat
             submission.Verdict = command.Verdict;
             submission.Message = null;
 
-            logger.LogInformation("Testing submission is completed. SubmissionId = {SubmissionId}, Verdict = {Verdict}",
-                submission.Id, command.Verdict
-            );
-
             if (command.Verdict == "Accepted")
             {
                 var retryUntil = submission.Duel.DeadlineTime;
-                var payload1 = JsonSerializer.Serialize(
-                    new SendMessagePayload(submission.Duel.User1.Id, MessageType.DuelChanged, submission.Duel.Id));
-                var payload2 = JsonSerializer.Serialize(
-                    new SendMessagePayload(submission.Duel.User2.Id, MessageType.DuelChanged, submission.Duel.Id));
 
-                context.Outbox.Add(new OutboxMessage
+                context.OutboxMessages.Add(new OutboxMessage
                 {
                     Type = OutboxType.SendMessage,
-                    Payload = payload1,
-                    Status = OutboxStatus.ToDo,
-                    Retries = 0,
-                    RetryAt = null,
+                    Payload = new SendMessagePayload
+                    {
+                        UserId = submission.Duel.User1.Id,
+                        Message = new DuelChangedMessage
+                        {
+                            DuelId = submission.Duel.Id
+                        }
+                    },
                     RetryUntil = retryUntil
                 });
 
-                context.Outbox.Add(new OutboxMessage
+                context.OutboxMessages.Add(new OutboxMessage
                 {
                     Type = OutboxType.SendMessage,
-                    Payload = payload2,
-                    Status = OutboxStatus.ToDo,
-                    Retries = 0,
-                    RetryAt = null,
+                    Payload = new SendMessagePayload
+                    {
+                        UserId = submission.Duel.User2.Id,
+                        Message = new DuelChangedMessage
+                        {
+                            DuelId = submission.Duel.Id
+                        }
+                    },
                     RetryUntil = retryUntil
                 });
             }
@@ -96,6 +95,24 @@ public sealed class UpdateSubmissionStatusHandler(Context context, ILogger<Updat
         {
             submission.Message = command.Message;
         }
+
+        context.OutboxMessages.Add(new OutboxMessage
+        {
+            Type = OutboxType.SendMessage,
+            Payload = new SendMessagePayload
+            {
+                UserId = submission.User.Id,
+                Message = new SubmissionStatusUpdatedMessage
+                {
+                    DuelId = submission.Duel.Id,
+                    SubmissionId = submission.Id,
+                    Status = submission.Status,
+                    Message = submission.Message,
+                    Verdict = submission.Verdict
+                }
+            },
+            RetryUntil = DateTime.UtcNow.AddSeconds(10)
+        });
 
         await context.SaveChangesAsync(cancellationToken);
         return Result.Ok();

@@ -11,8 +11,8 @@ public sealed class DuelDto
     [JsonPropertyName("is_rated")]
     public required bool IsRated { get; init; }
     
-    [JsonPropertyName("should_show_opponent_code")]
-    public required bool ShouldShowOpponentCode { get; init; }
+    [JsonPropertyName("should_show_opponent_solution")]
+    public required bool ShouldShowOpponentSolution { get; init; }
 
     [JsonPropertyName("participants")]
     public required UserDto[] Participants { get; init; }
@@ -37,4 +37,19 @@ public sealed class DuelDto
     
     [JsonPropertyName("tasks")]
     public required Dictionary<char, DuelTaskDto> Tasks { get; init; }
+
+    [JsonPropertyName("solutions")]
+    public required Dictionary<char, DuelTaskSolutionDto> Solutions { get; init; }
+
+    [JsonPropertyName("opponent_solutions")]
+    public Dictionary<char, DuelTaskSolutionDto>? OpponentSolutions { get; init; }
+}
+
+public sealed class DuelTaskSolutionDto
+{
+    [JsonPropertyName("solution")]
+    public required string Solution { get; init; }
+
+    [JsonPropertyName("language"), JsonConverter(typeof(JsonStringEnumConverter))]
+    public required Language Language { get; init; }
 }

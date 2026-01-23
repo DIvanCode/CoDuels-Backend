@@ -1,4 +1,4 @@
-using Duely.Application.UseCases.Errors;
+using Duely.Application.Services.Errors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,3 +1,4 @@
+using Duely.Domain.Models;
 using FluentResults;
 
 namespace Duely.Infrastructure.Gateway.Tasks.Abstracts;
@@ -8,7 +9,7 @@ public interface ITaskiClient
         string taskId,
         string solutionId,
         string solution,
-        string language,
+        Language language,
         CancellationToken cancellationToken);
     
     Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken);

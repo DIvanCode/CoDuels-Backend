@@ -1,9 +1,9 @@
+using Duely.Application.Services.Errors;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using MediatR;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Duely.Application.UseCases.Dtos;
-using Duely.Application.UseCases.Errors;
 using Duely.Domain.Models;
 
 namespace Duely.Application.UseCases.Features.Submissions;
@@ -34,7 +34,7 @@ public sealed class GetUserSubmissionsHandler(Context context)
             return new EntityNotFoundError(nameof(User), nameof(User.Id), query.UserId);
         }
 
-        var items = await context.Submissions
+        return await context.Submissions
             .Where(s => s.Duel.Id == duel.Id && s.User.Id == query.UserId && s.TaskKey == query.TaskKey)
             .OrderBy(s => s.SubmitTime)
             .Select(s => new SubmissionListItemDto
@@ -44,10 +44,8 @@ public sealed class GetUserSubmissionsHandler(Context context)
                 Language = s.Language,
                 CreatedAt = s.SubmitTime,
                 Verdict = s.Verdict,
-                IsUpsolve = s.IsUpsolve
+                IsUpsolving = s.IsUpsolving
             })
             .ToListAsync(cancellationToken);
-
-        return Result.Ok(items);
     }
 }

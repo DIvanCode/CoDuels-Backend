@@ -1,18 +1,14 @@
-﻿FROM mcr.microsoft.com/dotnet/sdk:8.0 AS base
+﻿FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
 WORKDIR /app
 COPY . .
 
-RUN dotnet restore Duely.sln
-
-FROM base AS build
-RUN dotnet build Duely.sln -c Release --no-restore
+RUN dotnet restore src/Duely/Duely.csproj
+RUN dotnet build src/Duely/Duely.csproj -c Release --no-restore
 RUN dotnet publish src/Duely/Duely.csproj -c Release -o /out --no-build
 
-FROM base AS migration
+FROM build AS migration
 RUN dotnet tool install --global dotnet-ef --version 9.0.10
-RUN dotnet build Duely.sln -c Release --no-restore
-RUN dotnet publish src/Duely/Duely.csproj -c Release -o /migration-out --no-build
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 

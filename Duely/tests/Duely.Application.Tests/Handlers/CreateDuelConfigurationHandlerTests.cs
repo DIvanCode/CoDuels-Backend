@@ -1,5 +1,5 @@
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.DuelConfigurations;
 using Duely.Domain.Models;
 using FluentAssertions;
@@ -21,7 +21,7 @@ public class CreateDuelConfigurationHandlerTests : ContextBasedTest
         var command = new CreateDuelConfigurationCommand
         {
             UserId = owner.Id,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 45,
             TasksCount = 2,
             TasksOrder = DuelTasksOrder.Parallel,
@@ -44,7 +44,7 @@ public class CreateDuelConfigurationHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Id.Should().BeGreaterThan(0);
-        res.Value.ShouldShowOpponentCode.Should().BeTrue();
+        res.Value.ShouldShowOpponentSolution.Should().BeTrue();
         res.Value.MaxDurationMinutes.Should().Be(45);
         res.Value.TasksCount.Should().Be(2);
         res.Value.TasksOrder.Should().Be(DuelTasksOrder.Parallel);
@@ -66,7 +66,7 @@ public class CreateDuelConfigurationHandlerTests : ContextBasedTest
         var command = new CreateDuelConfigurationCommand
         {
             UserId = 999,
-            ShouldShowOpponentCode = true,
+            ShouldShowOpponentSolution = true,
             MaxDurationMinutes = 45,
             TasksCount = 1,
             TasksOrder = DuelTasksOrder.Sequential,

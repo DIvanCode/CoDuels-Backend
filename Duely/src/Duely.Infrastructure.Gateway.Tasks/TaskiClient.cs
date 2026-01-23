@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Duely.Domain.Models;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -7,11 +8,14 @@ namespace Duely.Infrastructure.Gateway.Tasks;
 
 public sealed class TaskiClient(HttpClient httpClient, ILogger<TaskiClient> logger) : ITaskiClient
 {
+    private const string TestSolutionUri = "test";
+    private const string TaskListUri = "task/list";
+    
     public async Task<Result> TestSolutionAsync(
         string taskId,
         string solutionId,
         string solution,
-        string language,
+        Language language,
         CancellationToken cancellationToken)
     {
         try
@@ -24,22 +28,20 @@ public sealed class TaskiClient(HttpClient httpClient, ILogger<TaskiClient> logg
                 Language = language
             };
 
-            using var resp = await httpClient.PostAsJsonAsync("test", request, cancellationToken);
-            if (!resp.IsSuccessStatusCode)
+            using var response = await httpClient.PostAsJsonAsync(TestSolutionUri, request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Taski test failed. StatusCode = {StatusCode}, TaskId = {TaskId}, SolutionId = {SolutionId}",
-                    (int)resp.StatusCode, taskId, solutionId
+                logger.LogWarning("test solution request failed {StatusCode}, TaskId = {TaskId}, SolutionId = {SolutionId}",
+                    response.StatusCode, taskId, solutionId
                 );
-
-                return Result.Fail($"Failed to test solution {solutionId} for task {taskId}");
+                return Result.Fail($"failed to test solution {solutionId} for task {taskId}");
             }
 
             return Result.Ok();
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Taski test request crashed. TaskId = {TaskId}, SolutionId = {SolutionId}", taskId, solutionId);
-
+            logger.LogError(e, "failed to test solution");
             return Result.Fail(e.Message);
         }
     }
@@ -48,22 +50,18 @@ public sealed class TaskiClient(HttpClient httpClient, ILogger<TaskiClient> logg
     {
         try
         {
-            var resp = await httpClient.GetFromJsonAsync<TaskListResponse>(
-                "task/list",
-                cancellationToken);
-            if (resp is null)
+            var response = await httpClient.GetFromJsonAsync<TaskListResponse>(TaskListUri, cancellationToken);
+            if (response is null)
             {
-                logger.LogWarning("Taski tasks list returned empty response");
-
-                return Result.Fail<TaskListResponse>("No tasks returned from Taski");
+                logger.LogWarning("tasks list returned empty response");
+                return Result.Fail<TaskListResponse>("tasks list empty response");
             }
 
-            return Result.Ok(resp);
+            return Result.Ok(response);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Taski tasks list request crashed");
-
+            logger.LogError(e, "failed to get tasks list");
             return Result.Fail<TaskListResponse>(e.Message);
         }
     }

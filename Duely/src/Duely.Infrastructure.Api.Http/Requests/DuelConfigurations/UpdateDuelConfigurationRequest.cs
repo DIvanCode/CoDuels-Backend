@@ -6,8 +6,8 @@ namespace Duely.Infrastructure.Api.Http.Requests.DuelConfigurations;
 
 public sealed class UpdateDuelConfigurationRequest
 {
-    [JsonPropertyName("should_ShouldShowOpponentCode"), Required]
-    public required bool ShouldShowOpponentCode { get; init; }
+    [JsonPropertyName("should_show_opponent_solution"), Required]
+    public required bool ShouldShowOpponentSolution { get; init; }
     
     [JsonPropertyName("max_duration_minutes"), Required]
     public required int MaxDurationMinutes { get; init; }
@@ -21,4 +21,3 @@ public sealed class UpdateDuelConfigurationRequest
     [JsonPropertyName("tasks_configurations"), Required]
     public required Dictionary<char, DuelTaskConfiguration> TasksConfigurations { get; init; }
 }
-

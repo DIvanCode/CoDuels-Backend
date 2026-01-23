@@ -29,6 +29,18 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
                 obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
                 str => JsonSerializer.Deserialize<Dictionary<char, DuelTask>>(str, new JsonSerializerOptions())!);
 
+        builder.Property(d => d.User1Solutions)
+            .HasColumnName("User1Solutions")
+            .HasConversion(
+                obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
+                str => JsonSerializer.Deserialize<Dictionary<char, DuelTaskSolution>>(str, new JsonSerializerOptions())!);
+
+        builder.Property(d => d.User2Solutions)
+            .HasColumnName("User2Solutions")
+            .HasConversion(
+                obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
+                str => JsonSerializer.Deserialize<Dictionary<char, DuelTaskSolution>>(str, new JsonSerializerOptions())!);
+
         builder.Property(d => d.Status)
             .HasColumnName("Status")
             .HasColumnType("text")

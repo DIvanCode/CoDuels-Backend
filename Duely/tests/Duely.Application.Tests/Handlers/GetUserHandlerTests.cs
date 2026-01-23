@@ -1,8 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Users;
-using Duely.Application.UseCases.Errors;
 using Duely.Domain.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;

@@ -13,7 +13,6 @@ public sealed class MetricsCollector : BackgroundService
     private readonly MetricsSnapshot _snapshot;
     private readonly IDuelManager _duelManager;
     private readonly ILogger<MetricsCollector> _logger;
-    private readonly DuelyMetrics _metrics;
 
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(15);
 
@@ -21,14 +20,12 @@ public sealed class MetricsCollector : BackgroundService
         IServiceScopeFactory scopeFactory,
         MetricsSnapshot snapshot,
         IDuelManager duelManager,
-        ILogger<MetricsCollector> logger,
-        DuelyMetrics metrics)
+        ILogger<MetricsCollector> logger)
     {
         _scopeFactory = scopeFactory;
         _snapshot = snapshot;
         _duelManager = duelManager;
         _logger = logger;
-        _metrics = metrics;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -56,19 +53,19 @@ public sealed class MetricsCollector : BackgroundService
                     .ToDictionaryAsync(s => s.Status, s => s.Count, stoppingToken);
                 _snapshot.SetSubmissions(submissions);
 
-                var runs = await db.UserCodeRuns
+                var codeRuns = await db.CodeRuns
                     .AsNoTracking()
                     .GroupBy(r => r.Status)
                     .Select(g => new { Status = g.Key.ToString(), Count = g.LongCount() })
                     .ToDictionaryAsync(r => r.Status, r => r.Count, stoppingToken);
-                _snapshot.SetRuns(runs);
+                _snapshot.SetCodeRuns(codeRuns);
 
-                var outbox = await db.Outbox
+                var outboxMessages = await db.OutboxMessages
                     .AsNoTracking()
                     .GroupBy(o => o.Status)
                     .Select(g => new { Status = g.Key.ToString(), Count = g.LongCount() })
                     .ToDictionaryAsync(o => o.Status, o => o.Count, stoppingToken);
-                _snapshot.SetOutbox(outbox);
+                _snapshot.SetOutboxMessages(outboxMessages);
             }
             catch (Exception ex)
             {

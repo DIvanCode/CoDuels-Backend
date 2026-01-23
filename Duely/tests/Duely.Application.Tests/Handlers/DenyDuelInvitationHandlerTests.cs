@@ -1,10 +1,10 @@
-using System.Text.Json;
-using Duely.Application.Services.Outbox.Payloads;
+using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Errors;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +13,8 @@ namespace Duely.Application.Tests.Handlers;
 
 public class DenyDuelInvitationHandlerTests : ContextBasedTest
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
-    private static SendMessagePayload ReadSendPayload(OutboxMessage m)
-        => JsonSerializer.Deserialize<SendMessagePayload>(m.Payload, Json)!;
+    private static SendMessagePayload ReadSendPayload(OutboxMessage message)
+        => (SendMessagePayload)message.Payload;
 
     [Fact]
     public async Task NotFound_when_user_missing()
@@ -98,11 +96,11 @@ public class DenyDuelInvitationHandlerTests : ContextBasedTest
         res.IsSuccess.Should().BeTrue();
         duelManager.GetWaitingUsers().Should().BeEmpty();
 
-        var outbox = await ctx.Outbox.AsNoTracking().SingleAsync();
-        outbox.Type.Should().Be(OutboxType.SendMessage);
-        var payload = ReadSendPayload(outbox);
+        var outboxMessage = await ctx.OutboxMessages.AsNoTracking().SingleAsync();
+        outboxMessage.Type.Should().Be(OutboxType.SendMessage);
+        var payload = ReadSendPayload(outboxMessage);
         payload.UserId.Should().Be(u2.Id);
-        payload.Type.Should().Be(MessageType.DuelCanceled);
-        payload.OpponentNickname.Should().Be(u1.Nickname);
+        payload.Message.Should().BeOfType<DuelInvitationDeniedMessage>()
+            .Which.OpponentNickname.Should().Be(u1.Nickname);
     }
 }

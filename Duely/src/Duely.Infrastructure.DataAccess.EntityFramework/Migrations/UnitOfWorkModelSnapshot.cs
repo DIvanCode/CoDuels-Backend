@@ -22,272 +22,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("Id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ConfigurationId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("DeadlineTime")
-                        .HasColumnType("timestamp")
-                        .HasColumnName("DeadlineTime");
-
-                    b.Property<DateTime?>("EndTime")
-                        .HasColumnType("timestamp")
-                        .HasColumnName("EndTime");
-
-                    b.Property<DateTime>("StartTime")
-                        .HasColumnType("timestamp")
-                        .HasColumnName("StartTime");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Status");
-
-                    b.Property<string>("Tasks")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Tasks");
-
-                    b.Property<int?>("User1FinalRating")
-                        .HasColumnType("integer")
-                        .HasColumnName("User1FinalRating");
-
-                    b.Property<int>("User1Id")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("User1InitRating")
-                        .HasColumnType("integer")
-                        .HasColumnName("User1InitRating");
-
-                    b.Property<int?>("User2FinalRating")
-                        .HasColumnType("integer")
-                        .HasColumnName("User2FinalRating");
-
-                    b.Property<int>("User2Id")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("User2InitRating")
-                        .HasColumnType("integer")
-                        .HasColumnName("User2InitRating");
-
-                    b.Property<int?>("WinnerId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConfigurationId");
-
-                    b.HasIndex("User1Id");
-
-                    b.HasIndex("User2Id");
-
-                    b.HasIndex("WinnerId");
-
-                    b.ToTable("Duels", (string)null);
-                });
-
-            modelBuilder.Entity("Duely.Domain.Models.DuelConfiguration", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("Id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("IsRated")
-                        .HasColumnType("boolean")
-                        .HasColumnName("IsRated");
-
-                    b.Property<int>("MaxDurationMinutes")
-                        .HasColumnType("integer")
-                        .HasColumnName("MaxDurationMinutes");
-
-                    b.Property<int?>("OwnerId")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("ShouldShowOpponentCode")
-                        .HasColumnType("boolean")
-                        .HasColumnName("ShouldShowOpponentCode");
-
-                    b.Property<string>("TasksConfigurations")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("TasksConfigurations");
-
-                    b.Property<int>("TasksCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("TasksCount");
-
-                    b.Property<string>("TasksOrder")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("TasksOrder");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OwnerId");
-
-                    b.ToTable("DuelConfigurations", (string)null);
-                });
-
-            modelBuilder.Entity("Duely.Domain.Models.OutboxMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("Id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Payload");
-
-                    b.Property<int>("Retries")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("Retries");
-
-                    b.Property<DateTime?>("RetryAt")
-                        .HasColumnType("timestamp")
-                        .HasColumnName("RetryAt");
-
-                    b.Property<DateTime>("RetryUntil")
-                        .HasColumnType("timestamp")
-                        .HasColumnName("RetryUntil");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Status");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Type");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Outbox", (string)null);
-                });
-
-            modelBuilder.Entity("Duely.Domain.Models.Submission", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("Id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Code");
-
-                    b.Property<int>("DuelId")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsUpsolve")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("IsUpsolve");
-
-                    b.Property<string>("Language")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Language");
-
-                    b.Property<string>("Message")
-                        .HasColumnType("text")
-                        .HasColumnName("Message");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Status");
-
-                    b.Property<DateTime>("SubmitTime")
-                        .HasColumnType("timestamp")
-                        .HasColumnName("SubmitTime");
-
-                    b.Property<string>("TaskKey")
-                        .IsRequired()
-                        .HasColumnType("varchar(1)")
-                        .HasColumnName("TaskKey");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Verdict")
-                        .HasColumnType("text")
-                        .HasColumnName("Verdict");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DuelId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Submissions", (string)null);
-                });
-
-            modelBuilder.Entity("Duely.Domain.Models.User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("Id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp")
-                        .HasColumnName("CreatedAt");
-
-                    b.Property<string>("Nickname")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("Nickname");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("PasswordHash");
-
-                    b.Property<string>("PasswordSalt")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("PasswordSalt");
-
-                    b.Property<int>("Rating")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1500)
-                        .HasColumnName("Rating");
-
-                    b.Property<string>("RefreshToken")
-                        .HasColumnType("text")
-                        .HasColumnName("RefreshToken");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Users", (string)null);
-                });
-
-            modelBuilder.Entity("Duely.Domain.Models.UserCodeRun", b =>
+            modelBuilder.Entity("Duely.Domain.Models.CodeRun", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -339,7 +74,295 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserCodeRuns", (string)null);
+                    b.ToTable("CodeRuns", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ConfigurationId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("DeadlineTime")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("DeadlineTime");
+
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("EndTime");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("StartTime");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Status");
+
+                    b.Property<string>("Tasks")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Tasks");
+
+                    b.Property<int?>("User1FinalRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User1FinalRating");
+
+                    b.Property<int>("User1Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("User1InitRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User1InitRating");
+
+                    b.Property<string>("User1Solutions")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("User1Solutions");
+
+                    b.Property<int?>("User2FinalRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User2FinalRating");
+
+                    b.Property<int>("User2Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("User2InitRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("User2InitRating");
+
+                    b.Property<string>("User2Solutions")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("User2Solutions");
+
+                    b.Property<int?>("WinnerId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConfigurationId");
+
+                    b.HasIndex("User1Id");
+
+                    b.HasIndex("User2Id");
+
+                    b.HasIndex("WinnerId");
+
+                    b.ToTable("Duels", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.DuelConfiguration", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsRated")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsRated");
+
+                    b.Property<int>("MaxDurationMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("MaxDurationMinutes");
+
+                    b.Property<int?>("OwnerId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("ShouldShowOpponentSolution")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ShouldShowOpponentSolution");
+
+                    b.Property<string>("TasksConfigurations")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("TasksConfigurations");
+
+                    b.Property<int>("TasksCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("TasksCount");
+
+                    b.Property<string>("TasksOrder")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("TasksOrder");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.ToTable("DuelConfigurations", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Outbox.OutboxMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Payload");
+
+                    b.Property<int>("Retries")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("Retries");
+
+                    b.Property<DateTime?>("RetryAt")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("RetryAt");
+
+                    b.Property<DateTime>("RetryUntil")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("RetryUntil");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Status");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Type");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Outbox", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Submission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DuelId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsUpsolving")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("IsUpsolving");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Language");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("text")
+                        .HasColumnName("Message");
+
+                    b.Property<string>("Solution")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Solution");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("SubmitTime")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("SubmitTime");
+
+                    b.Property<string>("TaskKey")
+                        .IsRequired()
+                        .HasColumnType("varchar(1)")
+                        .HasColumnName("TaskKey");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Verdict")
+                        .HasColumnType("text")
+                        .HasColumnName("Verdict");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DuelId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Submissions", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AuthTicket")
+                        .HasColumnType("text")
+                        .HasColumnName("AuthTicket");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<string>("Nickname")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Nickname");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("PasswordHash");
+
+                    b.Property<string>("PasswordSalt")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("PasswordSalt");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("Rating");
+
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("text")
+                        .HasColumnName("RefreshToken");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.CodeRun", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
@@ -399,17 +422,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .IsRequired();
 
                     b.Navigation("Duel");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Duely.Domain.Models.UserCodeRun", b =>
-                {
-                    b.HasOne("Duely.Domain.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("User");
                 });

@@ -1,7 +1,7 @@
 ﻿using Duely.Application.Services.Outbox.Handlers;
-using Duely.Application.Services.Outbox.Payloads;
 using Duely.Application.Services.Outbox.Relay;
 using Duely.Application.Services.RateLimiting;
+using Duely.Domain.Models.Outbox.Payloads;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRunUserCodeLimiter, RunUserCodeLimiter>();
         
         services.AddScoped<IOutboxHandler<TestSolutionPayload>, TestSolutionHandler>();
-        services.AddScoped<IOutboxHandler<RunUserCodePayload>, RunUserCodeOutboxHandler>();
+        services.AddScoped<IOutboxHandler<RunCodePayload>, RunCodeOutboxHandler>();
         services.AddScoped<IOutboxHandler<SendMessagePayload>, SendMessageOutboxHandler>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
     }

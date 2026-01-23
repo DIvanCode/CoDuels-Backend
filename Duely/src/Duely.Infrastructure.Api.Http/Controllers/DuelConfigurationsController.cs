@@ -9,7 +9,7 @@ using Duely.Infrastructure.Api.Http.Services;
 namespace Duely.Infrastructure.Api.Http.Controllers;
 
 [ApiController]
-[Route("configurations")]
+[Route("duels/configurations")]
 [Authorize]
 public sealed class DuelConfigurationsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
@@ -21,7 +21,7 @@ public sealed class DuelConfigurationsController(IMediator mediator, IUserContex
         var command = new CreateDuelConfigurationCommand
         {
             UserId = userContext.UserId,
-            ShouldShowOpponentCode = request.ShouldShowOpponentCode,
+            ShouldShowOpponentSolution = request.ShouldShowOpponentSolution,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,
             TasksOrder = request.TasksOrder,
@@ -37,13 +37,17 @@ public sealed class DuelConfigurationsController(IMediator mediator, IUserContex
         [FromRoute] int id,
         CancellationToken cancellationToken)
     {
-        var query = new GetDuelConfigurationQuery(id);
+        var query = new GetDuelConfigurationQuery
+        {
+            Id = id
+        };
+        
         var result = await mediator.Send(query, cancellationToken);
         return this.HandleResult(result);
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<DuelConfigurationDto>>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<ActionResult<List<DuelConfigurationDto>>> GetListAsync(CancellationToken cancellationToken)
     {
         var query = new GetUserDuelConfigurationsQuery
         {
@@ -64,7 +68,7 @@ public sealed class DuelConfigurationsController(IMediator mediator, IUserContex
         {
             Id = id,
             UserId = userContext.UserId,
-            ShouldShowOpponentCode = request.ShouldShowOpponentCode,
+            ShouldShowOpponentSolution = request.ShouldShowOpponentSolution,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,
             TasksOrder = request.TasksOrder,
@@ -80,7 +84,13 @@ public sealed class DuelConfigurationsController(IMediator mediator, IUserContex
         [FromRoute] int id,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new DeleteDuelConfigurationCommand(id, userContext.UserId), cancellationToken);
+        var command = new DeleteDuelConfigurationCommand
+        {
+            Id = id,
+            UserId = userContext.UserId
+        };
+        
+        var result = await mediator.Send(command, cancellationToken);
         return this.HandleResult(result);
     }
 }
