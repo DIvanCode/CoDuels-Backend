@@ -37,9 +37,9 @@ type (
 	}
 
 	executionStorage interface {
-		GetForUpdate(context.Context, execution.ID) (*execution.Execution, error)
-		GetForSchedule(context.Context, time.Time) (*execution.Execution, error)
-		Save(context.Context, execution.Execution) error
+		GetExecutionForUpdate(context.Context, execution.ID) (*execution.Execution, error)
+		GetExecutionForSchedule(context.Context, time.Time) (*execution.Execution, error)
+		SaveExecution(context.Context, execution.Execution) error
 	}
 
 	jobFactory interface {
@@ -58,7 +58,7 @@ type (
 	}
 
 	messageSender interface {
-		Send(execution.Message)
+		Send(context.Context, execution.Message) error
 	}
 )
 
@@ -137,7 +137,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 
 		s.changeNowExecutions(+1)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-			e, err := s.executionStorage.GetForSchedule(ctx, time.Now().Add(-s.cfg.ExecutionRetryAfter))
+			e, err := s.executionStorage.GetExecutionForSchedule(ctx, time.Now().Add(-s.cfg.ExecutionRetryAfter))
 			if err != nil {
 				return fmt.Errorf("failed to get execution for schedule from storage: %w", err)
 			}
@@ -157,7 +157,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 				return fmt.Errorf("failed to schedule execution: %w", err)
 			}
 
-			if err = s.executionStorage.Save(ctx, *e); err != nil {
+			if err = s.executionStorage.SaveExecution(ctx, *e); err != nil {
 				return fmt.Errorf("failed to update execution in storage %s: %w", e.ID.String(), err)
 			}
 
@@ -173,7 +173,9 @@ func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, execCtx *exe
 	s.log.Info("schedule execution", slog.String("execution_id", execCtx.ExecutionID.String()))
 
 	msg := s.messageFactory.CreateExecutionStarted(execCtx)
-	s.messageSender.Send(msg)
+	if err := s.messageSender.Send(ctx, msg); err != nil {
+		return fmt.Errorf("failed to send execution started message: %w", err)
+	}
 
 	for _, step := range execCtx.PickSteps() {
 		if err := s.scheduleStep(ctx, execCtx, step); err != nil {
@@ -249,7 +251,7 @@ func (s *ExecutionScheduler) doneStep(
 	)
 
 	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-		e, err := s.executionStorage.GetForUpdate(ctx, execCtx.ExecutionID)
+		e, err := s.executionStorage.GetExecutionForUpdate(ctx, execCtx.ExecutionID)
 		if err != nil {
 			return fmt.Errorf("failed to get execution for update from storage: %w", err)
 		}
@@ -262,13 +264,15 @@ func (s *ExecutionScheduler) doneStep(
 			return fmt.Errorf("failed to create message for step: %w", err)
 		}
 
-		s.messageSender.Send(msg)
+		if err = s.messageSender.Send(ctx, msg); err != nil {
+			return fmt.Errorf("failed to send message for step: %w", err)
+		}
 
 		execCtx.DoneStep(step.GetName())
 
 		e.SetScheduled(time.Now())
 
-		if err = s.executionStorage.Save(ctx, *e); err != nil {
+		if err = s.executionStorage.SaveExecution(ctx, *e); err != nil {
 			return err
 		}
 		return nil
@@ -326,7 +330,7 @@ func (s *ExecutionScheduler) finishExecution(
 	execCtx.ForceDone()
 
 	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-		e, err := s.executionStorage.GetForUpdate(ctx, execCtx.ExecutionID)
+		e, err := s.executionStorage.GetExecutionForUpdate(ctx, execCtx.ExecutionID)
 		if err != nil {
 			return fmt.Errorf("failed to get execution for update from storage: %w", err)
 		}
@@ -341,11 +345,13 @@ func (s *ExecutionScheduler) finishExecution(
 			msg = s.messageFactory.CreateExecutionFinishedError(execCtx, execError.Error())
 		}
 
-		s.messageSender.Send(msg)
+		if err = s.messageSender.Send(ctx, msg); err != nil {
+			return fmt.Errorf("failed to send execution finished message: %w", err)
+		}
 
 		e.SetFinished(time.Now())
 
-		if err = s.executionStorage.Save(ctx, *e); err != nil {
+		if err = s.executionStorage.SaveExecution(ctx, *e); err != nil {
 			return err
 		}
 		return nil

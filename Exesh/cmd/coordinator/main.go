@@ -51,7 +51,7 @@ func main() {
 
 	mux := chi.NewRouter()
 
-	unitOfWork, executionStorage, err := setupStorage(log, cfg.Storage)
+	unitOfWork, executionStorage, outboxStorage, err := setupStorage(log, cfg.Storage)
 	if err != nil {
 		log.Error("failed to setup storage", slog.String("error", err.Error()))
 		return
@@ -75,7 +75,7 @@ func main() {
 	jobFactory := factory.NewJobFactory(log, cfg.JobFactory, artifactRegistry, inputProvider)
 
 	messageFactory := factory.NewMessageFactory(log)
-	messageSender := sender.NewKafkaSender(log, cfg.Sender)
+	messageSender := sender.NewKafkaSender(log, cfg.Sender, unitOfWork, outboxStorage)
 	messageSender.Start(ctx)
 
 	promRegistry := prometheus.NewRegistry()
@@ -157,6 +157,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	unitOfWork *postgres.UnitOfWork,
 	executionStorage *postgres.ExecutionStorage,
+	outboxStorage *postgres.OutboxStorage,
 	err error,
 ) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.InitTimeout)
@@ -165,17 +166,20 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	unitOfWork, err = postgres.NewUnitOfWork(cfg)
 	if err != nil {
 		err = fmt.Errorf("failed to create unit of work: %w", err)
-		return unitOfWork, executionStorage, err
+		return unitOfWork, executionStorage, outboxStorage, err
 	}
 
 	err = unitOfWork.Do(ctx, func(ctx context.Context) error {
 		if executionStorage, err = postgres.NewExecutionStorage(ctx, log); err != nil {
 			return fmt.Errorf("failed to create execution storage: %w", err)
 		}
+		if outboxStorage, err = postgres.NewOutboxStorage(ctx, log); err != nil {
+			return fmt.Errorf("failed to create outbox storage: %w", err)
+		}
 		return nil
 	})
 
-	return unitOfWork, executionStorage, err
+	return unitOfWork, executionStorage, outboxStorage, err
 }
 
 func setupInputProvider(cfg config.InputProviderConfig, filestorageAdapter *adapter.FilestorageAdapter) *provider.InputProvider {

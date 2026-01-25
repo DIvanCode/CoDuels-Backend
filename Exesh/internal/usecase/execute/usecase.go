@@ -19,7 +19,7 @@ type (
 	}
 
 	executionStorage interface {
-		Create(context.Context, execution.Execution) error
+		CreateExecution(context.Context, execution.Execution) error
 	}
 )
 
@@ -47,7 +47,7 @@ func (uc *UseCase) Execute(ctx context.Context, command Command) (result Result,
 
 	err = uc.unitOfWork.Do(ctx, func(ctx context.Context) error {
 		e := execution.NewExecution(command.Steps)
-		if err = uc.executionStorage.Create(ctx, e); err != nil {
+		if err = uc.executionStorage.CreateExecution(ctx, e); err != nil {
 			return fmt.Errorf("failed to create execution in storage: %w", err)
 		}
 
