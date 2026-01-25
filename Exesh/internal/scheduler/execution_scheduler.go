@@ -51,14 +51,14 @@ type (
 	}
 
 	messageFactory interface {
-		CreateExecutionStarted(*execution.Context) (execution.Message, error)
+		CreateExecutionStarted(*execution.Context) execution.Message
 		CreateForStep(*execution.Context, execution.Step, execution.Result) (execution.Message, error)
-		CreateExecutionFinished(*execution.Context) (execution.Message, error)
-		CreateExecutionFinishedError(*execution.Context, string) (execution.Message, error)
+		CreateExecutionFinished(*execution.Context) execution.Message
+		CreateExecutionFinishedError(*execution.Context, string) execution.Message
 	}
 
 	messageSender interface {
-		Send(context.Context, execution.Message) error
+		Send(execution.Message)
 	}
 )
 
@@ -172,16 +172,11 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, execCtx *execution.Context) error {
 	s.log.Info("schedule execution", slog.String("execution_id", execCtx.ExecutionID.String()))
 
-	msg, err := s.messageFactory.CreateExecutionStarted(execCtx)
-	if err != nil {
-		return fmt.Errorf("failed to create execution started message: %w", err)
-	}
-	if err = s.messageSender.Send(ctx, msg); err != nil {
-		return fmt.Errorf("failed to send %s message: %w", msg.GetType(), err)
-	}
+	msg := s.messageFactory.CreateExecutionStarted(execCtx)
+	s.messageSender.Send(msg)
 
 	for _, step := range execCtx.PickSteps() {
-		if err = s.scheduleStep(ctx, execCtx, step); err != nil {
+		if err := s.scheduleStep(ctx, execCtx, step); err != nil {
 			return err
 		}
 	}
@@ -266,9 +261,8 @@ func (s *ExecutionScheduler) doneStep(
 		if err != nil {
 			return fmt.Errorf("failed to create message for step: %w", err)
 		}
-		if err = s.messageSender.Send(ctx, msg); err != nil {
-			return fmt.Errorf("failed to send message for step: %w", err)
-		}
+
+		s.messageSender.Send(msg)
 
 		execCtx.DoneStep(step.GetName())
 
@@ -342,16 +336,12 @@ func (s *ExecutionScheduler) finishExecution(
 
 		var msg execution.Message
 		if execError == nil {
-			msg, err = s.messageFactory.CreateExecutionFinished(execCtx)
+			msg = s.messageFactory.CreateExecutionFinished(execCtx)
 		} else {
-			msg, err = s.messageFactory.CreateExecutionFinishedError(execCtx, execError.Error())
+			msg = s.messageFactory.CreateExecutionFinishedError(execCtx, execError.Error())
 		}
-		if err != nil {
-			return fmt.Errorf("failed to create execution finished message: %w", err)
-		}
-		if err = s.messageSender.Send(ctx, msg); err != nil {
-			return fmt.Errorf("failed to send execution finished message: %w", err)
-		}
+
+		s.messageSender.Send(msg)
 
 		e.SetFinished(time.Now())
 
