@@ -18,8 +18,8 @@ func NewMessageFactory(log *slog.Logger) *MessageFactory {
 	}
 }
 
-func (f *MessageFactory) CreateExecutionStarted(execCtx *execution.Context) (execution.Message, error) {
-	return messages.NewStartExecutionMessage(execCtx.ExecutionID), nil
+func (f *MessageFactory) CreateExecutionStarted(execCtx *execution.Context) execution.Message {
+	return messages.NewStartExecutionMessage(execCtx.ExecutionID)
 }
 
 func (f *MessageFactory) CreateForStep(execCtx *execution.Context, step execution.Step, result execution.Result) (execution.Message, error) {
@@ -48,10 +48,10 @@ func (f *MessageFactory) CreateForStep(execCtx *execution.Context, step executio
 	}
 }
 
-func (f *MessageFactory) CreateExecutionFinished(execCtx *execution.Context) (execution.Message, error) {
-	return messages.NewFinishExecutionMessage(execCtx.ExecutionID), nil
+func (f *MessageFactory) CreateExecutionFinished(execCtx *execution.Context) execution.Message {
+	return messages.NewFinishExecutionMessage(execCtx.ExecutionID)
 }
 
-func (f *MessageFactory) CreateExecutionFinishedError(execCtx *execution.Context, err string) (execution.Message, error) {
-	return messages.NewFinishExecutionMessageError(execCtx.ExecutionID, err), nil
+func (f *MessageFactory) CreateExecutionFinishedError(execCtx *execution.Context, err string) execution.Message {
+	return messages.NewFinishExecutionMessageError(execCtx.ExecutionID, err)
 }

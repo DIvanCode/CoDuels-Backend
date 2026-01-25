@@ -23,9 +23,9 @@ func NewWorkerPool(log *slog.Logger, cfg config.WorkerPoolConfig) *WorkerPool {
 		log: log,
 		cfg: cfg,
 
-		mu:   sync.Mutex{},
+		mu:         sync.Mutex{},
 		heartbeats: make(map[string]chan any),
-		stop: false,
+		stop:       false,
 	}
 }
 
@@ -70,11 +70,13 @@ func (p *WorkerPool) createWorker(workerID string) {
 func (p *WorkerPool) runObserver(workerID string) {
 	for {
 		p.mu.Lock()
+		stop := p.stop
 		heartbeat, ok := p.heartbeats[workerID]
-		if p.stop || !ok {
+		p.mu.Unlock()
+
+		if stop || !ok {
 			break
 		}
-		p.mu.Unlock()
 
 		timer := time.NewTicker(p.cfg.WorkerDieAfter)
 
@@ -88,5 +90,8 @@ func (p *WorkerPool) runObserver(workerID string) {
 }
 
 func (p *WorkerPool) deleteWorker(workerID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	delete(p.heartbeats, workerID)
 }

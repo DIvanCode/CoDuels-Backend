@@ -76,6 +76,7 @@ func main() {
 
 	messageFactory := factory.NewMessageFactory(log)
 	messageSender := sender.NewKafkaSender(log, cfg.Sender)
+	messageSender.Start(ctx)
 
 	promRegistry := prometheus.NewRegistry()
 	promRegistry.MustRegister(
