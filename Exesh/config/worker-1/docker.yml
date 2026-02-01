@@ -8,7 +8,7 @@ filestorage:
     workers: 1
     collector_iterations_delay: 60
     worker_iterations_delay: 5
-input_provider:
+source_provider:
   filestorage_bucket_ttl: 15m
   artifact_ttl: 5m
 output_provider:

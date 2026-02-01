@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/jobs"
-	"exesh/internal/domain/execution/results"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/job/jobs"
+	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/runtime"
 	"fmt"
 	"io"
@@ -16,112 +16,47 @@ import (
 
 type RunCppJobExecutor struct {
 	log            *slog.Logger
-	inputProvider  inputProvider
+	sourceProvider sourceProvider
 	outputProvider outputProvider
 	runtime        runtime.Runtime
 }
 
-func NewRunCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *RunCppJobExecutor {
+func NewRunCppJobExecutor(log *slog.Logger, sourceProvider sourceProvider, outputProvider outputProvider, rt runtime.Runtime) *RunCppJobExecutor {
 	return &RunCppJobExecutor{
 		log:            log,
-		inputProvider:  inputProvider,
+		sourceProvider: sourceProvider,
 		outputProvider: outputProvider,
 		runtime:        rt,
 	}
 }
 
-func (e *RunCppJobExecutor) SupportsType(jobType execution.JobType) bool {
-	return jobType == execution.RunCppJobType
+func (e *RunCppJobExecutor) SupportsType(jobType job.Type) bool {
+	return jobType == job.RunCpp
 }
 
-func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) execution.Result {
-	errorResult := func(err error) execution.Result {
-		return results.RunResult{
-			ResultDetails: execution.ResultDetails{
-				ID:     job.GetID(),
-				Type:   execution.RunResult,
-				DoneAt: time.Now(),
-				Error:  err.Error(),
-			},
-		}
+func (e *RunCppJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Result {
+	errorResult := func(err error) results.Result {
+		return results.NewRunResultErr(jb.GetID(), err.Error())
 	}
 
-	runtimeErrorResult := func() execution.Result {
-		return results.RunResult{
-			ResultDetails: execution.ResultDetails{
-				ID:     job.GetID(),
-				Type:   execution.RunResult,
-				DoneAt: time.Now(),
-			},
-			Status: results.RunStatusRE,
-		}
+	if jb.GetType() != job.RunCpp {
+		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", jb.GetType(), job.RunCpp))
 	}
+	runCppJob := jb.AsRunCpp()
 
-	okResult := func() execution.Result {
-		return results.RunResult{
-			ResultDetails: execution.ResultDetails{
-				ID:     job.GetID(),
-				Type:   execution.RunResult,
-				DoneAt: time.Now(),
-			},
-			Status: results.RunStatusOK,
-		}
-	}
-
-	okResultWithOutput := func(output string) execution.Result {
-		return results.RunResult{
-			ResultDetails: execution.ResultDetails{
-				ID:     job.GetID(),
-				Type:   execution.RunResult,
-				DoneAt: time.Now(),
-			},
-			Status:    results.RunStatusOK,
-			HasOutput: true,
-			Output:    output,
-		}
-	}
-
-	tlResult := func() execution.Result {
-		return results.RunResult{
-			ResultDetails: execution.ResultDetails{
-				ID:     job.GetID(),
-				Type:   execution.RunResult,
-				DoneAt: time.Now(),
-			},
-			Status:    results.RunStatusTL,
-			HasOutput: false,
-		}
-	}
-
-	mlResult := func() execution.Result {
-		return results.RunResult{
-			ResultDetails: execution.ResultDetails{
-				ID:     job.GetID(),
-				Type:   execution.RunResult,
-				DoneAt: time.Now(),
-			},
-			Status: results.RunStatusML,
-		}
-	}
-
-	if job.GetType() != execution.RunCppJobType {
-		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.RunCppJobType))
-	}
-	runCppJob := job.(*jobs.RunCppJob)
-
-	compiledCode, unlock, err := e.inputProvider.Locate(ctx, runCppJob.CompiledCode)
+	compiledCode, unlock, err := e.sourceProvider.Locate(ctx, runCppJob.CompiledCode.SourceID)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate compiled_code input: %w", err))
 	}
 	defer unlock()
 
-	runInput, unlock, err := e.inputProvider.Read(ctx, runCppJob.RunInput)
+	runInput, unlock, err := e.sourceProvider.Read(ctx, runCppJob.RunInput.SourceID)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to read run_input input: %w", err))
 	}
 	defer unlock()
 
-	runOutput, commitOutput, abortOutput, err := e.outputProvider.Create(ctx, runCppJob.RunOutput)
+	runOutput, commitOutput, abortOutput, err := e.outputProvider.Create(ctx, jb.GetID(), runCppJob.RunOutput.File)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to create run_output output: %w", err))
 	}
@@ -156,12 +91,12 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 	if err != nil {
 		e.log.Error("execute binary in runtime error", slog.Any("err", err))
 		if errors.Is(err, runtime.ErrTimeout) {
-			return tlResult()
+			return results.NewRunResultTL(jb.GetID())
 		}
 		if errors.Is(err, runtime.ErrOutOfMemory) {
-			return mlResult()
+			return results.NewRunResultML(jb.GetID())
 		}
-		return runtimeErrorResult()
+		return results.NewRunResultRE(jb.GetID())
 	}
 
 	e.log.Info("command ok")
@@ -171,20 +106,20 @@ func (e *RunCppJobExecutor) Execute(ctx context.Context, job execution.Job) exec
 	}
 
 	if !runCppJob.ShowOutput {
-		return okResult()
+		return results.NewRunResultOK(jb.GetID())
 	}
 
-	runOutputReader, unlock, err := e.outputProvider.Read(ctx, runCppJob.RunOutput)
+	runOutputReader, unlock, err := e.outputProvider.Read(ctx, jb.GetID(), runCppJob.RunOutput.File)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to open run output: %w", err))
 	}
 
 	defer unlock()
 
-	output, err := io.ReadAll(runOutputReader)
+	out, err := io.ReadAll(runOutputReader)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to read run output: %w", err))
 	}
 
-	return okResultWithOutput(string(output))
+	return results.NewRunResultWithOutput(jb.GetID(), string(out))
 }

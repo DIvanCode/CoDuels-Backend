@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"exesh/internal/api/heartbeat"
 	"exesh/internal/config"
-	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/job/jobs"
+	"exesh/internal/domain/execution/result/results"
+	"exesh/internal/domain/execution/source/sources"
 	"exesh/internal/lib/queue"
 	"log/slog"
 	"sync"
@@ -20,23 +22,30 @@ type (
 		heartbeatClient heartbeatClient
 		jobExecutor     jobExecutor
 
-		jobs queue.Queue[execution.Job]
+		jobs queue.Queue[jobs.Job]
+
+		sourceProvider sourceProvider
 
 		mu        sync.Mutex
-		doneJobs  []execution.Result
+		doneJobs  []results.Result
 		freeSlots int
 	}
 
 	heartbeatClient interface {
-		Heartbeat(context.Context, string, []execution.Result, int) ([]execution.Job, error)
+		Heartbeat(context.Context, string, []results.Result, int) ([]jobs.Job, []sources.Source, error)
+	}
+
+	sourceProvider interface {
+		SaveSource(ctx context.Context, src sources.Source) error
+		RemoveSource(ctx context.Context, src sources.Source)
 	}
 
 	jobExecutor interface {
-		Execute(context.Context, execution.Job) execution.Result
+		Execute(context.Context, jobs.Job) results.Result
 	}
 )
 
-func NewWorker(log *slog.Logger, cfg config.WorkConfig, jobExecutor jobExecutor) *Worker {
+func NewWorker(log *slog.Logger, cfg config.WorkConfig, sourceProvider sourceProvider, jobExecutor jobExecutor) *Worker {
 	return &Worker{
 		log: log,
 		cfg: cfg,
@@ -44,10 +53,12 @@ func NewWorker(log *slog.Logger, cfg config.WorkConfig, jobExecutor jobExecutor)
 		heartbeatClient: heartbeat.NewHeartbeatClient(cfg.CoordinatorEndpoint),
 		jobExecutor:     jobExecutor,
 
-		jobs: *queue.NewQueue[execution.Job](),
+		jobs: *queue.NewQueue[jobs.Job](),
+
+		sourceProvider: sourceProvider,
 
 		mu:        sync.Mutex{},
-		doneJobs:  make([]execution.Result, 0),
+		doneJobs:  make([]results.Result, 0),
 		freeSlots: cfg.FreeSlots,
 	}
 }
@@ -80,15 +91,15 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 
 		w.mu.Lock()
 
-		doneJobs := make([]execution.Result, len(w.doneJobs))
+		doneJobs := make([]results.Result, len(w.doneJobs))
 		copy(doneJobs, w.doneJobs)
-		w.doneJobs = make([]execution.Result, 0)
+		w.doneJobs = make([]results.Result, 0)
 
 		freeSlots := w.freeSlots - w.jobs.Size()
 
 		w.mu.Unlock()
 
-		jobs, err := w.heartbeatClient.Heartbeat(ctx, w.cfg.WorkerID, doneJobs, freeSlots)
+		jbs, srcs, err := w.heartbeatClient.Heartbeat(ctx, w.cfg.WorkerID, doneJobs, freeSlots)
 		if err != nil {
 			w.log.Error("failed to do heartbeat request", slog.Any("err", err))
 
@@ -99,8 +110,14 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 			continue
 		}
 
-		for _, job := range jobs {
-			w.jobs.Enqueue(job)
+		for _, src := range srcs {
+			if err := w.sourceProvider.SaveSource(ctx, src); err != nil {
+				w.log.Error("failed to create source", slog.Any("err", err))
+			}
+		}
+
+		for _, jb := range jbs {
+			w.jobs.Enqueue(jb)
 		}
 	}
 }

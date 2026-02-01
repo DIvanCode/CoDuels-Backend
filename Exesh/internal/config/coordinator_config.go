@@ -15,7 +15,6 @@ type (
 		HttpServer         HttpServerConfig         `yaml:"http_server"`
 		Storage            StorageConfig            `yaml:"storage"`
 		FileStorage        filestorage.Config       `yaml:"filestorage"`
-		InputProvider      InputProviderConfig      `yaml:"input_provider"`
 		JobFactory         JobFactoryConfig         `yaml:"job_factory"`
 		ExecutionScheduler ExecutionSchedulerConfig `yaml:"execution_scheduler"`
 		WorkerPool         WorkerPoolConfig         `yaml:"worker_pool"`
@@ -36,10 +35,13 @@ type (
 
 	JobFactoryConfig struct {
 		Output struct {
-			CompiledCpp  string `yaml:"compiled_cpp"`
-			RunOutput    string `yaml:"run_output"`
-			CheckVerdict string `yaml:"check_verdict"`
+			CompiledBinary string `yaml:"compiled_binary"`
+			RunOutput      string `yaml:"run_output"`
 		} `yaml:"output"`
+		SourceTTL struct {
+			FilestorageBucket time.Duration `yaml:"filestorage_bucket"`
+			Inline            time.Duration `yaml:"inline"`
+		}
 		FilestorageEndpoint string `yaml:"filestorage_endpoint"`
 	}
 

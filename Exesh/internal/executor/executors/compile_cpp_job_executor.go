@@ -3,83 +3,51 @@ package executors
 import (
 	"bytes"
 	"context"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/job/jobs"
+	"exesh/internal/domain/execution/result/results"
+	"exesh/internal/runtime"
 	"fmt"
 	"log/slog"
-	"time"
-
-	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/jobs"
-	"exesh/internal/domain/execution/results"
-	"exesh/internal/runtime"
 )
 
 type CompileCppJobExecutor struct {
 	log            *slog.Logger
-	inputProvider  inputProvider
+	sourceProvider sourceProvider
 	outputProvider outputProvider
 	runtime        runtime.Runtime
 }
 
-func NewCompileCppJobExecutor(log *slog.Logger, inputProvider inputProvider, outputProvider outputProvider, rt runtime.Runtime) *CompileCppJobExecutor {
+func NewCompileCppJobExecutor(log *slog.Logger, sourceProvider sourceProvider, outputProvider outputProvider, rt runtime.Runtime) *CompileCppJobExecutor {
 	return &CompileCppJobExecutor{
 		log:            log,
-		inputProvider:  inputProvider,
+		sourceProvider: sourceProvider,
 		outputProvider: outputProvider,
 		runtime:        rt,
 	}
 }
 
-func (e *CompileCppJobExecutor) SupportsType(jobType execution.JobType) bool {
-	return jobType == execution.CompileCppJobType
+func (e *CompileCppJobExecutor) SupportsType(jobType job.Type) bool {
+	return jobType == job.CompileCpp
 }
 
-func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) execution.Result {
-	errorResult := func(err error) execution.Result {
-		return results.CompileResult{
-			ResultDetails: execution.ResultDetails{
-				ID:     job.GetID(),
-				Type:   execution.CompileResult,
-				DoneAt: time.Now(),
-				Error:  err.Error(),
-			},
-		}
+func (e *CompileCppJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Result {
+	errorResult := func(err error) results.Result {
+		return results.NewCompileResultErr(jb.GetID(), err.Error())
 	}
 
-	compilationErrorResult := func(compilationError string) execution.Result {
-		return results.CompileResult{
-			ResultDetails: execution.ResultDetails{
-				ID:     job.GetID(),
-				Type:   execution.CompileResult,
-				DoneAt: time.Now(),
-			},
-			Status:           results.CompileStatusCE,
-			CompilationError: compilationError,
-		}
+	if jb.GetType() != job.CompileCpp {
+		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", jb.GetType(), job.CompileCpp))
 	}
+	compileCppJob := jb.AsCompileCpp()
 
-	okResult := func() execution.Result {
-		return results.CompileResult{
-			ResultDetails: execution.ResultDetails{
-				ID:     job.GetID(),
-				Type:   execution.CompileResult,
-				DoneAt: time.Now(),
-			},
-			Status: results.CompileStatusOK,
-		}
-	}
-
-	if job.GetType() != execution.CompileCppJobType {
-		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", job.GetType(), execution.CompileCppJobType))
-	}
-	compileCppJob := job.(*jobs.CompileCppJob)
-
-	code, unlock, err := e.inputProvider.Locate(ctx, compileCppJob.Code)
+	code, unlock, err := e.sourceProvider.Locate(ctx, compileCppJob.Code.SourceID)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate code input: %w", err))
 	}
 	defer unlock()
 
-	compiledCode, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, compileCppJob.CompiledCode)
+	compiledCode, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, jb.GetID(), compileCppJob.CompiledCode.File)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to locate compiled_code output: %w", err))
 	}
@@ -110,7 +78,7 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) 
 		})
 	if err != nil {
 		e.log.Error("execute g++ in runtime error", slog.Any("err", err))
-		return compilationErrorResult(stderr.String())
+		return results.NewCompileResultCE(jb.GetID(), stderr.String())
 	}
 
 	e.log.Info("command ok")
@@ -119,5 +87,5 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, job execution.Job) 
 		return errorResult(commitErr)
 	}
 
-	return okResult()
+	return results.NewCompileResultOK(jb.GetID())
 }

@@ -7,8 +7,7 @@ import (
 	"exesh/internal/executor"
 	"exesh/internal/executor/executors"
 	"exesh/internal/provider"
-	"exesh/internal/provider/providers"
-	"exesh/internal/provider/providers/adapter"
+	"exesh/internal/provider/adapter"
 	"exesh/internal/runtime/docker"
 	"exesh/internal/worker"
 	"fmt"
@@ -46,23 +45,23 @@ func main() {
 
 	mux := chi.NewRouter()
 
-	filestorage, err := filestorage.New(log, cfg.FileStorage, mux)
+	fs, err := filestorage.New(log, cfg.FileStorage, mux)
 	if err != nil {
 		log.Error("failed to create filestorage", slog.String("error", err.Error()))
 		return
 	}
-	defer filestorage.Shutdown()
+	defer fs.Shutdown()
 
-	filestorageAdapter := adapter.NewFilestorageAdapter(filestorage)
-	inputProvider := setupInputProvider(cfg.InputProvider, filestorageAdapter)
-	outputProvider := setupOutputProvider(cfg.OutputProvider, filestorageAdapter)
+	filestorageAdapter := adapter.NewFilestorageAdapter(fs)
+	sourceProvider := provider.NewSourceProvider(cfg.SourceProvider, filestorageAdapter)
+	outputProvider := provider.NewOutputProvider(cfg.OutputProvider, filestorageAdapter)
 
-	jobExecutor, err := setupJobExecutor(log, inputProvider, outputProvider)
+	jobExecutor, err := setupJobExecutor(log, sourceProvider, outputProvider)
 	if err != nil {
 		flog.Fatal(err)
 	}
 
-	worker.NewWorker(log, cfg.Worker, jobExecutor).Start(ctx)
+	worker.NewWorker(log, cfg.Worker, sourceProvider, jobExecutor).Start(ctx)
 
 	promRegistry := prometheus.NewRegistry()
 	promRegistry.MustRegister(
@@ -121,18 +120,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 	return log, err
 }
 
-func setupInputProvider(cfg config.InputProviderConfig, filestorageAdapter *adapter.FilestorageAdapter) *provider.InputProvider {
-	filestorageBucketInputProvider := providers.NewFilestorageBucketInputProvider(filestorageAdapter, cfg.FilestorageBucketTTL)
-	artifactInputProvider := providers.NewArtifactInputProvider(filestorageAdapter, cfg.ArtifactTTL)
-	return provider.NewInputProvider(filestorageBucketInputProvider, artifactInputProvider)
-}
-
-func setupOutputProvider(cfg config.OutputProviderConfig, filestorageAdapter *adapter.FilestorageAdapter) *provider.OutputProvider {
-	artifactOutputProvider := providers.NewArtifactOutputProvider(filestorageAdapter, cfg.ArtifactTTL)
-	return provider.NewOutputProvider(artifactOutputProvider)
-}
-
-func setupJobExecutor(log *slog.Logger, inputProvider *provider.InputProvider, outputProvider *provider.OutputProvider) (*executor.JobExecutor, error) {
+func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider, outputProvider *provider.OutputProvider) (*executor.JobExecutor, error) {
 	gccRT, err := docker.New(
 		docker.WithDefaultClient(),
 		docker.WithBaseImage("gcc"),
@@ -157,11 +145,11 @@ func setupJobExecutor(log *slog.Logger, inputProvider *provider.InputProvider, o
 	if err != nil {
 		return nil, fmt.Errorf("create python runtime: %w", err)
 	}
-	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, inputProvider, outputProvider, gccRT)
-	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, inputProvider, outputProvider, goRT)
-	runCppJobExecutor := executors.NewRunCppJobExecutor(log, inputProvider, outputProvider, gccRT)
-	runPyJobExecutor := executors.NewRunPyJobExecutor(log, inputProvider, outputProvider, pyRT)
-	runGoJobExecutor := executors.NewRunGoJobExecutor(log, inputProvider, outputProvider, goRT)
-	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, inputProvider, outputProvider, gccRT)
+	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, sourceProvider, outputProvider, gccRT)
+	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, sourceProvider, outputProvider, goRT)
+	runCppJobExecutor := executors.NewRunCppJobExecutor(log, sourceProvider, outputProvider, gccRT)
+	runPyJobExecutor := executors.NewRunPyJobExecutor(log, sourceProvider, outputProvider, pyRT)
+	runGoJobExecutor := executors.NewRunGoJobExecutor(log, sourceProvider, outputProvider, goRT)
+	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, sourceProvider, outputProvider, gccRT)
 	return executor.NewJobExecutor(compileCppJobExecutor, compileGoJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
 }

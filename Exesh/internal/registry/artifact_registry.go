@@ -2,7 +2,7 @@ package registry
 
 import (
 	"exesh/internal/config"
-	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/job"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
@@ -18,7 +18,7 @@ type (
 		workerPool workerPool
 
 		mu              sync.Mutex
-		workerArtifacts map[string]map[execution.JobID]time.Time
+		workerArtifacts map[string]map[job.ID]time.Time
 	}
 
 	workerPool interface {
@@ -33,11 +33,11 @@ func NewArtifactRegistry(log *slog.Logger, cfg config.ArtifactRegistryConfig, wo
 
 		workerPool: workerPool,
 
-		workerArtifacts: make(map[string]map[execution.JobID]time.Time),
+		workerArtifacts: make(map[string]map[job.ID]time.Time),
 	}
 }
 
-func (r *ArtifactRegistry) GetWorker(jobID execution.JobID) (workerID string, err error) {
+func (r *ArtifactRegistry) GetWorker(jobID job.ID) (workerID string, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -61,13 +61,13 @@ func (r *ArtifactRegistry) GetWorker(jobID execution.JobID) (workerID string, er
 	return
 }
 
-func (r *ArtifactRegistry) PutArtifact(workerID string, jobID execution.JobID) {
+func (r *ArtifactRegistry) PutArtifact(workerID string, jobID job.ID) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	artifacts := r.workerArtifacts[workerID]
 	if artifacts == nil {
-		artifacts = make(map[execution.JobID]time.Time)
+		artifacts = make(map[job.ID]time.Time)
 	}
 	trashTime := time.Now().Add(r.cfg.ArtifactTTL)
 	artifacts[jobID] = trashTime

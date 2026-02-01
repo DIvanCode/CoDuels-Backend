@@ -12,8 +12,8 @@ func newID() ID {
 	return ID(uuid.New())
 }
 
-func (id ID) String() string {
-	uid := uuid.UUID(id)
+func (id *ID) String() string {
+	uid := uuid.UUID(*id)
 	return uid.String()
 }
 
@@ -26,7 +26,7 @@ func (id *ID) FromString(idStr string) (err error) {
 	return
 }
 
-func (id ID) MarshalJSON() ([]byte, error) {
+func (id *ID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(id.String())
 }
 

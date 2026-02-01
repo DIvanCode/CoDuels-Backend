@@ -3,10 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/steps"
 	"fmt"
 	"log/slog"
 	"time"
@@ -20,7 +18,8 @@ const (
 	createExecutionTableQuery = `
 		CREATE TABLE IF NOT EXISTS Executions(
 			id varchar(36) PRIMARY KEY,
-			steps jsonb,
+			stages jsonb,
+		    sources jsonb,
 			status varchar(32),
 			created_at timestamp,
 			scheduled_at timestamp NULL,
@@ -29,18 +28,18 @@ const (
 	`
 
 	insertExecutionQuery = `
-		INSERT INTO Executions(id, steps, status, created_at, scheduled_at, finished_at)
-		VALUES ($1, $2, $3, $4, $5, $6);
+		INSERT INTO Executions(id, stages, sources, status, created_at, scheduled_at, finished_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7);
 	`
 
 	selectExecutionForUpdateQuery = `
-		SELECT id, steps, status, created_at, scheduled_at, finished_at FROM Executions
+		SELECT id, stages, sources, status, created_at, scheduled_at, finished_at FROM Executions
 		WHERE id = $1
 		FOR UPDATE
 	`
 
 	selectExecutionForScheduleQuery = `
-		SELECT id, steps, status, created_at, scheduled_at, finished_at FROM Executions
+		SELECT id, stages, sources, status, created_at, scheduled_at, finished_at FROM Executions
 		WHERE status = $1 OR (status = $2 AND scheduled_at < $3)
 		ORDER BY created_at
 		LIMIT 1
@@ -48,7 +47,7 @@ const (
 	`
 
 	updateExecutionQuery = `
-		UPDATE Executions SET steps=$2, status=$3, created_at=$4, scheduled_at=$5, finished_at=$6
+		UPDATE Executions SET stages=$2, sources=$3, status=$4, created_at=$5, scheduled_at=$6, finished_at=$7
 		WHERE id=$1;
 	`
 )
@@ -63,83 +62,56 @@ func NewExecutionStorage(ctx context.Context, log *slog.Logger) (*ExecutionStora
 	return &ExecutionStorage{log: log}, nil
 }
 
-func (s *ExecutionStorage) CreateExecution(ctx context.Context, e execution.Execution) error {
+func (s *ExecutionStorage) CreateExecution(ctx context.Context, ex execution.Definition) error {
 	tx := extractTx(ctx)
 
 	if _, err := tx.ExecContext(ctx, insertExecutionQuery,
-		e.ID, e.Steps, e.Status, e.CreatedAt, e.ScheduledAt, e.FinishedAt); err != nil {
+		ex.ID, ex.Stages, ex.Sources, ex.Status, ex.CreatedAt, ex.ScheduledAt, ex.FinishedAt); err != nil {
 		return fmt.Errorf("failed to do insert execution query: %w", err)
 	}
 
 	return nil
 }
 
-func (s *ExecutionStorage) GetExecutionForUpdate(ctx context.Context, id execution.ID) (e *execution.Execution, err error) {
+func (s *ExecutionStorage) GetExecutionForUpdate(ctx context.Context, id execution.ID) (*execution.Definition, error) {
 	tx := extractTx(ctx)
 
-	e = &execution.Execution{}
-	var eid string
-	var stepsRaw json.RawMessage
-	if err = tx.QueryRowContext(ctx, selectExecutionForUpdateQuery, id).
-		Scan(&eid, &stepsRaw, &e.Status, &e.CreatedAt, &e.ScheduledAt, &e.FinishedAt); err != nil {
+	ex := execution.Definition{}
+	if err := tx.QueryRowContext(ctx, selectExecutionForUpdateQuery, id).
+		Scan(&ex.ID, &ex.Stages, &ex.Sources, &ex.Status, &ex.CreatedAt, &ex.ScheduledAt, &ex.FinishedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			e = nil
-			err = nil
-			return
+			return nil, nil
 		}
-		err = fmt.Errorf("failed to do select execution for update query: %w", err)
-		return
+		return nil, fmt.Errorf("failed to do select execution for update query: %w", err)
 	}
 
-	if err = e.ID.FromString(eid); err != nil {
-		err = fmt.Errorf("failed to unmarshal id: %w", err)
-		return
-	}
-
-	if e.Steps, err = steps.UnmarshalStepsJSON(stepsRaw); err != nil {
-		err = fmt.Errorf("failed to unmarshal steps json: %w", err)
-		return
-	}
-
-	return
+	return &ex, nil
 }
 
-func (s *ExecutionStorage) GetExecutionForSchedule(ctx context.Context, retryBefore time.Time) (e *execution.Execution, err error) {
+func (s *ExecutionStorage) GetExecutionForSchedule(
+	ctx context.Context,
+	retryBefore time.Time,
+) (*execution.Definition, error) {
 	tx := extractTx(ctx)
 
-	e = &execution.Execution{}
-	var eid string
-	var stepsRaw json.RawMessage
-	if err = tx.QueryRowContext(ctx, selectExecutionForScheduleQuery,
-		execution.StatusNewExecution, execution.StatusScheduledExecution, retryBefore).
-		Scan(&eid, &stepsRaw, &e.Status, &e.CreatedAt, &e.ScheduledAt, &e.FinishedAt); err != nil {
+	ex := execution.Definition{}
+	if err := tx.QueryRowContext(ctx, selectExecutionForScheduleQuery,
+		execution.StatusNew, execution.StatusScheduled, retryBefore).
+		Scan(&ex.ID, &ex.Stages, &ex.Sources, &ex.Status, &ex.CreatedAt, &ex.ScheduledAt, &ex.FinishedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			e = nil
-			err = nil
-			return
+			return nil, nil
 		}
-		err = fmt.Errorf("failed to do select execution for schedule query: %w", err)
-		return
+		return nil, fmt.Errorf("failed to do select execution for schedule query: %w", err)
 	}
 
-	if err = e.ID.FromString(eid); err != nil {
-		err = fmt.Errorf("failed to unmarshal id: %w", err)
-		return
-	}
-
-	if e.Steps, err = steps.UnmarshalStepsJSON(stepsRaw); err != nil {
-		err = fmt.Errorf("failed to unmarshal steps json: %w", err)
-		return
-	}
-
-	return
+	return &ex, nil
 }
 
-func (s *ExecutionStorage) SaveExecution(ctx context.Context, e execution.Execution) error {
+func (s *ExecutionStorage) SaveExecution(ctx context.Context, ex execution.Definition) error {
 	tx := extractTx(ctx)
 
 	if _, err := tx.ExecContext(ctx, updateExecutionQuery,
-		e.ID, e.Steps, e.Status, e.CreatedAt, e.ScheduledAt, e.FinishedAt); err != nil {
+		ex.ID, ex.Stages, ex.Sources, ex.Status, ex.CreatedAt, ex.ScheduledAt, ex.FinishedAt); err != nil {
 		return fmt.Errorf("failed to do update execution query: %w", err)
 	}
 

@@ -14,9 +14,14 @@ type (
 		Env            string               `yaml:"env"`
 		HttpServer     HttpServerConfig     `yaml:"http_server"`
 		FileStorage    filestorage.Config   `yaml:"filestorage"`
-		InputProvider  InputProviderConfig  `yaml:"input_provider"`
+		SourceProvider SourceProviderConfig `yaml:"input_provider"`
 		OutputProvider OutputProviderConfig `yaml:"output_provider"`
 		Worker         WorkConfig           `yaml:"worker"`
+	}
+
+	SourceProviderConfig struct {
+		FilestorageBucketTTL time.Duration `yaml:"filestorage_bucket_ttl"`
+		ArtifactTTL          time.Duration `yaml:"artifact_ttl"`
 	}
 
 	OutputProviderConfig struct {

@@ -8,9 +8,7 @@ import (
 	"exesh/internal/config"
 	"exesh/internal/factory"
 	"exesh/internal/pool"
-	"exesh/internal/provider"
-	"exesh/internal/provider/providers"
-	"exesh/internal/provider/providers/adapter"
+	"exesh/internal/provider/adapter"
 	"exesh/internal/registry"
 	schedule "exesh/internal/scheduler"
 	"exesh/internal/sender"
@@ -57,24 +55,22 @@ func main() {
 		return
 	}
 
-	filestorage, err := filestorage.New(log, cfg.FileStorage, mux)
+	fs, err := filestorage.New(log, cfg.FileStorage, mux)
 	if err != nil {
 		log.Error("failed to create filestorage", slog.String("error", err.Error()))
 		return
 	}
-	defer filestorage.Shutdown()
-
-	filestorageAdapter := adapter.NewFilestorageAdapter(filestorage)
-	inputProvider := setupInputProvider(cfg.InputProvider, filestorageAdapter)
+	defer fs.Shutdown()
 
 	workerPool := pool.NewWorkerPool(log, cfg.WorkerPool)
 	defer workerPool.StopObservers()
 
 	artifactRegistry := registry.NewArtifactRegistry(log, cfg.ArtifactRegistry, workerPool)
 
-	jobFactory := factory.NewJobFactory(log, cfg.JobFactory, artifactRegistry, inputProvider)
+	filestorageAdapter := adapter.NewFilestorageAdapter(fs)
+	executionFactory := factory.NewExecutionFactory(cfg.JobFactory, filestorageAdapter)
 
-	messageFactory := factory.NewMessageFactory(log)
+	messageFactory := factory.NewMessageFactory()
 	messageSender := sender.NewKafkaSender(log, cfg.Sender, unitOfWork, outboxStorage)
 	messageSender.Start(ctx)
 
@@ -83,13 +79,13 @@ func main() {
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
-	promCoordReg := prometheus.WrapRegistererWithPrefix("coduels_exesh_coordinator_", promRegistry)
+	promCoordinatorRegistry := prometheus.WrapRegistererWithPrefix("coduels_exesh_coordinator_", promRegistry)
 
 	jobScheduler := schedule.NewJobScheduler(log)
 	executionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
-		jobFactory, jobScheduler, messageFactory, messageSender)
+		executionFactory, artifactRegistry, jobScheduler, messageFactory, messageSender)
 
-	err = executionScheduler.RegisterMetrics(promCoordReg)
+	err = executionScheduler.RegisterMetrics(promCoordinatorRegistry)
 	if err != nil {
 		log.Error("could not register metrics from execution scheduler", slog.Any("err", err))
 		return
@@ -180,10 +176,4 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	})
 
 	return unitOfWork, executionStorage, outboxStorage, err
-}
-
-func setupInputProvider(cfg config.InputProviderConfig, filestorageAdapter *adapter.FilestorageAdapter) *provider.InputProvider {
-	filestorageBucketInputProvider := providers.NewFilestorageBucketInputProvider(filestorageAdapter, cfg.FilestorageBucketTTL)
-	artifactInputProvider := providers.NewArtifactInputProvider(filestorageAdapter, cfg.ArtifactTTL)
-	return provider.NewInputProvider(filestorageBucketInputProvider, artifactInputProvider)
 }

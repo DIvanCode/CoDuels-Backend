@@ -5,7 +5,14 @@ import (
 	"errors"
 	"exesh/internal/config"
 	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/input"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/job/jobs"
+	"exesh/internal/domain/execution/message/messages"
+	"exesh/internal/domain/execution/result/results"
+	"exesh/internal/domain/execution/source/sources"
 	"fmt"
+	"github.com/DIvanCode/filestorage/pkg/bucket"
 	"log/slog"
 	"sync/atomic"
 	"time"
@@ -21,7 +28,9 @@ type (
 		unitOfWork       unitOfWork
 		executionStorage executionStorage
 
-		jobFactory   jobFactory
+		executionFactory executionFactory
+		artifactRegistry artifactRegistry
+
 		jobScheduler jobScheduler
 
 		messageFactory messageFactory
@@ -37,28 +46,32 @@ type (
 	}
 
 	executionStorage interface {
-		GetExecutionForUpdate(context.Context, execution.ID) (*execution.Execution, error)
-		GetExecutionForSchedule(context.Context, time.Time) (*execution.Execution, error)
-		SaveExecution(context.Context, execution.Execution) error
+		GetExecutionForUpdate(context.Context, execution.ID) (*execution.Definition, error)
+		GetExecutionForSchedule(context.Context, time.Time) (*execution.Definition, error)
+		SaveExecution(context.Context, execution.Definition) error
 	}
 
-	jobFactory interface {
-		Create(context.Context, *execution.Context, execution.Step) (execution.Job, error)
+	executionFactory interface {
+		Create(context.Context, execution.Definition) (*execution.Execution, error)
+	}
+
+	artifactRegistry interface {
+		GetWorker(job.ID) (workerID string, err error)
 	}
 
 	jobScheduler interface {
-		Schedule(context.Context, execution.Job, jobCallback)
+		Schedule(context.Context, jobs.Job, []sources.Source, jobCallback)
 	}
 
 	messageFactory interface {
-		CreateExecutionStarted(*execution.Context) execution.Message
-		CreateForStep(*execution.Context, execution.Step, execution.Result) (execution.Message, error)
-		CreateExecutionFinished(*execution.Context) execution.Message
-		CreateExecutionFinishedError(*execution.Context, string) execution.Message
+		CreateExecutionStarted(execution.ID) messages.Message
+		CreateForJob(execution.ID, job.DefinitionName, results.Result) (messages.Message, error)
+		CreateExecutionFinished(execution.ID) messages.Message
+		CreateExecutionFinishedError(execution.ID, string) messages.Message
 	}
 
 	messageSender interface {
-		Send(context.Context, execution.Message) error
+		Send(context.Context, messages.Message) error
 	}
 )
 
@@ -67,7 +80,8 @@ func NewExecutionScheduler(
 	cfg config.ExecutionSchedulerConfig,
 	unitOfWork unitOfWork,
 	executionStorage executionStorage,
-	jobFactory jobFactory,
+	executionFactory executionFactory,
+	artifactRegistry artifactRegistry,
 	jobScheduler jobScheduler,
 	messageFactory messageFactory,
 	messageSender messageSender,
@@ -79,7 +93,9 @@ func NewExecutionScheduler(
 		unitOfWork:       unitOfWork,
 		executionStorage: executionStorage,
 
-		jobFactory:   jobFactory,
+		executionFactory: executionFactory,
+		artifactRegistry: artifactRegistry,
+
 		jobScheduler: jobScheduler,
 
 		messageFactory: messageFactory,
@@ -105,25 +121,17 @@ func (s *ExecutionScheduler) RegisterMetrics(r prometheus.Registerer) error {
 }
 
 func (s *ExecutionScheduler) Start(ctx context.Context) {
-	go func() {
-		err := s.runExecutionScheduler(ctx)
-		if errors.Is(err, context.Canceled) {
-			err = nil
-		}
-		if err != nil {
-			s.log.Error("execution scheduler exited with error", slog.Any("error", err))
-		}
-	}()
+	go s.runExecutionScheduler(ctx)
 }
 
-func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
+func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 	for {
 		timer := time.NewTicker(s.cfg.ExecutionsInterval)
 
 		select {
 		case <-ctx.Done():
 			s.log.Info("exit execution scheduler")
-			return ctx.Err()
+			return
 		case <-timer.C:
 			break
 		}
@@ -137,28 +145,29 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 
 		s.changeNowExecutions(+1)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-			e, err := s.executionStorage.GetExecutionForSchedule(ctx, time.Now().Add(-s.cfg.ExecutionRetryAfter))
+			def, err := s.executionStorage.GetExecutionForSchedule(ctx, time.Now().Add(-s.cfg.ExecutionRetryAfter))
 			if err != nil {
 				return fmt.Errorf("failed to get execution for schedule from storage: %w", err)
 			}
-			if e == nil {
+			if def == nil {
 				s.changeNowExecutions(-1)
 				s.log.Debug("no executions to schedule")
 				return nil
 			}
 
-			e.SetScheduled(time.Now())
-
-			execCtx, err := e.BuildContext()
+			ex, err := s.executionFactory.Create(ctx, *def)
 			if err != nil {
-				return fmt.Errorf("failed to build execution context: %w", err)
+				return fmt.Errorf("failed to create execution: %w", err)
 			}
-			if err = s.scheduleExecution(ctx, &execCtx); err != nil {
+
+			ex.SetScheduled(time.Now())
+
+			if err = s.scheduleExecution(ctx, ex); err != nil {
 				return fmt.Errorf("failed to schedule execution: %w", err)
 			}
 
-			if err = s.executionStorage.SaveExecution(ctx, *e); err != nil {
-				return fmt.Errorf("failed to update execution in storage %s: %w", e.ID.String(), err)
+			if err = s.executionStorage.SaveExecution(ctx, ex.Definition); err != nil {
+				return fmt.Errorf("failed to update execution in storage %s: %w", def.ID.String(), err)
 			}
 
 			return nil
@@ -169,16 +178,16 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) error {
 	}
 }
 
-func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, execCtx *execution.Context) error {
-	s.log.Info("schedule execution", slog.String("execution_id", execCtx.ExecutionID.String()))
+func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *execution.Execution) error {
+	s.log.Info("schedule execution", slog.String("execution_id", ex.ID.String()))
 
-	msg := s.messageFactory.CreateExecutionStarted(execCtx)
+	msg := s.messageFactory.CreateExecutionStarted(ex.ID)
 	if err := s.messageSender.Send(ctx, msg); err != nil {
 		return fmt.Errorf("failed to send execution started message: %w", err)
 	}
 
-	for _, step := range execCtx.PickSteps() {
-		if err := s.scheduleStep(ctx, execCtx, step); err != nil {
+	for _, jb := range ex.PickJobs() {
+		if err := s.scheduleJob(ctx, ex, jb); err != nil {
 			return err
 		}
 	}
@@ -186,72 +195,102 @@ func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, execCtx *exe
 	return nil
 }
 
-func (s *ExecutionScheduler) scheduleStep(
+func (s *ExecutionScheduler) scheduleJob(
 	ctx context.Context,
-	execCtx *execution.Context,
-	step execution.Step,
+	ex *execution.Execution,
+	jb jobs.Job,
 ) error {
-	if execCtx.IsDone() {
+	if ex.IsDone() {
 		return nil
 	}
 
-	s.log.Info("schedule step", slog.Any("step", step.GetName()))
+	s.log.Info("schedule job", slog.Any("id", jb.GetID()))
 
-	job, err := s.jobFactory.Create(ctx, execCtx, step)
-	if err != nil {
-		s.log.Error("failed to create job for step", slog.Any("step_name", step.GetName()), slog.Any("error", err))
-		return fmt.Errorf("failed to create job for step %s: %w", step.GetName(), err)
+	srcs := make([]sources.Source, 0)
+	for _, in := range jb.GetInputs() {
+		if in.Type == input.Artifact {
+			var jobID job.ID
+			if err := jobID.FromString(in.SourceID.String()); err != nil {
+				return fmt.Errorf("failed to convert artifact source name to job id: %w", err)
+			}
+			var bucketID bucket.ID
+			if err := bucketID.FromString(jobID.String()); err != nil {
+				return fmt.Errorf("failed to convert artifact id to bucket id: %w", err)
+			}
+			workerID, err := s.artifactRegistry.GetWorker(jobID)
+			if err != nil {
+				return fmt.Errorf("failed to get worker for job %s: %w", jobID.String(), err)
+			}
+			out, ok := ex.OutputByJob[jobID]
+			if !ok {
+				return fmt.Errorf("failed to find output for job %s", jobID.String())
+			}
+			file := out.File
+
+			src := sources.NewFilestorageBucketFileSource(in.SourceID, bucketID, workerID, file)
+			srcs = append(srcs, src)
+			continue
+		}
+
+		src, ok := ex.SourceByID[in.SourceID]
+		if !ok {
+			s.log.Error("failed to find source for job",
+				slog.Any("source", in.SourceID),
+				slog.Any("job", jb.GetID()),
+				slog.Any("execution", ex.ID))
+			return fmt.Errorf("failed to find source for job")
+		}
+
+		srcs = append(srcs, src)
 	}
 
-	s.jobScheduler.Schedule(ctx, job, func(ctx context.Context, result execution.Result) {
-		if result.GetError() != nil {
-			s.failStep(ctx, execCtx, step, result)
+	s.jobScheduler.Schedule(ctx, jb, srcs, func(ctx context.Context, res results.Result) {
+		if res.GetError() != nil {
+			s.failJob(ctx, ex, jb, res)
 		} else {
-			s.doneStep(ctx, execCtx, step, result)
+			s.doneJob(ctx, ex, jb, res)
 		}
 	})
-
-	execCtx.ScheduledStep(step, job)
 
 	return nil
 }
 
-func (s *ExecutionScheduler) failStep(
+func (s *ExecutionScheduler) failJob(
 	ctx context.Context,
-	execCtx *execution.Context,
-	step execution.Step,
-	result execution.Result,
+	ex *execution.Execution,
+	jb jobs.Job,
+	res results.Result,
 ) {
-	if execCtx.IsDone() {
+	if ex.IsDone() {
 		return
 	}
 
-	s.log.Info("fail step",
-		slog.Any("step", step.GetName()),
-		slog.Any("execution", execCtx.ExecutionID.String()),
-		slog.Any("error", result.GetError()),
+	s.log.Info("fail job",
+		slog.Any("job", jb.GetID()),
+		slog.Any("execution", ex.ID.String()),
+		slog.Any("error", res.GetError()),
 	)
 
-	s.finishExecution(ctx, execCtx, result.GetError())
+	s.finishExecution(ctx, ex, res.GetError())
 }
 
-func (s *ExecutionScheduler) doneStep(
+func (s *ExecutionScheduler) doneJob(
 	ctx context.Context,
-	execCtx *execution.Context,
-	step execution.Step,
-	result execution.Result,
+	ex *execution.Execution,
+	jb jobs.Job,
+	res results.Result,
 ) {
-	if execCtx.IsDone() {
+	if ex.IsDone() {
 		return
 	}
 
-	s.log.Info("done step",
-		slog.Any("step", step.GetName()),
-		slog.Any("execution", execCtx.ExecutionID.String()),
+	s.log.Info("done job",
+		slog.Any("job", jb.GetID()),
+		slog.Any("execution", ex.ID.String()),
 	)
 
 	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-		e, err := s.executionStorage.GetExecutionForUpdate(ctx, execCtx.ExecutionID)
+		e, err := s.executionStorage.GetExecutionForUpdate(ctx, ex.ID)
 		if err != nil {
 			return fmt.Errorf("failed to get execution for update from storage: %w", err)
 		}
@@ -259,16 +298,17 @@ func (s *ExecutionScheduler) doneStep(
 			return fmt.Errorf("failed to get execution for update from storage: not found")
 		}
 
-		msg, err := s.messageFactory.CreateForStep(execCtx, step, result)
+		jobName := ex.JobDefinitionByID[jb.GetID()].GetName()
+		msg, err := s.messageFactory.CreateForJob(ex.ID, jobName, res)
 		if err != nil {
-			return fmt.Errorf("failed to create message for step: %w", err)
+			return fmt.Errorf("failed to create message for job: %w", err)
 		}
 
 		if err = s.messageSender.Send(ctx, msg); err != nil {
 			return fmt.Errorf("failed to send message for step: %w", err)
 		}
 
-		execCtx.DoneStep(step.GetName())
+		ex.DoneJob(jb.GetID(), res.GetStatus())
 
 		e.SetScheduled(time.Now())
 
@@ -277,26 +317,69 @@ func (s *ExecutionScheduler) doneStep(
 		}
 		return nil
 	}); err != nil {
-		s.log.Error("failed to update execution in storage for done step", slog.Any("error", err))
-		s.finishExecution(
-			ctx,
-			execCtx,
-			fmt.Errorf("failed to update execution in storage for done step %s: %w", step.GetName(), err))
+		s.log.Error("failed to update execution in storage for done job", slog.Any("error", err))
+		s.finishExecution(ctx, ex,
+			fmt.Errorf("failed to update execution in storage for done job %s: %w", jb.GetID(), err))
 		return
 	}
 
-	if execCtx.IsDone() || result.ShouldFinishExecution() {
-		s.finishExecution(ctx, execCtx, nil)
+	if ex.IsDone() {
+		s.finishExecution(ctx, ex, nil)
 		return
 	}
 
-	for _, step = range execCtx.PickSteps() {
-		if err := s.scheduleStep(ctx, execCtx, step); err != nil {
-			s.log.Error("failed to schedule step",
-				slog.Any("step", step.GetName()),
+	for _, jb = range ex.PickJobs() {
+		if err := s.scheduleJob(ctx, ex, jb); err != nil {
+			s.log.Error("failed to schedule job",
+				slog.Any("job", jb.GetID()),
 				slog.Any("error", err))
-			s.finishExecution(ctx, execCtx, fmt.Errorf("failed to schedule step %s: %w", step.GetName(), err))
+			s.finishExecution(ctx, ex, fmt.Errorf("failed to schedule job %s: %w", jb.GetID(), err))
 		}
+	}
+}
+
+func (s *ExecutionScheduler) finishExecution(
+	ctx context.Context,
+	ex *execution.Execution,
+	exError error,
+) {
+	if ex.IsForceFailed() {
+		return
+	}
+
+	if exError == nil {
+		s.log.Info("finish execution", slog.String("execution", ex.ID.String()))
+	} else {
+		s.log.Warn("finish execution with error",
+			slog.String("execution", ex.ID.String()),
+			slog.Any("error", exError))
+	}
+
+	defer s.changeNowExecutions(-1)
+
+	ex.ForceFail()
+
+	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
+		var msg messages.Message
+		if exError == nil {
+			msg = s.messageFactory.CreateExecutionFinished(ex.ID)
+		} else {
+			msg = s.messageFactory.CreateExecutionFinishedError(ex.ID, exError.Error())
+		}
+
+		if err := s.messageSender.Send(ctx, msg); err != nil {
+			return fmt.Errorf("failed to send execution finished message: %w", err)
+		}
+
+		ex.SetFinished(time.Now())
+
+		if err := s.executionStorage.SaveExecution(ctx, ex.Definition); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		s.log.Error("failed to finish execution in storage", slog.Any("error", err))
+		return
 	}
 }
 
@@ -306,57 +389,4 @@ func (s *ExecutionScheduler) getNowExecutions() int {
 
 func (s *ExecutionScheduler) changeNowExecutions(delta int) {
 	s.nowExecutions.Add(int64(delta))
-}
-
-func (s *ExecutionScheduler) finishExecution(
-	ctx context.Context,
-	execCtx *execution.Context,
-	execError error,
-) {
-	if execCtx.IsForceDone() {
-		return
-	}
-
-	if execError == nil {
-		s.log.Info("finish execution", slog.String("execution", execCtx.ExecutionID.String()))
-	} else {
-		s.log.Warn("finish execution with error",
-			slog.String("execution", execCtx.ExecutionID.String()),
-			slog.Any("error", execError))
-	}
-
-	defer s.changeNowExecutions(-1)
-
-	execCtx.ForceDone()
-
-	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
-		e, err := s.executionStorage.GetExecutionForUpdate(ctx, execCtx.ExecutionID)
-		if err != nil {
-			return fmt.Errorf("failed to get execution for update from storage: %w", err)
-		}
-		if e == nil {
-			return fmt.Errorf("failed to get execution for update from storage: not found")
-		}
-
-		var msg execution.Message
-		if execError == nil {
-			msg = s.messageFactory.CreateExecutionFinished(execCtx)
-		} else {
-			msg = s.messageFactory.CreateExecutionFinishedError(execCtx, execError.Error())
-		}
-
-		if err = s.messageSender.Send(ctx, msg); err != nil {
-			return fmt.Errorf("failed to send execution finished message: %w", err)
-		}
-
-		e.SetFinished(time.Now())
-
-		if err = s.executionStorage.SaveExecution(ctx, *e); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		s.log.Error("failed to finish execution in storage", slog.Any("error", err))
-		return
-	}
 }

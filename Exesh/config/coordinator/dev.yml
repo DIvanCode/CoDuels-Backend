@@ -10,15 +10,13 @@ filestorage:
     workers: 1
     collector_iterations_delay: 60
     worker_iterations_delay: 5
-input_provider:
-  filestorage_bucket_ttl: 15m
-  artifact_ttl: 5m
 job_factory:
   output:
-    compiled_cpp: bin
+    compiled_binary: bin
     run_output: output
-    check_verdict: verdict
-  filestorage_endpoint: http://localhost:5253
+  source_ttl:
+    filestorage_bucket: 30m
+    inline: 30m
 execution_scheduler:
   executions_interval: 5s
   max_concurrency: 10
