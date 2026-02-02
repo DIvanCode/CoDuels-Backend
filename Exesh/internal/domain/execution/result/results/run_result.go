@@ -17,7 +17,7 @@ func NewRunResultOK(jobID job.ID) Result {
 		&RunResult{
 			Details: result.Details{
 				Type:   result.Run,
-				ID:     jobID,
+				JobID:  jobID,
 				Status: job.StatusOK,
 				DoneAt: time.Now(),
 			},
@@ -31,7 +31,7 @@ func NewRunResultWithOutput(jobID job.ID, out string) Result {
 		&RunResult{
 			Details: result.Details{
 				Type:   result.Run,
-				ID:     jobID,
+				JobID:  jobID,
 				Status: job.StatusOK,
 				DoneAt: time.Now(),
 			},
@@ -46,7 +46,7 @@ func NewRunResultTL(jobID job.ID) Result {
 		&RunResult{
 			Details: result.Details{
 				Type:   result.Run,
-				ID:     jobID,
+				JobID:  jobID,
 				Status: job.StatusTL,
 				DoneAt: time.Now(),
 			},
@@ -60,7 +60,7 @@ func NewRunResultML(jobID job.ID) Result {
 		&RunResult{
 			Details: result.Details{
 				Type:   result.Run,
-				ID:     jobID,
+				JobID:  jobID,
 				Status: job.StatusML,
 				DoneAt: time.Now(),
 			},
@@ -74,7 +74,7 @@ func NewRunResultRE(jobID job.ID) Result {
 		&RunResult{
 			Details: result.Details{
 				Type:   result.Run,
-				ID:     jobID,
+				JobID:  jobID,
 				Status: job.StatusRE,
 				DoneAt: time.Now(),
 			},
@@ -88,7 +88,7 @@ func NewRunResultErr(jobID job.ID, err string) Result {
 		&RunResult{
 			Details: result.Details{
 				Type:   result.Run,
-				ID:     jobID,
+				JobID:  jobID,
 				DoneAt: time.Now(),
 				Error:  err,
 			},

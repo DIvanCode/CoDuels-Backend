@@ -8,8 +8,8 @@ import (
 
 type (
 	Request struct {
-		Sources []sources.Definition        `json:"sources"`
-		Stages  []execution.StageDefinition `json:"stages"`
+		Sources sources.Definitions        `json:"sources"`
+		Stages  execution.StageDefinitions `json:"stages"`
 	}
 
 	Response struct {

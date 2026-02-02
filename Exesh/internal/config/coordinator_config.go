@@ -40,8 +40,7 @@ type (
 		} `yaml:"output"`
 		SourceTTL struct {
 			FilestorageBucket time.Duration `yaml:"filestorage_bucket"`
-			Inline            time.Duration `yaml:"inline"`
-		}
+		} `yaml:"source_ttl"`
 		FilestorageEndpoint string `yaml:"filestorage_endpoint"`
 	}
 

@@ -17,7 +17,7 @@ type (
 
 	Details struct {
 		Type   Type       `json:"type"`
-		ID     job.ID     `json:"id"`
+		JobID  job.ID     `json:"job_id"`
 		Status job.Status `json:"status"`
 		DoneAt time.Time  `json:"done_at"`
 		Error  string     `json:"error,omitempty"`
@@ -37,7 +37,7 @@ func (res *Details) GetType() Type {
 }
 
 func (res *Details) GetJobID() job.ID {
-	return res.ID
+	return res.JobID
 }
 
 func (res *Details) GetStatus() job.Status {

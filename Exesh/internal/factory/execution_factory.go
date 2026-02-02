@@ -100,7 +100,7 @@ func (f *ExecutionFactory) createStage(ex *execution.Execution, def execution.St
 	stage := execution.Stage{
 		Name: def.Name,
 		Deps: def.Deps,
-		Jobs: make([]jobs.Job, len(def.Jobs)),
+		Jobs: make([]jobs.Job, 0, len(def.Jobs)),
 	}
 
 	for _, jobDef := range def.Jobs {
@@ -112,8 +112,6 @@ func (f *ExecutionFactory) createStage(ex *execution.Execution, def execution.St
 		stage.Jobs = append(stage.Jobs, jb)
 		ex.JobByName[jobDef.GetName()] = jb
 	}
-
-	stage.BuildGraph()
 
 	return &stage, nil
 }
@@ -221,6 +219,8 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 		return jb, fmt.Errorf("unknown job type %s", def.GetType())
 	}
 
+	ex.JobDefinitionByID[jb.GetID()] = def
+
 	out := jb.GetOutput()
 	if out != nil {
 		ex.OutputByJob[jb.GetID()] = *out
@@ -260,7 +260,7 @@ func (f *ExecutionFactory) createInput(ex *execution.Execution, def inputs.Defin
 		}
 		typedSrcDef := srcDef.AsFilestorageBucketDefinition()
 
-		sourceID, err := f.calculateSourceID(ex.ID.String(), string(srcDef.GetName()))
+		sourceID, err := f.calculateSourceID(ex.ID.String(), string(srcDef.GetName()), typedDef.File)
 		if err != nil {
 			return in, fmt.Errorf("failed to calculate source id: %w", err)
 		}
@@ -304,8 +304,8 @@ func (f *ExecutionFactory) createInput(ex *execution.Execution, def inputs.Defin
 		}
 
 		jobID := jb.GetID()
-		sourceID, err := f.calculateSourceID(ex.ID.String(), jobID.String())
-		if err != nil {
+		var sourceID source.ID
+		if err := sourceID.FromString(jobID.String()); err != nil {
 			return in, fmt.Errorf("failed to calculate source id: %w", err)
 		}
 

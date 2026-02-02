@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"exesh/internal/api/heartbeat"
 	"exesh/internal/config"
 	"exesh/internal/domain/execution/job/jobs"
@@ -143,8 +142,8 @@ func (w *Worker) runWorker(ctx context.Context) {
 			continue
 		}
 
-		js, _ := json.Marshal(job)
-		w.log.Debug("picked job", slog.Any("job_id", (*job).GetID()), slog.String("job", string(js)))
+		jobID := job.GetID()
+		w.log.Debug("picked job", slog.String("job", jobID.String()))
 
 		result := w.jobExecutor.Execute(ctx, *job)
 
@@ -152,9 +151,7 @@ func (w *Worker) runWorker(ctx context.Context) {
 		w.doneJobs = append(w.doneJobs, result)
 		w.mu.Unlock()
 
-		js, _ = json.Marshal(result)
-		w.log.Info("done job", slog.Any("job_id", (*job).GetID()), slog.Any("error", result.GetError()),
-			slog.Any("result", js))
+		w.log.Debug("done job", slog.String("job", jobID.String()))
 		w.changeFreeSlots(+1)
 	}
 }

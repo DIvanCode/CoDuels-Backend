@@ -177,7 +177,7 @@ func (a *FilestorageAdapter) LocateFile(
 	file string,
 ) (path string, unlock func(), err error) {
 	path, unlock, err = a.filestorage.GetFile(ctx, bucketID, file)
-	return filepath.Join(path, file), unlock, nil
+	return filepath.Join(path, file), unlock, err
 }
 
 // ReadFile

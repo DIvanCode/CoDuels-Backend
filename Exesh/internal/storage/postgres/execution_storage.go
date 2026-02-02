@@ -43,7 +43,7 @@ const (
 		WHERE status = $1 OR (status = $2 AND scheduled_at < $3)
 		ORDER BY created_at
 		LIMIT 1
-		FOR UPDATE;
+		FOR UPDATE SKIP LOCKED;
 	`
 
 	updateExecutionQuery = `

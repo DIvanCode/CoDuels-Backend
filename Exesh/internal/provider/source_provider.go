@@ -11,13 +11,20 @@ import (
 	"sync"
 )
 
-type SourceProvider struct {
-	cfg         config.SourceProviderConfig
-	filestorage filestorage
+type (
+	SourceProvider struct {
+		cfg         config.SourceProviderConfig
+		filestorage filestorage
 
-	mu   sync.Mutex
-	srcs map[source.ID]string
-}
+		mu   sync.Mutex
+		srcs map[source.ID]savedSource
+	}
+
+	savedSource struct {
+		BucketID bucket.ID
+		File     string
+	}
+)
 
 func NewSourceProvider(cfg config.SourceProviderConfig, filestorage filestorage) *SourceProvider {
 	return &SourceProvider{
@@ -25,7 +32,7 @@ func NewSourceProvider(cfg config.SourceProviderConfig, filestorage filestorage)
 		filestorage: filestorage,
 
 		mu:   sync.Mutex{},
-		srcs: make(map[source.ID]string),
+		srcs: make(map[source.ID]savedSource),
 	}
 }
 
@@ -57,7 +64,7 @@ func (p *SourceProvider) SaveSource(ctx context.Context, src sources.Source) err
 			return fmt.Errorf("failed to commit file creation: %w", err)
 		}
 
-		p.saveSource(src.GetID(), file)
+		p.saveSource(src.GetID(), bucketID, file)
 	case source.FilestorageBucketFile:
 		typedSrc := src.AsFilestorageBucketFile()
 
@@ -70,7 +77,7 @@ func (p *SourceProvider) SaveSource(ctx context.Context, src sources.Source) err
 			return fmt.Errorf("failed to download file %s: %w", bucketID, err)
 		}
 
-		p.saveSource(src.GetID(), file)
+		p.saveSource(src.GetID(), bucketID, file)
 	default:
 		return fmt.Errorf("unknown source type '%s'", src.GetType())
 	}
@@ -78,11 +85,11 @@ func (p *SourceProvider) SaveSource(ctx context.Context, src sources.Source) err
 	return nil
 }
 
-func (p *SourceProvider) saveSource(sourceID source.ID, file string) {
+func (p *SourceProvider) saveSource(sourceID source.ID, bucketID bucket.ID, file string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.srcs[sourceID] = file
+	p.srcs[sourceID] = savedSource{BucketID: bucketID, File: file}
 }
 
 func (p *SourceProvider) RemoveSource(ctx context.Context, src sources.Source) {
@@ -92,42 +99,30 @@ func (p *SourceProvider) RemoveSource(ctx context.Context, src sources.Source) {
 	delete(p.srcs, src.GetID())
 }
 
-func (p *SourceProvider) getSourceFile(ctx context.Context, sourceID source.ID) (string, bool) {
+func (p *SourceProvider) getSavedSource(ctx context.Context, sourceID source.ID) (savedSource, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	file, ok := p.srcs[sourceID]
-	return file, ok
+	src, ok := p.srcs[sourceID]
+	return src, ok
 }
 
 func (p *SourceProvider) Locate(ctx context.Context, sourceID source.ID) (path string, unlock func(), err error) {
-	file, ok := p.getSourceFile(ctx, sourceID)
+	src, ok := p.getSavedSource(ctx, sourceID)
 	if !ok {
 		err = fmt.Errorf("source %s not found", sourceID.String())
 		return
 	}
 
-	var bucketID bucket.ID
-	if err = bucketID.FromString(sourceID.String()); err != nil {
-		err = fmt.Errorf("failed to calculate bucket id: %w", err)
-		return
-	}
-
-	return p.filestorage.LocateFile(ctx, bucketID, file)
+	return p.filestorage.LocateFile(ctx, src.BucketID, src.File)
 }
 
 func (p *SourceProvider) Read(ctx context.Context, sourceID source.ID) (r io.Reader, unlock func(), err error) {
-	file, ok := p.getSourceFile(ctx, sourceID)
+	src, ok := p.getSavedSource(ctx, sourceID)
 	if !ok {
 		err = fmt.Errorf("source %s not found", sourceID.String())
 		return
 	}
 
-	var bucketID bucket.ID
-	if err = bucketID.FromString(sourceID.String()); err != nil {
-		err = fmt.Errorf("failed to calculate bucket id: %w", err)
-		return
-	}
-
-	return p.filestorage.ReadFile(ctx, bucketID, file)
+	return p.filestorage.ReadFile(ctx, src.BucketID, src.File)
 }

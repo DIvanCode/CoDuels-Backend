@@ -8,8 +8,8 @@ import (
 type (
 	Definition struct {
 		ID          ID
-		Stages      []StageDefinition
-		Sources     []sources.Definition
+		Stages      StageDefinitions
+		Sources     sources.Definitions
 		Status      Status
 		CreatedAt   time.Time
 		ScheduledAt *time.Time
@@ -25,7 +25,7 @@ const (
 	StatusFinished  Status = "finished"
 )
 
-func NewExecutionDefinition(stages []StageDefinition, sources []sources.Definition) Definition {
+func NewExecutionDefinition(stages StageDefinitions, sources sources.Definitions) Definition {
 	return Definition{
 		ID:          newID(),
 		Stages:      stages,
@@ -52,5 +52,5 @@ func (def *Definition) SetFinished(finishedAt time.Time) {
 	}
 
 	def.Status = StatusFinished
-	def.ScheduledAt = &finishedAt
+	def.FinishedAt = &finishedAt
 }

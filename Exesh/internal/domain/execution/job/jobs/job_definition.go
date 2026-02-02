@@ -10,6 +10,14 @@ type Definition struct {
 	job.IDefinition
 }
 
+func (def Definition) MarshalJSON() ([]byte, error) {
+	if def.IDefinition == nil {
+		return []byte("null"), nil
+	}
+
+	return json.Marshal(def.IDefinition)
+}
+
 func (def *Definition) UnmarshalJSON(data []byte) error {
 	var details job.DefinitionDetails
 	if err := json.Unmarshal(data, &details); err != nil {

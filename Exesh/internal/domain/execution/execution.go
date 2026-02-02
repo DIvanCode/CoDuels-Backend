@@ -23,7 +23,7 @@ type (
 
 		OutputByJob map[job.ID]output.Output
 
-		graph *stagesGraph
+		graph *graph
 
 		mu          sync.Mutex
 		forceFailed bool
@@ -33,7 +33,7 @@ type (
 func NewExecution(def Definition) *Execution {
 	ex := Execution{
 		Definition: def,
-		Stages:     make([]*Stage, len(def.Stages)),
+		Stages:     make([]*Stage, 0, len(def.Stages)),
 
 		JobByName:         make(map[job.DefinitionName]jobs.Job),
 		JobDefinitionByID: make(map[job.ID]jobs.Definition),
@@ -48,7 +48,7 @@ func NewExecution(def Definition) *Execution {
 }
 
 func (ex *Execution) BuildGraph() {
-	ex.graph = newStagesGraph(ex.Stages)
+	ex.graph = newGraph(ex.Stages)
 }
 
 func (ex *Execution) PickJobs() []jobs.Job {

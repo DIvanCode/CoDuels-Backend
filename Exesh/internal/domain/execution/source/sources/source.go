@@ -10,6 +10,14 @@ type Source struct {
 	source.ISource
 }
 
+func (src Source) MarshalJSON() ([]byte, error) {
+	if src.ISource == nil {
+		return []byte("null"), nil
+	}
+
+	return json.Marshal(src.ISource)
+}
+
 func (src *Source) UnmarshalJSON(data []byte) error {
 	var details source.Details
 	if err := json.Unmarshal(data, &details); err != nil {

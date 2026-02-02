@@ -204,26 +204,27 @@ func (s *ExecutionScheduler) scheduleJob(
 		return nil
 	}
 
-	s.log.Info("schedule job", slog.Any("id", jb.GetID()))
+	jobID := jb.GetID()
+	s.log.Info("schedule job", slog.String("job", jobID.String()))
 
 	srcs := make([]sources.Source, 0)
 	for _, in := range jb.GetInputs() {
 		if in.Type == input.Artifact {
-			var jobID job.ID
-			if err := jobID.FromString(in.SourceID.String()); err != nil {
+			var inputJobID job.ID
+			if err := inputJobID.FromString(in.SourceID.String()); err != nil {
 				return fmt.Errorf("failed to convert artifact source name to job id: %w", err)
 			}
 			var bucketID bucket.ID
-			if err := bucketID.FromString(jobID.String()); err != nil {
+			if err := bucketID.FromString(inputJobID.String()); err != nil {
 				return fmt.Errorf("failed to convert artifact id to bucket id: %w", err)
 			}
-			workerID, err := s.artifactRegistry.GetWorker(jobID)
+			workerID, err := s.artifactRegistry.GetWorker(inputJobID)
 			if err != nil {
-				return fmt.Errorf("failed to get worker for job %s: %w", jobID.String(), err)
+				return fmt.Errorf("failed to get worker for job %s: %w", inputJobID.String(), err)
 			}
-			out, ok := ex.OutputByJob[jobID]
+			out, ok := ex.OutputByJob[inputJobID]
 			if !ok {
-				return fmt.Errorf("failed to find output for job %s", jobID.String())
+				return fmt.Errorf("failed to find output for job %s", inputJobID.String())
 			}
 			file := out.File
 
@@ -234,10 +235,11 @@ func (s *ExecutionScheduler) scheduleJob(
 
 		src, ok := ex.SourceByID[in.SourceID]
 		if !ok {
+			inputJobID := jb.GetID()
 			s.log.Error("failed to find source for job",
-				slog.Any("source", in.SourceID),
-				slog.Any("job", jb.GetID()),
-				slog.Any("execution", ex.ID))
+				slog.String("source", in.SourceID.String()),
+				slog.String("job", inputJobID.String()),
+				slog.String("execution", ex.ID.String()))
 			return fmt.Errorf("failed to find source for job")
 		}
 
@@ -265,9 +267,10 @@ func (s *ExecutionScheduler) failJob(
 		return
 	}
 
+	jobID := jb.GetID()
 	s.log.Info("fail job",
-		slog.Any("job", jb.GetID()),
-		slog.Any("execution", ex.ID.String()),
+		slog.String("job", jobID.String()),
+		slog.String("execution", ex.ID.String()),
 		slog.Any("error", res.GetError()),
 	)
 
@@ -284,9 +287,10 @@ func (s *ExecutionScheduler) doneJob(
 		return
 	}
 
+	jobID := jb.GetID()
 	s.log.Info("done job",
-		slog.Any("job", jb.GetID()),
-		slog.Any("execution", ex.ID.String()),
+		slog.String("job", jobID.String()),
+		slog.String("execution", ex.ID.String()),
 	)
 
 	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
@@ -298,7 +302,7 @@ func (s *ExecutionScheduler) doneJob(
 			return fmt.Errorf("failed to get execution for update from storage: not found")
 		}
 
-		jobName := ex.JobDefinitionByID[jb.GetID()].GetName()
+		jobName := ex.JobDefinitionByID[jobID].GetName()
 		msg, err := s.messageFactory.CreateForJob(ex.ID, jobName, res)
 		if err != nil {
 			return fmt.Errorf("failed to create message for job: %w", err)
@@ -308,7 +312,7 @@ func (s *ExecutionScheduler) doneJob(
 			return fmt.Errorf("failed to send message for step: %w", err)
 		}
 
-		ex.DoneJob(jb.GetID(), res.GetStatus())
+		ex.DoneJob(jobID, res.GetStatus())
 
 		e.SetScheduled(time.Now())
 
@@ -328,12 +332,13 @@ func (s *ExecutionScheduler) doneJob(
 		return
 	}
 
-	for _, jb = range ex.PickJobs() {
-		if err := s.scheduleJob(ctx, ex, jb); err != nil {
+	for _, pickedJob := range ex.PickJobs() {
+		if err := s.scheduleJob(ctx, ex, pickedJob); err != nil {
+			pickedJobID := pickedJob.GetID()
 			s.log.Error("failed to schedule job",
-				slog.Any("job", jb.GetID()),
+				slog.String("job", pickedJobID.String()),
 				slog.Any("error", err))
-			s.finishExecution(ctx, ex, fmt.Errorf("failed to schedule job %s: %w", jb.GetID(), err))
+			s.finishExecution(ctx, ex, fmt.Errorf("failed to schedule job %s: %w", pickedJobID, err))
 		}
 	}
 }

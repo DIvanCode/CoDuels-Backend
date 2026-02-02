@@ -13,6 +13,3 @@ type (
 
 	StageName string
 )
-
-func (stage *Stage) BuildGraph() {
-}

@@ -10,6 +10,14 @@ type Result struct {
 	result.IResult
 }
 
+func (res Result) MarshalJSON() ([]byte, error) {
+	if res.IResult == nil {
+		return []byte("null"), nil
+	}
+
+	return json.Marshal(res.IResult)
+}
+
 func (res *Result) UnmarshalJSON(data []byte) error {
 	var details result.Details
 	if err := json.Unmarshal(data, &details); err != nil {

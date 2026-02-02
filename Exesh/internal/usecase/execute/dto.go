@@ -7,8 +7,8 @@ import (
 
 type (
 	Command struct {
-		Sources []sources.Definition
-		Stages  []execution.StageDefinition
+		Sources sources.Definitions
+		Stages  execution.StageDefinitions
 	}
 
 	Result struct {

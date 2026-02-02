@@ -76,7 +76,7 @@ func (uc *UseCase) Execute(ctx context.Context, command Command) (result Result,
 		return nil
 	})
 
-	uc.log.Info("created execution", slog.Any("execution_id", result.ExecutionID))
+	uc.log.Info("created execution", slog.String("execution", result.ExecutionID.String()))
 
 	return
 }

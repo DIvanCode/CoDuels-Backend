@@ -16,11 +16,11 @@ job_factory:
     run_output: output
   source_ttl:
     filestorage_bucket: 30m
-    inline: 30m
+  filestorage_endpoint: http://coordinator:5253
 execution_scheduler:
   executions_interval: 5s
   max_concurrency: 10
-  execution_retry_after: 300s
+  execution_retry_after: 30s
 worker_pool:
   worker_die_after: 10s
 artifact_registry:

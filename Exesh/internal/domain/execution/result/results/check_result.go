@@ -15,7 +15,7 @@ func NewCheckResultOK(jobID job.ID) Result {
 		&CompileResult{
 			Details: result.Details{
 				Type:   result.Check,
-				ID:     jobID,
+				JobID:  jobID,
 				Status: job.StatusOK,
 				DoneAt: time.Now(),
 			},
@@ -28,7 +28,7 @@ func NewCheckResultWA(jobID job.ID) Result {
 		&CompileResult{
 			Details: result.Details{
 				Type:   result.Check,
-				ID:     jobID,
+				JobID:  jobID,
 				Status: job.StatusWA,
 				DoneAt: time.Now(),
 			},
@@ -41,7 +41,7 @@ func NewCheckResultErr(jobID job.ID, err string) Result {
 		&CompileResult{
 			Details: result.Details{
 				Type:   result.Check,
-				ID:     jobID,
+				JobID:  jobID,
 				DoneAt: time.Now(),
 				Error:  err,
 			},

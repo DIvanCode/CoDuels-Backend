@@ -10,6 +10,14 @@ type Message struct {
 	message.IMessage
 }
 
+func (msg Message) MarshalJSON() ([]byte, error) {
+	if msg.IMessage == nil {
+		return []byte("null"), nil
+	}
+
+	return json.Marshal(msg.IMessage)
+}
+
 func (msg *Message) UnmarshalJSON(data []byte) error {
 	var details message.Details
 	if err := json.Unmarshal(data, &details); err != nil {

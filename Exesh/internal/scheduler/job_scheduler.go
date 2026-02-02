@@ -60,16 +60,25 @@ func (s *JobScheduler) PickJob(ctx context.Context, workerID string) (*jobs.Job,
 }
 
 func (s *JobScheduler) DoneJob(ctx context.Context, workerID string, res results.Result) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	prepareCallback := func() jobCallback {
+		s.mu.Lock()
+		defer s.mu.Unlock()
 
-	jobID := res.GetJobID()
+		jobID := res.GetJobID()
 
-	if _, ok := s.jobSources[jobID]; ok {
-		delete(s.jobSources, jobID)
+		if _, ok := s.jobSources[jobID]; ok {
+			delete(s.jobSources, jobID)
+		}
+		if callback, ok := s.jobCallback[jobID]; ok {
+			delete(s.jobCallback, jobID)
+			return callback
+		}
+
+		return nil
 	}
-	if callback, ok := s.jobCallback[jobID]; ok {
-		delete(s.jobCallback, jobID)
+
+	callback := prepareCallback()
+	if callback != nil {
 		callback(ctx, res)
 	}
 }

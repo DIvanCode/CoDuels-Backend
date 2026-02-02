@@ -16,7 +16,7 @@ func NewCompileResultOK(jobID job.ID) Result {
 		&CompileResult{
 			Details: result.Details{
 				Type:   result.Compile,
-				ID:     jobID,
+				JobID:  jobID,
 				Status: job.StatusOK,
 				DoneAt: time.Now(),
 			},
@@ -29,7 +29,7 @@ func NewCompileResultCE(jobID job.ID, compilationError string) Result {
 		&CompileResult{
 			Details: result.Details{
 				Type:   result.Compile,
-				ID:     jobID,
+				JobID:  jobID,
 				Status: job.StatusCE,
 				DoneAt: time.Now(),
 			},
@@ -43,7 +43,7 @@ func NewCompileResultErr(jobID job.ID, err string) Result {
 		&CompileResult{
 			Details: result.Details{
 				Type:   result.Compile,
-				ID:     jobID,
+				JobID:  jobID,
 				DoneAt: time.Now(),
 				Error:  err,
 			},
