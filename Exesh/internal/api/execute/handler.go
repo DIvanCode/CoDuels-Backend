@@ -36,7 +36,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	command := execute.Command{Steps: req.Steps}
+	command := execute.Command{Sources: req.Sources, Stages: req.Stages}
 	result, err := h.uc.Execute(r.Context(), command)
 	if err != nil {
 		h.log.Error("failed to execute", slog.Any("err", err))

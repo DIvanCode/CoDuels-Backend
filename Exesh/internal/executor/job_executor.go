@@ -2,9 +2,9 @@ package executor
 
 import (
 	"context"
-	"exesh/internal/domain/execution"
-	"fmt"
-	"time"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/job/jobs"
+	"exesh/internal/domain/execution/result/results"
 )
 
 type (
@@ -13,8 +13,8 @@ type (
 	}
 
 	jobExecutor interface {
-		SupportsType(execution.JobType) bool
-		Execute(context.Context, execution.Job) execution.Result
+		SupportsType(job.Type) bool
+		Execute(context.Context, jobs.Job) results.Result
 	}
 )
 
@@ -22,15 +22,13 @@ func NewJobExecutor(executors ...jobExecutor) *JobExecutor {
 	return &JobExecutor{executors: executors}
 }
 
-func (e *JobExecutor) Execute(ctx context.Context, job execution.Job) execution.Result {
+func (e *JobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Result {
+	var res results.Result
 	for _, executor := range e.executors {
-		if executor.SupportsType(job.GetType()) {
-			return executor.Execute(ctx, job)
+		if executor.SupportsType(jb.GetType()) {
+			res = executor.Execute(ctx, jb)
+			break
 		}
 	}
-	return execution.ResultDetails{
-		ID:     job.GetID(),
-		DoneAt: time.Now(),
-		Error:  fmt.Errorf("executor for %s job not found", job.GetType()).Error(),
-	}
+	return res
 }

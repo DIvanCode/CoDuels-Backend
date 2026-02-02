@@ -29,7 +29,7 @@ func (u *UnitOfWork) Do(ctx context.Context, fn func(ctx context.Context) error)
 	}
 
 	if err := fn(withTx(ctx, tx)); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 

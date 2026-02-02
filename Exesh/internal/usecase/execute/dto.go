@@ -1,10 +1,14 @@
 package execute
 
-import "exesh/internal/domain/execution"
+import (
+	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/source/sources"
+)
 
 type (
 	Command struct {
-		Steps []execution.Step
+		Sources sources.Definitions
+		Stages  execution.StageDefinitions
 	}
 
 	Result struct {

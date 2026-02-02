@@ -2,58 +2,83 @@ package scheduler
 
 import (
 	"context"
-	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/job/jobs"
+	"exesh/internal/domain/execution/result/results"
+	"exesh/internal/domain/execution/source/sources"
 	"exesh/internal/lib/queue"
 	"log/slog"
+	"sync"
 )
 
 type (
 	JobScheduler struct {
 		log *slog.Logger
 
-		scheduledJobs queue.Queue[execution.Job]
-		jobCallbacks  map[execution.JobID]*queue.Queue[jobCallback]
+		mu sync.Mutex
+
+		scheduledJobs queue.Queue[jobs.Job]
+		jobSources    map[job.ID][]sources.Source
+		jobCallback   map[job.ID]jobCallback
 	}
 
-	jobCallback func(context.Context, execution.Result)
+	jobCallback func(context.Context, results.Result)
 )
 
 func NewJobScheduler(log *slog.Logger) *JobScheduler {
 	return &JobScheduler{
 		log: log,
 
-		scheduledJobs: *queue.NewQueue[execution.Job](),
-		jobCallbacks:  make(map[execution.JobID]*queue.Queue[jobCallback]),
+		mu: sync.Mutex{},
+
+		scheduledJobs: *queue.NewQueue[jobs.Job](),
+		jobSources:    make(map[job.ID][]sources.Source),
+		jobCallback:   make(map[job.ID]jobCallback),
 	}
 }
 
-func (s *JobScheduler) Schedule(ctx context.Context, job execution.Job, onJobDone jobCallback) {
-	s.scheduledJobs.Enqueue(job)
+func (s *JobScheduler) Schedule(ctx context.Context, jb jobs.Job, srcs []sources.Source, onJobDone jobCallback) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	jobCallbacks := s.jobCallbacks[job.GetID()]
-	if jobCallbacks == nil {
-		jobCallbacks = queue.NewQueue[jobCallback]()
-	}
-	jobCallbacks.Enqueue(onJobDone)
-	s.jobCallbacks[job.GetID()] = jobCallbacks
+	s.scheduledJobs.Enqueue(jb)
+	s.jobSources[jb.GetID()] = srcs
+	s.jobCallback[jb.GetID()] = onJobDone
 }
 
-func (s *JobScheduler) PickJob(ctx context.Context, workerID string) *execution.Job {
-	return s.scheduledJobs.Dequeue()
+func (s *JobScheduler) PickJob(ctx context.Context, workerID string) (*jobs.Job, []sources.Source) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	jb := s.scheduledJobs.Dequeue()
+	if jb == nil {
+		return jb, nil
+	}
+
+	srcs := s.jobSources[jb.GetID()]
+	return jb, srcs
 }
 
-func (s *JobScheduler) DoneJob(ctx context.Context, workerID string, result execution.Result) {
-	jobID := result.GetJobID()
+func (s *JobScheduler) DoneJob(ctx context.Context, workerID string, res results.Result) {
+	prepareCallback := func() jobCallback {
+		s.mu.Lock()
+		defer s.mu.Unlock()
 
-	jobCallbacks := s.jobCallbacks[jobID]
-	if jobCallbacks == nil {
-		return
+		jobID := res.GetJobID()
+
+		if _, ok := s.jobSources[jobID]; ok {
+			delete(s.jobSources, jobID)
+		}
+		if callback, ok := s.jobCallback[jobID]; ok {
+			delete(s.jobCallback, jobID)
+			return callback
+		}
+
+		return nil
 	}
 
-	jobCallback := jobCallbacks.Dequeue()
-	if jobCallback == nil {
-		return
+	callback := prepareCallback()
+	if callback != nil {
+		callback(ctx, res)
 	}
-
-	(*jobCallback)(ctx, result)
 }

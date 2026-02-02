@@ -2,14 +2,17 @@ package heartbeat
 
 import (
 	"context"
-	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/job/jobs"
+	"exesh/internal/domain/execution/result/results"
+	"exesh/internal/domain/execution/source/sources"
 	"log/slog"
 )
 
 type (
 	Command struct {
 		WorkerID  string
-		DoneJobs  []execution.Result
+		DoneJobs  []results.Result
 		FreeSlots int
 	}
 
@@ -26,12 +29,12 @@ type (
 	}
 
 	jobScheduler interface {
-		PickJob(context.Context, string) *execution.Job
-		DoneJob(context.Context, string, execution.Result)
+		PickJob(context.Context, string) (*jobs.Job, []sources.Source)
+		DoneJob(context.Context, string, results.Result)
 	}
 
 	artifactRegistry interface {
-		PutArtifact(string, execution.JobID)
+		PutArtifact(string, job.ID)
 	}
 )
 
@@ -45,7 +48,7 @@ func NewUseCase(log *slog.Logger, workerPool workerPool, jobScheduler jobSchedul
 	}
 }
 
-func (uc *UseCase) Heartbeat(ctx context.Context, command Command) ([]execution.Job, error) {
+func (uc *UseCase) Heartbeat(ctx context.Context, command Command) ([]jobs.Job, []sources.Source, error) {
 	uc.workerPool.Heartbeat(ctx, command.WorkerID)
 
 	for _, jobResult := range command.DoneJobs {
@@ -53,14 +56,16 @@ func (uc *UseCase) Heartbeat(ctx context.Context, command Command) ([]execution.
 		uc.jobScheduler.DoneJob(ctx, command.WorkerID, jobResult)
 	}
 
-	jobs := make([]execution.Job, 0)
+	jbs := make([]jobs.Job, 0)
+	srcs := make([]sources.Source, 0)
 	for range command.FreeSlots {
-		jobSpec := uc.jobScheduler.PickJob(ctx, command.WorkerID)
-		if jobSpec == nil {
+		jb, src := uc.jobScheduler.PickJob(ctx, command.WorkerID)
+		if jb == nil {
 			break
 		}
-		jobs = append(jobs, *jobSpec)
+		jbs = append(jbs, *jb)
+		srcs = append(srcs, src...)
 	}
 
-	return jobs, nil
+	return jbs, srcs, nil
 }

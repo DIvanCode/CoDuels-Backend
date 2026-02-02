@@ -2,19 +2,20 @@ package executors
 
 import (
 	"context"
-	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/source"
 	"io"
 )
 
 type (
-	inputProvider interface {
-		Locate(context.Context, execution.Input) (path string, unlock func(), err error)
-		Read(context.Context, execution.Input) (r io.Reader, unlock func(), err error)
+	sourceProvider interface {
+		Locate(context.Context, source.ID) (path string, unlock func(), err error)
+		Read(context.Context, source.ID) (r io.Reader, unlock func(), err error)
 	}
 
 	outputProvider interface {
-		Reserve(context.Context, execution.Output) (path string, commit, abort func() error, err error)
-		Create(context.Context, execution.Output) (w io.Writer, commit, abort func() error, err error)
-		Read(context.Context, execution.Output) (r io.Reader, unlock func(), err error)
+		Reserve(context.Context, job.ID, string) (path string, commit, abort func() error, err error)
+		Read(context.Context, job.ID, string) (r io.Reader, unlock func(), err error)
+		Create(context.Context, job.ID, string) (w io.Writer, commit, abort func() error, err error)
 	}
 )

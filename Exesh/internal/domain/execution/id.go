@@ -1,7 +1,9 @@
 package execution
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -12,8 +14,8 @@ func newID() ID {
 	return ID(uuid.New())
 }
 
-func (id ID) String() string {
-	uid := uuid.UUID(id)
+func (id *ID) String() string {
+	uid := uuid.UUID(*id)
 	return uid.String()
 }
 
@@ -26,7 +28,7 @@ func (id *ID) FromString(idStr string) (err error) {
 	return
 }
 
-func (id ID) MarshalJSON() ([]byte, error) {
+func (id *ID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(id.String())
 }
 
@@ -38,4 +40,21 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 	}
 	*id = ID(uid)
 	return nil
+}
+
+func (id ID) Value() (driver.Value, error) {
+	return id.String(), nil
+}
+
+func (id *ID) Scan(src any) error {
+	switch v := src.(type) {
+	case string:
+		return id.FromString(v)
+	case []byte:
+		return id.FromString(string(v))
+	case nil:
+		return nil
+	default:
+		return fmt.Errorf("failed to scan execution id from type %T", src)
+	}
 }

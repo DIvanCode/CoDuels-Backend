@@ -3,7 +3,8 @@ package heartbeat
 import (
 	"encoding/json"
 	"exesh/internal/api"
-	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/job/jobs"
+	"exesh/internal/domain/execution/source/sources"
 	"exesh/internal/usecase/heartbeat"
 	"log/slog"
 	"net/http"
@@ -37,7 +38,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	command := buildCommand(req)
-	jobs, err := h.uc.Heartbeat(r.Context(), command)
+	jbs, srcs, err := h.uc.Heartbeat(r.Context(), command)
 	if err != nil {
 		h.log.Error("failed to process heartbeat",
 			slog.Any("command", command),
@@ -46,7 +47,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.JSON(w, r, okResponse(jobs))
+	render.JSON(w, r, okResponse(jbs, srcs))
 	return
 }
 
@@ -58,10 +59,11 @@ func buildCommand(req Request) heartbeat.Command {
 	}
 }
 
-func okResponse(jobs []execution.Job) Response {
+func okResponse(jbs []jobs.Job, srcs []sources.Source) Response {
 	return Response{
 		Response: api.OK(),
-		Jobs:     jobs,
+		Jobs:     jbs,
+		Sources:  srcs,
 	}
 }
 

@@ -2,54 +2,57 @@ package provider
 
 import (
 	"context"
-	"exesh/internal/domain/execution"
+	"exesh/internal/config"
+	"exesh/internal/domain/execution/job"
 	"fmt"
+	"github.com/DIvanCode/filestorage/pkg/bucket"
 	"io"
 )
 
-type (
-	OutputProvider struct {
-		providers []outputProvider
-	}
-
-	outputProvider interface {
-		SupportsType(execution.OutputType) bool
-		Reserve(context.Context, execution.Output) (path string, commit, abort func() error, err error)
-		Create(context.Context, execution.Output) (w io.Writer, commit, abort func() error, err error)
-		Read(context.Context, execution.Output) (r io.Reader, unlock func(), err error)
-	}
-)
-
-func NewOutputProvider(providers ...outputProvider) *OutputProvider {
-	return &OutputProvider{providers: providers}
+type OutputProvider struct {
+	cfg         config.OutputProviderConfig
+	filestorage filestorage
 }
 
-func (p *OutputProvider) Reserve(ctx context.Context, output execution.Output) (path string, commit, abort func() error, err error) {
-	for _, provider := range p.providers {
-		if provider.SupportsType(output.GetType()) {
-			return provider.Reserve(ctx, output)
-		}
+func NewOutputProvider(cfg config.OutputProviderConfig, filestorage filestorage) *OutputProvider {
+	return &OutputProvider{
+		cfg:         cfg,
+		filestorage: filestorage,
 	}
-	err = fmt.Errorf("provider for %s iutput not found", output.GetType())
-	return
 }
 
-func (p *OutputProvider) Create(ctx context.Context, output execution.Output) (w io.Writer, commit, abort func() error, err error) {
-	for _, provider := range p.providers {
-		if provider.SupportsType(output.GetType()) {
-			return provider.Create(ctx, output)
-		}
+func (p *OutputProvider) Reserve(ctx context.Context, jobID job.ID, file string) (path string, commit, abort func() error, err error) {
+	var bucketID bucket.ID
+	if err = bucketID.FromString(jobID.String()); err != nil {
+		err = fmt.Errorf("failed to create bucket id: %w", err)
+		return
 	}
-	err = fmt.Errorf("provider for %s iutput not found", output.GetType())
-	return
+
+	ttl := p.cfg.ArtifactTTL
+	return p.filestorage.ReserveFile(ctx, bucketID, file, ttl)
 }
 
-func (p *OutputProvider) Read(ctx context.Context, output execution.Output) (r io.Reader, unlock func(), err error) {
-	for _, provider := range p.providers {
-		if provider.SupportsType(output.GetType()) {
-			return provider.Read(ctx, output)
-		}
+func (p *OutputProvider) Read(ctx context.Context, jobID job.ID, file string) (r io.Reader, unlock func(), err error) {
+	var bucketID bucket.ID
+	if err = bucketID.FromString(jobID.String()); err != nil {
+		err = fmt.Errorf("failed to create bucket id: %w", err)
+		return
 	}
-	err = fmt.Errorf("provider for %s output not found", output.GetType())
-	return
+
+	return p.filestorage.ReadFile(ctx, bucketID, file)
+}
+
+func (p *OutputProvider) Create(
+	ctx context.Context,
+	jobID job.ID,
+	file string,
+) (w io.Writer, commit, abort func() error, err error) {
+	var bucketID bucket.ID
+	if err = bucketID.FromString(jobID.String()); err != nil {
+		err = fmt.Errorf("failed to create bucket id: %w", err)
+		return
+	}
+
+	ttl := p.cfg.ArtifactTTL
+	return p.filestorage.CreateFile(ctx, bucketID, file, ttl)
 }

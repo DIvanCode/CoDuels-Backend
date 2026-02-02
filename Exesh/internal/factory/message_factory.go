@@ -2,56 +2,62 @@ package factory
 
 import (
 	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/messages"
-	"exesh/internal/domain/execution/results"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/message/messages"
+	"exesh/internal/domain/execution/result"
+	"exesh/internal/domain/execution/result/results"
 	"fmt"
-	"log/slog"
 )
 
-type MessageFactory struct {
-	log *slog.Logger
+type MessageFactory struct{}
+
+func NewMessageFactory() *MessageFactory {
+	return &MessageFactory{}
 }
 
-func NewMessageFactory(log *slog.Logger) *MessageFactory {
-	return &MessageFactory{
-		log: log,
-	}
+func (f *MessageFactory) CreateExecutionStarted(executionID execution.ID) messages.Message {
+	return messages.NewStartExecutionMessage(executionID)
 }
 
-func (f *MessageFactory) CreateExecutionStarted(execCtx *execution.Context) execution.Message {
-	return messages.NewStartExecutionMessage(execCtx.ExecutionID)
-}
+func (f *MessageFactory) CreateForJob(
+	executionID execution.ID,
+	jobName job.DefinitionName,
+	res results.Result,
+) (messages.Message, error) {
+	var msg messages.Message
 
-func (f *MessageFactory) CreateForStep(execCtx *execution.Context, step execution.Step, result execution.Result) (execution.Message, error) {
-	switch result.GetType() {
-	case execution.CompileResult:
-		typedResult := result.(*results.CompileResult)
-		if typedResult.Status == results.CompileStatusOK {
-			return messages.NewCompileStepMessage(execCtx.ExecutionID, step.GetName()), nil
-		} else if typedResult.Status == results.CompileStatusCE {
-			return messages.NewCompileStepMessageError(execCtx.ExecutionID, step.GetName(), typedResult.CompilationError), nil
-		} else {
-			return nil, fmt.Errorf("unknown compile status: %s", typedResult.Status)
+	switch res.GetType() {
+	case result.Compile:
+		typedRes := res.AsCompile()
+		switch typedRes.Status {
+		case job.StatusOK:
+			msg = messages.NewCompileJobMessageOk(executionID, jobName)
+		case job.StatusCE:
+			msg = messages.NewCompileJobMessageError(executionID, jobName, typedRes.CompilationError)
+		default:
+			return msg, fmt.Errorf("unknown compile status: %s", typedRes.Status)
 		}
-	case execution.RunResult:
-		typedResult := result.(*results.RunResult)
-		if typedResult.Status == results.RunStatusOK && typedResult.HasOutput {
-			return messages.NewRunStepMessageWithOutput(execCtx.ExecutionID, step.GetName(), typedResult.Output), nil
+	case result.Run:
+		typedRes := res.AsRun()
+		if !typedRes.HasOutput {
+			msg = messages.NewRunJobMessage(executionID, jobName, typedRes.Status)
 		} else {
-			return messages.NewRunStepMessage(execCtx.ExecutionID, step.GetName(), typedResult.Status), nil
+			msg = messages.NewRunJobMessageWithOutput(executionID, jobName, typedRes.Output)
 		}
-	case execution.CheckResult:
-		typedResult := result.(*results.CheckResult)
-		return messages.NewCheckStepMessage(execCtx.ExecutionID, step.GetName(), typedResult.Status), nil
+	case result.Check:
+		typedRes := res.AsCheck()
+		msg = messages.NewCheckJobMessage(executionID, jobName, typedRes.Status)
 	default:
-		return nil, fmt.Errorf("unknown result type %s", result.GetType())
+		return msg, fmt.Errorf("unknown result type %s", res.GetType())
 	}
+
+	return msg, nil
 }
 
-func (f *MessageFactory) CreateExecutionFinished(execCtx *execution.Context) execution.Message {
-	return messages.NewFinishExecutionMessage(execCtx.ExecutionID)
+func (f *MessageFactory) CreateExecutionFinished(executionID execution.ID) messages.Message {
+	return messages.NewFinishExecutionMessageOk(executionID)
 }
 
-func (f *MessageFactory) CreateExecutionFinishedError(execCtx *execution.Context, err string) execution.Message {
-	return messages.NewFinishExecutionMessageError(execCtx.ExecutionID, err)
+func (f *MessageFactory) CreateExecutionFinishedError(executionID execution.ID, err string) messages.Message {
+	return messages.NewFinishExecutionMessageError(executionID, err)
 }

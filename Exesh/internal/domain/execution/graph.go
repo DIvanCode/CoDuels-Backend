@@ -1,110 +1,156 @@
 package execution
 
 import (
-	"slices"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/job/jobs"
 	"sync"
 )
 
 type graph struct {
-	succSteps    map[StepName][]Step
-	used         map[StepName]any
-	topSortOrder []Step
+	mu sync.Mutex
 
-	mu             sync.Mutex
-	lastPickedStep int
-	isDone         map[StepName]any
-	doneSteps      int
+	succStages    map[StageName][]*Stage
+	doneStageDeps map[StageName]int
+
+	stageByJobID map[job.ID]*Stage
+
+	succJobs    map[job.ID][]jobs.Job
+	doneJobDeps map[job.ID]int
+
+	activeStages []*Stage
+	toPick       map[StageName][]jobs.Job
+
+	totalJobs map[StageName]int
+	doneJobs  map[StageName]int
 }
 
-func newGraph(executionSteps []Step) *graph {
+func newGraph(stages []*Stage) *graph {
 	g := graph{
-		succSteps: make(map[StepName][]Step),
-		used:      make(map[StepName]any, len(executionSteps)),
+		mu: sync.Mutex{},
 
-		topSortOrder: make([]Step, 0, len(executionSteps)),
+		succStages:    make(map[StageName][]*Stage),
+		doneStageDeps: make(map[StageName]int),
 
-		mu:             sync.Mutex{},
-		lastPickedStep: -1,
-		isDone:         make(map[StepName]any),
-		doneSteps:      0,
+		stageByJobID: make(map[job.ID]*Stage),
+
+		succJobs:    make(map[job.ID][]jobs.Job),
+		doneJobDeps: make(map[job.ID]int),
+
+		activeStages: make([]*Stage, 0),
+		toPick:       make(map[StageName][]jobs.Job),
+
+		totalJobs: make(map[StageName]int),
+		doneJobs:  make(map[StageName]int),
 	}
 
-	for i := len(executionSteps) - 1; i >= 0; i-- {
-		step := executionSteps[i]
-		for _, dep := range step.GetDependencies() {
-			if _, ok := g.succSteps[dep]; !ok {
-				g.succSteps[dep] = make([]Step, 0)
+	for _, stage := range stages {
+		for _, dep := range stage.Deps {
+			if _, ok := g.succStages[dep]; !ok {
+				g.succStages[dep] = make([]*Stage, 0)
 			}
-			g.succSteps[dep] = append(g.succSteps[dep], step)
+			g.succStages[dep] = append(g.succStages[dep], stage)
+		}
+
+		g.doneStageDeps[stage.Name] = 0
+
+		g.toPick[stage.Name] = make([]jobs.Job, 0)
+
+		for _, jb := range stage.Jobs {
+			g.stageByJobID[jb.GetID()] = stage
+
+			deps := jb.GetDependencies()
+
+			for _, dep := range deps {
+				if _, ok := g.succJobs[dep]; !ok {
+					g.succJobs[dep] = make([]jobs.Job, 0)
+				}
+				g.succJobs[dep] = append(g.succJobs[dep], jb)
+			}
+
+			g.doneJobDeps[jb.GetID()] = 0
+			if len(deps) == 0 {
+				g.toPick[stage.Name] = append(g.toPick[stage.Name], jb)
+			}
+		}
+
+		g.totalJobs[stage.Name] = len(stage.Jobs)
+		g.doneJobs[stage.Name] = 0
+
+		if len(stage.Deps) == 0 {
+			g.activeStages = append(g.activeStages, stage)
 		}
 	}
-
-	g.topSort(executionSteps)
 
 	return &g
 }
 
-func (graph *graph) pickSteps() []Step {
-	graph.mu.Lock()
-	defer graph.mu.Unlock()
+func (g *graph) pickJobs() []jobs.Job {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
-	pickedSteps := make([]Step, 0)
-	for graph.lastPickedStep+1 < len(graph.topSortOrder) {
-		step := graph.topSortOrder[graph.lastPickedStep+1]
+	pickedJobs := make([]jobs.Job, 0)
+	for _, stage := range g.activeStages {
+		for _, jb := range g.toPick[stage.Name] {
+			pickedJobs = append(pickedJobs, jb)
+		}
+		g.toPick[stage.Name] = make([]jobs.Job, 0)
+	}
 
-		canPick := true
-		for _, dep := range step.GetDependencies() {
-			if _, has := graph.isDone[dep]; !has {
-				canPick = false
-				break
+	return pickedJobs
+}
+
+func (g *graph) doneJob(jobID job.ID, jobStatus job.Status) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	stage := g.stageByJobID[jobID]
+
+	var jb *jobs.Job
+	for i := range stage.Jobs {
+		if stage.Jobs[i].GetID() == jobID {
+			jb = &stage.Jobs[i]
+			break
+		}
+	}
+	if jb == nil {
+		return
+	}
+
+	if jobStatus != jb.GetSuccessStatus() {
+		g.activeStages = make([]*Stage, 0)
+		return
+	}
+
+	g.doneJobs[stage.Name]++
+	for _, succJob := range g.succJobs[jobID] {
+		g.doneJobDeps[succJob.GetID()]++
+		if g.doneJobDeps[succJob.GetID()] == len(succJob.GetDependencies()) {
+			g.toPick[stage.Name] = append(g.toPick[stage.Name], succJob)
+		}
+	}
+
+	if g.doneJobs[stage.Name] == g.totalJobs[stage.Name] {
+		activeStages := make([]*Stage, 0)
+		for i := range g.activeStages {
+			if g.activeStages[i].Name != stage.Name {
+				activeStages = append(activeStages, g.activeStages[i])
 			}
 		}
 
-		if !canPick {
-			break
+		for _, succStage := range g.succStages[stage.Name] {
+			g.doneStageDeps[succStage.Name]++
+			if g.doneStageDeps[succStage.Name] == len(succStage.Deps) {
+				activeStages = append(activeStages, succStage)
+			}
 		}
 
-		pickedSteps = append(pickedSteps, step)
-		graph.lastPickedStep++
+		g.activeStages = activeStages
 	}
-	return pickedSteps
 }
 
-func (graph *graph) doneStep(stepName StepName) {
-	graph.mu.Lock()
-	defer graph.mu.Unlock()
+func (g *graph) isDone() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
-	graph.isDone[stepName] = struct{}{}
-	graph.doneSteps++
-}
-
-func (graph *graph) isGraphDone() bool {
-	graph.mu.Lock()
-	defer graph.mu.Unlock()
-
-	return graph.doneSteps == len(graph.topSortOrder)
-}
-
-func (g *graph) topSort(executionSteps []Step) {
-	for i := len(executionSteps) - 1; i >= 0; i-- {
-		step := executionSteps[i]
-
-		// temp: do not change the initial order
-		g.topSortOrder = append(g.topSortOrder, step)
-
-		// if _, used := g.used[step.GetName()]; !used {
-		// 	g.dfs(step)
-		// }
-	}
-	slices.Reverse(g.topSortOrder)
-}
-
-func (g *graph) dfs(step Step) {
-	g.used[step.GetName()] = struct{}{}
-	for _, succStep := range g.succSteps[step.GetName()] {
-		if _, used := g.used[succStep.GetName()]; !used {
-			g.dfs(succStep)
-		}
-	}
-	g.topSortOrder = append(g.topSortOrder, step)
+	return len(g.activeStages) == 0
 }

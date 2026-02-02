@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"exesh/internal/config"
-	"exesh/internal/domain/execution"
+	"exesh/internal/domain/execution/message/messages"
 	"exesh/internal/domain/outbox"
 	"fmt"
 	"log/slog"
@@ -64,7 +64,7 @@ func (s *KafkaSender) Start(ctx context.Context) {
 	go s.run(ctx)
 }
 
-func (s *KafkaSender) Send(ctx context.Context, msg execution.Message) error {
+func (s *KafkaSender) Send(ctx context.Context, msg messages.Message) error {
 	payload, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)

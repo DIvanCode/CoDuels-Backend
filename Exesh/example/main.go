@@ -4,10 +4,10 @@ package main
 
 import (
 	"context"
-	"exesh/internal/domain/execution"
-	"exesh/internal/domain/execution/inputs"
-	"exesh/internal/domain/execution/jobs"
-	"exesh/internal/domain/execution/outputs"
+	"exesh/internal/domain/execution/input"
+	"exesh/internal/domain/execution/input/inputs"
+	"exesh/internal/domain/execution/job"
+	jobs2 "exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/executor/executors"
 	"exesh/internal/runtime/docker"
 	"fmt"
@@ -19,7 +19,7 @@ import (
 
 type dummyInputProvider struct{}
 
-func (dp *dummyInputProvider) Create(ctx context.Context, in execution.Input) (w io.Writer, commit, abort func() error, err error) {
+func (dp *dummyInputProvider) Create(ctx context.Context, in input.Input) (w io.Writer, commit, abort func() error, err error) {
 	commit = func() error { return nil }
 	abort = func() error { return nil }
 	f, err := os.OpenFile(in.GetFile(), os.O_CREATE|os.O_RDWR, 0o755)
@@ -31,12 +31,12 @@ func (dp *dummyInputProvider) Create(ctx context.Context, in execution.Input) (w
 	return f, commit, abort, err
 }
 
-func (dp *dummyInputProvider) Locate(ctx context.Context, in execution.Input) (path string, unlock func(), err error) {
+func (dp *dummyInputProvider) Locate(ctx context.Context, in input.Input) (path string, unlock func(), err error) {
 	unlock = func() {}
 	return in.GetFile(), func() {}, nil
 }
 
-func (dp *dummyInputProvider) Read(ctx context.Context, in execution.Input) (r io.Reader, unlock func(), err error) {
+func (dp *dummyInputProvider) Read(ctx context.Context, in input.Input) (r io.Reader, unlock func(), err error) {
 	unlock = func() {}
 	f, err := os.OpenFile(in.GetFile(), os.O_RDONLY, 0o755)
 	if err != nil {
@@ -48,7 +48,7 @@ func (dp *dummyInputProvider) Read(ctx context.Context, in execution.Input) (r i
 
 type dummyOutputProvider struct{}
 
-func (dp *dummyOutputProvider) Create(ctx context.Context, out execution.Output) (w io.Writer, commit, abort func() error, err error) {
+func (dp *dummyOutputProvider) Create(ctx context.Context, out output.Output) (w io.Writer, commit, abort func() error, err error) {
 	commit = func() error { return nil }
 	abort = func() error { return nil }
 	f, err := os.OpenFile(out.GetFile(), os.O_CREATE|os.O_RDWR, 0o755)
@@ -60,16 +60,16 @@ func (dp *dummyOutputProvider) Create(ctx context.Context, out execution.Output)
 	return f, commit, abort, err
 }
 
-func (dp *dummyOutputProvider) Locate(ctx context.Context, out execution.Output) (path string, unlock func(), err error) {
+func (dp *dummyOutputProvider) Locate(ctx context.Context, out output.Output) (path string, unlock func(), err error) {
 	unlock = func() {}
 	return out.GetFile(), func() {}, nil
 }
 
-func (dp *dummyOutputProvider) Reserve(ctx context.Context, out execution.Output) (path string, unlock func() error, smth func() error, err error) {
+func (dp *dummyOutputProvider) Reserve(ctx context.Context, out output.Output) (path string, unlock func() error, smth func() error, err error) {
 	return out.GetFile(), func() error { return nil }, func() error { return nil }, nil
 }
 
-func (dp *dummyOutputProvider) Read(ctx context.Context, out execution.Output) (r io.Reader, unlock func(), err error) {
+func (dp *dummyOutputProvider) Read(ctx context.Context, out output.Output) (r io.Reader, unlock func(), err error) {
 	unlock = func() {}
 	f, err := os.OpenFile(out.GetFile(), os.O_RDONLY, 0o755)
 	if err != nil {
@@ -88,9 +88,9 @@ func Ref[T any](t T) *T {
 }
 
 func main() {
-	compileJobId := execution.JobID([]byte("1234567890123456789012345678901234567890"))
-	runJobId := execution.JobID([]byte("0123456789012345678901234567890123456789"))
-	checkJobId := execution.JobID([]byte("9012345678901234567890123456789012345678"))
+	compileJobId := job.JobID([]byte("1234567890123456789012345678901234567890"))
+	runJobId := job.JobID([]byte("0123456789012345678901234567890123456789"))
+	checkJobId := job.JobID([]byte("9012345678901234567890123456789012345678"))
 	workerID := "worker-id"
 	rt, err := docker.New(
 		docker.WithDefaultClient(),
@@ -102,32 +102,32 @@ func main() {
 	}
 	compileExecutor := executors.NewCompileCppJobExecutor(slog.Default(), &dummyInputProvider{}, &dummyOutputProvider{}, rt)
 
-	compilationResult := compileExecutor.Execute(context.Background(), Ref(jobs.NewCompileCppJob(
+	compilationResult := compileExecutor.Execute(context.Background(), Ref(jobs2.NewCompileCppJob(
 		compileJobId,
-		inputs.NewArtifactInput("main.cpp", compileJobId, workerID),
-		outputs.NewArtifactOutput("a.out", compileJobId),
+		inputs.NewArtifactInput("main.cpp", compileJobId),
+		output.NewArtifactOutput("a.out", compileJobId),
 	)))
 	fmt.Printf("compile: %#v\n", compilationResult)
 
-	checkerCompilationResult := compileExecutor.Execute(context.Background(), Ref(jobs.NewCompileCppJob(
+	checkerCompilationResult := compileExecutor.Execute(context.Background(), Ref(jobs2.NewCompileCppJob(
 		compileJobId,
-		inputs.NewArtifactInput("checker.cpp", compileJobId, workerID),
-		outputs.NewArtifactOutput("a.checker.out", compileJobId),
+		inputs.NewArtifactInput("checker.cpp", compileJobId),
+		output.NewArtifactOutput("a.checker.out", compileJobId),
 	)))
 	fmt.Printf("compile checker: %#v\n", checkerCompilationResult)
 
 	runExecutor := executors.NewRunCppJobExecutor(slog.Default(), &dummyInputProvider{}, &dummyOutputProvider{}, rt)
-	runResult := runExecutor.Execute(context.Background(), Ref(jobs.NewRunCppJob(
-		runJobId, inputs.NewArtifactInput("a.out", runJobId, workerID),
-		inputs.NewArtifactInput("in.txt", runJobId, workerID),
-		outputs.NewArtifactOutput("out.txt", runJobId), 0, 0, true)))
+	runResult := runExecutor.Execute(context.Background(), Ref(jobs2.NewRunCppJob(
+		runJobId, inputs.NewArtifactInput("a.out", runJobId),
+		inputs.NewArtifactInput("in.txt", runJobId),
+		output.NewArtifactOutput("out.txt", runJobId), 0, 0, true)))
 	fmt.Printf("run: %#v\n", runResult)
 
 	checkExecutor := executors.NewCheckCppJobExecutor(slog.Default(), &dummyInputProvider{}, &dummyOutputProvider{}, rt)
-	checkResult := checkExecutor.Execute(context.Background(), Ref(jobs.NewCheckCppJob(
-		runJobId, inputs.NewArtifactInput("a.checker.out", checkJobId, workerID),
-		inputs.NewArtifactInput("correct.txt", checkJobId, workerID),
-		inputs.NewArtifactInput("out.txt", checkJobId, workerID),
+	checkResult := checkExecutor.Execute(context.Background(), Ref(jobs2.NewCheckCppJob(
+		runJobId, inputs.NewArtifactInput("a.checker.out", checkJobId),
+		inputs.NewArtifactInput("correct.txt", checkJobId),
+		inputs.NewArtifactInput("out.txt", checkJobId),
 	)))
 	fmt.Printf("check: %#v\n", checkResult)
 }
