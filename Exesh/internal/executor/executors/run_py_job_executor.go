@@ -9,6 +9,7 @@ import (
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/runtime"
 	"fmt"
+	errs "github.com/DIvanCode/filestorage/pkg/errors"
 	"io"
 	"log/slog"
 	"time"
@@ -57,52 +58,54 @@ func (e *RunPyJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Res
 	defer unlock()
 
 	runOutput, commitOutput, abortOutput, err := e.outputProvider.Create(ctx, jb.GetID(), runPyJob.RunOutput.File)
-	if err != nil {
+	if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
 		return errorResult(fmt.Errorf("failed to create run_output output: %w", err))
 	}
-	commit := func() error {
-		if err = commitOutput(); err != nil {
+	if err == nil { // if file already exists, do not run command
+		commit := func() error {
+			if err = commitOutput(); err != nil {
+				_ = abortOutput()
+				return fmt.Errorf("failed to commit run_output output: %w", err)
+			}
+			abortOutput = func() error { return nil }
+			return nil
+		}
+		defer func() {
 			_ = abortOutput()
-			return fmt.Errorf("failed to commit run_output output: %w", err)
+		}()
+
+		const codeLocation = "/main.py"
+
+		stderr := bytes.NewBuffer(nil)
+		err = e.runtime.Execute(ctx,
+			[]string{"python3", codeLocation},
+			runtime.ExecuteParams{
+				// TODO: Limits
+				Limits: runtime.Limits{
+					Memory: runtime.MemoryLimit(int64(runPyJob.MemoryLimit) * int64(runtime.Megabyte)),
+					Time:   runtime.TimeLimit(int64(runPyJob.TimeLimit) * int64(time.Millisecond)),
+				},
+				InFiles: []runtime.File{{OutsideLocation: code, InsideLocation: codeLocation}},
+				Stderr:  stderr,
+				Stdin:   runInput,
+				Stdout:  runOutput,
+			})
+		if err != nil {
+			e.log.Error("execute binary in runtime error", slog.Any("err", err))
+			if errors.Is(err, runtime.ErrTimeout) {
+				return results.NewRunResultTL(jb.GetID())
+			}
+			if errors.Is(err, runtime.ErrOutOfMemory) {
+				return results.NewRunResultML(jb.GetID())
+			}
+			return results.NewRunResultRE(jb.GetID())
 		}
-		abortOutput = func() error { return nil }
-		return nil
-	}
-	defer func() {
-		_ = abortOutput()
-	}()
 
-	const codeLocation = "/main.py"
+		e.log.Info("command ok")
 
-	stderr := bytes.NewBuffer(nil)
-	err = e.runtime.Execute(ctx,
-		[]string{"python3", codeLocation},
-		runtime.ExecuteParams{
-			// TODO: Limits
-			Limits: runtime.Limits{
-				Memory: runtime.MemoryLimit(int64(runPyJob.MemoryLimit) * int64(runtime.Megabyte)),
-				Time:   runtime.TimeLimit(int64(runPyJob.TimeLimit) * int64(time.Millisecond)),
-			},
-			InFiles: []runtime.File{{OutsideLocation: code, InsideLocation: codeLocation}},
-			Stderr:  stderr,
-			Stdin:   runInput,
-			Stdout:  runOutput,
-		})
-	if err != nil {
-		e.log.Error("execute binary in runtime error", slog.Any("err", err))
-		if errors.Is(err, runtime.ErrTimeout) {
-			return results.NewRunResultTL(jb.GetID())
+		if err = commit(); err != nil {
+			return errorResult(fmt.Errorf("failed to commit output creation: %w", err))
 		}
-		if errors.Is(err, runtime.ErrOutOfMemory) {
-			return results.NewRunResultML(jb.GetID())
-		}
-		return results.NewRunResultRE(jb.GetID())
-	}
-
-	e.log.Info("command ok")
-
-	if commitErr := commit(); commitErr != nil {
-		return errorResult(commitErr)
 	}
 
 	if !runPyJob.ShowOutput {

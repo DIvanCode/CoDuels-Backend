@@ -2,11 +2,13 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"exesh/internal/config"
 	"exesh/internal/domain/execution/source"
 	"exesh/internal/domain/execution/source/sources"
 	"fmt"
 	"github.com/DIvanCode/filestorage/pkg/bucket"
+	errs "github.com/DIvanCode/filestorage/pkg/errors"
 	"io"
 	"sync"
 )
@@ -50,6 +52,9 @@ func (p *SourceProvider) SaveSource(ctx context.Context, src sources.Source) err
 		bucketTTL := p.cfg.FilestorageBucketTTL
 
 		w, commit, abort, err := p.filestorage.CreateFile(ctx, bucketID, file, bucketTTL)
+		if err != nil && errors.Is(err, errs.ErrFileAlreadyExists) {
+			return nil
+		}
 		if err != nil {
 			return fmt.Errorf("failed to create file: %w", err)
 		}

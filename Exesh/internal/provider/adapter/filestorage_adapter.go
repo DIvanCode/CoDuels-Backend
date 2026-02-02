@@ -119,7 +119,7 @@ func (a *FilestorageAdapter) ReserveFile(
 // the file will be reserved in bucket
 // it needs for producing files using writer
 // if the bucket does not exist, it will be created
-// if the file already exists, then the ErrSourceAlreadyExists will be returned
+// if the file already exists, then the error from filestorage will be returned
 func (a *FilestorageAdapter) CreateFile(
 	ctx context.Context,
 	bucketID bucket.ID,
