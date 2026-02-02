@@ -81,7 +81,6 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Res
 		err = e.runtime.Execute(ctx,
 			[]string{compiledCodeMountPath},
 			runtime.ExecuteParams{
-				// TODO: Limits
 				Limits: runtime.Limits{
 					Memory: runtime.MemoryLimit(int64(runGoJob.MemoryLimit) * int64(runtime.Megabyte)),
 					Time:   runtime.TimeLimit(int64(runGoJob.TimeLimit) * int64(time.Millisecond)),

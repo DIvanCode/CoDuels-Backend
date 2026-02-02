@@ -80,7 +80,6 @@ func (e *RunPyJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Res
 		err = e.runtime.Execute(ctx,
 			[]string{"python3", codeLocation},
 			runtime.ExecuteParams{
-				// TODO: Limits
 				Limits: runtime.Limits{
 					Memory: runtime.MemoryLimit(int64(runPyJob.MemoryLimit) * int64(runtime.Megabyte)),
 					Time:   runtime.TimeLimit(int64(runPyJob.TimeLimit) * int64(time.Millisecond)),
