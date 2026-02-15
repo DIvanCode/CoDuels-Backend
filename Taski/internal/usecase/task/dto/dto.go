@@ -21,38 +21,23 @@ type taskDetailsDto struct {
 
 type WriteCodeTaskDto struct {
 	taskDetailsDto
-	TimeLimit   int       `json:"tl"`
-	MemoryLimit int       `json:"ml"`
-	Tests       []TestDto `json:"tests"`
-}
-
-type FixCodeTaskDto struct {
-	taskDetailsDto
-	Code        string    `json:"code"`
-	TimeLimit   int       `json:"tl"`
-	MemoryLimit int       `json:"ml"`
-	Tests       []TestDto `json:"tests"`
-}
-
-type AddCodeTaskDto struct {
-	taskDetailsDto
-	Code        string    `json:"code"`
-	TimeLimit   int       `json:"tl"`
-	MemoryLimit int       `json:"ml"`
-	Tests       []TestDto `json:"tests"`
+	SourceCode  *task.Code `json:"source_code,omitempty"`
+	TimeLimit   int        `json:"tl"`
+	MemoryLimit int        `json:"ml"`
+	Tests       []TestDto  `json:"tests"`
 }
 
 type FindTestTaskDto struct {
 	taskDetailsDto
-	Code        string `json:"code"`
-	TimeLimit   int    `json:"tl"`
-	MemoryLimit int    `json:"ml"`
+	Code        task.Code `json:"code"`
+	TimeLimit   int       `json:"tl"`
+	MemoryLimit int       `json:"ml"`
 }
 
 type PredictOutputTaskDto struct {
 	taskDetailsDto
-	Code  string    `json:"code"`
-	Tests []TestDto `json:"tests"`
+	Code  task.Code `json:"code"`
+	Input string    `json:"input"`
 }
 
 type TestDto struct {
@@ -93,28 +78,7 @@ func ConvertTask(t task.Task) (TaskDto, error) {
 		taskDto.setDetails(t)
 
 		typedTask := t.(*tasks.WriteCodeTask)
-		taskDto.TimeLimit = typedTask.TimeLimit
-		taskDto.MemoryLimit = typedTask.MemoryLimit
-		taskDto.Tests = convertTests(typedTask.Tests)
-
-		return taskDto, nil
-	case task.FixCode:
-		taskDto := &FixCodeTaskDto{}
-		taskDto.setDetails(t)
-
-		typedTask := t.(*tasks.FixCodeTask)
-		taskDto.Code = typedTask.Code.Path
-		taskDto.TimeLimit = typedTask.TimeLimit
-		taskDto.MemoryLimit = typedTask.MemoryLimit
-		taskDto.Tests = convertTests(typedTask.Tests)
-
-		return taskDto, nil
-	case task.AddCode:
-		taskDto := &AddCodeTaskDto{}
-		taskDto.setDetails(t)
-
-		typedTask := t.(*tasks.AddCodeTask)
-		taskDto.Code = typedTask.Code.Path
+		taskDto.SourceCode = typedTask.SourceCode
 		taskDto.TimeLimit = typedTask.TimeLimit
 		taskDto.MemoryLimit = typedTask.MemoryLimit
 		taskDto.Tests = convertTests(typedTask.Tests)
@@ -125,7 +89,7 @@ func ConvertTask(t task.Task) (TaskDto, error) {
 		taskDto.setDetails(t)
 
 		typedTask := t.(*tasks.FindTestTask)
-		taskDto.Code = typedTask.Code.Path
+		taskDto.Code = typedTask.Code
 		taskDto.TimeLimit = typedTask.TimeLimit
 		taskDto.MemoryLimit = typedTask.MemoryLimit
 
@@ -134,9 +98,9 @@ func ConvertTask(t task.Task) (TaskDto, error) {
 		taskDto := &PredictOutputTaskDto{}
 		taskDto.setDetails(t)
 
-		typedTask := t.(*tasks.FixCodeTask)
-		taskDto.Code = typedTask.Code.Path
-		taskDto.Tests = convertTests(typedTask.Tests)
+		typedTask := t.(*tasks.PredictOutputTask)
+		taskDto.Code = typedTask.Code
+		taskDto.Input = typedTask.Test.Input
 
 		return taskDto, nil
 	default:

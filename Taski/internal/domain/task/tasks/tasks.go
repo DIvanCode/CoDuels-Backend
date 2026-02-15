@@ -16,10 +16,6 @@ func UnmarshalTaskJSON(data []byte) (t task.Task, err error) {
 	switch details.Type {
 	case task.WriteCode:
 		t = &WriteCodeTask{}
-	case task.AddCode:
-		t = &AddCodeTask{}
-	case task.FixCode:
-		t = &FixCodeTask{}
 	case task.FindTest:
 		t = &FindTestTask{}
 	case task.PredictOutput:

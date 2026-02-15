@@ -2,10 +2,11 @@ package consumer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"taski/internal/config"
-	"taski/internal/domain/testing/events"
+	"taski/internal/domain/testing/event/events"
 	"taski/internal/usecase/testing/usecase/update"
 	"time"
 
@@ -41,7 +42,7 @@ func (c *KafkaConsumer) Start(ctx context.Context) {
 }
 
 func (c *KafkaConsumer) runConsumer(ctx context.Context) {
-	c.log.Info("Kafka consumer started", slog.String("topic", c.reader.Config().Topic))
+	c.log.Info("kafka consumer started", slog.String("topic", c.reader.Config().Topic))
 
 	for {
 		timer := time.NewTicker(c.cfg.FetchInterval)
@@ -67,14 +68,14 @@ func (c *KafkaConsumer) runConsumer(ctx context.Context) {
 }
 
 func (c *KafkaConsumer) processMessage(ctx context.Context, msg kafka.Message) error {
-	c.log.Info("Received message", slog.Int64("offset", msg.Offset), slog.String("key", string(msg.Key)))
+	c.log.Info("received message", slog.Int64("offset", msg.Offset), slog.String("key", string(msg.Key)))
 
-	event, err := events.UnmarshalEventJSON(msg.Value)
-	if err != nil {
+	var evt events.Event
+	if err := json.Unmarshal(msg.Value, &evt); err != nil {
 		return fmt.Errorf("failed to unmarshal event: %w", err)
 	}
 
-	command := update.Command{Event: event}
+	command := update.Command{Event: evt}
 	if err := c.usecase.Update(ctx, command); err != nil {
 		return fmt.Errorf("failed to process event: %w", err)
 	}
@@ -83,7 +84,7 @@ func (c *KafkaConsumer) processMessage(ctx context.Context, msg kafka.Message) e
 		return fmt.Errorf("failed to commit message: %w", err)
 	}
 
-	c.log.Info("Successfully processed event", slog.Any("type", event.GetType()), slog.Any("execution_id", event.GetExecutionID()))
+	c.log.Info("successfully processed event", slog.Any("type", evt.GetType()), slog.Any("execution_id", evt.GetExecutionID()))
 	return nil
 }
 

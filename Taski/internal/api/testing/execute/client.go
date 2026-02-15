@@ -8,7 +8,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"taski/internal/domain/testing"
+	"taski/internal/domain/testing/execution"
+	"taski/internal/domain/testing/source/sources"
 )
 
 type ExecuteClient struct {
@@ -23,10 +24,12 @@ func NewExecuteClient(log *slog.Logger, endpoint string) *ExecuteClient {
 	}
 }
 
-func (c *ExecuteClient) Execute(ctx context.Context, steps []testing.Step) (executionID testing.ExecutionID, err error) {
-	c.log.Info("Execute called", slog.Int("steps_count", len(steps)))
-
-	req := Request{Steps: steps}
+func (c *ExecuteClient) Execute(
+	ctx context.Context,
+	stages execution.Stages,
+	sources sources.Sources,
+) (executionID execution.ID, err error) {
+	req := Request{Stages: stages, Sources: sources}
 	jsonReq, err := json.Marshal(req)
 	if err != nil {
 		err = fmt.Errorf("failed to marshal execute request: %w", err)

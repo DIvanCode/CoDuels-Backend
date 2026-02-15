@@ -2,40 +2,53 @@ package testing
 
 import (
 	"taski/internal/domain/task"
+	"taski/internal/domain/testing/execution"
+	"taski/internal/domain/testing/strategy/strategies"
 	"time"
 )
 
 type (
 	Solution struct {
-		ID          SolutionID     `json:"id"`
-		TaskID      task.ID        `json:"task_id"`
-		ExecutionID ExecutionID    `json:"execution_id"`
-		Solution    string         `json:"solution"`
-		Lang        task.Language  `json:"lang"`
-		Tests       int            `json:"tests"`
-		Status      map[int]string `json:"status"`
-		CreatedAt   time.Time      `json:"created_at"`
-		FinishedAt  *time.Time     `json:"finished_at"`
+		ID                int64                      `json:"id"`
+		ExternalID        ExternalSolutionID         `json:"external_id"`
+		TaskID            task.ID                    `json:"task_id"`
+		ExecutionID       execution.ID               `json:"execution_id"`
+		Solution          string                     `json:"solution"`
+		Lang              task.Language              `json:"lang"`
+		TestingStrategy   strategies.TestingStrategy `json:"testing_strategy"`
+		LastTestingStatus *string                    `json:"last_testing_status"`
+		CreatedAt         time.Time                  `json:"created_at"`
+		StartedAt         *time.Time                 `json:"started_at"`
+		FinishedAt        *time.Time                 `json:"finished_at"`
 	}
 
-	SolutionID string
+	ExternalSolutionID string
 )
 
-func (s Solution) GetTestedPrefix() (id int) {
-	for id = 0; id+1 <= s.Tests && s.Status[id+1] != "?"; id++ {
+func NewSolution(
+	externalID ExternalSolutionID,
+	taskID task.ID,
+	solution string,
+	lang task.Language,
+	testingStrategy strategies.TestingStrategy,
+	executionID execution.ID,
+) Solution {
+	return Solution{
+		ExternalID:      externalID,
+		TaskID:          taskID,
+		ExecutionID:     executionID,
+		Solution:        solution,
+		Lang:            lang,
+		TestingStrategy: testingStrategy,
+		CreatedAt:       time.Now(),
 	}
-	return
 }
 
-func (s Solution) AllTestsPassed() bool {
-	for id := 1; id <= s.Tests; id++ {
-		if s.Status[id] != "+" {
-			return false
-		}
+func (sol *Solution) ProcessTime() *time.Duration {
+	if sol.StartedAt == nil || sol.FinishedAt == nil {
+		return nil
 	}
-	return true
-}
 
-func (s Solution) ProcessTime() time.Duration {
-	return s.FinishedAt.Sub(s.CreatedAt)
+	processTime := sol.FinishedAt.Sub(*sol.StartedAt)
+	return &processTime
 }
