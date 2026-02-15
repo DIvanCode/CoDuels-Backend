@@ -1,6 +1,7 @@
 package file
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -20,8 +21,8 @@ type (
 	}
 
 	taskStorage interface {
-		Get(task.ID) (t task.Task, unlock func(), err error)
-		GetFile(task.ID, string) (r io.ReadCloser, unlock func(), err error)
+		Get(context.Context, task.ID) (t task.Task, unlock func(), err error)
+		GetFile(context.Context, task.ID, string) (r io.ReadCloser, unlock func(), err error)
 	}
 )
 
@@ -32,8 +33,8 @@ func NewUseCase(log *slog.Logger, storage taskStorage) *UseCase {
 	}
 }
 
-func (uc *UseCase) Read(query Query) (r io.ReadCloser, unlock func(), err error) {
-	ok, err := uc.CheckPermissions(query.TaskID, query.File)
+func (uc *UseCase) Read(ctx context.Context, query Query) (r io.ReadCloser, unlock func(), err error) {
+	ok, err := uc.CheckPermissions(ctx, query.TaskID, query.File)
 	if err != nil {
 		uc.log.Error("failed to check permissions",
 			slog.Any("taskID", query.TaskID),
@@ -48,7 +49,7 @@ func (uc *UseCase) Read(query Query) (r io.ReadCloser, unlock func(), err error)
 		return
 	}
 
-	r, unlock, err = uc.storage.GetFile(query.TaskID, query.File)
+	r, unlock, err = uc.storage.GetFile(ctx, query.TaskID, query.File)
 	if err != nil {
 		uc.log.Error("failed to get file from storage", slog.Any("err", err))
 		err = fmt.Errorf("failed to get file from storage")
@@ -57,8 +58,8 @@ func (uc *UseCase) Read(query Query) (r io.ReadCloser, unlock func(), err error)
 	return
 }
 
-func (uc *UseCase) CheckPermissions(taskID task.ID, file string) (bool, error) {
-	t, unlock, err := uc.storage.Get(taskID)
+func (uc *UseCase) CheckPermissions(ctx context.Context, taskID task.ID, file string) (bool, error) {
+	t, unlock, err := uc.storage.Get(ctx, taskID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get task from storage: %w", err)
 	}

@@ -1,10 +1,11 @@
 package get
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"taski/internal/domain/task"
-	dto "taski/internal/usecase/task/dto"
+	"taski/internal/usecase/task/dto"
 )
 
 type (
@@ -18,7 +19,7 @@ type (
 	}
 
 	taskStorage interface {
-		Get(task.ID) (t task.Task, unlock func(), err error)
+		Get(context.Context, task.ID) (t task.Task, unlock func(), err error)
 	}
 )
 
@@ -29,8 +30,8 @@ func NewUseCase(log *slog.Logger, storage taskStorage) *UseCase {
 	}
 }
 
-func (uc *UseCase) Get(query Query) (dto.TaskDto, error) {
-	t, unlock, err := uc.storage.Get(query.TaskID)
+func (uc *UseCase) Get(ctx context.Context, query Query) (dto.TaskDto, error) {
+	t, unlock, err := uc.storage.Get(ctx, query.TaskID)
 	if err != nil {
 		uc.log.Error("failed to get task from storage", slog.Any("err", err))
 		return nil, fmt.Errorf("failed to get task from storage")

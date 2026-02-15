@@ -1,6 +1,7 @@
 package list
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"taski/internal/domain/task"
@@ -16,7 +17,7 @@ type (
 	}
 
 	taskStorage interface {
-		GetList() ([]task.Task, error)
+		GetList(context.Context) ([]task.Task, error)
 	}
 )
 
@@ -27,8 +28,8 @@ func NewUseCase(log *slog.Logger, storage taskStorage) *UseCase {
 	}
 }
 
-func (uc *UseCase) Get(_ Query) ([]dto.TaskDto, error) {
-	tasks, err := uc.storage.GetList()
+func (uc *UseCase) Get(ctx context.Context, _ Query) ([]dto.TaskDto, error) {
+	tasks, err := uc.storage.GetList(ctx)
 	if err != nil {
 		uc.log.Error("failed to get tasks list", slog.Any("err", err))
 		return nil, err

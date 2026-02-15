@@ -54,7 +54,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := get.Query{TaskID: taskID}
-	taskDto, err := h.uc.Get(query)
+	taskDto, err := h.uc.Get(r.Context(), query)
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse(err.Error()))

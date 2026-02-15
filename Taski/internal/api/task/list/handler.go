@@ -37,7 +37,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	)
 
 	query := list.Query{}
-	tasks, err := h.uc.Get(query)
+	tasks, err := h.uc.Get(r.Context(), query)
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse(err.Error()))
