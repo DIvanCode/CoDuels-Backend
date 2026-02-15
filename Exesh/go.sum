@@ -4,6 +4,8 @@ github.com/BurntSushi/toml v1.2.1 h1:9F2/+DoOYIOksmaJFPw1tGFy1eDnIJXg+UHjuD8lTak
 github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/DIvanCode/filestorage v1.3.2 h1:e94yCiRuP2qtrSt4bcYNUr8a+96psw3PkaLWsEAZc8s=
 github.com/DIvanCode/filestorage v1.3.2/go.mod h1:Vmhj19y+JR4bBI7VmF28S/70SKpkBCBp4YdhOB2PHTs=
+github.com/DIvanCode/filestorage v1.4.0 h1:eHKFt+E+hM3rZv6nuxwb6P/Xrusxl2QeRgpP+9v7oLU=
+github.com/DIvanCode/filestorage v1.4.0/go.mod h1:Vmhj19y+JR4bBI7VmF28S/70SKpkBCBp4YdhOB2PHTs=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/ajg/form v1.5.1 h1:t9c7v8JUKu/XxOGBU0yjNpaMloxGEJhUkqFRq0ibGeU=

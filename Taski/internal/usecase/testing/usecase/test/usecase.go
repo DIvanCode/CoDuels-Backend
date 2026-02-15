@@ -29,7 +29,7 @@ type (
 	}
 
 	taskStorage interface {
-		Get(task.ID) (task task.Task, unlock func(), err error)
+		Get(context.Context, task.ID) (task task.Task, unlock func(), err error)
 	}
 
 	unitOfWork interface {
@@ -65,7 +65,7 @@ func NewUseCase(
 
 func (uc *UseCase) Test(ctx context.Context, command Command) error {
 	return uc.unitOfWork.Do(ctx, func(ctx context.Context) error {
-		t, unlock, err := uc.taskStorage.Get(command.TaskID)
+		t, unlock, err := uc.taskStorage.Get(ctx, command.TaskID)
 		if err != nil {
 			uc.log.Error("failed to get task from storage", slog.Any("err", err))
 			return fmt.Errorf("failed to get task from storage")

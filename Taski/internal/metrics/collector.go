@@ -29,7 +29,7 @@ type (
 	}
 
 	taskStorage interface {
-		GetList() ([]task.Task, error)
+		GetList(context.Context) ([]task.Task, error)
 	}
 
 	unitOfWork interface {
@@ -141,7 +141,7 @@ func (c *Collector) run(ctx context.Context) {
 			break
 		}
 
-		if err := c.collectTasks(); err != nil {
+		if err := c.collectTasks(ctx); err != nil {
 			c.log.Error("failed to collect tasks", slog.Any("err", err))
 		}
 
@@ -151,8 +151,8 @@ func (c *Collector) run(ctx context.Context) {
 	}
 }
 
-func (c *Collector) collectTasks() error {
-	tasks, err := c.taskStorage.GetList()
+func (c *Collector) collectTasks(ctx context.Context) error {
+	tasks, err := c.taskStorage.GetList(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get all tasks: %w", err)
 	}

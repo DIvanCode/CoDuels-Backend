@@ -66,7 +66,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := file.Query{TaskID: taskID, File: path}
-	rc, unlock, err := h.uc.Read(query)
+	rc, unlock, err := h.uc.Read(r.Context(), query)
 	if err != nil {
 		h.log.Error("failed to read file", slog.Any("file", path), slog.Any("err", err))
 		render.Status(r, http.StatusInternalServerError)

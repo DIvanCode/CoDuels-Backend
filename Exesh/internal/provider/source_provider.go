@@ -104,7 +104,7 @@ func (p *SourceProvider) RemoveSource(ctx context.Context, src sources.Source) {
 	delete(p.srcs, src.GetID())
 }
 
-func (p *SourceProvider) getSavedSource(ctx context.Context, sourceID source.ID) (savedSource, bool) {
+func (p *SourceProvider) getSavedSource(sourceID source.ID) (savedSource, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -113,21 +113,21 @@ func (p *SourceProvider) getSavedSource(ctx context.Context, sourceID source.ID)
 }
 
 func (p *SourceProvider) Locate(ctx context.Context, sourceID source.ID) (path string, unlock func(), err error) {
-	src, ok := p.getSavedSource(ctx, sourceID)
+	src, ok := p.getSavedSource(sourceID)
 	if !ok {
 		err = fmt.Errorf("source %s not found", sourceID.String())
 		return
 	}
 
-	return p.filestorage.LocateFile(ctx, src.BucketID, src.File)
+	return p.filestorage.LocateFile(ctx, src.BucketID, src.File, p.cfg.FilestorageBucketTTL)
 }
 
 func (p *SourceProvider) Read(ctx context.Context, sourceID source.ID) (r io.Reader, unlock func(), err error) {
-	src, ok := p.getSavedSource(ctx, sourceID)
+	src, ok := p.getSavedSource(sourceID)
 	if !ok {
 		err = fmt.Errorf("source %s not found", sourceID.String())
 		return
 	}
 
-	return p.filestorage.ReadFile(ctx, src.BucketID, src.File)
+	return p.filestorage.ReadFile(ctx, src.BucketID, src.File, p.cfg.FilestorageBucketTTL)
 }

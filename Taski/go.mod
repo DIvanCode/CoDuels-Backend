@@ -3,7 +3,7 @@ module taski
 go 1.24.0
 
 require (
-	github.com/DIvanCode/filestorage v1.1.7
+	github.com/DIvanCode/filestorage v1.4.0
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/render v1.0.3
 	github.com/ilyakaznacheev/cleanenv v1.5.0
@@ -16,6 +16,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-chi/chi v1.5.5 // indirect
 	github.com/go-chi/cors v1.2.2 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.7.6 // indirect

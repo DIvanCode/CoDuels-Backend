@@ -28,8 +28,7 @@ func (p *OutputProvider) Reserve(ctx context.Context, jobID job.ID, file string)
 		return
 	}
 
-	ttl := p.cfg.ArtifactTTL
-	return p.filestorage.ReserveFile(ctx, bucketID, file, ttl)
+	return p.filestorage.ReserveFile(ctx, bucketID, file, p.cfg.ArtifactTTL)
 }
 
 func (p *OutputProvider) Read(ctx context.Context, jobID job.ID, file string) (r io.Reader, unlock func(), err error) {
@@ -39,7 +38,7 @@ func (p *OutputProvider) Read(ctx context.Context, jobID job.ID, file string) (r
 		return
 	}
 
-	return p.filestorage.ReadFile(ctx, bucketID, file)
+	return p.filestorage.ReadFile(ctx, bucketID, file, p.cfg.ArtifactTTL)
 }
 
 func (p *OutputProvider) Create(
@@ -53,6 +52,5 @@ func (p *OutputProvider) Create(
 		return
 	}
 
-	ttl := p.cfg.ArtifactTTL
-	return p.filestorage.CreateFile(ctx, bucketID, file, ttl)
+	return p.filestorage.CreateFile(ctx, bucketID, file, p.cfg.ArtifactTTL)
 }

@@ -1,6 +1,7 @@
 package filestorage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"taski/internal/config"
 	"taski/internal/domain/task"
 	"taski/internal/domain/task/tasks"
+	"time"
 
 	"github.com/DIvanCode/filestorage/pkg/bucket"
 	ferrs "github.com/DIvanCode/filestorage/pkg/errors"
@@ -21,8 +23,8 @@ type (
 	}
 
 	fileStorage interface {
-		GetBucket(id bucket.ID) (path string, unlock func(), err error)
-		GetFile(bucketID bucket.ID, file string) (path string, unlock func(), err error)
+		GetBucket(ctx context.Context, id bucket.ID, extendTTL *time.Duration) (path string, unlock func(), err error)
+		GetFile(ctx context.Context, bucketID bucket.ID, file string, extendTTL *time.Duration) (path string, unlock func(), err error)
 	}
 )
 
@@ -42,7 +44,7 @@ func (ts *TaskStorage) GetTaskBucket(id task.ID) (bucketID bucket.ID, err error)
 	return
 }
 
-func (ts *TaskStorage) Get(id task.ID) (t task.Task, unlock func(), err error) {
+func (ts *TaskStorage) Get(ctx context.Context, id task.ID) (t task.Task, unlock func(), err error) {
 	bucketIDStr := id.String()
 	var bucketID bucket.ID
 	if err = bucketID.FromString(bucketIDStr); err != nil {
@@ -51,7 +53,7 @@ func (ts *TaskStorage) Get(id task.ID) (t task.Task, unlock func(), err error) {
 	}
 
 	var path string
-	path, unlock, err = ts.fs.GetBucket(bucketID)
+	path, unlock, err = ts.fs.GetBucket(ctx, bucketID, nil)
 	if err != nil {
 		if errors.Is(err, ferrs.ErrBucketNotFound) {
 			err = fmt.Errorf("task bucket not found")
@@ -87,7 +89,7 @@ func (ts *TaskStorage) Get(id task.ID) (t task.Task, unlock func(), err error) {
 	return
 }
 
-func (ts *TaskStorage) GetFile(taskID task.ID, file string) (r io.ReadCloser, unlock func(), err error) {
+func (ts *TaskStorage) GetFile(ctx context.Context, taskID task.ID, file string) (r io.ReadCloser, unlock func(), err error) {
 	bucketIDStr := taskID.String()
 	var bucketID bucket.ID
 	if err = bucketID.FromString(bucketIDStr); err != nil {
@@ -96,7 +98,7 @@ func (ts *TaskStorage) GetFile(taskID task.ID, file string) (r io.ReadCloser, un
 	}
 
 	var path string
-	path, unlock, err = ts.fs.GetFile(bucketID, file)
+	path, unlock, err = ts.fs.GetFile(ctx, bucketID, file, nil)
 	if err != nil {
 		if errors.Is(err, ferrs.ErrBucketNotFound) {
 			err = fmt.Errorf("task bucket not found")
@@ -123,7 +125,7 @@ func (ts *TaskStorage) GetFile(taskID task.ID, file string) (r io.ReadCloser, un
 	return
 }
 
-func (ts *TaskStorage) GetList() ([]task.Task, error) {
+func (ts *TaskStorage) GetList(ctx context.Context) ([]task.Task, error) {
 	list := make([]task.Task, len(ts.tasksList))
 	for i := range ts.tasksList {
 		var taskID task.ID
@@ -131,7 +133,7 @@ func (ts *TaskStorage) GetList() ([]task.Task, error) {
 			return nil, fmt.Errorf("failed to parse task id")
 		}
 
-		t, unlock, err := ts.Get(taskID)
+		t, unlock, err := ts.Get(ctx, taskID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get task from storage")
 		}

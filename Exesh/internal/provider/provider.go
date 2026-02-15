@@ -12,6 +12,6 @@ type filestorage interface {
 	DownloadFile(context.Context, bucket.ID, string, time.Duration, string) error
 	CreateFile(context.Context, bucket.ID, string, time.Duration) (io.Writer, func() error, func() error, error)
 	ReserveFile(context.Context, bucket.ID, string, time.Duration) (string, func() error, func() error, error)
-	ReadFile(context.Context, bucket.ID, string) (io.Reader, func(), error)
-	LocateFile(context.Context, bucket.ID, string) (string, func(), error)
+	ReadFile(context.Context, bucket.ID, string, time.Duration) (io.Reader, func(), error)
+	LocateFile(context.Context, bucket.ID, string, time.Duration) (string, func(), error)
 }

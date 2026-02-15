@@ -19,11 +19,11 @@ type (
 	}
 
 	filestorage interface {
-		ReserveBucket(context.Context, bucket.ID, time.Duration) (path string, commit, abort func() error, err error)
+		ReserveBucket(context.Context, bucket.ID, *time.Duration) (path string, commit, abort func() error, err error)
 		ReserveFile(context.Context, bucket.ID, string) (path string, commit, abort func() error, err error)
-		DownloadBucket(context.Context, string, bucket.ID, time.Duration) error
+		DownloadBucket(context.Context, string, bucket.ID, *time.Duration) error
 		DownloadFile(context.Context, string, bucket.ID, string) error
-		GetFile(context.Context, bucket.ID, string) (path string, unlock func(), err error)
+		GetFile(context.Context, bucket.ID, string, *time.Duration) (path string, unlock func(), err error)
 	}
 )
 
@@ -42,7 +42,7 @@ func (a *FilestorageAdapter) DownloadBucket(
 	ttl time.Duration,
 	downloadEndpoint string,
 ) error {
-	return a.filestorage.DownloadBucket(ctx, downloadEndpoint, bucketID, ttl)
+	return a.filestorage.DownloadBucket(ctx, downloadEndpoint, bucketID, &ttl)
 }
 
 // DownloadFile
@@ -62,7 +62,7 @@ func (a *FilestorageAdapter) DownloadFile(
 	}
 
 	// the bucket does not exist, so create it
-	_, commit, _, err := a.filestorage.ReserveBucket(ctx, bucketID, ttl)
+	_, commit, _, err := a.filestorage.ReserveBucket(ctx, bucketID, &ttl)
 	if err != nil {
 		return fmt.Errorf("failed to reserve bucket: %w", err)
 	}
@@ -85,7 +85,7 @@ func (a *FilestorageAdapter) ReserveFile(
 	ttl time.Duration,
 ) (path string, commit, abort func() error, err error) {
 	var commitArtifact, abortArtifact func() error
-	path, commitArtifact, abortArtifact, err = a.filestorage.ReserveBucket(ctx, bucketID, ttl)
+	path, commitArtifact, abortArtifact, err = a.filestorage.ReserveBucket(ctx, bucketID, &ttl)
 	if err != nil && errors.Is(err, errs.ErrBucketAlreadyExists) {
 		path, commitArtifact, abortArtifact, err = a.filestorage.ReserveFile(ctx, bucketID, file)
 		if err != nil && errors.Is(err, errs.ErrFileAlreadyExists) {
@@ -175,8 +175,9 @@ func (a *FilestorageAdapter) LocateFile(
 	ctx context.Context,
 	bucketID bucket.ID,
 	file string,
+	extendTTL time.Duration,
 ) (path string, unlock func(), err error) {
-	path, unlock, err = a.filestorage.GetFile(ctx, bucketID, file)
+	path, unlock, err = a.filestorage.GetFile(ctx, bucketID, file, &extendTTL)
 	return filepath.Join(path, file), unlock, err
 }
 
@@ -187,8 +188,9 @@ func (a *FilestorageAdapter) ReadFile(
 	ctx context.Context,
 	bucketID bucket.ID,
 	file string,
+	extendTTL time.Duration,
 ) (r io.Reader, unlock func(), err error) {
-	path, unlock, err := a.LocateFile(ctx, bucketID, file)
+	path, unlock, err := a.LocateFile(ctx, bucketID, file, extendTTL)
 	if err != nil {
 		return
 	}
