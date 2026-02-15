@@ -7,6 +7,6 @@ type FindTestTask struct {
 	Code        task.Code `json:"code"`
 	TimeLimit   int       `json:"tl"`
 	MemoryLimit int       `json:"ml"`
-	Checker     task.Code `json:"checker"`
 	Solution    task.Code `json:"solution"`
+	Checker     task.Code `json:"checker"`
 }

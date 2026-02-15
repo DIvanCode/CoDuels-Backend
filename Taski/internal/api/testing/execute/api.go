@@ -1,15 +1,17 @@
 package execute
 
 import (
-	"taski/internal/domain/testing"
+	"taski/internal/domain/testing/execution"
+	"taski/internal/domain/testing/source/sources"
 )
 
 type (
 	Request struct {
-		Steps []testing.Step `json:"steps"`
+		Stages  execution.Stages `json:"stages"`
+		Sources sources.Sources  `json:"sources"`
 	}
 
 	Response struct {
-		ExecutionID testing.ExecutionID `json:"execution_id"`
+		ExecutionID execution.ID `json:"execution_id"`
 	}
 )

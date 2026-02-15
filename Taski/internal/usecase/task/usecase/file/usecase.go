@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"taski/internal/domain/task"
+	"taski/internal/domain/task/tasks"
 )
 
 type (
@@ -67,12 +68,33 @@ func (uc *UseCase) CheckPermissions(taskID task.ID, file string) (bool, error) {
 		return true, nil
 	}
 
-	for _, test := range t.GetTests() {
-		if !test.Visible {
-			continue
+	switch t.GetType() {
+	case task.WriteCode:
+		typedTask := t.(*tasks.WriteCodeTask)
+
+		if typedTask.SourceCode != nil && file == typedTask.SourceCode.Path {
+			return true, nil
 		}
 
-		if file == test.Input || file == test.Output {
+		for _, test := range typedTask.Tests {
+			if !test.Visible {
+				continue
+			}
+
+			if file == test.Input || file == test.Output {
+				return true, nil
+			}
+		}
+	case task.PredictOutput:
+		typedTask := t.(*tasks.PredictOutputTask)
+
+		if file == typedTask.Code.Path {
+			return true, nil
+		}
+	case task.FindTest:
+		typedTask := t.(*tasks.PredictOutputTask)
+
+		if file == typedTask.Code.Path {
 			return true, nil
 		}
 	}

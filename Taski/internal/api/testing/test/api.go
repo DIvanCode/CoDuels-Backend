@@ -6,8 +6,8 @@ import (
 )
 
 type Request struct {
-	TaskID     task.ID            `json:"task_id"`
-	SolutionID testing.SolutionID `json:"solution_id"`
-	Solution   string             `json:"solution"`
-	Lang       task.Language      `json:"language"`
+	ExternalSolutionID testing.ExternalSolutionID `json:"solution_id"`
+	TaskID             task.ID                    `json:"task_id"`
+	Solution           string                     `json:"solution"`
+	Lang               task.Language              `json:"language"`
 }

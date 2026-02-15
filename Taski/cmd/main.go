@@ -75,7 +75,7 @@ func main() {
 	}
 	defer fileStorage.Shutdown()
 
-	unitOfWork, solutionStorage, err := setupDb(log, cfg.Db)
+	unitOfWork, solutionStorage, outboxStorage, err := setupDb(log, cfg.Db)
 	if err != nil {
 		log.Error("failed to setup db", slog.String("error", err.Error()))
 		return
@@ -103,9 +103,10 @@ func main() {
 	testUseCase := testUC.NewUseCase(log, taskStorage, unitOfWork, solutionStorage, executeClient, cfg.Execute.DownloadTaskEndpoint)
 	testAPI.NewHandler(log, testUseCase).Register(mux)
 
-	messageProducer := producer.NewKafkaProducer(log, cfg.MessageProducer)
+	messageProducer := producer.NewMessageProducer(log, cfg.MessageProducer, unitOfWork, outboxStorage)
+	messageProducer.Start(ctx)
 
-	updateTestingUseCase := update.NewUseCase(log, solutionStorage, unitOfWork, taskStorage, messageProducer)
+	updateTestingUseCase := update.NewUseCase(log, solutionStorage, unitOfWork, messageProducer)
 
 	eventConsumer := consumer.NewKafkaConsumer(log, cfg.EventConsumer, updateTestingUseCase)
 	eventConsumer.Start(ctx)
@@ -180,6 +181,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 func setupDb(log *slog.Logger, cfg config.DbConfig) (
 	unitOfWork *postgres.UnitOfWork,
 	solutionStorage *postgres.SolutionStorage,
+	outboxStorage *postgres.OutboxStorage,
 	err error,
 ) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.InitTimeout)
@@ -194,6 +196,9 @@ func setupDb(log *slog.Logger, cfg config.DbConfig) (
 	err = unitOfWork.Do(ctx, func(ctx context.Context) error {
 		if solutionStorage, err = postgres.NewSolutionStorage(ctx, log); err != nil {
 			return fmt.Errorf("failed to create solution storage: %w", err)
+		}
+		if outboxStorage, err = postgres.NewOutboxStorage(ctx, log); err != nil {
+			return fmt.Errorf("failed to create outbox storage: %w", err)
 		}
 		return nil
 	})

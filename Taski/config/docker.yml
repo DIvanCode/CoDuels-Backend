@@ -19,7 +19,7 @@ event_consumer:
     - kafka:9092
   topic: exesh.step-updates
   group_id: taski
-  fetch_interval: 1s
+  fetch_interval: 50ms
 message_producer:
   brokers:
     - kafka:9092

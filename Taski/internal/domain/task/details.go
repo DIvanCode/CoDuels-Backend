@@ -7,7 +7,6 @@ type Details struct {
 	Level     Level    `json:"level"`
 	Topics    []string `json:"topics"`
 	Statement string   `json:"statement"`
-	Tests     []Test   `json:"tests"`
 }
 
 func (d Details) GetID() ID {
@@ -32,8 +31,4 @@ func (d Details) GetTopics() []string {
 
 func (d Details) GetStatement() string {
 	return d.Statement
-}
-
-func (d Details) GetTests() []Test {
-	return d.Tests
 }

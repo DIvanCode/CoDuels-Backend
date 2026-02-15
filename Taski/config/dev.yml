@@ -19,7 +19,7 @@ event_consumer:
     - 0.0.0.0:29092
   topic: exesh.step-updates
   group_id: taski
-  fetch_interval: 1s
+  fetch_interval: 50ms
 message_producer:
   brokers:
     - 0.0.0.0:29092

@@ -191,7 +191,7 @@ func (c *Collector) collectSolutions(ctx context.Context) error {
 		groupsTotalDuration := make(map[solutionLabelsKey]time.Duration)
 		groupsCountSubmissions := make(map[solutionLabelsKey]int)
 		for _, s := range solutions {
-			if s.FinishedAt == nil {
+			if s.StartedAt == nil || s.FinishedAt == nil {
 				continue
 			}
 
@@ -204,7 +204,11 @@ func (c *Collector) collectSolutions(ctx context.Context) error {
 			if !ok {
 				dur = time.Duration(0)
 			}
-			dur += s.ProcessTime()
+
+			processTime := s.ProcessTime()
+			if processTime != nil {
+				dur += *processTime
+			}
 
 			cnt, ok := groupsCountSubmissions[labels]
 			if !ok {

@@ -7,5 +7,4 @@ type Task interface {
 	GetLevel() Level
 	GetTopics() []string
 	GetStatement() string
-	GetTests() []Test
 }

@@ -45,10 +45,10 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	command := test.Command{
-		TaskID:     req.TaskID,
-		SolutionID: req.SolutionID,
-		Solution:   req.Solution,
-		Lang:       req.Lang,
+		ExternalSolutionID: req.ExternalSolutionID,
+		TaskID:             req.TaskID,
+		Solution:           req.Solution,
+		Lang:               req.Lang,
 	}
 	if err := h.uc.Test(r.Context(), command); err != nil {
 		h.log.Error("failed to test task", slog.Any("err", err))

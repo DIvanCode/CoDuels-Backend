@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"taski/internal/domain/testing"
+	"taski/internal/domain/testing/execution"
 )
 
 type SolutionStorage struct {
@@ -17,39 +18,86 @@ type SolutionStorage struct {
 const (
 	createTableQuery = `
 		CREATE TABLE IF NOT EXISTS Solutions(
-			id text PRIMARY KEY,
+			id bigserial PRIMARY KEY,
+			external_id text,
 			task_id text,
 			execution_id text,
 			solution text,
-			language varchar(16),
-			tests integer,
-			status jsonb,
+			lang varchar(16),
+			testing_strategy jsonb,
+		    last_testing_status text NULL,
 		    created_at timestamp,
+		    started_at timestamp NULL,
 		    finished_at timestamp NULL
 		);
 	`
+
 	insertQuery = `
-		INSERT INTO Solutions(id, task_id, execution_id, solution, language, tests, status, created_at, finished_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+		INSERT INTO Solutions(
+		                      external_id, 
+		                      task_id, 
+		                      execution_id, 
+		                      solution, 
+		                      lang, 
+		                      testing_strategy, 
+		                      last_testing_status,
+		                      created_at, 
+		                      started_at, 
+		                      finished_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id;
 	`
 
 	updateQuery = `
 		UPDATE Solutions
-		SET task_id=$2, execution_id=$3, solution=$4, language=$5, tests=$6, status=$7, created_at=$8, finished_at=$9
+		SET external_id=$2, 
+		    task_id=$3, 
+		    execution_id=$4, 
+		    solution=$5, 
+		    lang=$6, 
+		    testing_strategy=$7, 
+		    last_testing_status=$8, 
+		    created_at=$9, 
+		    started_at=$10, 
+		    finished_at=$11
 		WHERE id=$1;
 	`
 
 	selectByExecutionQuery = `
-		SELECT id, task_id, execution_id, solution, language, tests, status, created_at, finished_at
+		SELECT id, 
+		       external_id, 
+		       task_id, 
+		       execution_id, 
+		       solution, 
+		       lang, 
+		       testing_strategy, 
+		       last_testing_status, 
+		       created_at, 
+		       started_at, 
+		       finished_at
 		FROM Solutions
 		WHERE execution_id=$1
 		FOR UPDATE;
 	`
 
 	selectAllSolutionsQuery = `
-		SELECT id, task_id, execution_id, solution, language, tests, status, created_at, finished_at
+		SELECT id, 
+		       external_id, 
+		       task_id, 
+		       execution_id, 
+		       solution, 
+		       lang, 
+		       testing_strategy, 
+		       last_testing_status, 
+		       created_at, 
+		       started_at, 
+		       finished_at
 		FROM Solutions
 	`
+)
+
+var (
+	ErrSolutionByExecutionNotFound error = errors.New("solution by execution id not found")
 )
 
 func NewSolutionStorage(ctx context.Context, log *slog.Logger) (*SolutionStorage, error) {
@@ -65,17 +113,23 @@ func NewSolutionStorage(ctx context.Context, log *slog.Logger) (*SolutionStorage
 func (s *SolutionStorage) Create(ctx context.Context, sol testing.Solution) error {
 	tx := extractTx(ctx)
 
-	if _, err := tx.ExecContext(ctx, insertQuery,
-		sol.ID,
+	testingStrategy, err := json.Marshal(sol.TestingStrategy)
+	if err != nil {
+		return fmt.Errorf("failed to marshal testing strategy: %w", err)
+	}
+
+	if err := tx.QueryRowContext(ctx, insertQuery,
+		sol.ExternalID,
 		sol.TaskID.String(),
 		sol.ExecutionID,
 		sol.Solution,
 		sol.Lang,
-		sol.Tests,
-		sol.Status,
+		testingStrategy,
+		sol.LastTestingStatus,
 		sol.CreatedAt,
+		sol.StartedAt,
 		sol.FinishedAt,
-	); err != nil {
+	).Scan(&sol.ID); err != nil {
 		return fmt.Errorf("failed to do insert query: %w", err)
 	}
 
@@ -85,15 +139,22 @@ func (s *SolutionStorage) Create(ctx context.Context, sol testing.Solution) erro
 func (s *SolutionStorage) Update(ctx context.Context, sol testing.Solution) error {
 	tx := extractTx(ctx)
 
+	testingStrategy, err := json.Marshal(sol.TestingStrategy)
+	if err != nil {
+		return fmt.Errorf("failed to marshal testing strategy: %w", err)
+	}
+
 	if _, err := tx.ExecContext(ctx, updateQuery,
 		sol.ID,
+		sol.ExternalID,
 		sol.TaskID.String(),
 		sol.ExecutionID,
 		sol.Solution,
 		sol.Lang,
-		sol.Tests,
-		sol.Status,
+		testingStrategy,
+		sol.LastTestingStatus,
 		sol.CreatedAt,
+		sol.StartedAt,
 		sol.FinishedAt,
 	); err != nil {
 		return fmt.Errorf("failed to do update query: %w", err)
@@ -102,25 +163,27 @@ func (s *SolutionStorage) Update(ctx context.Context, sol testing.Solution) erro
 	return nil
 }
 
-func (s *SolutionStorage) GetByExecutionID(ctx context.Context, executionID testing.ExecutionID) (sol testing.Solution, err error) {
+func (s *SolutionStorage) GetByExecutionID(ctx context.Context, executionID execution.ID) (sol testing.Solution, err error) {
 	tx := extractTx(ctx)
 
 	sol = testing.Solution{}
 	var taskID string
-	var status json.RawMessage
+	var testingStrategy json.RawMessage
 	if err = tx.QueryRowContext(ctx, selectByExecutionQuery, executionID).Scan(
 		&sol.ID,
+		&sol.ExternalID,
 		&taskID,
 		&sol.ExecutionID,
 		&sol.Solution,
 		&sol.Lang,
-		&sol.Tests,
-		&status,
+		&testingStrategy,
+		&sol.LastTestingStatus,
 		&sol.CreatedAt,
+		&sol.StartedAt,
 		&sol.FinishedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			err = fmt.Errorf("solution with execution id %s not found", executionID)
+			err = ErrSolutionByExecutionNotFound
 			return
 		}
 		err = fmt.Errorf("failed to do select query: %w", err)
@@ -131,8 +194,8 @@ func (s *SolutionStorage) GetByExecutionID(ctx context.Context, executionID test
 		err = fmt.Errorf("failed to unmarshal task id: %w", err)
 		return
 	}
-	if err = json.Unmarshal(status, &sol.Status); err != nil {
-		err = fmt.Errorf("failed to unmarshal status: %w", err)
+	if err = json.Unmarshal(testingStrategy, &sol.TestingStrategy); err != nil {
+		err = fmt.Errorf("failed to unmarshal testing strategy: %w", err)
 		return
 	}
 
@@ -153,16 +216,18 @@ func (s *SolutionStorage) GetAll(ctx context.Context) (solutions []testing.Solut
 	for rows.Next() {
 		var sol testing.Solution
 		var taskID string
-		var status json.RawMessage
+		var testingStrategy json.RawMessage
 		if err = rows.Scan(
 			&sol.ID,
+			&sol.ExternalID,
 			&taskID,
 			&sol.ExecutionID,
 			&sol.Solution,
 			&sol.Lang,
-			&sol.Tests,
-			&status,
+			&testingStrategy,
+			&sol.LastTestingStatus,
 			&sol.CreatedAt,
+			&sol.StartedAt,
 			&sol.FinishedAt,
 		); err != nil {
 			err = fmt.Errorf("failed to do select query: %w", err)
@@ -172,8 +237,8 @@ func (s *SolutionStorage) GetAll(ctx context.Context) (solutions []testing.Solut
 			err = fmt.Errorf("failed to unmarshal task id: %w", err)
 			return
 		}
-		if err = json.Unmarshal(status, &sol.Status); err != nil {
-			err = fmt.Errorf("failed to unmarshal status: %w", err)
+		if err = json.Unmarshal(testingStrategy, &sol.TestingStrategy); err != nil {
+			err = fmt.Errorf("failed to unmarshal testing strategy: %w", err)
 			return
 		}
 		solutions = append(solutions, sol)
