@@ -125,7 +125,8 @@ func (g *graph) doneJob(jobID job.ID, jobStatus job.Status) {
 	for _, succJob := range g.succJobs[jobID] {
 		g.doneJobDeps[succJob.GetID()]++
 		if g.doneJobDeps[succJob.GetID()] == len(succJob.GetDependencies()) {
-			g.toPick[stage.Name] = append(g.toPick[stage.Name], succJob)
+			succStage := g.stageByJobID[succJob.GetID()]
+			g.toPick[succStage.Name] = append(g.toPick[succStage.Name], succJob)
 		}
 	}
 
