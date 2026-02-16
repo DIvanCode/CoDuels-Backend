@@ -17,5 +17,5 @@ worker:
   id: http://worker-2:5255
   free_slots: 2
   coordinator_endpoint: http://coordinator:5253
-  heartbeat_delay: 3s
-  worker_delay: 1s
+  heartbeat_delay: 100ms
+  worker_delay: 100ms

@@ -86,8 +86,6 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 			continue
 		}
 
-		w.log.Debug("begin heartbeat loop")
-
 		w.mu.Lock()
 
 		doneJobs := make([]results.Result, len(w.doneJobs))
@@ -137,7 +135,6 @@ func (w *Worker) runWorker(ctx context.Context) {
 
 		job := w.jobs.Dequeue()
 		if job == nil {
-			w.log.Debug("skip worker loop (no jobs to do)")
 			w.changeFreeSlots(+1)
 			continue
 		}

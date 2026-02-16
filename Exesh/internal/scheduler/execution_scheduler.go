@@ -12,10 +12,11 @@ import (
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/domain/execution/source/sources"
 	"fmt"
-	"github.com/DIvanCode/filestorage/pkg/bucket"
 	"log/slog"
 	"sync/atomic"
 	"time"
+
+	"github.com/DIvanCode/filestorage/pkg/bucket"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -141,7 +142,10 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 			continue
 		}
 
-		s.log.Debug("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
+		nowExecutions := s.getNowExecutions()
+		if nowExecutions > 0 {
+			s.log.Debug("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
+		}
 
 		s.changeNowExecutions(+1)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
@@ -151,7 +155,6 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 			}
 			if def == nil {
 				s.changeNowExecutions(-1)
-				s.log.Debug("no executions to schedule")
 				return nil
 			}
 
