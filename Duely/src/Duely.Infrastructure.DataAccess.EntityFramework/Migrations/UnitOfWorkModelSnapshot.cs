@@ -204,6 +204,25 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("DuelConfigurations", (string)null);
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.Group", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Groups", (string)null);
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.Outbox.OutboxMessage", b =>
                 {
                     b.Property<int>("Id")
@@ -354,6 +373,28 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.UserGroupRole", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer")
+                        .HasColumnName("GroupId");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Role");
+
+                    b.HasKey("UserId", "GroupId");
+
+                    b.HasIndex("GroupId");
+
+                    b.ToTable("UserGroupRoles", (string)null);
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.CodeRun", b =>
                 {
                     b.HasOne("Duely.Domain.Models.User", "User")
@@ -426,9 +467,33 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.UserGroupRole", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Group", "Group")
+                        .WithMany("Users")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.User", "User")
+                        .WithMany("Groups")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
                 {
                     b.Navigation("Submissions");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Group", b =>
+                {
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.User", b =>
@@ -436,6 +501,8 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Navigation("DuelsAsUser1");
 
                     b.Navigation("DuelsAsUser2");
+
+                    b.Navigation("Groups");
                 });
 #pragma warning restore 612, 618
         }

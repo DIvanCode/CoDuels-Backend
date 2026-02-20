@@ -20,6 +20,25 @@ public static class EntityFactory
         };
     }
 
+    public static Group MakeGroup(int id, string name = "group")
+    {
+        return new Group
+        {
+            Id = id,
+            Name = name
+        };
+    }
+
+    public static UserGroupRole MakeUserGroupRole(User user, Group group, GroupRole role)
+    {
+        return new UserGroupRole
+        {
+            User = user,
+            Group = group,
+            Role = role
+        };
+    }
+
     public static Duel MakeDuel(int id, User u1, User u2, string taskId = "TASK-1",
                                 DateTime? start = null, DateTime? deadline = null)
     {

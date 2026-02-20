@@ -1,5 +1,6 @@
 using System.Text;
 using Duely.Domain.Services.Duels;
+using Duely.Domain.Services.Groups;
 using Duely.Domain.Services.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
@@ -17,6 +18,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IRatingManager, RatingManager>();
         services.AddScoped<ITaskService, TaskService>();
+        services.AddScoped<IGroupPermissionsService, GroupPermissionsService>();
         
         services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));
         services.AddTransient<ITokenService, TokenService>();
