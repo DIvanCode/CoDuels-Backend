@@ -13,6 +13,8 @@ public sealed class User
     public required int Rating { get; set; }
     public required DateTime CreatedAt { get; init; }
 
+    public List<UserGroupRole> Groups { get; } = [];
+
     // Such strange approach is used because of navigation properties of EF Core
     // Do not use DuelsAsUser1 and DuelsAsUser2 explicitly
     public List<Duel> DuelsAsUser1 { get; } = [];
