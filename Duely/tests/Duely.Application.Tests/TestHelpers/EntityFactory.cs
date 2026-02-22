@@ -29,9 +29,9 @@ public static class EntityFactory
         };
     }
 
-    public static UserGroupRole MakeUserGroupRole(User user, Group group, GroupRole role)
+    public static GroupMembership MakeGroupMembership(User user, Group group, GroupRole role)
     {
-        return new UserGroupRole
+        return new GroupMembership
         {
             User = user,
             Group = group,

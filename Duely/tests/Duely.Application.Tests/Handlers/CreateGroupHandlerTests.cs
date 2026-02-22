@@ -34,10 +34,10 @@ public sealed class CreateGroupHandlerTests : ContextBasedTest
         var userWithGroups = await Context.Users.AsNoTracking()
             .Where(u => u.Id == user.Id)
             .Include(u => u.Groups)
-                .ThenInclude(ug => ug.Group)
+                .ThenInclude(m => m.Group)
             .SingleAsync();
-        userWithGroups.Groups.Should().ContainSingle(ug => ug.Group.Id == group.Id);
-        userWithGroups.Groups.Single(ug => ug.Group.Id == group.Id).Role.Should().Be(GroupRole.Creator);
+        userWithGroups.Groups.Should().ContainSingle(m => m.Group.Id == group.Id);
+        userWithGroups.Groups.Single(m => m.Group.Id == group.Id).Role.Should().Be(GroupRole.Creator);
     }
 
     [Fact]

@@ -7,9 +7,11 @@ public enum GroupRole
     Member = 2
 }
 
-public sealed class UserGroupRole
+public sealed class GroupMembership
 {
     public required User User { get; init; }
     public required Group Group { get; init; }
-    public required GroupRole Role { get; init; }
+    public required GroupRole Role { get; set; }
+    public bool InvitationPending { get; set; }
+    public User? InvitedBy { get; init; }
 }

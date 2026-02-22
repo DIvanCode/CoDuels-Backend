@@ -9,18 +9,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.Groups;
 
-public sealed class GetGroupQuery : IRequest<Result<GroupDto>>
+public sealed class GetGroupUsersQuery : IRequest<Result<List<GroupUserDto>>>
 {
     public required int UserId { get; init; }
     public required int GroupId { get; init; }
 }
 
-public sealed class GetGroupHandler(Context context, IGroupPermissionsService groupPermissionsService)
-    : IRequestHandler<GetGroupQuery, Result<GroupDto>>
+public sealed class GetGroupUsersHandler(Context context, IGroupPermissionsService groupPermissionsService)
+    : IRequestHandler<GetGroupUsersQuery, Result<List<GroupUserDto>>>
 {
-    private const string Operation = "view";
+    private const string Operation = "view users of";
     
-    public async Task<Result<GroupDto>> Handle(GetGroupQuery query, CancellationToken cancellationToken)
+    public async Task<Result<List<GroupUserDto>>> Handle(GetGroupUsersQuery query, CancellationToken cancellationToken)
     {
         var group = await context.Groups
             .AsNoTracking()
@@ -39,10 +39,25 @@ public sealed class GetGroupHandler(Context context, IGroupPermissionsService gr
             return new ForbiddenError(nameof(Group), Operation, nameof(Group.Id), query.GroupId);
         }
 
-        return new GroupDto
-        {
-            Id = group.Id,
-            Name = group.Name
-        };
+        var users = await context.GroupMemberships
+            .AsNoTracking()
+            .Where(m => m.Group.Id == group.Id)
+            .Include(m => m.User)
+            .ToListAsync(cancellationToken);
+
+        return users
+            .Select(m => new GroupUserDto
+            {
+                User = new UserDto
+                {
+                    Id = m.User.Id,
+                    Nickname = m.User.Nickname,
+                    Rating = m.User.Rating,
+                    CreatedAt = m.User.CreatedAt
+                },
+                Role = m.Role,
+                Status = m.InvitationPending ? GroupUserStatus.Pending : GroupUserStatus.Active
+            })
+            .ToList();;
     }
 }

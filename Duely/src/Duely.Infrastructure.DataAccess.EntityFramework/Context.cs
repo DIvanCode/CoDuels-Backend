@@ -9,6 +9,7 @@ public sealed class Context : DbContext
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Group> Groups => Set<Group>();
+    public DbSet<GroupMembership> GroupMemberships => Set<GroupMembership>();
     public DbSet<Duel> Duels => Set<Duel>();
     public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
     public DbSet<Submission> Submissions => Set<Submission>();
