@@ -1,5 +1,8 @@
 using Duely.Application.Services.Errors;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Messages;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
@@ -36,6 +39,23 @@ public sealed class CancelInviteHandler(Context context) : IRequestHandler<Cance
         }
 
         context.GroupMemberships.Remove(membership);
+        
+        context.OutboxMessages.Add(new OutboxMessage
+        {
+            Type = OutboxType.SendMessage,
+            Payload = new SendMessagePayload
+            {
+                UserId = membership.User.Id,
+                Message = new GroupInvitationCanceledMessage
+                {
+                    GroupId = group.Id,
+                    GroupName = group.Name,
+                    InvitedBy = membership.InvitedBy!.Nickname
+                }
+            },
+            RetryUntil = DateTime.UtcNow.AddMinutes(5)
+        });
+        
         await context.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();

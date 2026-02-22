@@ -1,5 +1,8 @@
 using Duely.Application.Services.Errors;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Messages;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Services.Groups;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
@@ -65,6 +68,24 @@ public sealed class InviteUserHandler(Context context, IGroupPermissionsService 
         };
 
         context.GroupMemberships.Add(invitedMembership);
+        
+        context.OutboxMessages.Add(new OutboxMessage
+        {
+            Type = OutboxType.SendMessage,
+            Payload = new SendMessagePayload
+            {
+                UserId = invitedUser.Id,
+                Message = new GroupInvitationMessage
+                {
+                    GroupId = group.Id,
+                    GroupName = group.Name,
+                    Role = command.Role,
+                    InvitedBy = membership.User.Nickname
+                }
+            },
+            RetryUntil = DateTime.UtcNow.AddMinutes(5)
+        });
+        
         await context.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();
