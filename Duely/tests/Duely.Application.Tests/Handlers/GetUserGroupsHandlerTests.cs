@@ -1,6 +1,7 @@
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Groups;
 using Duely.Domain.Models;
+using Duely.Domain.Services.Groups;
 using FluentAssertions;
 using Xunit;
 
@@ -17,13 +18,13 @@ public sealed class GetUserGroupsHandlerTests : ContextBasedTest
         var groupC = EntityFactory.MakeGroup(3, "Gamma");
 
         Context.Users.Add(user);
-        groupA.Users.Add(EntityFactory.MakeUserGroupRole(user, groupA, GroupRole.Member));
-        groupB.Users.Add(EntityFactory.MakeUserGroupRole(user, groupB, GroupRole.Manager));
-        groupC.Users.Add(EntityFactory.MakeUserGroupRole(user, groupC, GroupRole.Creator));
+        groupA.Users.Add(EntityFactory.MakeGroupMembership(user, groupA, GroupRole.Member));
+        groupB.Users.Add(EntityFactory.MakeGroupMembership(user, groupB, GroupRole.Manager));
+        groupC.Users.Add(EntityFactory.MakeGroupMembership(user, groupC, GroupRole.Creator));
         Context.Groups.AddRange(groupA, groupB, groupC);
         await Context.SaveChangesAsync();
 
-        var handler = new GetUserGroupsHandler(Context);
+        var handler = new GetUserGroupsHandler(Context, new GroupPermissionsService());
         var res = await handler.Handle(new GetUserGroupsQuery
         {
             UserId = user.Id

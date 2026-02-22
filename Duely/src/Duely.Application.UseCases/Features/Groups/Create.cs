@@ -30,14 +30,13 @@ public sealed class CreateGroupHandler(Context context)
         {
             Name = request.Name
         };
-        var userGroupRole = new UserGroupRole
+        
+        group.Users.Add(new GroupMembership
         {
             User = user,
             Group = group,
             Role = GroupRole.Creator
-        };
-        
-        group.Users.Add(userGroupRole);
+        });
         
         context.Groups.Add(group);
         await context.SaveChangesAsync(cancellationToken);

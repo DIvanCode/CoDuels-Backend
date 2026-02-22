@@ -20,21 +20,23 @@ public sealed class UpdateGroupCommand : IRequest<Result<GroupDto>>
 public sealed class UpdateGroupHandler(Context context, IGroupPermissionsService groupPermissionsService)
     : IRequestHandler<UpdateGroupCommand, Result<GroupDto>>
 {
+    private const string Operation = "update";
+    
     public async Task<Result<GroupDto>> Handle(UpdateGroupCommand request, CancellationToken cancellationToken)
     {
-        var group = await context.Groups
-            .Where(g => g.Id == request.GroupId)
-            .Include(g => g.Users.Where(u => u.User.Id == request.UserId))
-            .SingleOrDefaultAsync(cancellationToken);
+        var group = await context.Groups.SingleOrDefaultAsync(g => g.Id == request.GroupId, cancellationToken);
         if (group is null)
         {
             return new EntityNotFoundError(nameof(Group), nameof(Group.Id), request.GroupId);
         }
 
-        var userGroupRole = group.Users.SingleOrDefault();
-        if (userGroupRole is null || !groupPermissionsService.HasUpdatePermission(userGroupRole.Role))
+        var membership = await context.GroupMemberships
+            .AsNoTracking()
+            .Where(m => m.Group.Id == group.Id && m.User.Id == request.UserId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (membership is null || !groupPermissionsService.CanUpdateGroup(membership))
         {
-            return new ForbiddenError(nameof(Group), "update", nameof(Group.Id), request.GroupId);
+            return new ForbiddenError(nameof(Group), Operation, nameof(Group.Id), request.GroupId);
         }
 
         group.Name = request.Name;

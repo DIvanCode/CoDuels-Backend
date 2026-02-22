@@ -15,7 +15,7 @@ public sealed class GetGroupHandlerTests : ContextBasedTest
     {
         var user = EntityFactory.MakeUser(1, "owner");
         var group = EntityFactory.MakeGroup(1, "Alpha");
-        var userGroupRole = EntityFactory.MakeUserGroupRole(user, group, GroupRole.Member);
+        var userGroupRole = EntityFactory.MakeGroupMembership(user, group, GroupRole.Member);
         group.Users.Add(userGroupRole);
         Context.Users.Add(user);
         Context.Groups.Add(group);

@@ -71,4 +71,69 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         var result = await mediator.Send(command, cancellationToken);
         return this.HandleResult(result);
     }
+
+    [HttpGet("{id:int}/users")]
+    public async Task<ActionResult<List<GroupUserDto>>> GetUsersAsync(
+        [FromRoute] int id,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetGroupUsersQuery
+        {
+            UserId = userContext.UserId,
+            GroupId = id
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("{id:int}/role")]
+    public async Task<ActionResult> ChangeRoleAsync(
+        [FromRoute] int id,
+        [FromBody] ChangeGroupUserRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new ChangeRoleCommand
+        {
+            UserId = userContext.UserId,
+            GroupId = id,
+            TargetUserId = request.UserId,
+            Role = request.Role
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("{id:int}/leave")]
+    public async Task<ActionResult> LeaveAsync(
+        [FromRoute] int id,
+        CancellationToken cancellationToken)
+    {
+        var command = new LeaveGroupCommand
+        {
+            UserId = userContext.UserId,
+            GroupId = id
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("{id:int}/exclude")]
+    public async Task<ActionResult> ExcludeUserAsync(
+        [FromRoute] int id,
+        [FromBody] ExcludeGroupUserRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new ExcludeUserCommand
+        {
+            UserId = userContext.UserId,
+            GroupId = id,
+            TargetUserId = request.UserId
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
 }

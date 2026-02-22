@@ -1,6 +1,5 @@
-using Duely.Application.Services.Errors;
 using Duely.Application.UseCases.Dtos;
-using Duely.Domain.Models;
+using Duely.Domain.Services.Groups;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
@@ -13,30 +12,24 @@ public sealed class GetUserGroupsQuery : IRequest<Result<List<GroupDto>>>
     public required int UserId { get; init; }
 }
 
-public sealed class GetUserGroupsHandler(Context context)
+public sealed class GetUserGroupsHandler(Context context, IGroupPermissionsService groupPermissionsService)
     : IRequestHandler<GetUserGroupsQuery, Result<List<GroupDto>>>
 {
     public async Task<Result<List<GroupDto>>> Handle(GetUserGroupsQuery query, CancellationToken cancellationToken)
     {
-        var user = await context.Users
+        var memberships = await context.GroupMemberships
             .AsNoTracking()
-            .Where(u => u.Id == query.UserId)
-            .Include(u => u.Groups)
-                .ThenInclude(g => g.Group)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (user is null)
-        {
-            return new EntityNotFoundError(nameof(User), nameof(User.Id), query.UserId);
-        }
+            .Include(m => m.Group)
+            .Where(m => m.User.Id == query.UserId)
+            .ToListAsync(cancellationToken);
 
-        var result = user.Groups
-            .Select(g => new GroupDto
+        return memberships
+            .Where(groupPermissionsService.CanViewGroup)
+            .Select(m => new GroupDto
             {
-                Id = g.Group.Id,
-                Name = g.Group.Name
+                Id = m.Group.Id,
+                Name = m.Group.Name
             })
             .ToList();
-
-        return Result.Ok(result);
     }
 }
