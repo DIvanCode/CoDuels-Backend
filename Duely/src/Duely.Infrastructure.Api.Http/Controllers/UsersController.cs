@@ -75,6 +75,21 @@ public sealed class UsersController(
         return this.HandleResult(result);
     }
 
+    [HttpGet("nickname/{nickname}")]
+    [Authorize]
+    public async Task<ActionResult<UserDto>> GetByNicknameAsync(
+        [FromRoute] string nickname,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetUserByNicknameQuery
+        {
+            Nickname = nickname
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpPost("refresh")]
     public async Task<ActionResult<TokenDto>> RefreshAsync(
         [FromBody] RefreshTokenRequest request,

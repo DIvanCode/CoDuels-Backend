@@ -32,5 +32,8 @@ public sealed class GetUserGroupsHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Select(g => g.Name).Should().BeEquivalentTo(["Alpha", "Beta", "Gamma"]);
+        res.Value.Should().ContainSingle(g => g.Name == "Alpha" && g.UserRole == GroupRole.Member);
+        res.Value.Should().ContainSingle(g => g.Name == "Beta" && g.UserRole == GroupRole.Manager);
+        res.Value.Should().ContainSingle(g => g.Name == "Gamma" && g.UserRole == GroupRole.Creator);
     }
 }

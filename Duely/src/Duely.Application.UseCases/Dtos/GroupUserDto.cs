@@ -13,6 +13,9 @@ public sealed class GroupUserDto
 
     [JsonPropertyName("status"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required GroupUserStatus Status { get; init; }
+
+    [JsonPropertyName("invited_by")]
+    public UserDto? InvitedBy { get; init; }
 }
 
 public enum GroupUserStatus

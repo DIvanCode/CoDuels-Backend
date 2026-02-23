@@ -129,4 +129,95 @@ public sealed class ChangeRoleHandlerTests : ContextBasedTest
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is ForbiddenError);
     }
+
+    [Fact]
+    public async Task Non_inviter_cannot_change_pending_invitation_role()
+    {
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var manager = EntityFactory.MakeUser(2, "manager");
+        var invited = EntityFactory.MakeUser(3, "invited");
+        var group = EntityFactory.MakeGroup(1, "Alpha");
+        group.Users.Add(new GroupMembership
+        {
+            User = creator,
+            Group = group,
+            Role = GroupRole.Creator,
+            InvitationPending = false
+        });
+        group.Users.Add(new GroupMembership
+        {
+            User = manager,
+            Group = group,
+            Role = GroupRole.Manager,
+            InvitationPending = false
+        });
+        group.Users.Add(new GroupMembership
+        {
+            User = invited,
+            Group = group,
+            Role = GroupRole.Member,
+            InvitationPending = true,
+            InvitedBy = creator
+        });
+
+        Context.Users.AddRange(creator, manager, invited);
+        Context.Groups.Add(group);
+        await Context.SaveChangesAsync();
+
+        var handler = new ChangeRoleHandler(Context, new GroupPermissionsService());
+        var res = await handler.Handle(new ChangeRoleCommand
+        {
+            UserId = manager.Id,
+            GroupId = group.Id,
+            TargetUserId = invited.Id,
+            Role = GroupRole.Manager
+        }, CancellationToken.None);
+
+        res.IsFailed.Should().BeTrue();
+        res.Errors.Should().ContainSingle(e => e is ForbiddenError);
+    }
+
+    [Fact]
+    public async Task Inviter_can_change_pending_invitation_role()
+    {
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var invited = EntityFactory.MakeUser(2, "invited");
+        var group = EntityFactory.MakeGroup(1, "Alpha");
+        group.Users.Add(new GroupMembership
+        {
+            User = creator,
+            Group = group,
+            Role = GroupRole.Creator,
+            InvitationPending = false
+        });
+        group.Users.Add(new GroupMembership
+        {
+            User = invited,
+            Group = group,
+            Role = GroupRole.Member,
+            InvitationPending = true,
+            InvitedBy = creator
+        });
+
+        Context.Users.AddRange(creator, invited);
+        Context.Groups.Add(group);
+        await Context.SaveChangesAsync();
+
+        var handler = new ChangeRoleHandler(Context, new GroupPermissionsService());
+        var res = await handler.Handle(new ChangeRoleCommand
+        {
+            UserId = creator.Id,
+            GroupId = group.Id,
+            TargetUserId = invited.Id,
+            Role = GroupRole.Manager
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+
+        var stored = await Context.Groups.AsNoTracking()
+            .Include(g => g.Users)
+            .ThenInclude(m => m.User)
+            .SingleAsync(g => g.Id == group.Id);
+        stored.Users.Single(m => m.User.Id == invited.Id).Role.Should().Be(GroupRole.Manager);
+    }
 }

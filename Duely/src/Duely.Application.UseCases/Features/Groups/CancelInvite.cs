@@ -31,6 +31,7 @@ public sealed class CancelInviteHandler(Context context) : IRequestHandler<Cance
 
         var membership = await context.GroupMemberships
             .Where(m => m.Group.Id == group.Id && m.User.Id == command.InvitedUserId && m.InvitationPending)
+            .Include(m => m.User)
             .Include(m => m.InvitedBy)
             .SingleOrDefaultAsync(cancellationToken);
         if (membership is null || membership.InvitedBy?.Id != command.UserId)

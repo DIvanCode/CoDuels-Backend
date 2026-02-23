@@ -28,7 +28,8 @@ public sealed class GetUserGroupsHandler(Context context, IGroupPermissionsServi
             .Select(m => new GroupDto
             {
                 Id = m.Group.Id,
-                Name = m.Group.Name
+                Name = m.Group.Name,
+                UserRole = m.Role
             })
             .ToList();
     }
