@@ -8,9 +8,9 @@ import (
 
 type CompileJobMessage struct {
 	message.Details
-	JobName       job.DefinitionName `json:"job"`
-	CompileStatus job.Status         `json:"status"`
-	Error         string             `json:"error,omitempty"`
+	JobName          job.DefinitionName `json:"job"`
+	CompileStatus    job.Status         `json:"status"`
+	CompilationError *string            `json:"compilation_error,omitempty"`
 }
 
 func NewCompileJobMessageOk(
@@ -32,7 +32,7 @@ func NewCompileJobMessageOk(
 func NewCompileJobMessageError(
 	executionID execution.ID,
 	jobName job.DefinitionName,
-	err string,
+	compilationError string,
 ) Message {
 	return Message{
 		&CompileJobMessage{
@@ -40,9 +40,9 @@ func NewCompileJobMessageError(
 				ExecutionID: executionID,
 				Type:        message.CompileJob,
 			},
-			JobName:       jobName,
-			CompileStatus: job.StatusCE,
-			Error:         err,
+			JobName:          jobName,
+			CompileStatus:    job.StatusCE,
+			CompilationError: &compilationError,
 		},
 	}
 }

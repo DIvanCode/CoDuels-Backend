@@ -8,7 +8,7 @@ import (
 
 type CompileResult struct {
 	result.Details
-	CompilationError string `json:"compilation_error"`
+	CompilationError *string `json:"compilation_error,omitempty"`
 }
 
 func NewCompileResultOK(jobID job.ID) Result {
@@ -33,7 +33,7 @@ func NewCompileResultCE(jobID job.ID, compilationError string) Result {
 				Status: job.StatusCE,
 				DoneAt: time.Now(),
 			},
-			CompilationError: compilationError,
+			CompilationError: &compilationError,
 		},
 	}
 }

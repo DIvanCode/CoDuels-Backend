@@ -33,7 +33,11 @@ func (f *MessageFactory) CreateForJob(
 		case job.StatusOK:
 			msg = messages.NewCompileJobMessageOk(executionID, jobName)
 		case job.StatusCE:
-			msg = messages.NewCompileJobMessageError(executionID, jobName, typedRes.CompilationError)
+			if typedRes.CompilationError != nil {
+				msg = messages.NewCompileJobMessageError(executionID, jobName, *typedRes.CompilationError)
+			} else {
+				msg = messages.NewCompileJobMessageError(executionID, jobName, "unknown error")
+			}
 		default:
 			return msg, fmt.Errorf("unknown compile status: %s", typedRes.Status)
 		}
