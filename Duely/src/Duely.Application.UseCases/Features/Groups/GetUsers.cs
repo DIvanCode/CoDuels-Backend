@@ -43,6 +43,7 @@ public sealed class GetGroupUsersHandler(Context context, IGroupPermissionsServi
             .AsNoTracking()
             .Where(m => m.Group.Id == group.Id)
             .Include(m => m.User)
+            .Include(m => m.InvitedBy)
             .ToListAsync(cancellationToken);
 
         return users
@@ -56,7 +57,16 @@ public sealed class GetGroupUsersHandler(Context context, IGroupPermissionsServi
                     CreatedAt = m.User.CreatedAt
                 },
                 Role = m.Role,
-                Status = m.InvitationPending ? GroupUserStatus.Pending : GroupUserStatus.Active
+                Status = m.InvitationPending ? GroupUserStatus.Pending : GroupUserStatus.Active,
+                InvitedBy = m.InvitedBy is null
+                    ? null
+                    : new UserDto
+                    {
+                        Id = m.InvitedBy.Id,
+                        Nickname = m.InvitedBy.Nickname,
+                        Rating = m.InvitedBy.Rating,
+                        CreatedAt = m.InvitedBy.CreatedAt
+                    }
             })
             .ToList();;
     }

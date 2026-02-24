@@ -54,7 +54,12 @@ public sealed class GetGroupUsersHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Should().HaveCount(3);
-        res.Value.Should().ContainSingle(u => u.User.Id == invited.Id && u.Status == GroupUserStatus.Pending);
+        res.Value.Should().ContainSingle(u =>
+            u.User.Id == invited.Id &&
+            u.Status == GroupUserStatus.Pending &&
+            u.InvitedBy != null &&
+            u.InvitedBy.Id == viewer.Id &&
+            u.InvitedBy.Nickname == viewer.Nickname);
         res.Value.Should().ContainSingle(u => u.User.Id == member.Id && u.Status == GroupUserStatus.Active);
     }
 

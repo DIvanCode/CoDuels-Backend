@@ -31,10 +31,16 @@ public sealed class ChangeRoleHandler(Context context, IGroupPermissionsService 
 
         var targetMembership = await context.GroupMemberships
             .Where(m => m.Group.Id == group.Id && m.User.Id == command.TargetUserId)
+            .Include(m => m.InvitedBy)
             .SingleOrDefaultAsync(cancellationToken);
         if (targetMembership is null)
         {
             return new EntityNotFoundError(nameof(GroupMembership), nameof(User.Id), command.TargetUserId);
+        }
+
+        if (targetMembership.InvitationPending && targetMembership.InvitedBy?.Id != command.UserId)
+        {
+            return new ForbiddenError(nameof(Group), Operation, nameof(Group.Id), command.GroupId);
         }
 
         var membership = await context.GroupMemberships

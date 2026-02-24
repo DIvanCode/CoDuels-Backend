@@ -44,7 +44,8 @@ public sealed class CreateGroupHandler(Context context)
         return new GroupDto
         {
             Id = group.Id,
-            Name = group.Name
+            Name = group.Name,
+            UserRole = GroupRole.Creator
         };
     }
 }

@@ -45,7 +45,8 @@ public sealed class UpdateGroupHandler(Context context, IGroupPermissionsService
         return new GroupDto
         {
             Id = group.Id,
-            Name = group.Name
+            Name = group.Name,
+            UserRole = membership.Role
         };
     }
 }
