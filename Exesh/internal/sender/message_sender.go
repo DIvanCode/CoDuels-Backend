@@ -134,8 +134,7 @@ func (s *KafkaSender) process(ctx context.Context) error {
 		}
 
 		s.log.Debug("send to kafka", slog.Int64("outbox_id", ox.ID))
-		err = s.writer.WriteMessages(ctx, message)
-		if err != nil {
+		if err = s.writer.WriteMessages(ctx, message); err != nil {
 			failedAt := time.Now()
 			ox.FailedAt = &failedAt
 			ox.FailedTries++

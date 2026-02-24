@@ -17,6 +17,7 @@ type graph struct {
 	succJobs    map[job.ID][]jobs.Job
 	doneJobDeps map[job.ID]int
 
+	isActive     map[StageName]bool
 	activeStages []*Stage
 	toPick       map[StageName][]jobs.Job
 
@@ -36,6 +37,7 @@ func newGraph(stages []*Stage) *graph {
 		succJobs:    make(map[job.ID][]jobs.Job),
 		doneJobDeps: make(map[job.ID]int),
 
+		isActive:     make(map[StageName]bool),
 		activeStages: make([]*Stage, 0),
 		toPick:       make(map[StageName][]jobs.Job),
 
@@ -77,6 +79,7 @@ func newGraph(stages []*Stage) *graph {
 		g.doneJobs[stage.Name] = 0
 
 		if len(stage.Deps) == 0 {
+			g.isActive[stage.Name] = true
 			g.activeStages = append(g.activeStages, stage)
 		}
 	}
@@ -117,6 +120,9 @@ func (g *graph) doneJob(jobID job.ID, jobStatus job.Status) {
 	}
 
 	if jobStatus != jb.GetSuccessStatus() {
+		for _, activeStage := range g.activeStages {
+			g.isActive[activeStage.Name] = false
+		}
 		g.activeStages = make([]*Stage, 0)
 		return
 	}
@@ -130,22 +136,32 @@ func (g *graph) doneJob(jobID job.ID, jobStatus job.Status) {
 		}
 	}
 
-	if g.doneJobs[stage.Name] == g.totalJobs[stage.Name] {
-		activeStages := make([]*Stage, 0)
-		for i := range g.activeStages {
-			if g.activeStages[i].Name != stage.Name {
-				activeStages = append(activeStages, g.activeStages[i])
+	doneJobs := g.doneJobs[stage.Name]
+	totalJobs := g.totalJobs[stage.Name]
+	isFinished := doneJobs == totalJobs
+	if isFinished {
+		g.isActive[stage.Name] = false
+		activeStages := make([]*Stage, 0, len(g.activeStages)-1)
+		for _, activeStage := range g.activeStages {
+			if activeStage.Name != stage.Name {
+				activeStages = append(activeStages, activeStage)
 			}
 		}
+		g.activeStages = activeStages
+	}
 
+	if g.canStartSuccStages(doneJobs, totalJobs) {
 		for _, succStage := range g.succStages[stage.Name] {
+			if g.isActive[succStage.Name] {
+				continue
+			}
+
 			g.doneStageDeps[succStage.Name]++
 			if g.doneStageDeps[succStage.Name] == len(succStage.Deps) {
-				activeStages = append(activeStages, succStage)
+				g.isActive[succStage.Name] = true
+				g.activeStages = append(g.activeStages, succStage)
 			}
 		}
-
-		g.activeStages = activeStages
 	}
 }
 
@@ -154,4 +170,8 @@ func (g *graph) isDone() bool {
 	defer g.mu.Unlock()
 
 	return len(g.activeStages) == 0
+}
+
+func (g *graph) canStartSuccStages(doneJobs int, totalJobs int) bool {
+	return 4*doneJobs >= 3*totalJobs
 }
