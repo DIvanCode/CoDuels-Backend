@@ -19,7 +19,8 @@ type (
 		GetStages() execution.Stages
 		GetSources() sources.Sources
 		GetVerdict() string
-		UpdateJobStatus(name job.Name, status job.Status)
+		GetMessage() *string
+		UpdateJobStatus(name job.Name, status job.Status, msg *string)
 		GetTestingStatus() string
 	}
 
@@ -28,6 +29,7 @@ type (
 		Stages   execution.Stages `json:"stages"`
 		Sources  sources.Sources  `json:"sources"`
 		Verdict  *string          `json:"verdict"`
+		Message  *string          `json:"message"`
 
 		JobSuccess map[job.Name]bool
 	}
@@ -84,6 +86,10 @@ func (ts *Details) GetVerdict() string {
 	return TestingFailedVerdict
 }
 
+func (ts *Details) GetMessage() *string {
+	return ts.Message
+}
+
 func (ts *Details) FindJob(name job.Name) (jobs.Job, bool) {
 	for _, stage := range ts.Stages {
 		for _, jb := range stage.Jobs {
@@ -104,9 +110,13 @@ func (ts *Details) VerdictForStatus(status job.Status) string {
 	}
 }
 
-func (ts *Details) UpdateJobStatus(name job.Name, status job.Status) {
+func (ts *Details) UpdateJobStatus(name job.Name, status job.Status, msg *string) {
 	if ts.Verdict != nil {
 		return
+	}
+
+	if msg != nil {
+		ts.Message = msg
 	}
 
 	jb, ok := ts.FindJob(name)

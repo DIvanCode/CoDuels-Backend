@@ -107,14 +107,36 @@ func (uc *UseCase) handleExecutionEvent(sol *testing.Solution, evt events.Event,
 		if typedEvent.Error != nil {
 			return messages.NewFinishTestingMessageWithError(sol.ExternalID, verdict, *typedEvent.Error), true, nil
 		}
-		return messages.NewFinishTestingMessage(sol.ExternalID, verdict), true, nil
-	default:
-		jobName, jobStatus, err := uc.getJobNameAndStatus(evt)
-		if err != nil {
-			return messages.Message{}, false, err
+
+		msg := sol.TestingStrategy.GetMessage()
+		if msg != nil {
+			return messages.NewFinishTestingMessageWithMessage(sol.ExternalID, verdict, *msg), true, nil
 		}
 
-		sol.TestingStrategy.UpdateJobStatus(jobName, jobStatus)
+		return messages.NewFinishTestingMessage(sol.ExternalID, verdict), true, nil
+	default:
+		var jobName job.Name
+		var jobStatus job.Status
+		var jobMessage *string
+		switch evt.GetType() {
+		case event.CompileJob:
+			typedEvt := evt.AsCompileJobEvent()
+			jobName = typedEvt.JobName
+			jobStatus = typedEvt.CompileStatus
+			jobMessage = typedEvt.CompilationError
+		case event.RunJob:
+			typedEvt := evt.AsRunJobEvent()
+			jobName = typedEvt.JobName
+			jobStatus = typedEvt.RunStatus
+		case event.CheckJob:
+			typedEvt := evt.AsCheckJobEvent()
+			jobName = typedEvt.JobName
+			jobStatus = typedEvt.CheckStatus
+		default:
+			return messages.Message{}, false, fmt.Errorf("unknown event type: %s", evt.GetType())
+		}
+
+		sol.TestingStrategy.UpdateJobStatus(jobName, jobStatus, jobMessage)
 
 		testingStatus := sol.TestingStrategy.GetTestingStatus()
 		if sol.LastTestingStatus != nil && testingStatus == *sol.LastTestingStatus {

@@ -155,9 +155,13 @@ func NewWriteCodeTaskTestingStrategy(
 	return ts, nil
 }
 
-func (ts *WriteCodeTaskTestingStrategy) UpdateJobStatus(name job.Name, status job.Status) {
+func (ts *WriteCodeTaskTestingStrategy) UpdateJobStatus(name job.Name, status job.Status, msg *string) {
 	if ts.Verdict != nil {
 		return
+	}
+
+	if msg != nil {
+		ts.Message = msg
 	}
 
 	jb, ok := ts.FindJob(name)
