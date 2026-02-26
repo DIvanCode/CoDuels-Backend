@@ -1,6 +1,7 @@
 using Duely.Application.Services.Outbox;
 using Duely.Application.Services.Outbox.Relay;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
 using FluentAssertions;

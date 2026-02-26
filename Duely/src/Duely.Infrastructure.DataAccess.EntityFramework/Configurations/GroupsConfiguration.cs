@@ -1,4 +1,4 @@
-using Duely.Domain.Models;
+using Duely.Domain.Models.Groups;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

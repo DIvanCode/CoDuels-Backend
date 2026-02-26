@@ -1,6 +1,7 @@
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Groups;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Groups;
 using FluentAssertions;
 using Xunit;
 

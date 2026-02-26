@@ -5,6 +5,7 @@ using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Duely.Application.UseCases.Dtos;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 
 namespace Duely.Application.UseCases.Features.Submissions;
 

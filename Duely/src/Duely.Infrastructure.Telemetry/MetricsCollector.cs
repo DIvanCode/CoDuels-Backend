@@ -1,4 +1,4 @@
-using Duely.Domain.Services.Duels;
+using Duely.Domain.Models.Duels.Pending;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +11,6 @@ public sealed class MetricsCollector : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly MetricsSnapshot _snapshot;
-    private readonly IDuelManager _duelManager;
     private readonly ILogger<MetricsCollector> _logger;
 
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(15);
@@ -19,12 +18,10 @@ public sealed class MetricsCollector : BackgroundService
     public MetricsCollector(
         IServiceScopeFactory scopeFactory,
         MetricsSnapshot snapshot,
-        IDuelManager duelManager,
         ILogger<MetricsCollector> logger)
     {
         _scopeFactory = scopeFactory;
         _snapshot = snapshot;
-        _duelManager = duelManager;
         _logger = logger;
     }
 
@@ -34,10 +31,13 @@ public sealed class MetricsCollector : BackgroundService
         {
             try
             {
-                _snapshot.SetWaitingUsers(_duelManager.GetWaitingUsersCount());
-
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<Context>();
+
+                var waitingUsers = await db.PendingDuels
+                    .OfType<RankedPendingDuel>()
+                    .LongCountAsync(stoppingToken);
+                _snapshot.SetWaitingUsers(waitingUsers);
 
                 var duels = await db.Duels
                     .AsNoTracking()

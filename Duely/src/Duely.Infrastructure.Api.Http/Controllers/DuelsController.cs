@@ -1,5 +1,6 @@
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Features.Duels;
+using Duely.Application.UseCases.Features.Duels.Search;
 using Duely.Infrastructure.Api.Http.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

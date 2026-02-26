@@ -10,6 +10,15 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
+    },
+    "Development_Huawei": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://localhost:5001",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DbConnection__ConnectionString": "Server=172.25.115.132:5432;Database=duely;Username=duely;Password=secret"
+      }
     }
   }
 }
