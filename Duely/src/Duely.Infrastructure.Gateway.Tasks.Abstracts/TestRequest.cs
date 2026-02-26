@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 
 namespace Duely.Infrastructure.Gateway.Tasks.Abstracts;
 

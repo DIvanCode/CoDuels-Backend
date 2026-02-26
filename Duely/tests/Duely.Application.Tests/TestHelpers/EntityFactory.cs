@@ -1,5 +1,7 @@
 using System;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Groups;
 
 namespace Duely.Application.Tests.TestHelpers;
 

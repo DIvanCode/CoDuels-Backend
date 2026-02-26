@@ -1,4 +1,6 @@
-namespace Duely.Domain.Models;
+using Duely.Domain.Models.Groups;
+
+namespace Duely.Domain.Models.Duels.Pending;
 
 public sealed class GroupPendingDuel : PendingDuel
 {

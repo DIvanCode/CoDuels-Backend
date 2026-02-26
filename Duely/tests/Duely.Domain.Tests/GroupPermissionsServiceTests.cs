@@ -1,4 +1,5 @@
 using Duely.Domain.Models;
+using Duely.Domain.Models.Groups;
 using Duely.Domain.Services.Groups;
 using FluentAssertions;
 using Xunit;

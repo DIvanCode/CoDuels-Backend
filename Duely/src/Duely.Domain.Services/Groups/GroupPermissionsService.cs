@@ -1,4 +1,4 @@
-﻿using Duely.Domain.Models;
+﻿using Duely.Domain.Models.Groups;
 
 namespace Duely.Domain.Services.Groups;
 

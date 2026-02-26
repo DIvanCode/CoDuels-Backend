@@ -1,4 +1,4 @@
-namespace Duely.Domain.Models;
+namespace Duely.Domain.Models.Duels;
 
 public sealed class Duel
 {

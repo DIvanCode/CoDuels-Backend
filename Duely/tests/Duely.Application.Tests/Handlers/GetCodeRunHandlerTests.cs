@@ -2,6 +2,7 @@ using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.CodeRuns;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using FluentAssertions;
 
 namespace Duely.Application.Tests.Handlers;

@@ -1,4 +1,5 @@
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using FluentResults;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 

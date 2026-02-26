@@ -3,6 +3,7 @@ using MediatR;
 using FluentResults;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

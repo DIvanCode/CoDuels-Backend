@@ -4,7 +4,7 @@ using MediatR;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Duely.Application.UseCases.Dtos;
-using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Services.Duels;
 
 namespace Duely.Application.UseCases.Features.Duels;

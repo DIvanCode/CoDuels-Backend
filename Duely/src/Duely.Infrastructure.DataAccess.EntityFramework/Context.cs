@@ -1,6 +1,9 @@
 ﻿using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Groups;
 using Duely.Domain.Models.Outbox;
 
 namespace Duely.Infrastructure.DataAccess.EntityFramework;
