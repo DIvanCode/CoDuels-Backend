@@ -1,6 +1,7 @@
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
-using Duely.Domain.Services.Duels;
+using Duely.Application.UseCases.Features.Duels.Invitations;
+using Duely.Domain.Models.Duels.Pending;
 using FluentAssertions;
 
 namespace Duely.Application.Tests.Handlers;
@@ -15,19 +16,31 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
         var u3 = EntityFactory.MakeUser(3, "u3");
-        u1.Rating = 1500;
-        u2.Rating = 1600;
-        u3.Rating = 1700;
         ctx.Users.AddRange(u1, u2, u3);
+        var createdAt1 = DateTime.UtcNow.AddMinutes(-5);
+        var createdAt2 = DateTime.UtcNow.AddMinutes(-3);
+        ctx.PendingDuels.AddRange(
+            new FriendlyPendingDuel
+            {
+                Type = PendingDuelType.Friendly,
+                User1 = u2,
+                User2 = u1,
+                Configuration = null,
+                IsAccepted = false,
+                CreatedAt = createdAt1
+            },
+            new FriendlyPendingDuel
+            {
+                Type = PendingDuelType.Friendly,
+                User1 = u3,
+                User2 = u1,
+                Configuration = null,
+                IsAccepted = false,
+                CreatedAt = createdAt2
+            });
         await ctx.SaveChangesAsync();
 
-        var now = DateTime.UtcNow;
-        var duelManager = new DuelManager();
-        duelManager.AddUser(u2.Id, u2.Rating, now.AddSeconds(-10), expectedOpponentId: u1.Id);
-        duelManager.AddUser(u3.Id, u3.Rating, now.AddSeconds(-5), expectedOpponentId: u1.Id);
-        duelManager.AddUser(4, 1500, now.AddSeconds(-2));
-
-        var handler = new GetIncomingDuelInvitationsHandler(ctx, duelManager);
+        var handler = new GetIncomingDuelInvitationsHandler(ctx);
         var res = await handler.Handle(new GetIncomingDuelInvitationsQuery
         {
             UserId = u1.Id
@@ -39,24 +52,32 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
         res.Value[1].OpponentNickname.Should().Be(u3.Nickname);
         res.Value[0].ConfigurationId.Should().BeNull();
         res.Value[1].ConfigurationId.Should().BeNull();
+        res.Value[0].Type.Should().Be(PendingDuelType.Friendly);
+        res.Value[1].Type.Should().Be(PendingDuelType.Friendly);
+        res.Value[0].CreatedAt.Should().Be(createdAt1);
+        res.Value[1].CreatedAt.Should().Be(createdAt2);
     }
 
     [Fact]
-    public async Task Get_incoming_invitations_skips_assigned_opponents()
+    public async Task Get_incoming_invitations_skips_accepted()
     {
         var ctx = Context;
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
         ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.Add(new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = u2,
+            User2 = u1,
+            Configuration = null,
+            IsAccepted = true,
+            CreatedAt = DateTime.UtcNow
+        });
         await ctx.SaveChangesAsync();
 
-        var now = DateTime.UtcNow;
-        var duelManager = new DuelManager();
-        duelManager.AddUser(u2.Id, u2.Rating, now.AddSeconds(-5), expectedOpponentId: u1.Id);
-        duelManager.AddUser(u1.Id, u1.Rating, now.AddSeconds(-4), expectedOpponentId: u2.Id);
-
-        var handler = new GetIncomingDuelInvitationsHandler(ctx, duelManager);
+        var handler = new GetIncomingDuelInvitationsHandler(ctx);
         var res = await handler.Handle(new GetIncomingDuelInvitationsQuery
         {
             UserId = u1.Id
@@ -64,5 +85,104 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Get_incoming_invitations_returns_group_pending_from_pending_duels()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.Add(new GroupPendingDuel
+        {
+            Type = PendingDuelType.Group,
+            Group = new Duely.Domain.Models.Groups.Group { Id = 1, Name = "g" },
+            CreatedBy = u1,
+            User1 = u1,
+            User2 = u2,
+            Configuration = null,
+            IsAcceptedByUser1 = false,
+            IsAcceptedByUser2 = false,
+            CreatedAt = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+
+        var handler = new GetIncomingDuelInvitationsHandler(ctx);
+        var res = await handler.Handle(new GetIncomingDuelInvitationsQuery
+        {
+            UserId = u1.Id
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Should().ContainSingle();
+        res.Value[0].Type.Should().Be(PendingDuelType.Group);
+    }
+
+    [Fact]
+    public async Task Get_incoming_invitations_skips_group_already_accepted_by_user()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.Add(new GroupPendingDuel
+        {
+            Type = PendingDuelType.Group,
+            Group = new Duely.Domain.Models.Groups.Group { Id = 1, Name = "g" },
+            CreatedBy = u1,
+            User1 = u1,
+            User2 = u2,
+            Configuration = null,
+            IsAcceptedByUser1 = true,
+            IsAcceptedByUser2 = false,
+            CreatedAt = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+
+        var handler = new GetIncomingDuelInvitationsHandler(ctx);
+        var res = await handler.Handle(new GetIncomingDuelInvitationsQuery
+        {
+            UserId = u1.Id
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Get_incoming_invitations_returns_group_pending_for_second_user()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.Add(new GroupPendingDuel
+        {
+            Type = PendingDuelType.Group,
+            Group = new Duely.Domain.Models.Groups.Group { Id = 1, Name = "g" },
+            CreatedBy = u1,
+            User1 = u1,
+            User2 = u2,
+            Configuration = null,
+            IsAcceptedByUser1 = false,
+            IsAcceptedByUser2 = false,
+            CreatedAt = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+
+        var handler = new GetIncomingDuelInvitationsHandler(ctx);
+        var res = await handler.Handle(new GetIncomingDuelInvitationsQuery
+        {
+            UserId = u2.Id
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Should().ContainSingle();
+        res.Value[0].OpponentNickname.Should().Be(u1.Nickname);
+        res.Value[0].Type.Should().Be(PendingDuelType.Group);
     }
 }

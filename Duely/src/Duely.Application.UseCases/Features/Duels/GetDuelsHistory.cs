@@ -20,13 +20,16 @@ public sealed class GetDuelsHistoryHandler(Context context, IRatingManager ratin
 {
     public async Task<Result<List<DuelDto>>> Handle(GetDuelsHistoryQuery query, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Id == query.UserId, cancellationToken);
+        var user = await context.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(u => u.Id == query.UserId, cancellationToken);
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), query.UserId);
         }
         
         var duels = await context.Duels
+            .AsNoTracking()
             .Where(d => d.Status == DuelStatus.Finished &&
                         (d.User1.Id == query.UserId || d.User2.Id == query.UserId))
             .Include(duel => duel.Configuration)

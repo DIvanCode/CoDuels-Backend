@@ -4,6 +4,7 @@ public abstract class PendingDuel
 {
     public int Id { get; init; }
     public required PendingDuelType Type { get; init; }
+    public required DateTime CreatedAt { get; init; }
 }
 
 public enum PendingDuelType

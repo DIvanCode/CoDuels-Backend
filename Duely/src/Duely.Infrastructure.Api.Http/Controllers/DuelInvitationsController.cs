@@ -1,5 +1,5 @@
 ﻿using Duely.Application.UseCases.Dtos;
-using Duely.Application.UseCases.Features.Duels;
+using Duely.Application.UseCases.Features.Duels.Invitations;
 using Duely.Infrastructure.Api.Http.Requests.DuelInvitations;
 using Duely.Infrastructure.Api.Http.Services;
 using MediatR;
@@ -82,6 +82,59 @@ public sealed class DuelInvitationsController(IMediator mediator, IUserContext u
         {
             UserId = userContext.UserId,
             OpponentNickname = request.OpponentNickname,
+            ConfigurationId = request.ConfigurationId
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("group")]
+    public async Task<ActionResult> CreateGroupAsync(
+        [FromBody] GroupDuelInvitationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new CreateGroupDuelInvitationCommand
+        {
+            UserId = userContext.UserId,
+            GroupId = request.GroupId,
+            User1Id = request.User1Id,
+            User2Id = request.User2Id,
+            ConfigurationId = request.ConfigurationId
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("group/accept")]
+    public async Task<ActionResult> AcceptGroupAsync(
+        [FromBody] GroupDuelAcceptRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new AcceptGroupDuelInvitationCommand
+        {
+            UserId = userContext.UserId,
+            GroupId = request.GroupId,
+            OpponentNickname = request.OpponentNickname,
+            ConfigurationId = request.ConfigurationId
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("group/cancel")]
+    public async Task<ActionResult> CancelGroupAsync(
+        [FromBody] GroupDuelInvitationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new CancelGroupDuelInvitationCommand
+        {
+            UserId = userContext.UserId,
+            GroupId = request.GroupId,
+            User1Id = request.User1Id,
+            User2Id = request.User2Id,
             ConfigurationId = request.ConfigurationId
         };
 

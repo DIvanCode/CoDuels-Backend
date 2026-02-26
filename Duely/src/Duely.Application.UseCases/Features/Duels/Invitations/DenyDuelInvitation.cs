@@ -1,15 +1,15 @@
 using Duely.Application.Services.Errors;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
-using Duely.Domain.Services.Duels;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace Duely.Application.UseCases.Features.Duels;
+namespace Duely.Application.UseCases.Features.Duels.Invitations;
 
 public sealed class DenyDuelInvitationCommand : IRequest<Result>
 {
@@ -18,48 +18,51 @@ public sealed class DenyDuelInvitationCommand : IRequest<Result>
     public int? ConfigurationId { get; init; }
 }
 
-public sealed class DenyDuelInvitationHandler(Context context, IDuelManager duelManager)
+public sealed class DenyDuelInvitationHandler(Context context)
     : IRequestHandler<DenyDuelInvitationCommand, Result>
 {
     public async Task<Result> Handle(DenyDuelInvitationCommand command, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
+        var user = await context.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
 
-        var inviter = await context.Users
+        var opponent = await context.Users
+            .AsNoTracking()
             .SingleOrDefaultAsync(u => u.Nickname == command.OpponentNickname, cancellationToken);
-        if (inviter is null)
+        if (opponent is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Nickname), command.OpponentNickname);
         }
 
-        if (inviter.Id == user.Id)
+        var friendlyPendingDuel = await context.PendingDuels.OfType<FriendlyPendingDuel>()
+            .Include(d => d.Configuration)
+            .SingleOrDefaultAsync(d =>
+                    d.User1.Id == opponent.Id && d.User2.Id == user.Id &&
+                    ((command.ConfigurationId == null && d.Configuration == null) ||
+                     (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)),
+                cancellationToken);
+        if (friendlyPendingDuel is null)
         {
-            return new ForbiddenError(nameof(User), "deny invitation", nameof(User.Id), user.Id);
+            return new EntityNotFoundError(nameof(FriendlyPendingDuel), nameof(User.Id), command.UserId);
         }
 
-        if (!duelManager.TryGetWaitingUser(inviter.Id, out var waitingUser) ||
-            waitingUser?.ExpectedOpponentId != user.Id ||
-            (command.ConfigurationId is not null && waitingUser.ConfigurationId != command.ConfigurationId))
-        {
-            return new EntityNotFoundError(nameof(User), "invitation from", inviter.Nickname);
-        }
-
-        duelManager.RemoveUser(inviter.Id);
+        context.PendingDuels.Remove(friendlyPendingDuel);
 
         context.OutboxMessages.Add(new OutboxMessage
         {
             Type = OutboxType.SendMessage,
             Payload = new SendMessagePayload
             {
-                UserId = inviter.Id,
+                UserId = opponent.Id,
                 Message = new DuelInvitationDeniedMessage
                 {
                     OpponentNickname = user.Nickname,
-                    ConfigurationId = waitingUser.ConfigurationId
+                    ConfigurationId = command.ConfigurationId
                 }
             },
             RetryUntil = DateTime.UtcNow.AddMinutes(5)

@@ -19,10 +19,5 @@ public sealed class RankedPendingDuelsConfiguration : IEntityTypeConfiguration<R
             .HasColumnName("Rating")
             .HasColumnType("integer")
             .IsRequired();
-
-        builder.Property(d => d.EnqueuedAt)
-            .HasColumnName("EnqueuedAt")
-            .HasColumnType("timestamp")
-            .IsRequired();
     }
 }

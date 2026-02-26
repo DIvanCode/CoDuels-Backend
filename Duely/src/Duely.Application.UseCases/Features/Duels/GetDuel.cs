@@ -21,6 +21,7 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
     public async Task<Result<DuelDto>> Handle(GetDuelQuery query, CancellationToken cancellationToken)
     {
         var duel = await context.Duels
+            .AsNoTracking()
             .Where(d => d.Id == query.DuelId)
             .Include(d => d.Configuration)
             .Include(d => d.User1)

@@ -28,6 +28,11 @@ public sealed class PendingDuelsConfiguration : IEntityTypeConfiguration<Pending
             .HasConversion<string>()
             .IsRequired();
 
+        builder.Property(d => d.CreatedAt)
+            .HasColumnName("CreatedAt")
+            .HasColumnType("timestamp")
+            .IsRequired();
+
         builder.UseTphMappingStrategy();
     }
 }

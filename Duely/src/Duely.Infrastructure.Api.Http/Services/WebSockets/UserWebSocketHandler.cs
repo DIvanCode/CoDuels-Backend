@@ -4,7 +4,7 @@ using Duely.Domain.Models;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
-using Duely.Domain.Services.Duels;
+using Duely.Domain.Models.Duels.Pending;
 using Duely.Infrastructure.Api.Http.Events;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
@@ -17,6 +17,7 @@ using Microsoft.Extensions.Options;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using Duely.Application.UseCases.Features.Duels.Search;
 
 namespace Duely.Infrastructure.Api.Http.Services.WebSockets;
 
@@ -27,7 +28,6 @@ public interface IUserWebSocketHandler
 
 public sealed class UserWebSocketHandler(
     Context context,
-    IDuelManager duelManager,
     IMediator mediator,
     IWebSocketConnectionManager webSocketConnections,
     IOptions<WebSocketConnectionOptions> webSocketOptions,
@@ -234,19 +234,18 @@ public sealed class UserWebSocketHandler(
             return new EntityNotFoundError(nameof(User), nameof(User.Id), userId);
         }
 
-        if (!duelManager.TryGetWaitingUser(user.Id, out var waitingUser) || waitingUser?.ExpectedOpponentId is null)
+        var invitation = await context.PendingDuels
+            .OfType<FriendlyPendingDuel>()
+            .Include(p => p.User2)
+            .Include(p => p.Configuration)
+            .SingleOrDefaultAsync(p => p.User1.Id == user.Id && !p.IsAccepted, cancellationToken);
+        if (invitation is null)
         {
             return Result.Ok();
         }
 
-        duelManager.RemoveUser(user.Id);
-
-        var opponent = await context.Users
-            .SingleOrDefaultAsync(u => u.Id == waitingUser.ExpectedOpponentId.Value, cancellationToken);
-        if (opponent is null)
-        {
-            return Result.Ok();
-        }
+        context.PendingDuels.Remove(invitation);
+        var opponent = invitation.User2;
 
         context.OutboxMessages.AddRange(
             new OutboxMessage
@@ -258,7 +257,7 @@ public sealed class UserWebSocketHandler(
                     Message = new DuelInvitationCanceledMessage
                     {
                         OpponentNickname = user.Nickname,
-                        ConfigurationId = waitingUser.ConfigurationId
+                        ConfigurationId = invitation.Configuration?.Id
                     }
                 },
                 RetryUntil = DateTime.UtcNow.AddMinutes(5)
@@ -272,7 +271,7 @@ public sealed class UserWebSocketHandler(
                     Message = new DuelInvitationCanceledMessage
                     {
                         OpponentNickname = opponent.Nickname,
-                        ConfigurationId = waitingUser.ConfigurationId
+                        ConfigurationId = invitation.Configuration?.Id
                     }
                 },
                 RetryUntil = DateTime.UtcNow.AddMinutes(5)

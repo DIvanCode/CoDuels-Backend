@@ -1,15 +1,15 @@
 using Duely.Application.Services.Errors;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
-using Duely.Domain.Services.Duels;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace Duely.Application.UseCases.Features.Duels;
+namespace Duely.Application.UseCases.Features.Duels.Invitations;
 
 public sealed class CancelDuelInvitationCommand : IRequest<Result>
 {
@@ -18,17 +18,19 @@ public sealed class CancelDuelInvitationCommand : IRequest<Result>
     public int? ConfigurationId { get; init; }
 }
 
-public sealed class CancelDuelInvitationHandler(Context context, IDuelManager duelManager)
+public sealed class CancelDuelInvitationHandler(Context context)
     : IRequestHandler<CancelDuelInvitationCommand, Result>
 {
     public async Task<Result> Handle(CancelDuelInvitationCommand command, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
+        var user = await context.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
-
+        
         var opponent = await context.Users
             .SingleOrDefaultAsync(u => u.Nickname == command.OpponentNickname, cancellationToken);
         if (opponent is null)
@@ -36,19 +38,19 @@ public sealed class CancelDuelInvitationHandler(Context context, IDuelManager du
             return new EntityNotFoundError(nameof(User), nameof(User.Nickname), command.OpponentNickname);
         }
 
-        if (opponent.Id == user.Id)
-        {
-            return new ForbiddenError(nameof(User), "cancel invitation", nameof(User.Id), user.Id);
-        }
-
-        if (!duelManager.TryGetWaitingUser(user.Id, out var waitingUser) ||
-            waitingUser?.ExpectedOpponentId != opponent.Id ||
-            (command.ConfigurationId is not null && waitingUser.ConfigurationId != command.ConfigurationId))
+        var friendlyPendingDuel = await context.PendingDuels.OfType<FriendlyPendingDuel>()
+            .Include(d => d.Configuration)
+            .SingleOrDefaultAsync(d =>
+                    d.User1.Id == user.Id && d.User2.Id == opponent.Id &&
+                    ((command.ConfigurationId == null && d.Configuration == null) ||
+                     (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)),
+                cancellationToken);
+        if (friendlyPendingDuel is null)
         {
             return Result.Ok();
         }
 
-        duelManager.RemoveUser(user.Id);
+        context.PendingDuels.Remove(friendlyPendingDuel);
 
         context.OutboxMessages.AddRange(
             new OutboxMessage
@@ -60,7 +62,7 @@ public sealed class CancelDuelInvitationHandler(Context context, IDuelManager du
                     Message = new DuelInvitationCanceledMessage
                     {
                         OpponentNickname = user.Nickname,
-                        ConfigurationId = waitingUser.ConfigurationId
+                        ConfigurationId = command.ConfigurationId
                     }
                 },
                 RetryUntil = DateTime.UtcNow.AddMinutes(5)
@@ -74,7 +76,7 @@ public sealed class CancelDuelInvitationHandler(Context context, IDuelManager du
                     Message = new DuelInvitationCanceledMessage
                     {
                         OpponentNickname = opponent.Nickname,
-                        ConfigurationId = waitingUser.ConfigurationId
+                        ConfigurationId = command.ConfigurationId
                     }
                 },
                 RetryUntil = DateTime.UtcNow.AddMinutes(5)

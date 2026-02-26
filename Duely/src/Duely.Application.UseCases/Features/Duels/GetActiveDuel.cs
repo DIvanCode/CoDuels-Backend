@@ -4,6 +4,7 @@ using MediatR;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using Duely.Application.UseCases.Dtos;
+using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
 using Duely.Domain.Services.Duels;
 
@@ -20,7 +21,9 @@ public sealed class GetActiveDuelHandler(Context context, IRatingManager ratingM
     public async Task<Result<DuelDto>> Handle(GetActiveDuelQuery query, CancellationToken cancellationToken)
     {
         var duel = await context.Duels
-            .Where(d => d.Status == DuelStatus.InProgress && 
+            .AsNoTracking()
+            .Where(d =>
+                d.Status == DuelStatus.InProgress &&
                 (d.User1.Id == query.UserId || d.User2.Id == query.UserId))
             .Include(d => d.Configuration)
             .Include(d => d.User1)
@@ -31,7 +34,7 @@ public sealed class GetActiveDuelHandler(Context context, IRatingManager ratingM
             .SingleOrDefaultAsync(cancellationToken);
         if (duel is null)
         {
-            return new EntityNotFoundError($"Active duel for user {query.UserId} not found");
+            return new EntityNotFoundError(nameof(Duel), nameof(User.Id), query.UserId);
         }
 
         var winnerId = duel.Winner?.Id;
@@ -46,6 +49,7 @@ public sealed class GetActiveDuelHandler(Context context, IRatingManager ratingM
         var solutions = MapSolutions(
             duel.User1.Id == query.UserId ? duel.User1Solutions : duel.User2Solutions,
             visibleTasks.Keys);
+        
         Dictionary<char, DuelTaskSolutionDto>? opponentSolutions = null;
         if (duel.Configuration.ShouldShowOpponentSolution)
         {
