@@ -6,4 +6,5 @@ public sealed class Group
     public required string Name { get; set; }
 
     public List<GroupMembership> Users { get; } = [];
+    public List<GroupDuel> Duels { get; } = [];
 }

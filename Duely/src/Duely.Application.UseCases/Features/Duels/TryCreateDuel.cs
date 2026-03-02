@@ -10,6 +10,7 @@ using Duely.Domain.Models.Messages;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Groups;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
 using Microsoft.Extensions.Logging;
@@ -34,21 +35,20 @@ public sealed class TryCreateDuelHandler(
     {
         var pendingDuels = new List<PendingDuel>();
         
-        pendingDuels.AddRange(await context.PendingDuels
-            .OfType<RankedPendingDuel>()
-            .Include(p => p.User)
+        pendingDuels.AddRange(await context.PendingDuels.OfType<RankedPendingDuel>()
+            .Include(d => d.User)
             .ToListAsync(cancellationToken));
-        pendingDuels.AddRange(await context.PendingDuels
-            .OfType<FriendlyPendingDuel>()
-            .Include(p => p.User1)
-            .Include(p => p.User2)
-            .Include(p => p.Configuration)
+        pendingDuels.AddRange(await context.PendingDuels.OfType<FriendlyPendingDuel>()
+            .Include(d => d.User1)
+            .Include(d => d.User2)
+            .Include(d => d.Configuration)
             .ToListAsync(cancellationToken));
-        pendingDuels.AddRange(await context.PendingDuels
-            .OfType<GroupPendingDuel>()
-            .Include(p => p.User1)
-            .Include(p => p.User2)
-            .Include(p => p.Configuration)
+        pendingDuels.AddRange(await context.PendingDuels.OfType<GroupPendingDuel>()
+            .Include(d => d.User1)
+            .Include(d => d.User2)
+            .Include(d => d.Configuration)
+            .Include(d => d.Group)
+            .Include(d => d.CreatedBy)
             .ToListAsync(cancellationToken));
 
         var pairs = duelManager.GetPairs(pendingDuels).ToList();
@@ -109,12 +109,19 @@ public sealed class TryCreateDuelHandler(
                 User2InitRating = pair.User2.Rating,
             };
 
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-
             context.PendingDuels.RemoveRange(pair.UsedPendingDuels);
             context.Duels.Add(duel);
-            
-            await context.SaveChangesAsync(cancellationToken);
+
+            var groupPendingDuel = pair.UsedPendingDuels.OfType<GroupPendingDuel>().SingleOrDefault();
+            if (groupPendingDuel is not null)
+            {
+                context.Add(new GroupDuel
+                {
+                    Group = groupPendingDuel.Group,
+                    Duel = duel,
+                    CreatedBy = groupPendingDuel.CreatedBy
+                });
+            }
 
             var retryUntil = duel.DeadlineTime.AddMinutes(5);
 
@@ -146,13 +153,11 @@ public sealed class TryCreateDuelHandler(
                 RetryUntil = retryUntil
             });
 
-            await context.SaveChangesAsync(cancellationToken);
-
-            await transaction.CommitAsync(cancellationToken);
-
             logger.LogInformation("Duel started. DuelId = {DuelId}, Users = {User1}, {User2}, Deadline = {Deadline}",
                 duel.Id, duel.User1.Id, duel.User2.Id, duel.DeadlineTime);
         }
+        
+        await context.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();
     }

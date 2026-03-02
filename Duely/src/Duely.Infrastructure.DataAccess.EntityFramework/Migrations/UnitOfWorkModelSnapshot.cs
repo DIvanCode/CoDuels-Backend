@@ -250,6 +250,26 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("Groups", (string)null);
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.Groups.GroupDuel", b =>
+                {
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DuelId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CreatedById")
+                        .HasColumnType("integer");
+
+                    b.HasKey("GroupId", "DuelId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("DuelId");
+
+                    b.ToTable("GroupDuels", (string)null);
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.Groups.GroupMembership", b =>
                 {
                     b.Property<int>("UserId")
@@ -576,6 +596,33 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Navigation("Owner");
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.Groups.GroupDuel", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.Duels.Duel", "Duel")
+                        .WithMany()
+                        .HasForeignKey("DuelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.Groups.Group", "Group")
+                        .WithMany("Duels")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Duel");
+
+                    b.Navigation("Group");
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.Groups.GroupMembership", b =>
                 {
                     b.HasOne("Duely.Domain.Models.Groups.Group", "Group")
@@ -705,6 +752,8 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
             modelBuilder.Entity("Duely.Domain.Models.Groups.Group", b =>
                 {
+                    b.Navigation("Duels");
+
                     b.Navigation("Users");
                 });
 

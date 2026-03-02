@@ -1,4 +1,5 @@
 using Duely.Application.UseCases.Dtos;
+using Duely.Application.UseCases.Features.Duels;
 using Duely.Application.UseCases.Features.Groups;
 using Duely.Infrastructure.Api.Http.Requests.Groups;
 using Duely.Infrastructure.Api.Http.Services;
@@ -134,6 +135,21 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         };
 
         var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpGet("{id:int}/duels")]
+    public async Task<ActionResult<List<GroupDuelDto>>> GetGroupDuelsAsync(
+        [FromRoute] int id,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetGroupDuelsQuery
+        {
+            UserId = userContext.UserId,
+            GroupId = id
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
         return this.HandleResult(result);
     }
 }

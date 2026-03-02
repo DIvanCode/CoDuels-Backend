@@ -132,7 +132,6 @@ public sealed class CreateDuelInvitationHandler(Context context)
         if (command.ConfigurationId is not null)
         {
             configuration = await context.DuelConfigurations
-                .AsNoTracking()
                 .SingleOrDefaultAsync(c => c.Id == command.ConfigurationId, cancellationToken);
             if (configuration is null)
             {

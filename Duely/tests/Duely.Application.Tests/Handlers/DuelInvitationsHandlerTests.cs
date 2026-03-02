@@ -1,5 +1,4 @@
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Features.Duels;
 using Duely.Application.UseCases.Features.Duels.Invitations;
 using Duely.Domain.Models.Duels.Pending;
 using FluentAssertions;
@@ -9,7 +8,7 @@ namespace Duely.Application.Tests.Handlers;
 public class DuelInvitationsHandlerTests : ContextBasedTest
 {
     [Fact]
-    public async Task Get_incoming_invitations_returns_waiting_users()
+    public async Task Get_incoming_ranked_invitations_returns_waiting_users()
     {
         var ctx = Context;
 
@@ -52,14 +51,12 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
         res.Value[1].OpponentNickname.Should().Be(u3.Nickname);
         res.Value[0].ConfigurationId.Should().BeNull();
         res.Value[1].ConfigurationId.Should().BeNull();
-        res.Value[0].Type.Should().Be(PendingDuelType.Friendly);
-        res.Value[1].Type.Should().Be(PendingDuelType.Friendly);
         res.Value[0].CreatedAt.Should().Be(createdAt1);
         res.Value[1].CreatedAt.Should().Be(createdAt2);
     }
 
     [Fact]
-    public async Task Get_incoming_invitations_skips_accepted()
+    public async Task Get_incoming_ranked_invitations_skips_accepted()
     {
         var ctx = Context;
 
@@ -88,7 +85,7 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Get_incoming_invitations_returns_group_pending_from_pending_duels()
+    public async Task Get_incoming_group_invitations_returns_group_pending_from_pending_duels()
     {
         var ctx = Context;
 
@@ -109,19 +106,18 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
         });
         await ctx.SaveChangesAsync();
 
-        var handler = new GetIncomingDuelInvitationsHandler(ctx);
-        var res = await handler.Handle(new GetIncomingDuelInvitationsQuery
+        var handler = new GetIncomingGroupDuelInvitationsHandler(ctx);
+        var res = await handler.Handle(new GetIncomingGroupDuelInvitationsQuery
         {
             UserId = u1.Id
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Should().ContainSingle();
-        res.Value[0].Type.Should().Be(PendingDuelType.Group);
     }
 
     [Fact]
-    public async Task Get_incoming_invitations_skips_group_already_accepted_by_user()
+    public async Task Get_incoming_group_invitations_skips_group_already_accepted_by_user()
     {
         var ctx = Context;
 
@@ -142,8 +138,8 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
         });
         await ctx.SaveChangesAsync();
 
-        var handler = new GetIncomingDuelInvitationsHandler(ctx);
-        var res = await handler.Handle(new GetIncomingDuelInvitationsQuery
+        var handler = new GetIncomingGroupDuelInvitationsHandler(ctx);
+        var res = await handler.Handle(new GetIncomingGroupDuelInvitationsQuery
         {
             UserId = u1.Id
         }, CancellationToken.None);
@@ -153,7 +149,7 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Get_incoming_invitations_returns_group_pending_for_second_user()
+    public async Task Get_incoming_group_invitations_returns_group_pending_for_second_user()
     {
         var ctx = Context;
 
@@ -174,8 +170,8 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
         });
         await ctx.SaveChangesAsync();
 
-        var handler = new GetIncomingDuelInvitationsHandler(ctx);
-        var res = await handler.Handle(new GetIncomingDuelInvitationsQuery
+        var handler = new GetIncomingGroupDuelInvitationsHandler(ctx);
+        var res = await handler.Handle(new GetIncomingGroupDuelInvitationsQuery
         {
             UserId = u2.Id
         }, CancellationToken.None);
@@ -183,6 +179,5 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
         res.IsSuccess.Should().BeTrue();
         res.Value.Should().ContainSingle();
         res.Value[0].OpponentNickname.Should().Be(u1.Nickname);
-        res.Value[0].Type.Should().Be(PendingDuelType.Group);
     }
 }

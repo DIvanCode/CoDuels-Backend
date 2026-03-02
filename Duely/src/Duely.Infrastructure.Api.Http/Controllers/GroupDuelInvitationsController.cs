@@ -9,15 +9,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace Duely.Infrastructure.Api.Http.Controllers;
 
 [ApiController]
-[Route("duels/invitations")]
+[Route("duels/group/invitations")]
 [Authorize]
-public sealed class DuelInvitationsController(IMediator mediator, IUserContext userContext) : ControllerBase
+public sealed class GroupDuelInvitationsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<DuelInvitationDto>>> GetIncomingAsync(
+    public async Task<ActionResult<List<GroupDuelInvitationDto>>> GetIncomingAsync(
         CancellationToken cancellationToken)
     {
-        var query = new GetIncomingDuelInvitationsQuery
+        var query = new GetIncomingGroupDuelInvitationsQuery
         {
             UserId = userContext.UserId
         };
@@ -28,12 +28,31 @@ public sealed class DuelInvitationsController(IMediator mediator, IUserContext u
 
     [HttpPost]
     public async Task<ActionResult> CreateAsync(
-        [FromBody] DuelInvitationRequest request,
+        [FromBody] GroupDuelInvitationRequest request,
         CancellationToken cancellationToken)
     {
-        var command = new CreateDuelInvitationCommand
+        var command = new CreateGroupDuelInvitationCommand
         {
             UserId = userContext.UserId,
+            GroupId = request.GroupId,
+            User1Id = request.User1Id,
+            User2Id = request.User2Id,
+            ConfigurationId = request.ConfigurationId
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("accept")]
+    public async Task<ActionResult> AcceptAsync(
+        [FromBody] GroupDuelAcceptRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new AcceptGroupDuelInvitationCommand
+        {
+            UserId = userContext.UserId,
+            GroupId = request.GroupId,
             OpponentNickname = request.OpponentNickname,
             ConfigurationId = request.ConfigurationId
         };
@@ -44,45 +63,15 @@ public sealed class DuelInvitationsController(IMediator mediator, IUserContext u
 
     [HttpPost("cancel")]
     public async Task<ActionResult> CancelAsync(
-        [FromBody] DuelInvitationRequest request,
+        [FromBody] GroupDuelInvitationRequest request,
         CancellationToken cancellationToken)
     {
-        var command = new CancelDuelInvitationCommand
+        var command = new CancelGroupDuelInvitationCommand
         {
             UserId = userContext.UserId,
-            OpponentNickname = request.OpponentNickname,
-            ConfigurationId = request.ConfigurationId
-        };
-
-        var result = await mediator.Send(command, cancellationToken);
-        return this.HandleResult(result);
-    }
-
-    [HttpPost("accept")]
-    public async Task<ActionResult> AcceptAsync(
-        [FromBody] DuelInvitationRequest request,
-        CancellationToken cancellationToken)
-    {
-        var command = new AcceptDuelInvitationCommand
-        {
-            UserId = userContext.UserId,
-            OpponentNickname = request.OpponentNickname,
-            ConfigurationId = request.ConfigurationId
-        };
-
-        var result = await mediator.Send(command, cancellationToken);
-        return this.HandleResult(result);
-    }
-
-    [HttpPost("deny")]
-    public async Task<ActionResult> DenyAsync(
-        [FromBody] DuelInvitationRequest request,
-        CancellationToken cancellationToken)
-    {
-        var command = new DenyDuelInvitationCommand
-        {
-            UserId = userContext.UserId,
-            OpponentNickname = request.OpponentNickname,
+            GroupId = request.GroupId,
+            User1Id = request.User1Id,
+            User2Id = request.User2Id,
             ConfigurationId = request.ConfigurationId
         };
 

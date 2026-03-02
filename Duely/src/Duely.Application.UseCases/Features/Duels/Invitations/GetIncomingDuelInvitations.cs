@@ -19,7 +19,7 @@ public sealed class GetIncomingDuelInvitationsHandler(Context context)
         GetIncomingDuelInvitationsQuery query,
         CancellationToken cancellationToken)
     {
-        var friendlyPendingDuels = await context.PendingDuels.OfType<FriendlyPendingDuel>()
+        return await context.PendingDuels.OfType<FriendlyPendingDuel>()
             .AsNoTracking()
             .Include(d => d.User1)
             .Include(d => d.Configuration)
@@ -27,28 +27,10 @@ public sealed class GetIncomingDuelInvitationsHandler(Context context)
             .OrderBy(d => d.Id)
             .Select(d => new DuelInvitationDto
             {
-                Type = PendingDuelType.Friendly,
-                OpponentNickname = d.User1.Nickname,
-                ConfigurationId = d.Configuration != null ? d.Configuration.Id : null,
-                CreatedAt = d.CreatedAt
-            })
-            .ToListAsync(cancellationToken);
-        var groupPendingDuels = await context.PendingDuels.OfType<GroupPendingDuel>()
-            .AsNoTracking()
-            .Include(d => d.User1)
-            .Include(d => d.User2)
-            .Where(d =>
-                (d.User1.Id == query.UserId && !d.IsAcceptedByUser1) ||
-                (d.User2.Id == query.UserId && !d.IsAcceptedByUser2))
-            .OrderBy(d => d.Id)
-            .Select(d => new DuelInvitationDto
-            {
-                Type = PendingDuelType.Group,
                 OpponentNickname = d.User1.Id == query.UserId ? d.User2.Nickname : d.User1.Nickname,
                 ConfigurationId = d.Configuration != null ? d.Configuration.Id : null,
                 CreatedAt = d.CreatedAt
             })
             .ToListAsync(cancellationToken);
-        return friendlyPendingDuels.Concat(groupPendingDuels).ToList();
     }
 }

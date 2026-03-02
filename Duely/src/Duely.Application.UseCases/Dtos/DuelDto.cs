@@ -18,7 +18,7 @@ public sealed class DuelDto
     public required UserDto[] Participants { get; init; }
 
     [JsonPropertyName("winner_id")]
-    public int? WinnerId { get; set; }
+    public int? WinnerId { get; init; }
 
     [JsonPropertyName("status"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required DuelStatus Status { get; init; }

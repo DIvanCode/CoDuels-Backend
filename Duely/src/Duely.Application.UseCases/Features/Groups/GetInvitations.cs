@@ -31,6 +31,6 @@ public sealed class GetGroupInvitationsHandler(Context context)
                 GroupName = m.Group.Name,
                 Role = m.Role
             })
-            .ToList();;
+            .ToList();
     }
 }

@@ -2,8 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace Duely.Application.UseCases.Dtos;
 
-public class DuelInvitationDto
+public sealed class GroupDuelInvitationDto
 {
+    [JsonPropertyName("group")]
+    public required GroupDto Group { get; init; }
+
     [JsonPropertyName("opponent_nickname")]
     public required string OpponentNickname { get; init; }
 
