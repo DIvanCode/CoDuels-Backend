@@ -1,5 +1,5 @@
 ﻿using Duely.Application.UseCases.Dtos;
-using Duely.Application.UseCases.Features.Duels;
+using Duely.Application.UseCases.Features.Duels.Invitations;
 using Duely.Infrastructure.Api.Http.Requests.DuelInvitations;
 using Duely.Infrastructure.Api.Http.Services;
 using MediatR;
@@ -14,7 +14,8 @@ namespace Duely.Infrastructure.Api.Http.Controllers;
 public sealed class DuelInvitationsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<DuelInvitationDto>>> GetIncomingAsync(CancellationToken cancellationToken)
+    public async Task<ActionResult<List<DuelInvitationDto>>> GetIncomingAsync(
+        CancellationToken cancellationToken)
     {
         var query = new GetIncomingDuelInvitationsQuery
         {

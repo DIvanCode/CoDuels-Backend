@@ -1,5 +1,6 @@
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Features.Duels;
+using Duely.Application.UseCases.Features.Duels.Search;
 using Duely.Infrastructure.Api.Http.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -67,10 +68,10 @@ public sealed class DuelsController(
         return this.HandleResult(result);
     }
 
-    [HttpPost("search/cancel")]
-    public async Task<ActionResult> CancelSearchAsync(CancellationToken cancellationToken)
+    [HttpPost("cancel")]
+    public async Task<ActionResult> CancelPendingAsync(CancellationToken cancellationToken)
     {
-        var command = new CancelDuelSearchCommand
+        var command = new CancelPendingDuelsCommand
         {
             UserId = userContext.UserId
         };

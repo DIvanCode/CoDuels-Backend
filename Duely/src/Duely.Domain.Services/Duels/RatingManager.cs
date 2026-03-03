@@ -1,4 +1,4 @@
-using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Microsoft.Extensions.Options;
 
 namespace Duely.Domain.Services.Duels;

@@ -1,5 +1,6 @@
 using Duely.Application.Services;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Infrastructure.Gateway.Exesh.Abstracts;
 using FluentAssertions;
 

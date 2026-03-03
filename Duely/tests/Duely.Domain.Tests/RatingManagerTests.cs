@@ -1,4 +1,5 @@
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.Extensions.Options;

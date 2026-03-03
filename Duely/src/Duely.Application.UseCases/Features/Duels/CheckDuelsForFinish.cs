@@ -1,5 +1,6 @@
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Messages;
 using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Services.Duels;

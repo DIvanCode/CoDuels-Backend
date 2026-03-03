@@ -1,4 +1,6 @@
 ﻿using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
+
 namespace Duely.Domain.Services.Duels;
 
 public interface ITaskService

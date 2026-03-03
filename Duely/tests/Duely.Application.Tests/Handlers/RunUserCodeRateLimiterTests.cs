@@ -1,6 +1,7 @@
 using Duely.Application.Services.RateLimiting;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 

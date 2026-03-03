@@ -1,5 +1,5 @@
 using Duely.Application.Services.Errors;
-using Duely.Domain.Models;
+using Duely.Domain.Models.Groups;
 using Duely.Domain.Services.Groups;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;

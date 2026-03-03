@@ -1,6 +1,7 @@
 using Duely.Application.Services.Outbox.Handlers;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Infrastructure.Gateway.Exesh.Abstracts;

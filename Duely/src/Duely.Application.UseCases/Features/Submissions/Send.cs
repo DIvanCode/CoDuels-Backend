@@ -4,12 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using MediatR;
 using FluentResults;
 using Duely.Application.UseCases.Dtos;
-using System.Text.Json;
 using Duely.Application.Services.Errors;
 using Duely.Application.Services.RateLimiting;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
-using Microsoft.Extensions.Logging;
 using Duely.Domain.Services.Duels;
 
 namespace Duely.Application.UseCases.Features.Submissions;

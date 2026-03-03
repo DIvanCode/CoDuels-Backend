@@ -2,6 +2,7 @@ using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Moq;

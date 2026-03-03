@@ -3,6 +3,7 @@ using Duely.Application.Services.RateLimiting;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Submissions;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Services.Duels;

@@ -1,5 +1,5 @@
 using System.Net.Http.Json;
-using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentResults;
 using Microsoft.Extensions.Logging;

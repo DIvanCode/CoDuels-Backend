@@ -1,11 +1,11 @@
 using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
-using Duely.Domain.Models;
+using Duely.Application.UseCases.Features.Duels.Invitations;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
-using Duely.Domain.Services.Duels;
+using Duely.Domain.Models.Duels.Pending;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +19,7 @@ public class DenyDuelInvitationHandlerTests : ContextBasedTest
     [Fact]
     public async Task NotFound_when_user_missing()
     {
-        var handler = new DenyDuelInvitationHandler(Context, new DuelManager());
+        var handler = new DenyDuelInvitationHandler(Context);
 
         var res = await handler.Handle(new DenyDuelInvitationCommand
         {
@@ -39,7 +39,7 @@ public class DenyDuelInvitationHandlerTests : ContextBasedTest
         ctx.Users.Add(u1);
         await ctx.SaveChangesAsync();
 
-        var handler = new DenyDuelInvitationHandler(ctx, new DuelManager());
+        var handler = new DenyDuelInvitationHandler(ctx);
 
         var res = await handler.Handle(new DenyDuelInvitationCommand
         {
@@ -60,8 +60,7 @@ public class DenyDuelInvitationHandlerTests : ContextBasedTest
         ctx.Users.AddRange(u1, u2);
         await ctx.SaveChangesAsync();
 
-        var duelManager = new DuelManager();
-        var handler = new DenyDuelInvitationHandler(ctx, duelManager);
+        var handler = new DenyDuelInvitationHandler(ctx);
 
         var res = await handler.Handle(new DenyDuelInvitationCommand
         {
@@ -80,12 +79,18 @@ public class DenyDuelInvitationHandlerTests : ContextBasedTest
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
         ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.Add(new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = u2,
+            User2 = u1,
+            Configuration = null,
+            IsAccepted = false,
+            CreatedAt = DateTime.UtcNow
+        });
         await ctx.SaveChangesAsync();
 
-        var duelManager = new DuelManager();
-        duelManager.AddUser(u2.Id, u2.Rating, DateTime.UtcNow, expectedOpponentId: u1.Id);
-
-        var handler = new DenyDuelInvitationHandler(ctx, duelManager);
+        var handler = new DenyDuelInvitationHandler(ctx);
 
         var res = await handler.Handle(new DenyDuelInvitationCommand
         {
@@ -94,7 +99,7 @@ public class DenyDuelInvitationHandlerTests : ContextBasedTest
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        duelManager.GetWaitingUsers().Should().BeEmpty();
+        ctx.PendingDuels.OfType<FriendlyPendingDuel>().Should().BeEmpty();
 
         var outboxMessage = await ctx.OutboxMessages.AsNoTracking().SingleAsync();
         outboxMessage.Type.Should().Be(OutboxType.SendMessage);

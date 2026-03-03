@@ -1,5 +1,6 @@
 using Duely.Application.UseCases.Features.DuelConfigurations;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using FluentAssertions;
 
 namespace Duely.Application.Tests.Validators;

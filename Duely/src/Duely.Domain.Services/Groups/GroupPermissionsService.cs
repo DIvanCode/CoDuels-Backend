@@ -1,4 +1,5 @@
 ﻿using Duely.Domain.Models;
+using Duely.Domain.Models.Groups;
 
 namespace Duely.Domain.Services.Groups;
 
@@ -10,6 +11,8 @@ public interface IGroupPermissionsService
     bool CanChangeRole(GroupMembership actor, GroupMembership target, GroupRole targetRole);
     bool CanExclude(GroupMembership actor, GroupRole targetRole);
     bool CanLeave(GroupMembership membership);
+    bool CanCreateDuel(GroupMembership membership);
+    bool CanCancelDuel(GroupMembership membership);
 }
 
 public sealed class GroupPermissionsService : IGroupPermissionsService
@@ -74,5 +77,15 @@ public sealed class GroupPermissionsService : IGroupPermissionsService
     public bool CanLeave(GroupMembership membership)
     {
         return membership.InvitationPending is false;
+    }
+
+    public bool CanCreateDuel(GroupMembership membership)
+    {
+        return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
+    }
+
+    public bool CanCancelDuel(GroupMembership membership)
+    {
+        return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
     }
 }

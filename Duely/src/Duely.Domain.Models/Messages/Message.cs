@@ -8,14 +8,15 @@ public enum MessageType
     DuelFinished = 1,
     DuelChanged = 2,
     OpponentSolutionUpdated = 4,
-    DuelSearchCanceled = 5,
     DuelInvitation = 6,
     DuelInvitationCanceled = 7,
     DuelInvitationDenied = 8,
     SubmissionStatusUpdated = 9,
     CodeRunStatusUpdated = 10,
     GroupInvitation = 11,
-    GroupInvitationCanceled = 12
+    GroupInvitationCanceled = 12,
+    GroupDuelInvitation = 13,
+    GroupDuelInvitationCanceled = 14,
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
@@ -23,7 +24,6 @@ public enum MessageType
 [JsonDerivedType(typeof(DuelFinishedMessage), nameof(MessageType.DuelFinished))]
 [JsonDerivedType(typeof(DuelChangedMessage), nameof(MessageType.DuelChanged))]
 [JsonDerivedType(typeof(OpponentSolutionUpdatedMessage), nameof(MessageType.OpponentSolutionUpdated))]
-[JsonDerivedType(typeof(DuelSearchCanceledMessage), nameof(MessageType.DuelSearchCanceled))]
 [JsonDerivedType(typeof(DuelInvitationMessage), nameof(MessageType.DuelInvitation))]
 [JsonDerivedType(typeof(DuelInvitationCanceledMessage), nameof(MessageType.DuelInvitationCanceled))]
 [JsonDerivedType(typeof(DuelInvitationDeniedMessage), nameof(MessageType.DuelInvitationDenied))]
@@ -31,4 +31,7 @@ public enum MessageType
 [JsonDerivedType(typeof(CodeRunStatusUpdatedMessage), nameof(MessageType.CodeRunStatusUpdated))]
 [JsonDerivedType(typeof(GroupInvitationMessage), nameof(MessageType.GroupInvitation))]
 [JsonDerivedType(typeof(GroupInvitationCanceledMessage), nameof(MessageType.GroupInvitationCanceled))]
+[JsonDerivedType(typeof(GroupDuelInvitationMessage), nameof(MessageType.GroupDuelInvitation))]
+[JsonDerivedType(typeof(GroupDuelInvitationCanceledMessage), nameof(MessageType.GroupDuelInvitationCanceled))]
+
 public abstract class Message;

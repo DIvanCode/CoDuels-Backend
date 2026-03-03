@@ -1,3 +1,5 @@
+using Duely.Domain.Models.Duels;
+
 namespace Duely.Domain.Models;
 
 public sealed class CodeRun

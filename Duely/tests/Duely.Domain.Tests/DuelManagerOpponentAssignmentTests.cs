@@ -1,3 +1,5 @@
+using Duely.Domain.Models;
+using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Xunit;
@@ -6,22 +8,39 @@ namespace Duely.Domain.Tests;
 
 public class DuelManagerOpponentAssignmentTests
 {
+    private static User MakeUser(int id, int rating)
+    {
+        return new User
+        {
+            Id = id,
+            Nickname = $"u{id}",
+            PasswordHash = "hash",
+            PasswordSalt = "salt",
+            Rating = rating,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
+
     [Fact]
-    public void RemoveUser_ClearsOpponentAssignedFlag()
+    public void UsedPendingDuels_are_reported_in_pair()
     {
         var manager = new DuelManager();
-        var now = DateTime.UtcNow;
+        var u1 = MakeUser(1, 1500);
+        var u2 = MakeUser(2, 1500);
 
-        manager.AddUser(1, 1500, now.AddSeconds(-5), expectedOpponentId: 2);
-        manager.AddUser(2, 1500, now.AddSeconds(-4), expectedOpponentId: 1);
+        var pending = new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = u1,
+            User2 = u2,
+            Configuration = null,
+            IsAccepted = true,
+            CreatedAt = DateTime.UtcNow
+        };
 
-        var before = manager.GetWaitingUsers();
-        before.Should().ContainSingle(u => u.UserId == 1 && u.IsOpponentAssigned);
-        before.Should().ContainSingle(u => u.UserId == 2 && u.IsOpponentAssigned);
+        var pairs = manager.GetPairs(new List<PendingDuel> { pending }).ToList();
 
-        manager.RemoveUser(1);
-
-        var after = manager.GetWaitingUsers();
-        after.Should().ContainSingle(u => u.UserId == 2 && !u.IsOpponentAssigned);
+        pairs.Should().HaveCount(1);
+        pairs[0].UsedPendingDuels.Should().ContainSingle().Which.Should().BeSameAs(pending);
     }
 }

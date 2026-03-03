@@ -1,17 +1,8 @@
-using Duely.Application.Services.Errors;
 using Duely.Application.UseCases.Features.Duels;
-using Duely.Domain.Models;
-using Duely.Domain.Models.Messages;
-using Duely.Domain.Models.Outbox;
-using Duely.Domain.Models.Outbox.Payloads;
-using Duely.Domain.Services.Duels;
 using Duely.Infrastructure.Api.Http.Events;
-using Duely.Infrastructure.DataAccess.EntityFramework;
-using FluentResults;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.WebSockets;
@@ -26,8 +17,6 @@ public interface IUserWebSocketHandler
 }
 
 public sealed class UserWebSocketHandler(
-    Context context,
-    IDuelManager duelManager,
     IMediator mediator,
     IWebSocketConnectionManager webSocketConnections,
     IOptions<WebSocketConnectionOptions> webSocketOptions,
@@ -98,24 +87,17 @@ public sealed class UserWebSocketHandler(
             {
                 var cleanupToken = cleanupTokenSource.Token;
 
-                var searchResult = await mediator.Send(new CancelDuelSearchCommand
+                var cancelResult = await mediator.Send(new CancelPendingDuelsCommand
                 {
                     UserId = userId
                 }, cleanupToken);
-                if (searchResult.IsFailed)
+                if (cancelResult.IsFailed)
                 {
                     logger.LogWarning(
                         "WebSocket cleanup failed to cancel search for user {UserId}: {Error}",
-                        userId, string.Join(", ", searchResult.Errors));
+                        userId, string.Join(", ", cancelResult.Errors));
                 }
 
-                var invitationResult = await CancelOutgoingInvitationAsync(userId, cleanupToken);
-                if (invitationResult.IsFailed)
-                {
-                    logger.LogWarning(
-                        "WebSocket cleanup failed to cancel invitation for user {UserId}: {Error}",
-                        userId, string.Join(", ", invitationResult.Errors));
-                }
             }
 
             logger.LogInformation("WebSocket disconnected user {UserId}", userId);
@@ -226,60 +208,4 @@ public sealed class UserWebSocketHandler(
         }
     }
 
-    private async Task<Result> CancelOutgoingInvitationAsync(int userId, CancellationToken cancellationToken)
-    {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Id == userId, cancellationToken);
-        if (user is null)
-        {
-            return new EntityNotFoundError(nameof(User), nameof(User.Id), userId);
-        }
-
-        if (!duelManager.TryGetWaitingUser(user.Id, out var waitingUser) || waitingUser?.ExpectedOpponentId is null)
-        {
-            return Result.Ok();
-        }
-
-        duelManager.RemoveUser(user.Id);
-
-        var opponent = await context.Users
-            .SingleOrDefaultAsync(u => u.Id == waitingUser.ExpectedOpponentId.Value, cancellationToken);
-        if (opponent is null)
-        {
-            return Result.Ok();
-        }
-
-        context.OutboxMessages.AddRange(
-            new OutboxMessage
-            {
-                Type = OutboxType.SendMessage,
-                Payload = new SendMessagePayload
-                {
-                    UserId = opponent.Id,
-                    Message = new DuelInvitationCanceledMessage
-                    {
-                        OpponentNickname = user.Nickname,
-                        ConfigurationId = waitingUser.ConfigurationId
-                    }
-                },
-                RetryUntil = DateTime.UtcNow.AddMinutes(5)
-            },
-            new OutboxMessage
-            {
-                Type = OutboxType.SendMessage,
-                Payload = new SendMessagePayload
-                {
-                    UserId = user.Id,
-                    Message = new DuelInvitationCanceledMessage
-                    {
-                        OpponentNickname = opponent.Nickname,
-                        ConfigurationId = waitingUser.ConfigurationId
-                    }
-                },
-                RetryUntil = DateTime.UtcNow.AddMinutes(5)
-            });
-
-        await context.SaveChangesAsync(cancellationToken);
-
-        return Result.Ok();
-    }
 }

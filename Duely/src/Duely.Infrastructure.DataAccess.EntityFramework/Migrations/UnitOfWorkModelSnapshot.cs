@@ -77,7 +77,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("CodeRuns", (string)null);
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Duel", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -159,7 +159,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("Duels", (string)null);
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.DuelConfiguration", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Duels.DuelConfiguration", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -204,7 +204,34 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("DuelConfigurations", (string)null);
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.Group", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.PendingDuel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Type");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PendingDuels", (string)null);
+
+                    b.HasDiscriminator<string>("Type");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Groups.Group", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -223,7 +250,27 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("Groups", (string)null);
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.GroupMembership", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Groups.GroupDuel", b =>
+                {
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DuelId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CreatedById")
+                        .HasColumnType("integer");
+
+                    b.HasKey("GroupId", "DuelId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("DuelId");
+
+                    b.ToTable("GroupDuels", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Groups.GroupMembership", b =>
                 {
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
@@ -402,6 +449,100 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.FriendlyPendingDuel", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.Duels.Pending.PendingDuel");
+
+                    b.Property<int?>("ConfigurationId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsAccepted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsAccepted");
+
+                    b.Property<int>("User1Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("User2Id")
+                        .HasColumnType("integer");
+
+                    b.HasIndex("ConfigurationId");
+
+                    b.HasIndex("User1Id");
+
+                    b.HasIndex("User2Id");
+
+                    b.ToTable("PendingDuels", t =>
+                        {
+                            t.Property("ConfigurationId")
+                                .HasColumnName("FriendlyPendingDuel_ConfigurationId");
+
+                            t.Property("User1Id")
+                                .HasColumnName("FriendlyPendingDuel_User1Id");
+
+                            t.Property("User2Id")
+                                .HasColumnName("FriendlyPendingDuel_User2Id");
+                        });
+
+                    b.HasDiscriminator().HasValue("Friendly");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.GroupPendingDuel", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.Duels.Pending.PendingDuel");
+
+                    b.Property<int?>("ConfigurationId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CreatedById")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsAcceptedByUser1")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsAcceptedByUser1");
+
+                    b.Property<bool>("IsAcceptedByUser2")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsAcceptedByUser2");
+
+                    b.Property<int>("User1Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("User2Id")
+                        .HasColumnType("integer");
+
+                    b.HasIndex("ConfigurationId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("User1Id");
+
+                    b.HasIndex("User2Id");
+
+                    b.HasDiscriminator().HasValue("Group");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.RankedPendingDuel", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.Duels.Pending.PendingDuel");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("Rating");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasIndex("UserId");
+
+                    b.HasDiscriminator().HasValue("Ranked");
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.CodeRun", b =>
                 {
                     b.HasOne("Duely.Domain.Models.User", "User")
@@ -413,9 +554,9 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Duel", b =>
                 {
-                    b.HasOne("Duely.Domain.Models.DuelConfiguration", "Configuration")
+                    b.HasOne("Duely.Domain.Models.Duels.DuelConfiguration", "Configuration")
                         .WithMany()
                         .HasForeignKey("ConfigurationId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -446,7 +587,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Navigation("Winner");
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.DuelConfiguration", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Duels.DuelConfiguration", b =>
                 {
                     b.HasOne("Duely.Domain.Models.User", "Owner")
                         .WithMany()
@@ -455,9 +596,36 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Navigation("Owner");
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.GroupMembership", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Groups.GroupDuel", b =>
                 {
-                    b.HasOne("Duely.Domain.Models.Group", "Group")
+                    b.HasOne("Duely.Domain.Models.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.Duels.Duel", "Duel")
+                        .WithMany()
+                        .HasForeignKey("DuelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.Groups.Group", "Group")
+                        .WithMany("Duels")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Duel");
+
+                    b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Groups.GroupMembership", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Groups.Group", "Group")
                         .WithMany("Users")
                         .HasForeignKey("GroupId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -483,7 +651,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
             modelBuilder.Entity("Duely.Domain.Models.Submission", b =>
                 {
-                    b.HasOne("Duely.Domain.Models.Duel", "Duel")
+                    b.HasOne("Duely.Domain.Models.Duels.Duel", "Duel")
                         .WithMany("Submissions")
                         .HasForeignKey("DuelId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -500,13 +668,92 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.Duel", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.FriendlyPendingDuel", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Duels.DuelConfiguration", "Configuration")
+                        .WithMany()
+                        .HasForeignKey("ConfigurationId");
+
+                    b.HasOne("Duely.Domain.Models.User", "User1")
+                        .WithMany()
+                        .HasForeignKey("User1Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.User", "User2")
+                        .WithMany()
+                        .HasForeignKey("User2Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Configuration");
+
+                    b.Navigation("User1");
+
+                    b.Navigation("User2");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.GroupPendingDuel", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Duels.DuelConfiguration", "Configuration")
+                        .WithMany()
+                        .HasForeignKey("ConfigurationId");
+
+                    b.HasOne("Duely.Domain.Models.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.Groups.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.User", "User1")
+                        .WithMany()
+                        .HasForeignKey("User1Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.User", "User2")
+                        .WithMany()
+                        .HasForeignKey("User2Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Configuration");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("User1");
+
+                    b.Navigation("User2");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.RankedPendingDuel", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Duel", b =>
                 {
                     b.Navigation("Submissions");
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.Group", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Groups.Group", b =>
                 {
+                    b.Navigation("Duels");
+
                     b.Navigation("Users");
                 });
 

@@ -1,11 +1,12 @@
 using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
-using Duely.Domain.Models;
+using Duely.Application.UseCases.Features.Duels.Invitations;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
-using Duely.Domain.Services.Duels;
+using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Pending;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,7 @@ public class CancelDuelInvitationHandlerTests : ContextBasedTest
     [Fact]
     public async Task NotFound_when_user_missing()
     {
-        var handler = new CancelDuelInvitationHandler(Context, new DuelManager());
+        var handler = new CancelDuelInvitationHandler(Context);
 
         var res = await handler.Handle(new CancelDuelInvitationCommand
         {
@@ -39,7 +40,7 @@ public class CancelDuelInvitationHandlerTests : ContextBasedTest
         ctx.Users.Add(u1);
         await ctx.SaveChangesAsync();
 
-        var handler = new CancelDuelInvitationHandler(ctx, new DuelManager());
+        var handler = new CancelDuelInvitationHandler(ctx);
 
         var res = await handler.Handle(new CancelDuelInvitationCommand
         {
@@ -56,15 +57,37 @@ public class CancelDuelInvitationHandlerTests : ContextBasedTest
     {
         var ctx = Context;
         var u1 = EntityFactory.MakeUser(1, "u1");
-        u1.Rating = 1400;
         var u2 = EntityFactory.MakeUser(2, "u2");
         ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.Add(new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = u1,
+            User2 = u2,
+            Configuration = new DuelConfiguration
+            {
+                Id = 10,
+                Owner = u1,
+                MaxDurationMinutes = 30,
+                IsRated = true,
+                ShouldShowOpponentSolution = false,
+                TasksCount = 1,
+                TasksOrder = DuelTasksOrder.Sequential,
+                TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+                {
+                    ['A'] = new()
+                    {
+                        Level = 1,
+                        Topics = []
+                    }
+                }
+            },
+            IsAccepted = false,
+            CreatedAt = DateTime.UtcNow
+        });
         await ctx.SaveChangesAsync();
 
-        var duelManager = new DuelManager();
-        duelManager.AddUser(u1.Id, u1.Rating, DateTime.UtcNow, expectedOpponentId: u2.Id, configurationId: 10);
-
-        var handler = new CancelDuelInvitationHandler(ctx, duelManager);
+        var handler = new CancelDuelInvitationHandler(ctx);
 
         var res = await handler.Handle(new CancelDuelInvitationCommand
         {
@@ -74,7 +97,7 @@ public class CancelDuelInvitationHandlerTests : ContextBasedTest
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        duelManager.GetWaitingUsers().Should().BeEmpty();
+        ctx.PendingDuels.OfType<FriendlyPendingDuel>().Should().BeEmpty();
 
         var outboxMessages = await ctx.OutboxMessages.AsNoTracking().ToListAsync();
         outboxMessages.Should().HaveCount(2);
@@ -100,7 +123,7 @@ public class CancelDuelInvitationHandlerTests : ContextBasedTest
         ctx.Users.AddRange(u1, u2);
         await ctx.SaveChangesAsync();
 
-        var handler = new CancelDuelInvitationHandler(ctx, new DuelManager());
+        var handler = new CancelDuelInvitationHandler(ctx);
 
         var res = await handler.Handle(new CancelDuelInvitationCommand
         {
@@ -113,5 +136,47 @@ public class CancelDuelInvitationHandlerTests : ContextBasedTest
 
         var outboxMessages = await ctx.OutboxMessages.AsNoTracking().ToListAsync();
         outboxMessages.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Cancels_even_when_invitation_already_accepted()
+    {
+        var ctx = Context;
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.Add(new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = u1,
+            User2 = u2,
+            Configuration = null,
+            IsAccepted = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+
+        var handler = new CancelDuelInvitationHandler(ctx);
+
+        var res = await handler.Handle(new CancelDuelInvitationCommand
+        {
+            UserId = u1.Id,
+            OpponentNickname = u2.Nickname
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        ctx.PendingDuels.OfType<FriendlyPendingDuel>().Should().BeEmpty();
+
+        var outboxMessages = await ctx.OutboxMessages.AsNoTracking().ToListAsync();
+        outboxMessages.Should().HaveCount(2);
+        outboxMessages.Should().OnlyContain(m => m.Type == OutboxType.SendMessage);
+
+        var opponentPayload = ReadSendPayload(outboxMessages.Single(m => ReadSendPayload(m).UserId == u2.Id));
+        opponentPayload.Message.Should().BeOfType<DuelInvitationCanceledMessage>()
+            .Which.OpponentNickname.Should().Be(u1.Nickname);
+
+        var senderPayload = ReadSendPayload(outboxMessages.Single(m => ReadSendPayload(m).UserId == u1.Id));
+        senderPayload.Message.Should().BeOfType<DuelInvitationCanceledMessage>()
+            .Which.OpponentNickname.Should().Be(u2.Nickname);
     }
 }

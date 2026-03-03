@@ -2,6 +2,7 @@ using Duely.Application.Services.Errors;
 using Duely.Application.Services.RateLimiting;
 using Duely.Application.UseCases.Dtos;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Infrastructure.DataAccess.EntityFramework;

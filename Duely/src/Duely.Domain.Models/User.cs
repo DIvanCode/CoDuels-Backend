@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Groups;
 
 namespace Duely.Domain.Models;
 

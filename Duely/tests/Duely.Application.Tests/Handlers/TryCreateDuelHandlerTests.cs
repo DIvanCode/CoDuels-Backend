@@ -1,6 +1,8 @@
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
@@ -23,8 +25,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
     {
         var ctx = Context;
 
-        var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.TryGetPair()).Returns((DuelPair?)null);
+        var duelManager = new DuelManager();
 
         var taskService = new Mock<ITaskService>();
         var ratingManager = new Mock<IRatingManager>();
@@ -37,7 +38,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         });
 
         var handler = new TryCreateDuelHandler(
-            duelManager.Object,
+            duelManager,
             taski,
             options,
             ratingManager.Object,
@@ -59,13 +60,30 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
-        ctx.Users.AddRange(u1, u2); await ctx.SaveChangesAsync();
+        u1.Rating = 1500;
+        u2.Rating = 1500;
+        ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.AddRange(
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = u1,
+                Rating = u1.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            },
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = u2,
+                Rating = u2.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            });
+        await ctx.SaveChangesAsync();
 
-        var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.TryGetPair()).Returns(new DuelPair(1, 2, null));
+        var duelManager = new DuelManager();
 
         var taski = new TaskiClientSuccessFake(["TASK-42"]);
-        
+
         var taskService = new Mock<ITaskService>();
         taskService.Setup(s => s.TryChooseTasks(
                 It.IsAny<User>(),
@@ -92,7 +110,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         });
 
         var handler = new TryCreateDuelHandler(
-            duelManager.Object,
+            duelManager,
             taski,
             options,
             ratingManager.Object,
@@ -156,10 +174,18 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             }
         };
         ctx.DuelConfigurations.Add(configuration);
+        ctx.PendingDuels.Add(new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = u1,
+            User2 = u2,
+            Configuration = configuration,
+            IsAccepted = true,
+            CreatedAt = DateTime.UtcNow
+        });
         await ctx.SaveChangesAsync();
 
-        var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.TryGetPair()).Returns(new DuelPair(1, 2, configuration.Id));
+        var duelManager = new DuelManager();
 
         var taski = new TaskiClientSuccessFake(["TASK-99"]);
 
@@ -187,7 +213,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         });
 
         var handler = new TryCreateDuelHandler(
-            duelManager.Object,
+            duelManager,
             taski,
             options,
             ratingManager.Object,
@@ -202,7 +228,75 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         duel.Configuration.Id.Should().Be(configuration.Id);
         duel.Tasks.Should().ContainKey('B');
     }
-    
+
+    [Fact]
+    public async Task Removes_used_pending_duels_after_creation()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.AddRange(
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = u1,
+                Rating = u1.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            },
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = u2,
+                Rating = u2.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            });
+        await ctx.SaveChangesAsync();
+
+        var duelManager = new DuelManager();
+
+        var taski = new TaskiClientSuccessFake(["TASK-1"]);
+        var taskService = new Mock<ITaskService>();
+        taskService.Setup(s => s.TryChooseTasks(
+                It.IsAny<User>(),
+                It.IsAny<User>(),
+                It.IsAny<DuelConfiguration>(),
+                It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                out It.Ref<Dictionary<char, DuelTask>>.IsAny))
+            .Returns(true)
+            .Callback(new TryChooseTasksCallback((User _, User _, DuelConfiguration _, IReadOnlyCollection<DuelTask> _, out Dictionary<char, DuelTask> chosen) =>
+            {
+                chosen = new Dictionary<char, DuelTask>
+                {
+                    ['A'] = new("TASK-1", 1, [])
+                };
+            }));
+
+        var ratingManager = new Mock<IRatingManager>();
+        ratingManager.Setup(m => m.GetTaskLevel(It.IsAny<int>())).Returns(1);
+
+        var options = Options.Create(new DuelOptions
+        {
+            DefaultMaxDurationMinutes = 30,
+            RatingToTaskLevelMapping = []
+        });
+
+        var handler = new TryCreateDuelHandler(
+            duelManager,
+            taski,
+            options,
+            ratingManager.Object,
+            taskService.Object,
+            ctx,
+            NullLogger<TryCreateDuelHandler>.Instance);
+
+        var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        ctx.PendingDuels.OfType<RankedPendingDuel>().Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Fails_when_tasks_not_selected()
     {
@@ -210,13 +304,30 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
-        ctx.Users.AddRange(u1, u2); await ctx.SaveChangesAsync();
+        u1.Rating = 1500;
+        u2.Rating = 1500;
+        ctx.Users.AddRange(u1, u2);
+        ctx.PendingDuels.AddRange(
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = u1,
+                Rating = u1.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            },
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = u2,
+                Rating = u2.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            });
+        await ctx.SaveChangesAsync();
 
-        var duelManager = new Mock<IDuelManager>();
-        duelManager.Setup(m => m.TryGetPair()).Returns(new DuelPair(1, 2, null));
+        var duelManager = new DuelManager();
 
         var taski = new TaskiClientSuccessFake(["RANDOM_TASK"]);
-        
+
         var taskService = new Mock<ITaskService>();
         taskService.Setup(s => s.TryChooseTasks(
                 It.IsAny<User>(),
@@ -236,7 +347,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         });
 
         var handler = new TryCreateDuelHandler(
-            duelManager.Object,
+            duelManager,
             taski,
             options,
             ratingManager.Object,

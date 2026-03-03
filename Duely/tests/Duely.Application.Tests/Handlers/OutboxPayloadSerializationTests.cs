@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox.Payloads;
 using FluentAssertions;

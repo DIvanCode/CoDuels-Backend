@@ -2,6 +2,7 @@ using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.DuelConfigurations;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 

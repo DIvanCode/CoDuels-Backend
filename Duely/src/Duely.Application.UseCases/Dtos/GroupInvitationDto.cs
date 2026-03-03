@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using Duely.Domain.Models;
+using Duely.Domain.Models.Groups;
 
 namespace Duely.Application.UseCases.Dtos;
 
