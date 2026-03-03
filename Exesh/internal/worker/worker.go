@@ -82,7 +82,6 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 		}
 
 		if w.getFreeSlots() == 0 {
-			w.log.Debug("skip heartbeat loop (no free slots)")
 			continue
 		}
 

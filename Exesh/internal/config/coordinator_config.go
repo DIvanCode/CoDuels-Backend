@@ -5,56 +5,55 @@ import (
 	"os"
 	"time"
 
-	filestorage "github.com/DIvanCode/filestorage/pkg/config"
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type (
 	CoordinatorConfig struct {
-		Env                string                   `yaml:"env"`
-		HttpServer         HttpServerConfig         `yaml:"http_server"`
-		Storage            StorageConfig            `yaml:"storage"`
-		FileStorage        filestorage.Config       `yaml:"filestorage"`
-		JobFactory         JobFactoryConfig         `yaml:"job_factory"`
-		ExecutionScheduler ExecutionSchedulerConfig `yaml:"execution_scheduler"`
-		WorkerPool         WorkerPoolConfig         `yaml:"worker_pool"`
-		ArtifactRegistry   ArtifactRegistryConfig   `yaml:"artifact_registry"`
-		Sender             SenderConfig             `yaml:"sender"`
+		Env                string                   `yaml:"env" env:"EXESH_ENV"`
+		HttpServer         HttpServerConfig         `yaml:"http_server" env-prefix:"EXESH_HTTP_SERVER_"`
+		Storage            StorageConfig            `yaml:"storage" env-prefix:"EXESH_STORAGE_"`
+		FileStorage        FileStorageConfig        `yaml:"filestorage" env-prefix:"EXESH_FILE_STORAGE_"`
+		JobFactory         JobFactoryConfig         `yaml:"job_factory" env-prefix:"EXESH_JOB_FACTORY_"`
+		ExecutionScheduler ExecutionSchedulerConfig `yaml:"execution_scheduler" env-prefix:"EXESH_EXECUTION_SCHEDULER_"`
+		WorkerPool         WorkerPoolConfig         `yaml:"worker_pool" env-prefix:"EXESH_WORKER_POOL_"`
+		ArtifactRegistry   ArtifactRegistryConfig   `yaml:"artifact_registry" env-prefix:"EXESH_ARTIFACT_REGISTRY_"`
+		Sender             SenderConfig             `yaml:"sender" env-prefix:"EXESH_SENDER_"`
 	}
 
 	StorageConfig struct {
-		ConnectionString string        `yaml:"connection_string"`
-		InitTimeout      time.Duration `yaml:"init_timeout"`
+		ConnectionString string        `yaml:"connection_string" env:"CONNECTION_STRING"`
+		InitTimeout      time.Duration `yaml:"init_timeout" env:"INIT_TIMEOUT"`
 	}
 
 	ExecutionSchedulerConfig struct {
-		ExecutionsInterval  time.Duration `yaml:"executions_interval"`
-		MaxConcurrency      int           `yaml:"max_concurrency"`
-		ExecutionRetryAfter time.Duration `yaml:"execution_retry_after"`
+		ExecutionsInterval  time.Duration `yaml:"executions_interval" env:"EXECUTIONS_INTERVAL"`
+		MaxConcurrency      int           `yaml:"max_concurrency" env:"MAX_CONCURRENCY"`
+		ExecutionRetryAfter time.Duration `yaml:"execution_retry_after" env:"EXECUTION_RETRY_AFTER"`
 	}
 
 	JobFactoryConfig struct {
 		Output struct {
-			CompiledBinary string `yaml:"compiled_binary"`
-			RunOutput      string `yaml:"run_output"`
-		} `yaml:"output"`
+			CompiledBinary string `yaml:"compiled_binary" env:"COMPILED_BINARY"`
+			RunOutput      string `yaml:"run_output" env:"RUN_OUTPUT"`
+		} `yaml:"output" env-prefix:"OUTPUT_"`
 		SourceTTL struct {
-			FilestorageBucket time.Duration `yaml:"filestorage_bucket"`
-		} `yaml:"source_ttl"`
-		FilestorageEndpoint string `yaml:"filestorage_endpoint"`
+			FilestorageBucket time.Duration `yaml:"filestorage_bucket" env:"FILESTORAGE_BUCKET"`
+		} `yaml:"source_ttl" env-prefix:"SOURCE_TTL_"`
+		FilestorageEndpoint string `yaml:"filestorage_endpoint" env:"FILESTORAGE_ENDPOINT"`
 	}
 
 	WorkerPoolConfig struct {
-		WorkerDieAfter time.Duration `yaml:"worker_die_after"`
+		WorkerDieAfter time.Duration `yaml:"worker_die_after" env:"WORKER_DIE_AFTER"`
 	}
 
 	ArtifactRegistryConfig struct {
-		ArtifactTTL time.Duration `yaml:"artifact_ttl"`
+		ArtifactTTL time.Duration `yaml:"artifact_ttl" env:"ARTIFACT_TTL"`
 	}
 
 	SenderConfig struct {
-		Brokers []string `yaml:"brokers"`
-		Topic   string   `yaml:"topic"`
+		Brokers []string `yaml:"brokers" env:"BROKERS" env-separator:","`
+		Topic   string   `yaml:"topic" env:"TOPIC"`
 	}
 )
 
