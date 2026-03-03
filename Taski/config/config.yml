@@ -1,6 +1,6 @@
-env: docker
+env: dev
 http_server:
-  addr: 0.0.0.0:5252
+  addr: localhost:5252
   metrics_addr: 0.0.0.0:9090
 filestorage:
   root_dir: file_storage
@@ -9,20 +9,20 @@ filestorage:
     collector_iterations_delay: 60
     worker_iterations_delay: 5
 db:
-  connection_string: host=taski_postgres port=5432 database=taski user=taski password=secret
+  connection_string: host=localhost port=5434 database=taski user=taski password=secret
   init_timeout: 5m
 execute:
-  endpoint: http://coordinator:5253
-  download_task_endpoint: http://taski:5252
+  endpoint: http://localhost:5253
+  download_task_endpoint: http://localhost:5252
 event_consumer:
   brokers:
-    - kafka:9092
+    - 0.0.0.0:29092
   topic: exesh.step-updates
   group_id: taski
   fetch_interval: 50ms
 message_producer:
   brokers:
-    - kafka:9092
+    - 0.0.0.0:29092
   topic: taski.testing
 metrics_collector:
   collect_interval: 5s
