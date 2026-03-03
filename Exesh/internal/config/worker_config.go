@@ -5,35 +5,34 @@ import (
 	"os"
 	"time"
 
-	filestorage "github.com/DIvanCode/filestorage/pkg/config"
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type (
 	WorkerConfig struct {
-		Env            string               `yaml:"env"`
-		HttpServer     HttpServerConfig     `yaml:"http_server"`
-		FileStorage    filestorage.Config   `yaml:"filestorage"`
-		SourceProvider SourceProviderConfig `yaml:"input_provider"`
-		OutputProvider OutputProviderConfig `yaml:"output_provider"`
-		Worker         WorkConfig           `yaml:"worker"`
+		Env            string               `yaml:"env" env:"EXESH_ENV"`
+		HttpServer     HttpServerConfig     `yaml:"http_server" env-prefix:"EXESH_HTTP_SERVER_"`
+		FileStorage    FileStorageConfig    `yaml:"filestorage" env-prefix:"EXESH_FILE_STORAGE_"`
+		SourceProvider SourceProviderConfig `yaml:"source_provider" env-prefix:"EXESH_SOURCE_PROVIDER_"`
+		OutputProvider OutputProviderConfig `yaml:"output_provider" env-prefix:"EXESH_OUTPUT_PROVIDER_"`
+		Worker         WorkConfig           `yaml:"worker" env-prefix:"EXESH_WORKER_"`
 	}
 
 	SourceProviderConfig struct {
-		FilestorageBucketTTL time.Duration `yaml:"filestorage_bucket_ttl"`
-		ArtifactTTL          time.Duration `yaml:"artifact_ttl"`
+		FilestorageBucketTTL time.Duration `yaml:"filestorage_bucket_ttl" env:"FILESTORAGE_BUCKET_TTL"`
+		ArtifactTTL          time.Duration `yaml:"artifact_ttl" env:"ARTIFACT_TTL"`
 	}
 
 	OutputProviderConfig struct {
-		ArtifactTTL time.Duration `yaml:"artifact_ttl"`
+		ArtifactTTL time.Duration `yaml:"artifact_ttl" env:"ARTIFACT_TTL"`
 	}
 
 	WorkConfig struct {
-		WorkerID            string        `yaml:"id"`
-		FreeSlots           int           `yaml:"free_slots"`
-		CoordinatorEndpoint string        `yaml:"coordinator_endpoint"`
-		HeartbeatDelay      time.Duration `yaml:"heartbeat_delay"`
-		WorkerDelay         time.Duration `yaml:"worker_delay"`
+		WorkerID            string        `yaml:"id" env:"ID"`
+		FreeSlots           int           `yaml:"free_slots" env:"FREE_SLOTS"`
+		CoordinatorEndpoint string        `yaml:"coordinator_endpoint" env:"COORDINATOR_ENDPOINT"`
+		HeartbeatDelay      time.Duration `yaml:"heartbeat_delay" env:"HEARTBEAT_DELAY"`
+		WorkerDelay         time.Duration `yaml:"worker_delay" env:"WORKER_DELAY"`
 	}
 )
 

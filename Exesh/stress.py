@@ -7,62 +7,30 @@ import random
 
 
 class Coordinator:
-    base_config = """
-env: docker
-http_server:
-  addr: 0.0.0.0:{PORT}
-  metrics_addr: 0.0.0.0:{METRICS_PORT}
-storage:
-  connection_string: host=exesh_postgres port=5432 database=exesh user=coordinator password=secret
-  init_timeout: 60s
-filestorage:
-  root_dir: file_storage/cluster-{CLUSTER}/coordinator
-  trasher:
-    workers: 1
-    collector_iterations_delay: 60
-    worker_iterations_delay: 5
-input_provider:
-  filestorage_bucket_ttl: 15m
-  artifact_ttl: 5m
-job_factory:
-  output:
-    compiled_cpp: bin
-    run_output: output
-    check_verdict: verdict
-  filestorage_endpoint: http://coordinator-{CLUSTER}:{PORT}
-execution_scheduler:
-  executions_interval: 1s
-  max_concurrency: 1
-  execution_retry_after: 1500s
-worker_pool:
-  worker_die_after: 10s
-artifact_registry:
-  artifact_ttl: 3m
-sender:
-  brokers:
-    - kafka:9092
-  topic: exesh.step-updates
-"""
-
     base_docker_compose = """
     coordinator-{CLUSTER}:
         build:
-            context: ../../
+            context: {PROJECT_ROOT}
             dockerfile: Dockerfile
         command:
             - /app/bin/coordinator
         container_name: coordinator-{CLUSTER}
         ports:
             - "{PORT}:{PORT}"
+            - "{METRICS_PORT}:{METRICS_PORT}"
         networks:
             - coduels
         environment:
-            CONFIG_PATH: /{CLUSTER_PATH}/coordinator.yml
+            CONFIG_PATH: /config/coordinator.yml
+            EXESH_HTTP_SERVER_ADDR: 0.0.0.0:{PORT}
+            EXESH_HTTP_SERVER_METRICS_ADDR: 0.0.0.0:{METRICS_PORT}
+            EXESH_FILE_STORAGE_ROOT_DIR: file_storage/cluster-{CLUSTER}/coordinator
+            EXESH_JOB_FACTORY_FILESTORAGE_ENDPOINT: http://coordinator-{CLUSTER}:{PORT}
         depends_on:
             postgres:
                 condition: service_healthy
         volumes:
-            - ../../{CLUSTER_PATH}:/{CLUSTER_PATH}:ro
+            - {PROJECT_ROOT}/config:/config:ro
 """
 
     def __init__(self, cluster, port, metrics_port):
@@ -70,62 +38,39 @@ sender:
         self.port = port
         self.metrics_port = metrics_port
 
-    def generate_config(self):
-        config = self.base_config[:]
-        config = config.replace("{CLUSTER}", str(self.cluster))
-        config = config.replace("{PORT}", str(self.port))
-        config = config.replace("{METRICS_PORT}", str(self.metrics_port))
-        return config
-
-    def generate_docker_compose(self, cluster_path):
+    def generate_docker_compose(self, project_root):
         docker_compose = self.base_docker_compose[:]
         docker_compose = docker_compose.replace("{CLUSTER}", str(self.cluster))
-        docker_compose = docker_compose.replace("{CLUSTER_PATH}", cluster_path)
+        docker_compose = docker_compose.replace("{PROJECT_ROOT}", project_root)
         docker_compose = docker_compose.replace("{PORT}", str(self.port))
         docker_compose = docker_compose.replace("{METRICS_PORT}", str(self.metrics_port))
         return docker_compose
 
 
 class Worker:
-    base_config = """
-env: docker
-http_server:
-  addr: 0.0.0.0:{PORT}
-  metrics_addr: 0.0.0.0:{METRICS_PORT}
-filestorage:
-  root_dir: file_storage/cluster-{CLUSTER}/worker-{WORKER}
-  trasher:
-    workers: 1
-    collector_iterations_delay: 60
-    worker_iterations_delay: 5
-input_provider:
-  filestorage_bucket_ttl: 15m
-  artifact_ttl: 5m
-output_provider:
-  artifact_ttl: 5m
-worker:
-  id: http://worker-{CLUSTER}-{WORKER}:{PORT}
-  free_slots: 4
-  coordinator_endpoint: http://coordinator-{CLUSTER}:{COORDINATOR_PORT}
-  heartbeat_delay: 2s
-  worker_delay: 1s
-"""
-
     base_docker_compose = """
     worker-{CLUSTER}-{WORKER}:
         build:
-            context: ../../
+            context: {PROJECT_ROOT}
             dockerfile: Dockerfile
         command:
             - /app/bin/worker
         container_name: worker-{CLUSTER}-{WORKER}
+        ports:
+            - "{PORT}:{PORT}"
+            - "{METRICS_PORT}:{METRICS_PORT}"
         networks:
             - coduels
         environment:
-            CONFIG_PATH: /{CLUSTER_PATH}/worker-{WORKER}.yml
+            CONFIG_PATH: /config/worker.yml
+            EXESH_HTTP_SERVER_ADDR: 0.0.0.0:{PORT}
+            EXESH_HTTP_SERVER_METRICS_ADDR: 0.0.0.0:{METRICS_PORT}
+            EXESH_FILE_STORAGE_ROOT_DIR: file_storage/cluster-{CLUSTER}/worker-{WORKER}
+            EXESH_WORKER_ID: http://worker-{CLUSTER}-{WORKER}:{PORT}
+            EXESH_WORKER_COORDINATOR_ENDPOINT: http://coordinator-{CLUSTER}:{COORDINATOR_PORT}
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
-            - ../../{CLUSTER_PATH}:/{CLUSTER_PATH}:ro
+            - {PROJECT_ROOT}/config:/config:ro
 """
 
     def __init__(self, cluster, worker, port, metrics_port, coordinator_port):
@@ -135,22 +80,14 @@ worker:
         self.metrics_port = metrics_port
         self.coordinator_port = coordinator_port
 
-    def generate_config(self):
-        config = self.base_config[:]
-        config = config.replace("{CLUSTER}", str(self.cluster))
-        config = config.replace("{WORKER}", str(self.worker))
-        config = config.replace("{PORT}", str(self.port))
-        config = config.replace("{METRICS_PORT}", str(self.metrics_port))
-        config = config.replace("{COORDINATOR_PORT}", str(self.coordinator_port))
-        return config
-
-    def generate_docker_compose(self, cluster_path):
+    def generate_docker_compose(self, project_root):
         docker_compose = self.base_docker_compose[:]
         docker_compose = docker_compose.replace("{CLUSTER}", str(self.cluster))
-        docker_compose = docker_compose.replace("{CLUSTER_PATH}", cluster_path)
+        docker_compose = docker_compose.replace("{PROJECT_ROOT}", project_root)
         docker_compose = docker_compose.replace("{WORKER}", str(self.worker))
         docker_compose = docker_compose.replace("{PORT}", str(self.port))
         docker_compose = docker_compose.replace("{METRICS_PORT}", str(self.metrics_port))
+        docker_compose = docker_compose.replace("{COORDINATOR_PORT}", str(self.coordinator_port))
         return docker_compose
 
 
@@ -165,36 +102,24 @@ class PortManager:
 
 
 class Cluster:
-    def __init__(self, port_manager, config_path, cluster_id, n_workers):
+    def __init__(self, port_manager, cluster_id, n_workers):
         self.port_manager = port_manager
         self.cluster_id = cluster_id
-        self.cluster_path = config_path + "/cluster-" + str(self.cluster_id)
         self.n_workers = n_workers
     
     
-    def create_configs(self):
-        os.mkdir(self.cluster_path)
-
+    def create(self):
         self.coordinator = Coordinator(self.cluster_id, self.port_manager.get_port(), self.port_manager.get_port())
-
-        f = open(self.cluster_path + "/coordinator.yml", "w")
-        f.write(self.coordinator.generate_config())
-        f.close()
 
         self.workers = []
         for worker_id in range(self.n_workers):
             worker = Worker(self.cluster_id, worker_id, self.port_manager.get_port(), self.port_manager.get_port(), self.coordinator.port)
-
-            f = open(self.cluster_path + "/worker-" + str(worker_id) + ".yml", "w")
-            f.write(worker.generate_config())
-            f.close()
-
             self.workers.append(worker)
 
-    def generate_docker_compose(self):
-        docker_compose = self.coordinator.generate_docker_compose(self.cluster_path)
+    def generate_docker_compose(self, project_root):
+        docker_compose = self.coordinator.generate_docker_compose(project_root)
         for worker in self.workers:
-            docker_compose += worker.generate_docker_compose(self.cluster_path)
+            docker_compose += worker.generate_docker_compose(project_root)
         return docker_compose
 
 
@@ -275,20 +200,21 @@ services:
     def __init__(self, n_clusters, n_workers, config_path):
         self.n_clusters = n_clusters
         self.n_workers = n_workers
-        self.config_path = config_path
+        self.config_path = os.path.abspath(config_path)
+        self.project_root = os.path.abspath(os.getcwd())
     
     def configure(self):
         docker_compose = self.infrastructure_docker_compose
-        os.mkdir(self.config_path)
+        os.makedirs(self.config_path, exist_ok=True)
 
         port_manager = PortManager(5556)
 
         self.clusters = []
         for cluster_id in range(self.n_clusters):
-            cluster = Cluster(port_manager, self.config_path, cluster_id, self.n_workers)
-            cluster.create_configs()
+            cluster = Cluster(port_manager, cluster_id, self.n_workers)
+            cluster.create()
 
-            docker_compose += cluster.generate_docker_compose()
+            docker_compose += cluster.generate_docker_compose(self.project_root)
 
             self.clusters.append(cluster)
         
@@ -297,7 +223,7 @@ services:
         f.close()
     
     def run(self):
-        pwd = os.curdir
+        pwd = os.getcwd()
         os.chdir(self.config_path)
         try:
             subprocess.run(["docker-compose", "up", "-d", "--build"], check=True)
