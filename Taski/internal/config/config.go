@@ -11,47 +11,47 @@ import (
 
 type (
 	Config struct {
-		Env              string                 `yaml:"env"`
-		HttpServer       HttpServerConfig       `yaml:"http_server"`
-		FileStorage      filestorage.Config     `yaml:"filestorage"`
-		Db               DbConfig               `yaml:"db"`
-		Execute          ExecuteConfig          `yaml:"execute"`
-		EventConsumer    EventConsumerConfig    `yaml:"event_consumer"`
-		MessageProducer  MessageProducerConfig  `yaml:"message_producer"`
-		MetricsCollector MetricsCollectorConfig `yaml:"metrics_collector"`
-		Tasks            TasksList              `yaml:"tasks"`
-		TaskTopics       TaskTopicsList         `yaml:"task_topics"`
+		Env              string                 `yaml:"env" env:"ENV"`
+		HttpServer       HttpServerConfig       `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
+		FileStorage      filestorage.Config     `yaml:"filestorage" env-prefix:"FILESTORAGE_"`
+		Db               DbConfig               `yaml:"db" env-prefix:"DB_"`
+		Execute          ExecuteConfig          `yaml:"execute" env-prefix:"EXECUTE_"`
+		EventConsumer    EventConsumerConfig    `yaml:"event_consumer" env-prefix:"EVENT_CONSUMER_"`
+		MessageProducer  MessageProducerConfig  `yaml:"message_producer" env-prefix:"MESSAGE_PRODUCER_"`
+		MetricsCollector MetricsCollectorConfig `yaml:"metrics_collector" env-prefix:"METRICS_COLLECTOR_"`
+		Tasks            TasksList              `yaml:"tasks" env:"TASKS" env-separator:","`
+		TaskTopics       TaskTopicsList         `yaml:"task_topics" env:"TASK_TOPICS" env-separator:","`
 	}
 
 	HttpServerConfig struct {
-		Addr        string `yaml:"addr"`
-		MetricsAddr string `yaml:"metrics_addr"`
+		Addr        string `yaml:"addr" env:"ADDR"`
+		MetricsAddr string `yaml:"metrics_addr" env:"METRICS_ADDR"`
 	}
 
 	DbConfig struct {
-		ConnectionString string        `yaml:"connection_string"`
-		InitTimeout      time.Duration `yaml:"init_timeout"`
+		ConnectionString string        `yaml:"connection_string" env:"CONNECTION_STRING"`
+		InitTimeout      time.Duration `yaml:"init_timeout" env:"INIT_TIMEOUT"`
 	}
 
 	ExecuteConfig struct {
-		Endpoint             string `yaml:"endpoint"`
-		DownloadTaskEndpoint string `yaml:"download_task_endpoint"`
+		Endpoint             string `yaml:"endpoint" env:"ENDPOINT"`
+		DownloadTaskEndpoint string `yaml:"download_task_endpoint" env:"DOWNLOAD_TASK_ENDPOINT"`
 	}
 
 	EventConsumerConfig struct {
-		Brokers       []string      `yaml:"brokers"`
-		Topic         string        `yaml:"topic"`
-		GroupID       string        `yaml:"group_id"`
-		FetchInterval time.Duration `yaml:"fetch_interval"`
+		Brokers       []string      `yaml:"brokers" env:"BROKERS" env-separator:","`
+		Topic         string        `yaml:"topic" env:"TOPIC"`
+		GroupID       string        `yaml:"group_id" env:"GROUP_ID"`
+		FetchInterval time.Duration `yaml:"fetch_interval" env:"FETCH_INTERVAL"`
 	}
 
 	MessageProducerConfig struct {
-		Brokers []string `yaml:"brokers"`
-		Topic   string   `yaml:"topic"`
+		Brokers []string `yaml:"brokers" env:"BROKERS" env-separator:","`
+		Topic   string   `yaml:"topic" env:"TOPIC"`
 	}
 
 	MetricsCollectorConfig struct {
-		CollectInterval time.Duration `yaml:"collect_interval"`
+		CollectInterval time.Duration `yaml:"collect_interval" env:"COLLECT_INTERVAL"`
 	}
 
 	TasksList []string
@@ -62,7 +62,7 @@ type (
 func MustLoad() (cfg *Config) {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
-		flog.Fatal("CONFIG_PATH is not set")
+		configPath = "config/config.yml"
 	}
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -72,6 +72,10 @@ func MustLoad() (cfg *Config) {
 	cfg = &Config{}
 	if err := cleanenv.ReadConfig(configPath, cfg); err != nil {
 		flog.Fatalf("cannot read config: %v", err)
+	}
+
+	if err := cleanenv.ReadEnv(cfg); err != nil {
+		flog.Fatalf("cannot read env: %v", err)
 	}
 
 	return
