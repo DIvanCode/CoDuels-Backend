@@ -1,4 +1,5 @@
 env: docker
+runtime: docker
 http_server:
   addr: 0.0.0.0:5254
   metrics_addr: 0.0.0.0:9091
@@ -18,4 +19,4 @@ worker:
   free_slots: 2
   coordinator_endpoint: http://coordinator:5253
   heartbeat_delay: 100ms
-  worker_delay: 100ms
+  worker_delay: 10ms

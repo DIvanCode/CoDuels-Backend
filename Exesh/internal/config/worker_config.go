@@ -11,6 +11,7 @@ import (
 type (
 	WorkerConfig struct {
 		Env            string               `yaml:"env" env:"EXESH_ENV"`
+		Runtime        string               `yaml:"runtime" env:"EXESH_RUNTIME"`
 		HttpServer     HttpServerConfig     `yaml:"http_server" env-prefix:"EXESH_HTTP_SERVER_"`
 		FileStorage    FileStorageConfig    `yaml:"filestorage" env-prefix:"EXESH_FILE_STORAGE_"`
 		SourceProvider SourceProviderConfig `yaml:"source_provider" env-prefix:"EXESH_SOURCE_PROVIDER_"`
