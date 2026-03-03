@@ -68,10 +68,10 @@ public sealed class DuelsController(
         return this.HandleResult(result);
     }
 
-    [HttpPost("search/cancel")]
-    public async Task<ActionResult> CancelSearchAsync(CancellationToken cancellationToken)
+    [HttpPost("cancel")]
+    public async Task<ActionResult> CancelPendingAsync(CancellationToken cancellationToken)
     {
-        var command = new CancelDuelSearchCommand
+        var command = new CancelPendingDuelsCommand
         {
             UserId = userContext.UserId
         };

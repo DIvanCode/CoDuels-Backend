@@ -215,11 +215,8 @@ public class AcceptGroupDuelInvitationHandlerTests : ContextBasedTest
         res.IsSuccess.Should().BeTrue();
         Context.PendingDuels.OfType<RankedPendingDuel>().Should().BeEmpty();
 
-        var outboxMessage = await Context.OutboxMessages.AsNoTracking().SingleAsync();
-        outboxMessage.Type.Should().Be(OutboxType.SendMessage);
-        var payload = (SendMessagePayload)outboxMessage.Payload;
-        payload.UserId.Should().Be(user1.Id);
-        payload.Message.Should().BeOfType<DuelSearchCanceledMessage>();
+        var outboxMessages = await Context.OutboxMessages.AsNoTracking().ToListAsync();
+        outboxMessages.Should().BeEmpty();
     }
 
     [Fact]

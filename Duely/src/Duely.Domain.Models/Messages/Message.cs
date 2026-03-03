@@ -8,7 +8,6 @@ public enum MessageType
     DuelFinished = 1,
     DuelChanged = 2,
     OpponentSolutionUpdated = 4,
-    DuelSearchCanceled = 5,
     DuelInvitation = 6,
     DuelInvitationCanceled = 7,
     DuelInvitationDenied = 8,
@@ -25,7 +24,6 @@ public enum MessageType
 [JsonDerivedType(typeof(DuelFinishedMessage), nameof(MessageType.DuelFinished))]
 [JsonDerivedType(typeof(DuelChangedMessage), nameof(MessageType.DuelChanged))]
 [JsonDerivedType(typeof(OpponentSolutionUpdatedMessage), nameof(MessageType.OpponentSolutionUpdated))]
-[JsonDerivedType(typeof(DuelSearchCanceledMessage), nameof(MessageType.DuelSearchCanceled))]
 [JsonDerivedType(typeof(DuelInvitationMessage), nameof(MessageType.DuelInvitation))]
 [JsonDerivedType(typeof(DuelInvitationCanceledMessage), nameof(MessageType.DuelInvitationCanceled))]
 [JsonDerivedType(typeof(DuelInvitationDeniedMessage), nameof(MessageType.DuelInvitationDenied))]

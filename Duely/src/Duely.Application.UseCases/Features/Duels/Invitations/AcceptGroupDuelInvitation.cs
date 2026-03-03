@@ -49,17 +49,6 @@ public sealed class AcceptGroupDuelInvitationHandler(Context context)
         if (rankedPendingDuel is not null)
         {
             context.PendingDuels.Remove(rankedPendingDuel);
-
-            context.OutboxMessages.Add(new OutboxMessage
-            {
-                Type = OutboxType.SendMessage,
-                Payload = new SendMessagePayload
-                {
-                    UserId = user.Id,
-                    Message = new DuelSearchCanceledMessage()
-                },
-                RetryUntil = DateTime.UtcNow.AddMinutes(5)
-            });
         }
         
         var outgoingFriendlyPendingDuel = await context.PendingDuels.OfType<FriendlyPendingDuel>()

@@ -169,11 +169,8 @@ public class CreateDuelInvitationHandlerTests : ContextBasedTest
             p.User1.Id == u1.Id && p.User2.Id == u2.Id && !p.IsAccepted);
 
         var outboxMessages = await ctx.OutboxMessages.AsNoTracking().ToListAsync();
-        outboxMessages.Should().HaveCount(2);
+        outboxMessages.Should().HaveCount(1);
         outboxMessages.Should().OnlyContain(m => m.Type == OutboxType.SendMessage);
-
-        var canceled = ReadSendPayload(outboxMessages.Single(m => ReadSendPayload(m).UserId == u1.Id));
-        canceled.Message.Should().BeOfType<DuelSearchCanceledMessage>();
 
         var invitation = ReadSendPayload(outboxMessages.Single(m => ReadSendPayload(m).UserId == u2.Id));
         invitation.Message.Should().BeOfType<DuelInvitationMessage>()
