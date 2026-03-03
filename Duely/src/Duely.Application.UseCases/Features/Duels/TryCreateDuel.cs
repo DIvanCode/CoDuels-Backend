@@ -123,6 +123,8 @@ public sealed class TryCreateDuelHandler(
                 });
             }
 
+            await context.SaveChangesAsync(cancellationToken);
+
             var retryUntil = duel.DeadlineTime.AddMinutes(5);
 
             context.OutboxMessages.Add(new OutboxMessage

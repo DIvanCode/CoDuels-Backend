@@ -5,8 +5,10 @@ using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Groups;
+using Duely.Domain.Services.Duels;
 using Duely.Domain.Services.Groups;
 using FluentAssertions;
+using Moq;
 using Xunit;
 
 namespace Duely.Application.Tests.Handlers;
@@ -61,7 +63,20 @@ public sealed class GetGroupDuelsHandlerTests : ContextBasedTest
         Context.PendingDuels.Add(pending);
         await Context.SaveChangesAsync();
 
-        var handler = new GetGroupDuelsHandler(Context, new GroupPermissionsService());
+        var ratingManager = new Mock<IRatingManager>();
+        ratingManager.Setup(m => m.GetRatingChanges(It.IsAny<Duel>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(new Dictionary<DuelResult, int>
+            {
+                [DuelResult.Win] = 10,
+                [DuelResult.Draw] = 0,
+                [DuelResult.Lose] = -10
+            });
+
+        var handler = new GetGroupDuelsHandler(
+            Context,
+            new GroupPermissionsService(),
+            ratingManager.Object,
+            new TaskService());
         var res = await handler.Handle(new GetGroupDuelsQuery
         {
             UserId = viewer.Id,
@@ -70,14 +85,15 @@ public sealed class GetGroupDuelsHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Should().HaveCount(2);
-        res.Value[0].DuelId.Should().BeNull();
+        res.Value[0].Duel.Should().BeNull();
         res.Value[0].User1.Id.Should().Be(user3.Id);
         res.Value[0].User1.Nickname.Should().Be(user3.Nickname);
         res.Value[0].User2.Id.Should().Be(user4.Id);
         res.Value[0].User2.Nickname.Should().Be(user4.Nickname);
         res.Value[0].IsAcceptedByUser1.Should().BeTrue();
         res.Value[0].IsAcceptedByUser2.Should().BeFalse();
-        res.Value[1].DuelId.Should().Be(duel.Id);
+        res.Value[1].Duel.Should().NotBeNull();
+        res.Value[1].Duel!.Id.Should().Be(duel.Id);
         res.Value[1].User1.Id.Should().Be(user1.Id);
         res.Value[1].User1.Nickname.Should().Be(user1.Nickname);
         res.Value[1].User2.Id.Should().Be(user2.Id);
@@ -103,7 +119,20 @@ public sealed class GetGroupDuelsHandlerTests : ContextBasedTest
         Context.Groups.Add(group);
         await Context.SaveChangesAsync();
 
-        var handler = new GetGroupDuelsHandler(Context, new GroupPermissionsService());
+        var ratingManager = new Mock<IRatingManager>();
+        ratingManager.Setup(m => m.GetRatingChanges(It.IsAny<Duel>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(new Dictionary<DuelResult, int>
+            {
+                [DuelResult.Win] = 10,
+                [DuelResult.Draw] = 0,
+                [DuelResult.Lose] = -10
+            });
+
+        var handler = new GetGroupDuelsHandler(
+            Context,
+            new GroupPermissionsService(),
+            ratingManager.Object,
+            new TaskService());
         var res = await handler.Handle(new GetGroupDuelsQuery
         {
             UserId = invited.Id,

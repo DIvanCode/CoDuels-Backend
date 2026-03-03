@@ -1,7 +1,9 @@
 using Duely.Application.Services.Errors;
 using Duely.Application.UseCases.Dtos;
+using Duely.Application.UseCases.Helpers;
 using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Groups;
+using Duely.Domain.Services.Duels;
 using Duely.Domain.Services.Groups;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
@@ -18,7 +20,9 @@ public sealed class GetGroupDuelsQuery : IRequest<Result<List<GroupDuelDto>>>
 
 public sealed class GetGroupDuelsHandler(
     Context context,
-    IGroupPermissionsService groupPermissionsService)
+    IGroupPermissionsService groupPermissionsService,
+    IRatingManager ratingManager,
+    ITaskService taskService)
     : IRequestHandler<GetGroupDuelsQuery, Result<List<GroupDuelDto>>>
 {
     private const string Operation = "view duels in";
@@ -77,7 +81,7 @@ public sealed class GetGroupDuelsHandler(
                 groupDuel.Duel.StartTime,
                 Dto = new GroupDuelDto
                 {
-                    DuelId = groupDuel.Duel.Id,
+                    Duel = DuelDtoMapper.Map(groupDuel.Duel, query.UserId, ratingManager, taskService),
                     User1 = new UserDto
                     {
                         Id = groupDuel.Duel.User1.Id,
@@ -101,7 +105,8 @@ public sealed class GetGroupDuelsHandler(
                         Rating = groupDuel.CreatedBy.Rating,
                         CreatedAt = groupDuel.CreatedBy.CreatedAt
                     },
-                    CreatedAt = groupDuel.Duel.StartTime
+                    CreatedAt = groupDuel.Duel.StartTime,
+                    ConfigurationId = groupDuel.Duel.Configuration.Id
                 }
             });
 
@@ -116,6 +121,7 @@ public sealed class GetGroupDuelsHandler(
                 StartTime = d.CreatedAt,
                 Dto = new GroupDuelDto
                 {
+                    Duel = null,
                     User1 = new UserDto
                     {
                         Id = d.User1.Id,
@@ -139,7 +145,8 @@ public sealed class GetGroupDuelsHandler(
                         Rating = d.CreatedBy.Rating,
                         CreatedAt = d.CreatedBy.CreatedAt
                     },
-                    CreatedAt = d.CreatedAt
+                    CreatedAt = d.CreatedAt,
+                    ConfigurationId = d.Configuration != null ? d.Configuration.Id : null
                 }
             })
             .ToListAsync(cancellationToken);

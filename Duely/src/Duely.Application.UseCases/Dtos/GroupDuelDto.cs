@@ -4,8 +4,8 @@ namespace Duely.Application.UseCases.Dtos;
 
 public sealed class GroupDuelDto
 {
-    [JsonPropertyName("duel_id")]
-    public int? DuelId { get; init; }
+    [JsonPropertyName("duel")]
+    public DuelDto? Duel { get; init; }
 
     [JsonPropertyName("user1")]
     public required UserDto User1 { get; init; }
@@ -24,4 +24,7 @@ public sealed class GroupDuelDto
 
     [JsonPropertyName("created_at")]
     public required DateTime CreatedAt { get; init; }
+
+    [JsonPropertyName("configuration_id")]
+    public int? ConfigurationId { get; init; }
 }
