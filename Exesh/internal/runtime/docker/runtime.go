@@ -228,10 +228,14 @@ func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exec
 		if err != nil {
 			return fmt.Errorf("open file %s: %w", insideLocation, err)
 		}
-		defer func() { _ = w.Close() }()
 
 		if _, err := io.Copy(w, stdout); err != nil {
+			_ = w.Close()
 			return fmt.Errorf("copy stdout to file: %w", err)
+		}
+
+		if err := w.Close(); err != nil {
+			return fmt.Errorf("close file %s: %w", insideLocation, err)
 		}
 	}
 
