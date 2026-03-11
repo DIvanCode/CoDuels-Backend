@@ -52,15 +52,15 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Res
 	}
 	defer unlock()
 
-	runInput, unlock, err := e.sourceProvider.Read(ctx, runGoJob.RunInput.SourceID)
+	runInput, unlock, err := e.sourceProvider.Locate(ctx, runGoJob.RunInput.SourceID)
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to read run_input input: %w", err))
+		return errorResult(fmt.Errorf("failed to locate run_input input: %w", err))
 	}
 	defer unlock()
 
-	runOutput, commitOutput, abortOutput, err := e.outputProvider.Create(ctx, jb.GetID(), runGoJob.RunOutput.File)
+	runOutput, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, jb.GetID(), runGoJob.RunOutput.File)
 	if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
-		return errorResult(fmt.Errorf("failed to create run_output output: %w", err))
+		return errorResult(fmt.Errorf("failed to reserve run_output output: %w", err))
 	}
 	if err == nil { // if file already exists, do not run command
 		commit := func() error {
@@ -75,20 +75,19 @@ func (e *RunGoJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Res
 			_ = abortOutput()
 		}()
 
-		const compiledCodeMountPath = "/a.out"
-
 		stderr := bytes.NewBuffer(nil)
 		err = e.runtime.Execute(ctx,
-			[]string{compiledCodeMountPath},
+			[]string{compiledCode},
 			runtime.ExecuteParams{
 				Limits: runtime.Limits{
 					Memory: runtime.MemoryLimit(int64(runGoJob.MemoryLimit) * int64(runtime.Megabyte)),
 					Time:   runtime.TimeLimit(int64(runGoJob.TimeLimit) * int64(time.Millisecond)),
 				},
-				InFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: compiledCodeMountPath}},
-				Stderr:  stderr,
-				Stdin:   runInput,
-				Stdout:  runOutput,
+				InFiles:    []string{compiledCode, runInput},
+				OutFiles:   []string{runOutput},
+				StdinFile:  runInput,
+				StdoutFile: runOutput,
+				Stderr:     stderr,
 			})
 		if err != nil {
 			e.log.Error("execute binary in runtime error", slog.Any("err", err))

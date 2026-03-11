@@ -22,18 +22,13 @@ type Limits struct {
 	Time   TimeLimit
 }
 
-type File struct {
-	InsideLocation  string
-	OutsideLocation string
-}
-
 type ExecuteParams struct {
-	Limits   Limits
-	InFiles  []File
-	OutFiles []File
-	Stdin    io.Reader
-	Stdout   io.Writer
-	Stderr   io.Writer
+	Limits     Limits
+	InFiles    []string
+	OutFiles   []string
+	StdinFile  string
+	StdoutFile string
+	Stderr     io.Writer
 }
 
 type LimitError error

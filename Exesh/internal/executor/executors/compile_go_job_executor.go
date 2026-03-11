@@ -9,6 +9,7 @@ import (
 	"exesh/internal/runtime"
 	"fmt"
 	"log/slog"
+	"time"
 )
 
 type CompileGoJobExecutor struct {
@@ -62,17 +63,16 @@ func (e *CompileGoJobExecutor) Execute(ctx context.Context, jb jobs.Job) results
 		_ = abortOutput()
 	}()
 
-	const codeMountPath = "/main.go"
-	const compiledCodeMountPath = "/a.out"
-
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.Execute(ctx,
-		[]string{"go", "build", "-o", compiledCodeMountPath, codeMountPath},
+		[]string{"go", "build", "-o", compiledCode, code},
 		runtime.ExecuteParams{
-			// TODO: Limits
-			Limits:   runtime.Limits{},
-			InFiles:  []runtime.File{{OutsideLocation: code, InsideLocation: codeMountPath}},
-			OutFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: compiledCodeMountPath}},
+			Limits: runtime.Limits{
+				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
+				Time:   runtime.TimeLimit(5000 * int64(time.Millisecond)),
+			},
+			InFiles:  []string{code},
+			OutFiles: []string{compiledCode},
 			Stderr:   stderr,
 		})
 	if err != nil {

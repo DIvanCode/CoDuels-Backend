@@ -10,6 +10,7 @@ import (
 	"exesh/internal/provider/adapter"
 	"exesh/internal/runtime"
 	"exesh/internal/runtime/docker"
+	isolatert "exesh/internal/runtime/isolate"
 	localrt "exesh/internal/runtime/local"
 	"exesh/internal/worker"
 	"fmt"
@@ -124,56 +125,79 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 
 func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider, outputProvider *provider.OutputProvider, runtimeName string) (*executor.JobExecutor, error) {
 	var (
-		gccRT runtime.Runtime
-		goRT  runtime.Runtime
-		pyRT  runtime.Runtime
-		err   error
+		compileCppRT runtime.Runtime
+		compileGoRT  runtime.Runtime
+		runCppRT     runtime.Runtime
+		runGoRT      runtime.Runtime
+		runPyRT      runtime.Runtime
+		err          error
 	)
+
+	compileCppRT, err = docker.New(
+		docker.WithDefaultClient(),
+		docker.WithBaseImage("gcc"),
+		docker.WithRestrictivePolicy(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create compile cpp runtime: %w", err)
+	}
+	compileGoRT, err = docker.New(
+		docker.WithDefaultClient(),
+		docker.WithBaseImage("golang"),
+		docker.WithRestrictivePolicy(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create compile go runtime: %w", err)
+	}
 
 	switch runtimeName {
 	case "docker":
-		gccRT, err = docker.New(
+		runCppRT, err = docker.New(
 			docker.WithDefaultClient(),
 			docker.WithBaseImage("gcc"),
 			docker.WithRestrictivePolicy(),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("create cpp runtime: %w", err)
+			return nil, fmt.Errorf("create run cpp runtime: %w", err)
 		}
-		goRT, err = docker.New(
+		runGoRT, err = docker.New(
 			docker.WithDefaultClient(),
 			docker.WithBaseImage("golang"),
 			docker.WithRestrictivePolicy(),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("create go runtime: %w", err)
+			return nil, fmt.Errorf("create run go runtime: %w", err)
 		}
-		pyRT, err = docker.New(
+		runPyRT, err = docker.New(
 			docker.WithDefaultClient(),
 			docker.WithBaseImage("python"),
 			docker.WithRestrictivePolicy(),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("create python runtime: %w", err)
+			return nil, fmt.Errorf("create run python runtime: %w", err)
 		}
 	case "local":
-		fmt.Println("local")
 		localRT, err := localrt.New()
 		if err != nil {
 			return nil, fmt.Errorf("create local runtime: %w", err)
 		}
-		gccRT = localRT
-		goRT = localRT
-		pyRT = localRT
+		runCppRT = localRT
+		runGoRT = localRT
+		runPyRT = localRT
+	case "isolate":
+		isolateRT := isolatert.New()
+		runCppRT = isolateRT
+		runGoRT = isolateRT
+		runPyRT = isolateRT
 	default:
 		return nil, fmt.Errorf("unknown runtime name: %s", runtimeName)
 	}
 
-	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, sourceProvider, outputProvider, gccRT)
-	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, sourceProvider, outputProvider, goRT)
-	runCppJobExecutor := executors.NewRunCppJobExecutor(log, sourceProvider, outputProvider, gccRT)
-	runPyJobExecutor := executors.NewRunPyJobExecutor(log, sourceProvider, outputProvider, pyRT)
-	runGoJobExecutor := executors.NewRunGoJobExecutor(log, sourceProvider, outputProvider, goRT)
-	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, sourceProvider, outputProvider, gccRT)
+	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, sourceProvider, outputProvider, compileCppRT)
+	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, sourceProvider, outputProvider, compileGoRT)
+	runCppJobExecutor := executors.NewRunCppJobExecutor(log, sourceProvider, outputProvider, runCppRT)
+	runPyJobExecutor := executors.NewRunPyJobExecutor(log, sourceProvider, outputProvider, runPyRT)
+	runGoJobExecutor := executors.NewRunGoJobExecutor(log, sourceProvider, outputProvider, runGoRT)
+	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, sourceProvider, outputProvider, runCppRT)
 	return executor.NewJobExecutor(compileCppJobExecutor, compileGoJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
 }

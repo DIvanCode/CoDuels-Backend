@@ -40,17 +40,3 @@ func (p *OutputProvider) Read(ctx context.Context, jobID job.ID, file string) (r
 
 	return p.filestorage.ReadFile(ctx, bucketID, file, p.cfg.ArtifactTTL)
 }
-
-func (p *OutputProvider) Create(
-	ctx context.Context,
-	jobID job.ID,
-	file string,
-) (w io.Writer, commit, abort func() error, err error) {
-	var bucketID bucket.ID
-	if err = bucketID.FromString(jobID.String()); err != nil {
-		err = fmt.Errorf("failed to create bucket id: %w", err)
-		return
-	}
-
-	return p.filestorage.CreateFile(ctx, bucketID, file, p.cfg.ArtifactTTL)
-}

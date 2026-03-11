@@ -69,9 +69,12 @@ services:
       EXESH_FILE_STORAGE_ROOT_DIR: file_storage/worker-1
       EXESH_WORKER_ID: http://worker-1:5254
       EXESH_WORKER_COORDINATOR_ENDPOINT: http://coordinator:5253
+    privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/config:ro
+      - ./isolate:/usr/local/bin/isolate:ro
+      - ./config/isolate.conf:/usr/local/etc/isolate:ro
 
   worker-2:
     build:
@@ -92,6 +95,9 @@ services:
       EXESH_FILE_STORAGE_ROOT_DIR: file_storage/worker-2
       EXESH_WORKER_ID: http://worker-2:5255
       EXESH_WORKER_COORDINATOR_ENDPOINT: http://coordinator:5253
+    privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/config:ro
+      - ./isolate:/usr/local/bin/isolate:ro
+      - ./config/isolate.conf:/usr/local/etc/isolate:ro

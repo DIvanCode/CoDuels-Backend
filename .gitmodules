@@ -1,3 +1,6 @@
 [submodule "filestorage"]
 	path = filestorage
 	url = https://github.com/DIvanCode/filestorage
+[submodule "isolate"]
+	path = isolate
+	url = https://github.com/ioi/isolate.git

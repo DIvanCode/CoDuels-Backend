@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/DIvanCode/filestorage/pkg/bucket"
 	errs "github.com/DIvanCode/filestorage/pkg/errors"
-	"io"
 	"sync"
 )
 
@@ -120,14 +119,4 @@ func (p *SourceProvider) Locate(ctx context.Context, sourceID source.ID) (path s
 	}
 
 	return p.filestorage.LocateFile(ctx, src.BucketID, src.File, p.cfg.FilestorageBucketTTL)
-}
-
-func (p *SourceProvider) Read(ctx context.Context, sourceID source.ID) (r io.Reader, unlock func(), err error) {
-	src, ok := p.getSavedSource(sourceID)
-	if !ok {
-		err = fmt.Errorf("source %s not found", sourceID.String())
-		return
-	}
-
-	return p.filestorage.ReadFile(ctx, src.BucketID, src.File, p.cfg.FilestorageBucketTTL)
 }
