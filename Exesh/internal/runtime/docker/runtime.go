@@ -204,7 +204,7 @@ func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exec
 				return runtime.ErrTimeout
 			}
 			return ctx.Err()
-		case <-time.After(1 * time.Second):
+		case <-time.After(100 * time.Millisecond):
 		}
 	}
 
@@ -220,22 +220,16 @@ func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exec
 	if err != nil {
 		return fmt.Errorf("copy std streams from container: %w", err)
 	}
-	fmt.Printf("params.StdoutFile = \"%s\"\n", params.StdoutFile)
 	if params.StdoutFile != "" {
-		insideLocation := r.insideLocation(params.StdoutFile)
-		fmt.Printf("insideLocation = \"%s\"\n", insideLocation)
-		w, err := os.OpenFile(insideLocation, os.O_WRONLY|os.O_CREATE, 0o755)
+		w, err := os.OpenFile(params.StdoutFile, os.O_WRONLY|os.O_CREATE, 0o755)
 		if err != nil {
-			return fmt.Errorf("open file %s: %w", insideLocation, err)
+			return fmt.Errorf("open stdout file %s: %w", params.StdoutFile, err)
 		}
+		defer func() { _ = w.Close() }()
 
 		if _, err := io.Copy(w, stdout); err != nil {
 			_ = w.Close()
-			return fmt.Errorf("copy stdout to file: %w", err)
-		}
-
-		if err := w.Close(); err != nil {
-			return fmt.Errorf("close file %s: %w", insideLocation, err)
+			return fmt.Errorf("copy stdout to stdout file: %w", err)
 		}
 	}
 
@@ -279,8 +273,10 @@ func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exec
 			return nil
 		}
 
-		if err := copyFunc(r.insideLocation(location), location); err != nil {
-			return err
+		if location != params.StdoutFile {
+			if err := copyFunc(r.insideLocation(location), location); err != nil {
+				return err
+			}
 		}
 	}
 
