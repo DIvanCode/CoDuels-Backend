@@ -162,6 +162,19 @@ func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exec
 	}
 	defer hjr.Close()
 
+	if params.StdinFile != "" {
+		fr, err := os.OpenFile(params.StdinFile, os.O_RDONLY, 0)
+		if err != nil {
+			return fmt.Errorf("open file %s: %w", params.StdinFile, err)
+		}
+		defer func() { _ = fr.Close() }()
+
+		go func(rd io.Reader) {
+			_, _ = io.Copy(hjr.Conn, rd)
+			defer func() { _ = hjr.CloseWrite() }()
+		}(fr)
+	}
+
 	if err = r.client.ContainerStart(ctx, cr.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("start container: %w", err)
 	}
@@ -202,9 +215,21 @@ func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exec
 		return runtime.ErrTimeout
 	}
 
-	_, err = stdcopy.StdCopy(params.Stdout, params.Stderr, hjr.Conn)
+	stdout := bytes.NewBuffer(nil)
+	_, err = stdcopy.StdCopy(stdout, params.Stderr, hjr.Conn)
 	if err != nil {
 		return fmt.Errorf("copy std streams from container: %w", err)
+	}
+	if params.StdoutFile != "" {
+		w, err := os.OpenFile(params.StdoutFile, os.O_WRONLY|os.O_CREATE, 0o755)
+		if err != nil {
+			return fmt.Errorf("open file %s: %w", params.StdoutFile, err)
+		}
+		defer func() { _ = w.Close() }()
+
+		if _, err := io.Copy(w, stdout); err != nil {
+			return fmt.Errorf("copy stdout to file: %w", err)
+		}
 	}
 
 	if insp.State.ExitCode != 0 {

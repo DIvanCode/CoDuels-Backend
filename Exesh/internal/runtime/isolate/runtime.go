@@ -3,6 +3,7 @@ package isolate
 import (
 	"bytes"
 	"context"
+	"errors"
 	"exesh/internal/runtime"
 	"fmt"
 	"io"
@@ -62,9 +63,13 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		}
 	}
 
+	var stdinPath string
+	if params.StdinFile != "" {
+		stdinPath = filepath.Join(boxDir, filepath.Base(params.StdinFile))
+	}
 	var stdoutPath string
-	if params.Stdout != nil {
-		stdoutPath = filepath.Join(boxDir, ".stdout")
+	if params.StdoutFile != "" {
+		stdoutPath = filepath.Join(boxDir, filepath.Base(params.StdoutFile))
 	}
 	stderrPath := filepath.Join(boxDir, ".stderr")
 	metaPath := filepath.Join(boxDir, ".meta")
@@ -79,52 +84,30 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		memKB := (int64(params.Limits.Memory) + 1023) / 1024
 		runArgs = append(runArgs, "--mem="+strconv.FormatInt(memKB, 10))
 	}
+	if stdinPath != "" {
+		runArgs = append(runArgs, "--stdin="+stdinPath)
+	}
 	if stdoutPath != "" {
 		runArgs = append(runArgs, "--stdout="+stdoutPath)
 	}
 	runArgs = append(runArgs, "--stderr="+stderrPath)
-	for _, d := range rt.dirs {
-		if d != "" {
-			runArgs = append(runArgs, "--dir="+d)
-		}
-	}
 	runArgs = append(runArgs, "--meta="+metaPath)
 	runArgs = append(runArgs, "--")
-
-	mappedCmd := make([]string, len(cmd))
-	for i, arg := range cmd {
-		if mapped, ok := sandboxMap[arg]; ok {
-			mappedCmd[i] = mapped
-			continue
-		}
-		mappedCmd[i] = arg
-	}
-
-	if len(cmd) > 0 {
-		if _, ok := sandboxMap[cmd[0]]; ok {
-			cmdHostPath := hostPath(cmd[0])
-			if st, err := os.Stat(cmdHostPath); err == nil && !st.IsDir() {
-				_ = os.Chmod(cmdHostPath, st.Mode().Perm()|0o111)
-			}
-		}
-	}
-	runArgs = append(runArgs, mappedCmd...)
+	runArgs = append(runArgs, cmd...)
 
 	runCmd := exec.CommandContext(ctx, rt.binPath, runArgs...)
 	runCmd.Dir = boxRoot
-	var runStdout bytes.Buffer
 	var runStderr bytes.Buffer
-	runCmd.Stdout = &runStdout
 	runCmd.Stderr = &runStderr
 
 	runErr := runCmd.Run()
 
-	if err := rt.handleMeta(filepath.Join(boxRoot, metaPath)); err != nil {
+	if err := rt.handleMeta(metaPath); err != nil {
 		return err
 	}
 
 	if runErr != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return runtime.ErrTimeout
 		}
 		if ctx.Err() != nil {
@@ -133,24 +116,23 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		return fmt.Errorf("isolate run: %w: %s", runErr, strings.TrimSpace(runStderr.String()))
 	}
 
-	if params.Stdout != nil {
-		if err := copyFileToWriter(filepath.Join(boxDir, ".stdout"), params.Stdout); err != nil {
-			return fmt.Errorf("read stdout: %w", err)
+	if stdoutPath != "" {
+		if err := copyFile(stdoutPath, params.StdoutFile); err != nil {
+			return fmt.Errorf("copy stdout: %w", err)
 		}
 	}
 	if params.Stderr != nil {
-		if err := copyFileToWriter(filepath.Join(boxDir, stderrPath), params.Stderr); err != nil {
-			return fmt.Errorf("read stderr: %w", err)
+		if err := copyFileToWriter(stderrPath, params.Stderr); err != nil {
+			return fmt.Errorf("copy stderr: %w", err)
 		}
 	}
 
-	for _, f := range params.OutFiles {
-		src := hostPath(f.InsideLocation)
-		if err := os.MkdirAll(filepath.Dir(f.OutsideLocation), 0o755); err != nil {
-			return fmt.Errorf("create dir for %s: %w", f.OutsideLocation, err)
+	for _, location := range params.OutFiles {
+		if err := os.MkdirAll(filepath.Dir(location), 0o755); err != nil {
+			return fmt.Errorf("create dir for %s: %w", location, err)
 		}
-		if err := copyFile(src, f.OutsideLocation); err != nil {
-			return fmt.Errorf("copy out file %s: %w", f.OutsideLocation, err)
+		if err := copyFile(insideLocation(location), location); err != nil {
+			return fmt.Errorf("copy out file %s: %w", location, err)
 		}
 	}
 
@@ -228,7 +210,7 @@ func copyFileToWriter(src string, w io.Writer) error {
 		}
 		return err
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 	_, err = io.Copy(w, in)
 	return err
 }
@@ -238,7 +220,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 
 	st, err := in.Stat()
 	if err != nil {
@@ -254,7 +236,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 
 	if _, err := io.Copy(out, in); err != nil {
 		return err
