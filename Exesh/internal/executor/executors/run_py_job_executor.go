@@ -76,7 +76,7 @@ func (e *RunPyJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Res
 
 		stderr := bytes.NewBuffer(nil)
 		err = e.runtime.Execute(ctx,
-			[]string{"python3", code},
+			[]string{"/usr/bin/python3", code},
 			runtime.ExecuteParams{
 				Limits: runtime.Limits{
 					Memory: runtime.MemoryLimit(int64(runPyJob.MemoryLimit) * int64(runtime.Megabyte)),
