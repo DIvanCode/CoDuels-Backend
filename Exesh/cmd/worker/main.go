@@ -170,7 +170,7 @@ func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider,
 		}
 		runPyRT, err = docker.New(
 			docker.WithDefaultClient(),
-			docker.WithBaseImage("python"),
+			docker.WithBaseImage("python3"),
 			docker.WithRestrictivePolicy(),
 		)
 		if err != nil {
