@@ -23,12 +23,12 @@ type Limits struct {
 }
 
 type ExecuteParams struct {
-	Limits     Limits
-	InFiles    []string
-	OutFiles   []string
-	StdinFile  string
-	StdoutFile string
-	Stderr     io.Writer
+	Limits     Limits    // memory and time limits
+	InFiles    []string  // files that should be copied from host to runtime
+	OutFiles   []string  // files that should be copied from runtime to host
+	StdinFile  string    // file that is stdin for command
+	StdoutFile string    // file that is stdout for command
+	Stderr     io.Writer // stderr should be written to this writer
 }
 
 type LimitError error
