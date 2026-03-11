@@ -220,8 +220,10 @@ func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exec
 	if err != nil {
 		return fmt.Errorf("copy std streams from container: %w", err)
 	}
+	fmt.Printf("params.StdoutFile = \"%s\"\n", params.StdoutFile)
 	if params.StdoutFile != "" {
 		insideLocation := r.insideLocation(params.StdoutFile)
+		fmt.Printf("insideLocation = \"%s\"\n", insideLocation)
 		w, err := os.OpenFile(insideLocation, os.O_WRONLY|os.O_CREATE, 0o755)
 		if err != nil {
 			return fmt.Errorf("open file %s: %w", insideLocation, err)
@@ -243,6 +245,7 @@ func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exec
 
 	for _, location := range params.OutFiles {
 		copyFunc := func(insideLocation, outsideLocation string) error {
+			fmt.Printf("insideLocation=\"%s\", outsideLocation=\"%s\"\n", insideLocation, outsideLocation)
 			w, err := os.OpenFile(outsideLocation, os.O_WRONLY|os.O_CREATE, 0o755)
 			if err != nil {
 				return fmt.Errorf("open file %s: %w", outsideLocation, err)
