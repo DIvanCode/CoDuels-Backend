@@ -177,10 +177,7 @@ func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider,
 			return nil, fmt.Errorf("create run python runtime: %w", err)
 		}
 	case "local":
-		localRT, err := localrt.New()
-		if err != nil {
-			return nil, fmt.Errorf("create local runtime: %w", err)
-		}
+		localRT := localrt.New()
 		runCppRT = localRT
 		runGoRT = localRT
 		runPyRT = localRT
