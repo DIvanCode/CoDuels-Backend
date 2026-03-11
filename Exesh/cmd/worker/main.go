@@ -154,7 +154,7 @@ func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider,
 	case "docker":
 		runCppRT, err = docker.New(
 			docker.WithDefaultClient(),
-			docker.WithBaseImage("gcc"),
+			docker.WithBaseImage("gcc:latest"),
 			docker.WithRestrictivePolicy(),
 		)
 		if err != nil {
@@ -162,7 +162,7 @@ func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider,
 		}
 		runGoRT, err = docker.New(
 			docker.WithDefaultClient(),
-			docker.WithBaseImage("golang"),
+			docker.WithBaseImage("golang:latest"),
 			docker.WithRestrictivePolicy(),
 		)
 		if err != nil {
@@ -170,7 +170,7 @@ func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider,
 		}
 		runPyRT, err = docker.New(
 			docker.WithDefaultClient(),
-			docker.WithBaseImage("python3"),
+			docker.WithBaseImage("python:3"),
 			docker.WithRestrictivePolicy(),
 		)
 		if err != nil {
