@@ -2,5 +2,5 @@
 	path = filestorage
 	url = https://github.com/DIvanCode/filestorage
 [submodule "isolate"]
-	path = isolate
+	path = Exesh/isolate
 	url = https://github.com/ioi/isolate.git

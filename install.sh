@@ -1,13 +1,6 @@
 # install tools
 sudo apt update
-sudo apt install make g++ python3 golang-go postgresql-client libcap-dev -y
-
-# setup isolate
-cd isolate
-make isolate
-mv isolate ../Exesh/isolate
-cd ../
-#sudo mkdir -p /sys/fs/cgroup/isolate
+sudo apt install make g++ python3 golang-go postgresql-client -y
 
 # install docker
 sudo apt install ca-certificates curl gnupg software-properties-common -y

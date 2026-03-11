@@ -73,7 +73,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/config:ro
-      - ./isolate:/usr/local/bin/isolate:ro
       - ./config/isolate.conf:/usr/local/etc/isolate:ro
 
   worker-2:
@@ -99,5 +98,4 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/config:ro
-      - ./isolate:/usr/local/bin/isolate:ro
       - ./config/isolate.conf:/usr/local/etc/isolate:ro
