@@ -133,22 +133,24 @@ func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider,
 		err          error
 	)
 
-	compileCppRT, err = docker.New(
-		docker.WithDefaultClient(),
-		docker.WithBaseImage("gcc"),
-		docker.WithRestrictivePolicy(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create compile cpp runtime: %w", err)
-	}
-	compileGoRT, err = docker.New(
-		docker.WithDefaultClient(),
-		docker.WithBaseImage("golang"),
-		docker.WithRestrictivePolicy(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create compile go runtime: %w", err)
-	}
+	//compileCppRT, err = docker.New(
+	//	docker.WithDefaultClient(),
+	//	docker.WithBaseImage("gcc"),
+	//	docker.WithRestrictivePolicy(),
+	//)
+	//if err != nil {
+	//	return nil, fmt.Errorf("create compile cpp runtime: %w", err)
+	//}
+	//compileGoRT, err = docker.New(
+	//	docker.WithDefaultClient(),
+	//	docker.WithBaseImage("golang"),
+	//	docker.WithRestrictivePolicy(),
+	//)
+	//if err != nil {
+	//	return nil, fmt.Errorf("create compile go runtime: %w", err)
+	//}
+	compileCppRT = localrt.New()
+	compileGoRT = localrt.New()
 
 	switch runtimeName {
 	case "docker":
