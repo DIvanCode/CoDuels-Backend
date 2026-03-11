@@ -71,16 +71,16 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		}
 	}
 
-	var stdinPath string
+	var stdinFile string
 	if params.StdinFile != "" {
-		stdinPath = filepath.Join(boxDir, filepath.Base(params.StdinFile))
+		stdinFile = filepath.Base(params.StdinFile)
 	}
-	var stdoutPath string
+	var stdoutFile string
 	if params.StdoutFile != "" {
-		stdoutPath = filepath.Join(boxDir, filepath.Base(params.StdoutFile))
+		stdoutFile = filepath.Base(params.StdoutFile)
 	}
-	stderrPath := filepath.Join(boxDir, ".stderr")
-	metaPath := filepath.Join(boxDir, ".meta")
+	stderrFile := ".stderr"
+	metaFile := ".meta"
 
 	runArgs := []string{"-b", strconv.Itoa(boxID), "--run"}
 	if params.Limits.Time != 0 {
@@ -92,14 +92,14 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		memKB := (int64(params.Limits.Memory) + 1023) / 1024
 		runArgs = append(runArgs, "--mem="+strconv.FormatInt(memKB, 10))
 	}
-	if stdinPath != "" {
-		runArgs = append(runArgs, "--stdin="+stdinPath)
+	if stdinFile != "" {
+		runArgs = append(runArgs, "--stdin="+stdinFile)
 	}
-	if stdoutPath != "" {
-		runArgs = append(runArgs, "--stdout="+stdoutPath)
+	if stdoutFile != "" {
+		runArgs = append(runArgs, "--stdout="+stdoutFile)
 	}
-	runArgs = append(runArgs, "--stderr="+stderrPath)
-	runArgs = append(runArgs, "--meta="+metaPath)
+	runArgs = append(runArgs, "--stderr="+stderrFile)
+	runArgs = append(runArgs, "--meta="+metaFile)
 	runArgs = append(runArgs, "--")
 	runArgs = append(runArgs, cmd...)
 
@@ -111,7 +111,7 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	fmt.Println(runCmd.String())
 	runErr := runCmd.Run()
 
-	if err := rt.handleMeta(metaPath); err != nil {
+	if err := rt.handleMeta(filepath.Join(boxDir, metaFile)); err != nil {
 		return err
 	}
 
@@ -125,13 +125,13 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		return fmt.Errorf("isolate run: %w: %s", runErr, strings.TrimSpace(runStderr.String()))
 	}
 
-	if stdoutPath != "" {
-		if err := copyFile(stdoutPath, params.StdoutFile); err != nil {
+	if stdoutFile != "" {
+		if err := copyFile(filepath.Join(boxDir, stdoutFile), params.StdoutFile); err != nil {
 			return fmt.Errorf("copy stdout: %w", err)
 		}
 	}
 	if params.Stderr != nil {
-		if err := copyFileToWriter(stderrPath, params.Stderr); err != nil {
+		if err := copyFileToWriter(filepath.Join(boxDir, stderrFile), params.Stderr); err != nil {
 			return fmt.Errorf("copy stderr: %w", err)
 		}
 	}
