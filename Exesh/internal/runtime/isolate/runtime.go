@@ -50,16 +50,24 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		return filepath.Join(boxDir, filepath.Base(outsideLocation))
 	}
 
-	for _, location := range params.InFiles {
-		i := slices.Index(cmd, location)
+	for _, outsideLocation := range params.InFiles {
+		location := insideLocation(outsideLocation)
+		i := slices.Index(cmd, outsideLocation)
 		if i != -1 {
-			cmd[i] = insideLocation(location)
+			cmd[i] = location
+		}
+
+		if err := os.MkdirAll(filepath.Dir(location), 0o755); err != nil {
+			return fmt.Errorf("create dir for %s: %w", location, err)
+		}
+		if err := copyFile(outsideLocation, location); err != nil {
+			return fmt.Errorf("copy in file %s: %w", outsideLocation, err)
 		}
 	}
-	for _, location := range params.OutFiles {
-		i := slices.Index(cmd, location)
+	for _, outsideLocation := range params.OutFiles {
+		i := slices.Index(cmd, outsideLocation)
 		if i != -1 {
-			cmd[i] = insideLocation(location)
+			cmd[i] = insideLocation(outsideLocation)
 		}
 	}
 
@@ -100,6 +108,7 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	var runStderr bytes.Buffer
 	runCmd.Stderr = &runStderr
 
+	fmt.Println(runCmd.String())
 	runErr := runCmd.Run()
 
 	if err := rt.handleMeta(metaPath); err != nil {

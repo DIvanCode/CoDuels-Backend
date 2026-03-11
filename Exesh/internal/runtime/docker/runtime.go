@@ -243,7 +243,6 @@ func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exec
 
 	for _, location := range params.OutFiles {
 		copyFunc := func(insideLocation, outsideLocation string) error {
-			fmt.Printf("insideLocation=\"%s\", outsideLocation=\"%s\"\n", insideLocation, outsideLocation)
 			w, err := os.OpenFile(outsideLocation, os.O_WRONLY|os.O_CREATE, 0o755)
 			if err != nil {
 				return fmt.Errorf("open file %s: %w", outsideLocation, err)
