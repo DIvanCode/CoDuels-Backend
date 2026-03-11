@@ -225,6 +225,8 @@ func copyFileToWriter(src string, w io.Writer) error {
 }
 
 func copyFile(src, dst string) error {
+	fmt.Printf("copy %s to %s\n", src, dst)
+
 	in, err := os.Open(src)
 	if err != nil {
 		return err
