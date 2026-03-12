@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/plain"
 )
 
 type (
@@ -48,6 +49,14 @@ func NewKafkaSender(
 		Topic:       cfg.Topic,
 		MaxAttempts: 1,
 		BatchSize:   1,
+	}
+	if cfg.SaslAuth {
+		writer.Transport = &kafka.Transport{
+			SASL: plain.Mechanism{
+				Username: cfg.SaslUsername,
+				Password: cfg.SaslPassword,
+			},
+		}
 	}
 
 	return &KafkaSender{
