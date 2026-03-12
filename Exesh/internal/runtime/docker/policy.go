@@ -48,10 +48,4 @@ func networkPolicy(enable bool) policy {
 func restrictivePolicy(hc *container.HostConfig) {
 	ulimitPolicy(&container.Ulimit{Name: "nproc", Hard: 1, Soft: 1})(hc)
 	networkPolicy(false)(hc)
-	//hc.Tmpfs = map[string]string{
-	//	"/tmp":       "rw,nosuid,nodev,mode=1777,size=256m",
-	//	"/workspace": "rw,nosuid,nodev,mode=1777,size=128m",
-	//}
-	//hc.CapDrop = []string{"ALL"}
-	//hc.SecurityOpt = append(hc.SecurityOpt, "no-new-privileges")
 }

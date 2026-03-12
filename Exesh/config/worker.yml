@@ -1,4 +1,4 @@
-env: docker
+env: dev
 runtime: isolate
 http_server:
   addr: 0.0.0.0:5254

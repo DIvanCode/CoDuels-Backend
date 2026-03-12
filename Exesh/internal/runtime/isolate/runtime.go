@@ -104,7 +104,6 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	var runStderr bytes.Buffer
 	runCmd.Stderr = &runStderr
 
-	fmt.Println(runCmd.String())
 	runErr := runCmd.Run()
 
 	if err := rt.handleMeta(filepath.Join(boxDir, metaFile)); err != nil {
@@ -221,8 +220,6 @@ func copyFileToWriter(src string, w io.Writer) error {
 }
 
 func copyFile(src, dst string) error {
-	fmt.Printf("copy %s to %s\n", src, dst)
-
 	in, err := os.Open(src)
 	if err != nil {
 		return err
