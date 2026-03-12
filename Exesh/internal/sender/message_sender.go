@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
-	"github.com/segmentio/kafka-go/sasl/plain"
+	"github.com/segmentio/kafka-go/sasl/scram"
 )
 
 type (
@@ -51,11 +51,13 @@ func NewKafkaSender(
 		BatchSize:   1,
 	}
 	if cfg.SaslAuth {
+		mechanism, err := scram.Mechanism(scram.SHA512, cfg.SaslUsername, cfg.SaslPassword)
+		if err != nil {
+			log.Error("failed to create kafka sasl mechanism", slog.Any("error", err))
+		}
+
 		writer.Transport = &kafka.Transport{
-			SASL: plain.Mechanism{
-				Username: cfg.SaslUsername,
-				Password: cfg.SaslPassword,
-			},
+			SASL: mechanism,
 		}
 	}
 
