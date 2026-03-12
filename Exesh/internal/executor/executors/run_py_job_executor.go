@@ -51,15 +51,15 @@ func (e *RunPyJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Res
 	}
 	defer unlock()
 
-	runInput, unlock, err := e.sourceProvider.Read(ctx, runPyJob.RunInput.SourceID)
+	runInput, unlock, err := e.sourceProvider.Locate(ctx, runPyJob.RunInput.SourceID)
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to read run_input input: %w", err))
+		return errorResult(fmt.Errorf("failed to locate run_input input: %w", err))
 	}
 	defer unlock()
 
-	runOutput, commitOutput, abortOutput, err := e.outputProvider.Create(ctx, jb.GetID(), runPyJob.RunOutput.File)
+	runOutput, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, jb.GetID(), runPyJob.RunOutput.File)
 	if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
-		return errorResult(fmt.Errorf("failed to create run_output output: %w", err))
+		return errorResult(fmt.Errorf("failed to reserve run_output output: %w", err))
 	}
 	if err == nil { // if file already exists, do not run command
 		commit := func() error {
@@ -74,20 +74,19 @@ func (e *RunPyJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Res
 			_ = abortOutput()
 		}()
 
-		const codeLocation = "/main.py"
-
 		stderr := bytes.NewBuffer(nil)
 		err = e.runtime.Execute(ctx,
-			[]string{"python3", codeLocation},
+			[]string{"/usr/bin/python3", code},
 			runtime.ExecuteParams{
 				Limits: runtime.Limits{
 					Memory: runtime.MemoryLimit(int64(runPyJob.MemoryLimit) * int64(runtime.Megabyte)),
 					Time:   runtime.TimeLimit(int64(runPyJob.TimeLimit) * int64(time.Millisecond)),
 				},
-				InFiles: []runtime.File{{OutsideLocation: code, InsideLocation: codeLocation}},
-				Stderr:  stderr,
-				Stdin:   runInput,
-				Stdout:  runOutput,
+				InFiles:    []string{code, runInput},
+				OutFiles:   []string{runOutput},
+				StdinFile:  runInput,
+				StdoutFile: runOutput,
+				Stderr:     stderr,
 			})
 		if err != nil {
 			e.log.Error("execute binary in runtime error", slog.Any("err", err))

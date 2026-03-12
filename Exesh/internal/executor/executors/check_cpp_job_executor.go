@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"time"
 )
 
 type CheckCppJobExecutor struct {
@@ -65,21 +67,25 @@ func (e *CheckCppJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.
 	}
 	defer unlock()
 
-	const compiledCheckerMountPath = "/a.out"
-	const correctOutputMountPath = "/correct.txt"
-	const suspectOutputMountPath = "/suspect.txt"
+	checkVerdict, err := os.CreateTemp("/tmp", "*")
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to create temporary file for verdict: %w", err))
+	}
+	defer func() { _ = os.Remove(checkVerdict.Name()) }()
+	defer func() { _ = checkVerdict.Close() }()
 
-	checkVerdictReader := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
-	err = e.runtime.Execute(ctx, []string{compiledCheckerMountPath, correctOutputMountPath, suspectOutputMountPath}, runtime.ExecuteParams{
-		InFiles: []runtime.File{
-			{InsideLocation: correctOutputMountPath, OutsideLocation: correctOutput},
-			{InsideLocation: suspectOutputMountPath, OutsideLocation: suspectOutput},
-			{InsideLocation: compiledCheckerMountPath, OutsideLocation: compiledChecker},
-		},
-		Stdout: checkVerdictReader,
-		Stderr: stderr,
-	})
+	err = e.runtime.Execute(ctx,
+		[]string{compiledChecker, correctOutput, suspectOutput},
+		runtime.ExecuteParams{
+			Limits: runtime.Limits{
+				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
+				Time:   runtime.TimeLimit(2000 * int64(time.Millisecond)),
+			},
+			InFiles:    []string{compiledChecker, correctOutput, suspectOutput},
+			StdoutFile: checkVerdict.Name(),
+			Stderr:     stderr,
+		})
 	if err != nil {
 		e.log.Error("execute checker in runtime error", slog.Any("err", err))
 		return errorResult(err)
@@ -87,7 +93,7 @@ func (e *CheckCppJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.
 
 	e.log.Info("command ok")
 
-	checkVerdictOutput, err := io.ReadAll(checkVerdictReader)
+	checkVerdictOutput, err := io.ReadAll(checkVerdict)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to read check_verdict output: %w", err))
 	}

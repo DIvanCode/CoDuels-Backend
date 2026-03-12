@@ -1,4 +1,4 @@
-env: docker
+env: dev
 http_server:
   addr: 0.0.0.0:5253
   metrics_addr: 0.0.0.0:9090

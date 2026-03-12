@@ -10,6 +10,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -25,60 +27,67 @@ type Runtime struct {
 	basePolicy policy
 }
 
-type FuncOpt func(dr *Runtime) error
+type FuncOpt func(r *Runtime) error
 
 func WithRestrictivePolicy() FuncOpt {
-	return func(dr *Runtime) error {
-		dr.basePolicy = restrictivePolicy
-		return nil
-	}
-}
-
-func WithClient(client *client.Client) FuncOpt {
-	return func(dr *Runtime) error {
-		dr.client = client
+	return func(r *Runtime) error {
+		r.basePolicy = restrictivePolicy
 		return nil
 	}
 }
 
 func WithDefaultClient() FuncOpt {
-	return func(dr *Runtime) error {
+	return func(r *Runtime) error {
 		c, err := client.NewClientWithOpts()
 		if err != nil {
 			return fmt.Errorf("docker client create: %w", err)
 		}
-		dr.client = c
+		r.client = c
 		return nil
 	}
 }
 
 func WithBaseImage(baseImage string) FuncOpt {
-	return func(dr *Runtime) error {
-		dr.baseImage = baseImage
+	return func(r *Runtime) error {
+		r.baseImage = baseImage
 		return nil
 	}
 }
 
 func New(opts ...FuncOpt) (*Runtime, error) {
-	dr := &Runtime{}
+	r := &Runtime{}
 	for _, opt := range opts {
-		err := opt(dr)
+		err := opt(r)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return dr, nil
+	return r, nil
 }
 
-func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.ExecuteParams) error {
+func (r *Runtime) Execute(ctx context.Context, cmd []string, params runtime.ExecuteParams) error {
 	hostConfig := &container.HostConfig{}
-	dr.basePolicy(hostConfig)
+	if r.basePolicy != nil {
+		r.basePolicy(hostConfig)
+	}
 	cpuPolicy(int64(params.Limits.Time) / int64(time.Second))(hostConfig)
 	memoryPolicy(int64(params.Limits.Memory))(hostConfig)
 
-	// we do not know why, but without StdinOnce, without CloseWrite stdin is not closed, and with it - stdout is empty
-	cr, err := dr.client.ContainerCreate(ctx,
-		&container.Config{Image: dr.baseImage, Cmd: cmd, OpenStdin: true, StdinOnce: true},
+	for _, location := range params.InFiles {
+		i := slices.Index(cmd, location)
+		if i != -1 {
+			cmd[i] = r.insideLocation(location)
+		}
+	}
+	for _, location := range params.OutFiles {
+		i := slices.Index(cmd, location)
+		if i != -1 {
+			cmd[i] = r.insideLocation(location)
+		}
+	}
+
+	cr, err := r.client.ContainerCreate(ctx,
+		&container.Config{Image: r.baseImage, Cmd: cmd, OpenStdin: true, StdinOnce: true},
 		hostConfig,
 		&network.NetworkingConfig{},
 		&v1.Platform{OS: "linux", Architecture: "amd64"},
@@ -86,50 +95,63 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	if err != nil {
 		return fmt.Errorf("create docker container: %w", err)
 	}
+	defer func() {
+		_ = r.client.ContainerRemove(ctx, cr.ID, container.RemoveOptions{
+			Force:         true,
+			RemoveVolumes: true,
+		})
+	}()
 
-	defer dr.client.ContainerRemove(ctx, cr.ID, container.RemoveOptions{
-		Force:         true,
-		RemoveVolumes: true,
-	})
+	for _, location := range params.InFiles {
+		copyFunc := func(outsideLocation, insideLocation string) error {
+			fr, err := os.OpenFile(outsideLocation, os.O_RDONLY, 0)
+			if err != nil {
+				return fmt.Errorf("open file %s: %w", outsideLocation, err)
+			}
 
-	for _, f := range params.InFiles {
-		r, err := os.OpenFile(f.OutsideLocation, os.O_RDONLY, 0)
-		if err != nil {
-			return fmt.Errorf("open file %s: %w", f.OutsideLocation, err)
+			sz, err := fr.Seek(0, io.SeekEnd)
+			if err != nil {
+				return fmt.Errorf("seek: %w", err)
+			}
+
+			_, err = fr.Seek(0, io.SeekStart)
+			if err != nil {
+				return fmt.Errorf("seek: %w", err)
+			}
+
+			buf := bytes.NewBuffer(nil)
+			tw := tar.NewWriter(buf)
+			defer func() { _ = tw.Close() }()
+
+			err = tw.WriteHeader(&tar.Header{
+				Name:    filepath.Base(insideLocation),
+				Size:    sz,
+				Mode:    0o755,
+				ModTime: time.Now(),
+				Format:  tar.FormatGNU,
+			})
+			if err != nil {
+				return fmt.Errorf("write tar header: %w", err)
+			}
+
+			if _, err = io.Copy(tw, fr); err != nil {
+				return fmt.Errorf("write file to tar: %w", err)
+			}
+
+			err = r.client.CopyToContainer(ctx, cr.ID, filepath.Dir(insideLocation), buf, container.CopyToContainerOptions{})
+			if err != nil {
+				return fmt.Errorf("copy file %s to container: %w", insideLocation, err)
+			}
+
+			return nil
 		}
 
-		sz, err := r.Seek(0, io.SeekEnd)
-		if err != nil {
-			return fmt.Errorf("seek: %w", err)
-		}
-
-		_, err = r.Seek(0, io.SeekStart)
-		if err != nil {
-			return fmt.Errorf("seek: %w", err)
-		}
-
-		buf := bytes.NewBuffer(nil)
-		tw := tar.NewWriter(buf)
-
-		defer tw.Close()
-
-		err = tw.WriteHeader(&tar.Header{Name: filepath.Base(f.InsideLocation), Size: sz, Mode: 0o755, ModTime: time.Now(), Format: tar.FormatGNU})
-		if err != nil {
-			return fmt.Errorf("write tar header: %w", err)
-		}
-
-		_, err = io.Copy(tw, r)
-		if err != nil {
-			return fmt.Errorf("write file to tar: %w", err)
-		}
-
-		err = dr.client.CopyToContainer(ctx, cr.ID, filepath.Dir(f.InsideLocation), buf, container.CopyToContainerOptions{})
-		if err != nil {
-			return fmt.Errorf("copy file %s to container: %w", f.OutsideLocation, err)
+		if err := copyFunc(location, r.insideLocation(location)); err != nil {
+			return err
 		}
 	}
 
-	hjr, err := dr.client.ContainerAttach(ctx, cr.ID, container.AttachOptions{
+	hjr, err := r.client.ContainerAttach(ctx, cr.ID, container.AttachOptions{
 		Stream: true,
 		Stdin:  true,
 		Stdout: true,
@@ -138,19 +160,22 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	if err != nil {
 		return fmt.Errorf("attach to container io streams: %w", err)
 	}
-
 	defer hjr.Close()
 
-	// it will nto freeze because both hjr.Conn and params.Stdin will be closed at some point
-	if params.Stdin != nil {
-		go func(r io.Reader) {
-			_, _ = io.Copy(hjr.Conn, params.Stdin)
-			hjr.CloseWrite()
-		}(params.Stdin)
+	if params.StdinFile != "" {
+		fr, err := os.OpenFile(params.StdinFile, os.O_RDONLY, 0)
+		if err != nil {
+			return fmt.Errorf("open file %s: %w", params.StdinFile, err)
+		}
+		defer func() { _ = fr.Close() }()
+
+		go func(rd io.Reader) {
+			_, _ = io.Copy(hjr.Conn, rd)
+			defer func() { _ = hjr.CloseWrite() }()
+		}(fr)
 	}
 
-	err = dr.client.ContainerStart(ctx, cr.ID, container.StartOptions{})
-	if err != nil {
+	if err = r.client.ContainerStart(ctx, cr.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("start container: %w", err)
 	}
 
@@ -164,7 +189,7 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 
 	var insp container.InspectResponse
 	for {
-		insp, err = dr.client.ContainerInspect(ctxTimeout, cr.ID)
+		insp, err = r.client.ContainerInspect(ctxTimeout, cr.ID)
 		if err != nil {
 			return fmt.Errorf("inspect container: %w", err)
 		}
@@ -179,7 +204,7 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 				return runtime.ErrTimeout
 			}
 			return ctx.Err()
-		case <-time.After(1 * time.Second):
+		case <-time.After(100 * time.Millisecond):
 		}
 	}
 
@@ -190,42 +215,73 @@ func (dr *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		return runtime.ErrTimeout
 	}
 
-	_, err = stdcopy.StdCopy(params.Stdout, params.Stderr, hjr.Conn)
+	stdout := bytes.NewBuffer(nil)
+	_, err = stdcopy.StdCopy(stdout, params.Stderr, hjr.Conn)
 	if err != nil {
 		return fmt.Errorf("copy std streams from container: %w", err)
 	}
-
-	for _, f := range params.OutFiles {
-		w, err := os.OpenFile(f.OutsideLocation, os.O_WRONLY|os.O_CREATE, 0o755)
+	if params.StdoutFile != "" {
+		w, err := os.OpenFile(params.StdoutFile, os.O_WRONLY|os.O_CREATE, 0o755)
 		if err != nil {
-			return fmt.Errorf("open file %s: %w", f.OutsideLocation, err)
+			return fmt.Errorf("open stdout file %s: %w", params.StdoutFile, err)
+		}
+		defer func() { _ = w.Close() }()
+
+		if _, err := io.Copy(w, stdout); err != nil {
+			_ = w.Close()
+			return fmt.Errorf("copy stdout to stdout file: %w", err)
+		}
+	}
+
+	if insp.State.ExitCode != 0 {
+		stateErr := strings.TrimSpace(insp.State.Error)
+		if stateErr != "" {
+			return fmt.Errorf("container exited with code %d: %s", insp.State.ExitCode, stateErr)
+		}
+		return fmt.Errorf("container exited with code %d", insp.State.ExitCode)
+	}
+
+	for _, location := range params.OutFiles {
+		copyFunc := func(insideLocation, outsideLocation string) error {
+			w, err := os.OpenFile(outsideLocation, os.O_WRONLY|os.O_CREATE, 0o755)
+			if err != nil {
+				return fmt.Errorf("open file %s: %w", outsideLocation, err)
+			}
+			defer func() { _ = w.Close() }()
+
+			rc, _, err := r.client.CopyFromContainer(ctx, cr.ID, insideLocation)
+			if err != nil {
+				return fmt.Errorf("copy file %s from container: %w", insideLocation, err)
+			}
+			defer func() { _ = rc.Close() }()
+
+			tr := tar.NewReader(rc)
+			hdr, err := tr.Next()
+			if err != nil {
+				return fmt.Errorf("read tar header: %w", err)
+			}
+
+			if _, err = io.CopyN(w, tr, hdr.Size); err != nil {
+				return fmt.Errorf("read file from tar: %w", err)
+			}
+
+			if _, err = io.Copy(w, rc); err != nil {
+				return fmt.Errorf("write file: %w", err)
+			}
+
+			return nil
 		}
 
-		defer w.Close()
-
-		rc, _, err := dr.client.CopyFromContainer(ctx, cr.ID, f.InsideLocation)
-		if err != nil {
-			return fmt.Errorf("copy file %s from container: %w", f.InsideLocation, err)
-		}
-
-		defer rc.Close()
-
-		tr := tar.NewReader(rc)
-		hdr, err := tr.Next()
-		if err != nil {
-			return fmt.Errorf("read tar header: %w", err)
-		}
-
-		_, err = io.CopyN(w, tr, hdr.Size)
-		if err != nil {
-			return fmt.Errorf("read file from tar: %w", err)
-		}
-
-		_, err = io.Copy(w, rc)
-		if err != nil {
-			return fmt.Errorf("write file: %w", err)
+		if location != params.StdoutFile {
+			if err := copyFunc(r.insideLocation(location), location); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
+}
+
+func (_ *Runtime) insideLocation(outsideLocation string) string {
+	return filepath.Join("/tmp", filepath.Base(outsideLocation))
 }

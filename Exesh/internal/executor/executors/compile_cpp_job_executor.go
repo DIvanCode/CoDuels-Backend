@@ -9,6 +9,7 @@ import (
 	"exesh/internal/runtime"
 	"fmt"
 	"log/slog"
+	"time"
 )
 
 type CompileCppJobExecutor struct {
@@ -63,17 +64,16 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, jb jobs.Job) result
 		_ = abortOutput()
 	}()
 
-	const codeMountPath = "/main.cpp"
-	const compiledCodeMountPath = "/a.out"
-
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.Execute(ctx,
-		[]string{"g++", codeMountPath, "-o", compiledCodeMountPath},
+		[]string{"g++", code, "-o", compiledCode},
 		runtime.ExecuteParams{
-			// TODO: Limits
-			Limits:   runtime.Limits{},
-			InFiles:  []runtime.File{{OutsideLocation: code, InsideLocation: codeMountPath}},
-			OutFiles: []runtime.File{{OutsideLocation: compiledCode, InsideLocation: compiledCodeMountPath}},
+			Limits: runtime.Limits{
+				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
+				Time:   runtime.TimeLimit(5000 * int64(time.Millisecond)),
+			},
+			InFiles:  []string{code},
+			OutFiles: []string{compiledCode},
 			Stderr:   stderr,
 		})
 	if err != nil {

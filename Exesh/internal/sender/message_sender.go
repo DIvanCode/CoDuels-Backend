@@ -87,7 +87,7 @@ func (s *KafkaSender) run(ctx context.Context) {
 	consequentFails := 0
 
 	for {
-		waitTime := time.Duration(100 * math.Pow(2, float64(min(consequentFails, 6))))
+		waitTime := time.Duration(10 * math.Pow(2, float64(min(consequentFails, 6))))
 		timer := time.NewTicker(waitTime * time.Millisecond)
 
 		select {
