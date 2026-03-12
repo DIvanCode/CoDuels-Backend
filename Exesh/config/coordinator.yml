@@ -30,3 +30,4 @@ sender:
   brokers:
     - kafka:9092
   topic: exesh.step-updates
+  sasl_auth: false
