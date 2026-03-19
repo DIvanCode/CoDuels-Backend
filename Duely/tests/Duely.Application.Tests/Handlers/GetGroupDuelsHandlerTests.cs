@@ -51,6 +51,7 @@ public sealed class GetGroupDuelsHandlerTests : ContextBasedTest
             CreatedBy = creator,
             User1 = user3,
             User2 = user4,
+            Configuration = null,
             CreatedAt = pendingCreatedAt,
             IsAcceptedByUser1 = true,
             IsAcceptedByUser2 = false

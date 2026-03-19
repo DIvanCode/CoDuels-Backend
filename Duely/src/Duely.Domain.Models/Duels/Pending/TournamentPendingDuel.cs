@@ -1,9 +1,11 @@
+using Duely.Domain.Models.Tournaments;
+
 namespace Duely.Domain.Models.Duels.Pending;
 
-public sealed class FriendlyPendingDuel : PendingDuel
+public sealed class TournamentPendingDuel : PendingDuel
 {
+    public required Tournament Tournament { get; init; }
     public required User User1 { get; init; }
     public required User User2 { get; init; }
     public required DuelConfiguration? Configuration { get; init; }
-    public bool IsAccepted { get; set; } = false;
 }

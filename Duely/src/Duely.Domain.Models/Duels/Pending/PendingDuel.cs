@@ -11,5 +11,6 @@ public enum PendingDuelType
 {
     Ranked = 1,
     Friendly = 2,
-    Group = 3
+    Group = 3,
+    Tournament = 4
 }

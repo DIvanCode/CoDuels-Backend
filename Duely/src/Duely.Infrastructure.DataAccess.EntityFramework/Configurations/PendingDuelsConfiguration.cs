@@ -20,7 +20,8 @@ public sealed class PendingDuelsConfiguration : IEntityTypeConfiguration<Pending
         builder.HasDiscriminator(d => d.Type)
             .HasValue<RankedPendingDuel>(PendingDuelType.Ranked)
             .HasValue<FriendlyPendingDuel>(PendingDuelType.Friendly)
-            .HasValue<GroupPendingDuel>(PendingDuelType.Group);
+            .HasValue<GroupPendingDuel>(PendingDuelType.Group)
+            .HasValue<TournamentPendingDuel>(PendingDuelType.Tournament);
 
         builder.Property(d => d.Type)
             .HasColumnName("Type")

@@ -404,6 +404,77 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("Submissions", (string)null);
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.Tournaments.Tournament", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int>("CreatedById")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DuelConfigurationId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MatchmakingType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("MatchmakingType");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Name");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("DuelConfigurationId");
+
+                    b.HasIndex("GroupId");
+
+                    b.ToTable("Tournaments", (string)null);
+
+                    b.HasDiscriminator<string>("MatchmakingType");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Tournaments.TournamentParticipant", b =>
+                {
+                    b.Property<int>("TournamentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Seed")
+                        .HasColumnType("integer")
+                        .HasColumnName("Seed");
+
+                    b.HasKey("TournamentId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TournamentParticipants", (string)null);
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -543,6 +614,57 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.HasDiscriminator().HasValue("Ranked");
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.TournamentPendingDuel", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.Duels.Pending.PendingDuel");
+
+                    b.Property<int?>("ConfigurationId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TournamentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("User1Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("User2Id")
+                        .HasColumnType("integer");
+
+                    b.HasIndex("ConfigurationId");
+
+                    b.HasIndex("TournamentId");
+
+                    b.HasIndex("User1Id");
+
+                    b.HasIndex("User2Id");
+
+                    b.ToTable("PendingDuels", t =>
+                        {
+                            t.Property("ConfigurationId")
+                                .HasColumnName("TournamentPendingDuel_ConfigurationId");
+
+                            t.Property("User1Id")
+                                .HasColumnName("TournamentPendingDuel_User1Id");
+
+                            t.Property("User2Id")
+                                .HasColumnName("TournamentPendingDuel_User2Id");
+                        });
+
+                    b.HasDiscriminator().HasValue("Tournament");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Tournaments.SingleEliminationBracketTournament", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.Tournaments.Tournament");
+
+                    b.Property<string>("Nodes")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Nodes");
+
+                    b.HasDiscriminator().HasValue("SingleEliminationBracket");
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.CodeRun", b =>
                 {
                     b.HasOne("Duely.Domain.Models.User", "User")
@@ -668,6 +790,50 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.Tournaments.Tournament", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.Duels.DuelConfiguration", "DuelConfiguration")
+                        .WithMany()
+                        .HasForeignKey("DuelConfigurationId");
+
+                    b.HasOne("Duely.Domain.Models.Groups.Group", "Group")
+                        .WithMany("Tournaments")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("DuelConfiguration");
+
+                    b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Tournaments.TournamentParticipant", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Tournaments.Tournament", "Tournament")
+                        .WithMany("Participants")
+                        .HasForeignKey("TournamentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tournament");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.FriendlyPendingDuel", b =>
                 {
                     b.HasOne("Duely.Domain.Models.Duels.DuelConfiguration", "Configuration")
@@ -745,6 +911,39 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.TournamentPendingDuel", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Duels.DuelConfiguration", "Configuration")
+                        .WithMany()
+                        .HasForeignKey("ConfigurationId");
+
+                    b.HasOne("Duely.Domain.Models.Tournaments.Tournament", "Tournament")
+                        .WithMany()
+                        .HasForeignKey("TournamentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.User", "User1")
+                        .WithMany()
+                        .HasForeignKey("User1Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.User", "User2")
+                        .WithMany()
+                        .HasForeignKey("User2Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Configuration");
+
+                    b.Navigation("Tournament");
+
+                    b.Navigation("User1");
+
+                    b.Navigation("User2");
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.Duels.Duel", b =>
                 {
                     b.Navigation("Submissions");
@@ -754,7 +953,14 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                 {
                     b.Navigation("Duels");
 
+                    b.Navigation("Tournaments");
+
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Tournaments.Tournament", b =>
+                {
+                    b.Navigation("Participants");
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.User", b =>

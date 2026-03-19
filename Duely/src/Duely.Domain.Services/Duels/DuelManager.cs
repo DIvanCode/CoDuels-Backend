@@ -79,6 +79,24 @@ public sealed class DuelManager : IDuelManager
             usedUsers.Add(duel.User2.Id);
         }
 
+        foreach (var duel in pendingDuels.OfType<TournamentPendingDuel>().OrderBy(p => p.Id))
+        {
+            if (usedUsers.Contains(duel.User1.Id) || usedUsers.Contains(duel.User2.Id))
+            {
+                continue;
+            }
+
+            pairs.Add(new DuelPair(
+                duel.User1,
+                duel.User2,
+                duel.Configuration,
+                duel.Configuration?.IsRated ?? false,
+                [duel]));
+
+            usedUsers.Add(duel.User1.Id);
+            usedUsers.Add(duel.User2.Id);
+        }
+
         var candidates = pendingDuels
             .OfType<RankedPendingDuel>()
             .Where(p => !usedUsers.Contains(p.User.Id))

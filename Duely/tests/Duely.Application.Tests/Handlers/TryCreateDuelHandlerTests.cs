@@ -6,7 +6,9 @@ using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
+using Duely.Domain.Models.Tournaments;
 using Duely.Domain.Services.Duels;
+using Duely.Domain.Services.Tournaments;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,6 +21,14 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 {
     private static SendMessagePayload ReadSendPayload(OutboxMessage m)
         => (SendMessagePayload)m.Payload;
+
+    private static ITournamentMatchmakingStrategyResolver CreateTournamentStrategyResolver()
+    {
+        return new TournamentMatchmakingStrategyResolver(new ITournamentMatchmakingStrategy[]
+        {
+            new SingleEliminationBracketMatchmakingStrategy()
+        });
+    }
 
     [Fact]
     public async Task Does_nothing_when_no_pair()
@@ -43,6 +53,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             options,
             ratingManager.Object,
             taskService.Object,
+            CreateTournamentStrategyResolver(),
             ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
@@ -115,6 +126,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             options,
             ratingManager.Object,
             taskService.Object,
+            CreateTournamentStrategyResolver(),
             ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
@@ -218,6 +230,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             options,
             ratingManager.Object,
             taskService.Object,
+            CreateTournamentStrategyResolver(),
             ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
@@ -227,6 +240,95 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var duel = await ctx.Duels.Include(d => d.Configuration).SingleAsync();
         duel.Configuration.Id.Should().Be(configuration.Id);
         duel.Tasks.Should().ContainKey('B');
+    }
+
+    [Fact]
+    public async Task Attaches_created_duel_id_to_tournament_bracket_node()
+    {
+        var ctx = Context;
+
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var user1 = EntityFactory.MakeUser(2, "u1");
+        var user2 = EntityFactory.MakeUser(3, "u2");
+        ctx.Users.AddRange(creator, user1, user2);
+
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "Alpha"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket,
+            Nodes = new List<SingleEliminationBracketNode?>
+            {
+                new(),
+                new() { UserId = user1.Id, WinnerUserId = user1.Id },
+                new() { UserId = user2.Id, WinnerUserId = user2.Id }
+            }
+        };
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = user1, Seed = 1 });
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = user2, Seed = 2 });
+
+        ctx.Tournaments.Add(tournament);
+        ctx.PendingDuels.Add(new TournamentPendingDuel
+        {
+            Type = PendingDuelType.Tournament,
+            Tournament = tournament,
+            User1 = user1,
+            User2 = user2,
+            Configuration = null,
+            CreatedAt = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+
+        var duelManager = new DuelManager();
+        var taski = new TaskiClientSuccessFake(["TASK-7"]);
+
+        var taskService = new Mock<ITaskService>();
+        taskService.Setup(s => s.TryChooseTasks(
+                It.IsAny<User>(),
+                It.IsAny<User>(),
+                It.IsAny<DuelConfiguration>(),
+                It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                out It.Ref<Dictionary<char, DuelTask>>.IsAny))
+            .Returns(true)
+            .Callback(new TryChooseTasksCallback((User _, User _, DuelConfiguration _, IReadOnlyCollection<DuelTask> _, out Dictionary<char, DuelTask> chosen) =>
+            {
+                chosen = new Dictionary<char, DuelTask>
+                {
+                    ['A'] = new("TASK-7", 1, [])
+                };
+            }));
+
+        var ratingManager = new Mock<IRatingManager>();
+        ratingManager.Setup(m => m.GetTaskLevel(It.IsAny<int>())).Returns(1);
+
+        var options = Options.Create(new DuelOptions
+        {
+            DefaultMaxDurationMinutes = 30,
+            RatingToTaskLevelMapping = []
+        });
+
+        var handler = new TryCreateDuelHandler(
+            duelManager,
+            taski,
+            options,
+            ratingManager.Object,
+            taskService.Object,
+            CreateTournamentStrategyResolver(),
+            ctx,
+            NullLogger<TryCreateDuelHandler>.Instance);
+
+        var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+
+        var duel = await ctx.Duels.SingleAsync();
+        var updatedTournament = await ctx.Tournaments
+            .OfType<SingleEliminationBracketTournament>()
+            .SingleAsync();
+        updatedTournament.Nodes[0]!.DuelId.Should().Be(duel.Id);
     }
 
     [Fact]
@@ -288,6 +390,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             options,
             ratingManager.Object,
             taskService.Object,
+            CreateTournamentStrategyResolver(),
             ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
 
@@ -352,6 +455,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             options,
             ratingManager.Object,
             taskService.Object,
+            CreateTournamentStrategyResolver(),
             ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
