@@ -572,10 +572,12 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("integer");
 
                     b.Property<bool>("IsAcceptedByUser1")
+                        .ValueGeneratedOnUpdateSometimes()
                         .HasColumnType("boolean")
                         .HasColumnName("IsAcceptedByUser1");
 
                     b.Property<bool>("IsAcceptedByUser2")
+                        .ValueGeneratedOnUpdateSometimes()
                         .HasColumnType("boolean")
                         .HasColumnName("IsAcceptedByUser2");
 
@@ -620,6 +622,16 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
                     b.Property<int?>("ConfigurationId")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsAcceptedByUser1")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsAcceptedByUser1");
+
+                    b.Property<bool>("IsAcceptedByUser2")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsAcceptedByUser2");
 
                     b.Property<int>("TournamentId")
                         .HasColumnType("integer");

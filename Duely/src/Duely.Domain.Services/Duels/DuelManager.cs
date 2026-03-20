@@ -81,6 +81,11 @@ public sealed class DuelManager : IDuelManager
 
         foreach (var duel in pendingDuels.OfType<TournamentPendingDuel>().OrderBy(p => p.Id))
         {
+            if (!duel.IsAcceptedByUser1 || !duel.IsAcceptedByUser2)
+            {
+                continue;
+            }
+
             if (usedUsers.Contains(duel.User1.Id) || usedUsers.Contains(duel.User2.Id))
             {
                 continue;

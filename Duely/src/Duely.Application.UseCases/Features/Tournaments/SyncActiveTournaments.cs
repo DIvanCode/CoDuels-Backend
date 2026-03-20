@@ -1,4 +1,7 @@
 using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Messages;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Models.Tournaments;
 using Duely.Domain.Services.Tournaments;
 using Duely.Infrastructure.DataAccess.EntityFramework;
@@ -100,6 +103,40 @@ public sealed class SyncActiveTournamentsHandler(
                     Configuration = tournament.DuelConfiguration,
                     CreatedAt = DateTime.UtcNow
                 });
+
+                context.OutboxMessages.AddRange(
+                    new OutboxMessage
+                    {
+                        Type = OutboxType.SendMessage,
+                        Payload = new SendMessagePayload
+                        {
+                            UserId = user1.Id,
+                            Message = new TournamentDuelInvitationMessage
+                            {
+                                TournamentId = tournament.Id,
+                                TournamentName = tournament.Name,
+                                OpponentNickname = user2.Nickname,
+                                ConfigurationId = tournament.DuelConfiguration?.Id
+                            }
+                        },
+                        RetryUntil = DateTime.UtcNow.AddMinutes(5)
+                    },
+                    new OutboxMessage
+                    {
+                        Type = OutboxType.SendMessage,
+                        Payload = new SendMessagePayload
+                        {
+                            UserId = user2.Id,
+                            Message = new TournamentDuelInvitationMessage
+                            {
+                                TournamentId = tournament.Id,
+                                TournamentName = tournament.Name,
+                                OpponentNickname = user1.Nickname,
+                                ConfigurationId = tournament.DuelConfiguration?.Id
+                            }
+                        },
+                        RetryUntil = DateTime.UtcNow.AddMinutes(5)
+                    });
 
                 tournamentPendingDuels.Add(new TournamentPendingDuel
                 {

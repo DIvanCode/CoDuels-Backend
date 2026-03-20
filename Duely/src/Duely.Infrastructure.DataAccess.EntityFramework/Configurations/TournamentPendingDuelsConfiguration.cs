@@ -32,5 +32,15 @@ public sealed class TournamentPendingDuelsConfiguration : IEntityTypeConfigurati
             .WithMany()
             .HasForeignKey(ConfigurationIdShadowKey)
             .IsRequired(false);
+
+        builder.Property(d => d.IsAcceptedByUser1)
+            .HasColumnName("IsAcceptedByUser1")
+            .HasColumnType("boolean")
+            .IsRequired();
+
+        builder.Property(d => d.IsAcceptedByUser2)
+            .HasColumnName("IsAcceptedByUser2")
+            .HasColumnType("boolean")
+            .IsRequired();
     }
 }

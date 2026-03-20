@@ -2,6 +2,9 @@ using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Tournaments;
 using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Groups;
+using Duely.Domain.Models.Messages;
+using Duely.Domain.Models.Outbox;
+using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Models.Tournaments;
 using Duely.Domain.Services.Tournaments;
 using FluentAssertions;
@@ -63,6 +66,14 @@ public sealed class SyncActiveTournamentsHandlerTests : ContextBasedTest
         pending.User1.Id.Should().Be(user1.Id);
         pending.User2.Id.Should().Be(user2.Id);
         pending.Tournament.Id.Should().Be(tournament.Id);
+
+        var messages = await Context.OutboxMessages
+            .AsNoTracking()
+            .Where(m => m.Type == OutboxType.SendMessage)
+            .ToListAsync();
+        messages.Should().HaveCount(2);
+        messages.Select(m => ((SendMessagePayload)m.Payload).Message)
+            .Should().AllBeOfType<TournamentDuelInvitationMessage>();
     }
 
     [Fact]

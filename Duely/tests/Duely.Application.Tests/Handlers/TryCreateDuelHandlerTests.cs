@@ -278,6 +278,8 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             User1 = user1,
             User2 = user2,
             Configuration = null,
+            IsAcceptedByUser1 = true,
+            IsAcceptedByUser2 = true,
             CreatedAt = DateTime.UtcNow
         });
         await ctx.SaveChangesAsync();
@@ -329,6 +331,74 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             .OfType<SingleEliminationBracketTournament>()
             .SingleAsync();
         updatedTournament.Nodes[0]!.DuelId.Should().Be(duel.Id);
+    }
+
+    [Fact]
+    public async Task Does_not_create_tournament_duel_until_both_users_accept()
+    {
+        var ctx = Context;
+
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var user1 = EntityFactory.MakeUser(2, "u1");
+        var user2 = EntityFactory.MakeUser(3, "u2");
+        ctx.Users.AddRange(creator, user1, user2);
+
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "Alpha"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket,
+            Nodes = new List<SingleEliminationBracketNode?>
+            {
+                new(),
+                new() { UserId = user1.Id, WinnerUserId = user1.Id },
+                new() { UserId = user2.Id, WinnerUserId = user2.Id }
+            }
+        };
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = user1, Seed = 1 });
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = user2, Seed = 2 });
+
+        ctx.Tournaments.Add(tournament);
+        ctx.PendingDuels.Add(new TournamentPendingDuel
+        {
+            Type = PendingDuelType.Tournament,
+            Tournament = tournament,
+            User1 = user1,
+            User2 = user2,
+            Configuration = null,
+            IsAcceptedByUser1 = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+
+        var duelManager = new DuelManager();
+        var taski = new TaskiClientSuccessFake(["TASK-7"]);
+
+        var taskService = new Mock<ITaskService>();
+        var ratingManager = new Mock<IRatingManager>();
+        var options = Options.Create(new DuelOptions
+        {
+            DefaultMaxDurationMinutes = 30,
+            RatingToTaskLevelMapping = []
+        });
+
+        var handler = new TryCreateDuelHandler(
+            duelManager,
+            taski,
+            options,
+            ratingManager.Object,
+            taskService.Object,
+            CreateTournamentStrategyResolver(),
+            ctx,
+            NullLogger<TryCreateDuelHandler>.Instance);
+
+        var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        (await ctx.Duels.CountAsync()).Should().Be(0);
     }
 
     [Fact]

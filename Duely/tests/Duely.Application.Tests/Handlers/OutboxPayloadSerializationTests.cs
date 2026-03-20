@@ -63,5 +63,34 @@ public class OutboxPayloadSerializationTests
         var cancelMessage = (DuelInvitationCanceledMessage)parsed.Message;
         cancelMessage.OpponentNickname.Should().Be("op");
     }
+
+    [Fact]
+    public void Serialize_deserialize_preserves_tournament_duel_invitation_payload_fields()
+    {
+        var payload = new SendMessagePayload
+        {
+            UserId = 7,
+            Message = new TournamentDuelInvitationMessage
+            {
+                TournamentId = 42,
+                TournamentName = "Cup",
+                OpponentNickname = "op",
+                ConfigurationId = 11
+            }
+        };
+
+        var json = JsonSerializer.Serialize(payload, Json);
+        json.Should().Contain("\"type\":\"TournamentDuelInvitation\"");
+
+        var parsed = JsonSerializer.Deserialize<SendMessagePayload>(json, Json);
+        parsed.Should().NotBeNull();
+        parsed!.UserId.Should().Be(7);
+        parsed.Message.Should().BeOfType<TournamentDuelInvitationMessage>();
+        var invitationMessage = (TournamentDuelInvitationMessage)parsed.Message;
+        invitationMessage.TournamentId.Should().Be(42);
+        invitationMessage.TournamentName.Should().Be("Cup");
+        invitationMessage.OpponentNickname.Should().Be("op");
+        invitationMessage.ConfigurationId.Should().Be(11);
+    }
 }
 

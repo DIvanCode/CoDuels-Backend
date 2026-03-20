@@ -103,6 +103,23 @@ public sealed class CancelPendingDuelsHandler(Context context) : IRequestHandler
             }
         }
 
+        var tournamentPendingDuels = await context.PendingDuels.OfType<TournamentPendingDuel>()
+            .Include(d => d.User1)
+            .Include(d => d.User2)
+            .Where(d => d.User1.Id == command.UserId || d.User2.Id == command.UserId)
+            .ToListAsync(cancellationToken);
+        foreach (var duel in tournamentPendingDuels)
+        {
+            if (duel.User1.Id == command.UserId)
+            {
+                duel.IsAcceptedByUser1 = false;
+            }
+            else
+            {
+                duel.IsAcceptedByUser2 = false;
+            }
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();
