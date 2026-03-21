@@ -1,6 +1,7 @@
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Application.UseCases.Features.Groups;
+using Duely.Application.UseCases.Features.Tournaments;
 using Duely.Infrastructure.Api.Http.Requests.Groups;
 using Duely.Infrastructure.Api.Http.Services;
 using MediatR;
@@ -144,6 +145,21 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         CancellationToken cancellationToken)
     {
         var query = new GetGroupDuelsQuery
+        {
+            UserId = userContext.UserId,
+            GroupId = id
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpGet("{id:int}/tournaments")]
+    public async Task<ActionResult<List<TournamentDto>>> GetGroupTournamentsAsync(
+        [FromRoute] int id,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetGroupTournamentsQuery
         {
             UserId = userContext.UserId,
             GroupId = id

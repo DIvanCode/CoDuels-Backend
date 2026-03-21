@@ -1,3 +1,5 @@
+using Duely.Domain.Models.Tournaments;
+
 namespace Duely.Domain.Models.Groups;
 
 public sealed class Group
@@ -7,4 +9,5 @@ public sealed class Group
 
     public List<GroupMembership> Users { get; } = [];
     public List<GroupDuel> Duels { get; } = [];
+    public List<Tournament> Tournaments { get; } = [];
 }

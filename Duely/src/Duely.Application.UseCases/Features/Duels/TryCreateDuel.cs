@@ -14,6 +14,7 @@ using Duely.Domain.Models.Groups;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
 using Microsoft.Extensions.Logging;
+using Duely.Domain.Services.Tournaments;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
@@ -25,6 +26,7 @@ public sealed class TryCreateDuelHandler(
     IOptions<DuelOptions> duelOptions,
     IRatingManager ratingManager,
     ITaskService taskService,
+    ITournamentMatchmakingStrategyResolver tournamentMatchmakingStrategyResolver,
     Context context,
     ILogger<TryCreateDuelHandler> logger)
     : IRequestHandler<TryCreateDuelCommand, Result>
@@ -49,6 +51,12 @@ public sealed class TryCreateDuelHandler(
             .Include(d => d.Configuration)
             .Include(d => d.Group)
             .Include(d => d.CreatedBy)
+            .ToListAsync(cancellationToken));
+        pendingDuels.AddRange(await context.PendingDuels.OfType<TournamentPendingDuel>()
+            .Include(d => d.User1)
+            .Include(d => d.User2)
+            .Include(d => d.Configuration)
+            .Include(d => d.Tournament)
             .ToListAsync(cancellationToken));
 
         var pairs = duelManager.GetPairs(pendingDuels).ToList();
@@ -111,6 +119,7 @@ public sealed class TryCreateDuelHandler(
 
             context.PendingDuels.RemoveRange(pair.UsedPendingDuels);
             context.Duels.Add(duel);
+            await context.SaveChangesAsync(cancellationToken);
 
             var groupPendingDuel = pair.UsedPendingDuels.OfType<GroupPendingDuel>().SingleOrDefault();
             if (groupPendingDuel is not null)
@@ -123,7 +132,13 @@ public sealed class TryCreateDuelHandler(
                 });
             }
 
-            await context.SaveChangesAsync(cancellationToken);
+            var tournamentPendingDuel = pair.UsedPendingDuels.OfType<TournamentPendingDuel>().SingleOrDefault();
+            if (tournamentPendingDuel is not null)
+            {
+                var strategy = tournamentMatchmakingStrategyResolver
+                    .GetStrategy(tournamentPendingDuel.Tournament.MatchmakingType);
+                strategy.AttachDuel(tournamentPendingDuel.Tournament, tournamentPendingDuel, duel);
+            }
 
             var retryUntil = duel.DeadlineTime.AddMinutes(5);
 
@@ -154,6 +169,8 @@ public sealed class TryCreateDuelHandler(
                 },
                 RetryUntil = retryUntil
             });
+            
+            await context.SaveChangesAsync(cancellationToken);
 
             logger.LogInformation("Duel started. DuelId = {DuelId}, Users = {User1}, {User2}, Deadline = {Deadline}",
                 duel.Id, duel.User1.Id, duel.User2.Id, duel.DeadlineTime);

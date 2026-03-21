@@ -13,6 +13,10 @@ public static class ServiceCollectionExtensions
         services.Configure<DuelEndWatcherJobOptions>(configuration.GetSection(DuelEndWatcherJobOptions.SectionName));
         services.AddHostedService<DuelEndWatcherJob>();
 
+        services.Configure<TournamentSynchronizationJobOptions>(
+            configuration.GetSection(TournamentSynchronizationJobOptions.SectionName));
+        services.AddHostedService<TournamentSynchronizationJob>();
+
         services.Configure<OutboxOptions>(configuration.GetSection(OutboxOptions.SectionName));
         services.AddHostedService<OutboxJob>();
     }

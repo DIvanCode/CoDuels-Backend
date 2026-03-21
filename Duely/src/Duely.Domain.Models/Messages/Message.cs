@@ -17,6 +17,7 @@ public enum MessageType
     GroupInvitationCanceled = 12,
     GroupDuelInvitation = 13,
     GroupDuelInvitationCanceled = 14,
+    TournamentDuelInvitation = 15,
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
@@ -33,5 +34,6 @@ public enum MessageType
 [JsonDerivedType(typeof(GroupInvitationCanceledMessage), nameof(MessageType.GroupInvitationCanceled))]
 [JsonDerivedType(typeof(GroupDuelInvitationMessage), nameof(MessageType.GroupDuelInvitation))]
 [JsonDerivedType(typeof(GroupDuelInvitationCanceledMessage), nameof(MessageType.GroupDuelInvitationCanceled))]
+[JsonDerivedType(typeof(TournamentDuelInvitationMessage), nameof(MessageType.TournamentDuelInvitation))]
 
 public abstract class Message;

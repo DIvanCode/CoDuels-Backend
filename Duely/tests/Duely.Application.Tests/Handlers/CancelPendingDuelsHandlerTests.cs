@@ -6,6 +6,7 @@ using Duely.Domain.Models.Groups;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
+using Duely.Domain.Models.Tournaments;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -166,6 +167,51 @@ public class CancelPendingDuelsHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         ctx.PendingDuels.OfType<GroupPendingDuel>()
+            .Should().ContainSingle(p => p.IsAcceptedByUser1 && !p.IsAcceptedByUser2);
+    }
+
+    [Fact]
+    public async Task Success_clears_acceptance_for_tournament_duel()
+    {
+        var ctx = Context;
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var user1 = EntityFactory.MakeUser(2, "u1");
+        var user2 = EntityFactory.MakeUser(3, "u2");
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Id = 1,
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "g1"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket
+        };
+
+        ctx.Users.AddRange(creator, user1, user2);
+        ctx.Tournaments.Add(tournament);
+        ctx.PendingDuels.Add(new TournamentPendingDuel
+        {
+            Type = PendingDuelType.Tournament,
+            Tournament = tournament,
+            User1 = user1,
+            User2 = user2,
+            Configuration = null,
+            IsAcceptedByUser1 = true,
+            IsAcceptedByUser2 = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+
+        var handler = new CancelPendingDuelsHandler(ctx);
+
+        var res = await handler.Handle(new CancelPendingDuelsCommand
+        {
+            UserId = user2.Id
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        ctx.PendingDuels.OfType<TournamentPendingDuel>()
             .Should().ContainSingle(p => p.IsAcceptedByUser1 && !p.IsAcceptedByUser2);
     }
 }

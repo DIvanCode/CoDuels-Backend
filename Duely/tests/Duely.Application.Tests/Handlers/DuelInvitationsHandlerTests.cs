@@ -1,6 +1,8 @@
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels.Invitations;
+using Duely.Application.UseCases.Features.Tournaments;
 using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Tournaments;
 using FluentAssertions;
 
 namespace Duely.Application.Tests.Handlers;
@@ -179,5 +181,152 @@ public class DuelInvitationsHandlerTests : ContextBasedTest
         res.IsSuccess.Should().BeTrue();
         res.Value.Should().ContainSingle();
         res.Value[0].OpponentNickname.Should().Be(u1.Nickname);
+    }
+
+    [Fact]
+    public async Task Get_incoming_tournament_invitations_returns_pending_for_current_user()
+    {
+        var ctx = Context;
+
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var u1 = EntityFactory.MakeUser(2, "u1");
+        var u2 = EntityFactory.MakeUser(3, "u2");
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "g"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket
+        };
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = u1, Seed = 1 });
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = u2, Seed = 2 });
+
+        ctx.Users.AddRange(creator, u1, u2);
+        ctx.Tournaments.Add(tournament);
+        var createdAt = DateTime.UtcNow;
+        ctx.PendingDuels.Add(new TournamentPendingDuel
+        {
+            Type = PendingDuelType.Tournament,
+            Tournament = tournament,
+            User1 = u1,
+            User2 = u2,
+            Configuration = null,
+            IsAcceptedByUser1 = false,
+            IsAcceptedByUser2 = false,
+            CreatedAt = createdAt
+        });
+        await ctx.SaveChangesAsync();
+
+        var handler = new GetIncomingTournamentDuelInvitationsHandler(ctx);
+        var res = await handler.Handle(new GetIncomingTournamentDuelInvitationsQuery
+        {
+            UserId = u1.Id
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Should().ContainSingle();
+        res.Value[0].TournamentId.Should().Be(tournament.Id);
+        res.Value[0].TournamentName.Should().Be(tournament.Name);
+        res.Value[0].OpponentNickname.Should().Be(u2.Nickname);
+        res.Value[0].ConfigurationId.Should().BeNull();
+        res.Value[0].CreatedAt.Should().Be(createdAt);
+    }
+
+    [Fact]
+    public async Task Get_incoming_tournament_invitations_skips_pending_already_accepted_by_user()
+    {
+        var ctx = Context;
+
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var u1 = EntityFactory.MakeUser(2, "u1");
+        var u2 = EntityFactory.MakeUser(3, "u2");
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "g"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket
+        };
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = u1, Seed = 1 });
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = u2, Seed = 2 });
+
+        ctx.Users.AddRange(creator, u1, u2);
+        ctx.Tournaments.Add(tournament);
+        ctx.PendingDuels.Add(new TournamentPendingDuel
+        {
+            Type = PendingDuelType.Tournament,
+            Tournament = tournament,
+            User1 = u1,
+            User2 = u2,
+            Configuration = null,
+            IsAcceptedByUser1 = true,
+            IsAcceptedByUser2 = false,
+            CreatedAt = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+
+        var handler = new GetIncomingTournamentDuelInvitationsHandler(ctx);
+        var res = await handler.Handle(new GetIncomingTournamentDuelInvitationsQuery
+        {
+            UserId = u1.Id
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Get_incoming_tournament_invitations_returns_pending_for_second_user()
+    {
+        var ctx = Context;
+
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var u1 = EntityFactory.MakeUser(2, "u1");
+        var u2 = EntityFactory.MakeUser(3, "u2");
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "g"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket
+        };
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = u1, Seed = 1 });
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = u2, Seed = 2 });
+
+        ctx.Users.AddRange(creator, u1, u2);
+        ctx.Tournaments.Add(tournament);
+        var createdAt = DateTime.UtcNow;
+        ctx.PendingDuels.Add(new TournamentPendingDuel
+        {
+            Type = PendingDuelType.Tournament,
+            Tournament = tournament,
+            User1 = u1,
+            User2 = u2,
+            Configuration = null,
+            IsAcceptedByUser1 = false,
+            IsAcceptedByUser2 = false,
+            CreatedAt = createdAt
+        });
+        await ctx.SaveChangesAsync();
+
+        var handler = new GetIncomingTournamentDuelInvitationsHandler(ctx);
+        var res = await handler.Handle(new GetIncomingTournamentDuelInvitationsQuery
+        {
+            UserId = u2.Id
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Should().ContainSingle();
+        res.Value[0].TournamentId.Should().Be(tournament.Id);
+        res.Value[0].TournamentName.Should().Be(tournament.Name);
+        res.Value[0].OpponentNickname.Should().Be(u1.Nickname);
+        res.Value[0].ConfigurationId.Should().BeNull();
+        res.Value[0].CreatedAt.Should().Be(createdAt);
     }
 }
