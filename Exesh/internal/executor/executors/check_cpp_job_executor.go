@@ -6,6 +6,7 @@ import (
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result/results"
+	"exesh/internal/executor"
 	"exesh/internal/runtime"
 	"fmt"
 	"io"
@@ -18,91 +19,115 @@ type CheckCppJobExecutor struct {
 	log            *slog.Logger
 	sourceProvider sourceProvider
 	outputProvider outputProvider
+	newRuntime     runtimeFactory
+	job            jobs.Job
 	runtime        runtime.Runtime
+	manageRuntime  bool
+	inputUnlock    func()
+	checkerRuntime string
+	correctRuntime string
+	suspectRuntime string
+	verdictRuntime string
+	lastResult     results.Result
 }
 
-func NewCheckCppJobExecutor(
-	log *slog.Logger,
-	sourceProvider sourceProvider,
-	outputProvider outputProvider,
-	runtime runtime.Runtime,
-) *CheckCppJobExecutor {
-	return &CheckCppJobExecutor{
-		log:            log,
-		sourceProvider: sourceProvider,
-		outputProvider: outputProvider,
-		runtime:        runtime,
-	}
+func NewCheckCppJobExecutor(log *slog.Logger, sourceProvider sourceProvider, outputProvider outputProvider, newRuntime runtimeFactory) *CheckCppJobExecutor {
+	return &CheckCppJobExecutor{log: log, sourceProvider: sourceProvider, outputProvider: outputProvider, newRuntime: newRuntime}
 }
-
-func (e *CheckCppJobExecutor) SupportsType(jobType job.Type) bool {
-	return jobType == job.CheckCpp
+func (e *CheckCppJobExecutor) SupportsType(jobType job.Type) bool { return jobType == job.CheckCpp }
+func (e *CheckCppJobExecutor) InitExecutor(jb jobs.Job) (executor.Executor, error) {
+	rt, err := e.newRuntime()
+	if err != nil {
+		return nil, err
+	}
+	return e.initWithRuntime(jb, rt, true)
 }
-
-func (e *CheckCppJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Result {
-	errorResult := func(err error) results.Result {
-		return results.NewCheckResultErr(jb.GetID(), err.Error())
+func (e *CheckCppJobExecutor) initWithRuntime(jb jobs.Job, rt runtime.Runtime, manageRuntime bool) (executor.Executor, error) {
+	return &CheckCppJobExecutor{log: e.log, sourceProvider: e.sourceProvider, outputProvider: e.outputProvider, newRuntime: e.newRuntime, job: jb, runtime: rt, manageRuntime: manageRuntime}, nil
+}
+func (e *CheckCppJobExecutor) withSourceProvider(sp sourceProvider) initWithRuntimeExecutor {
+	cp := *e
+	cp.sourceProvider = sp
+	return &cp
+}
+func (e *CheckCppJobExecutor) getSourceProvider() sourceProvider { return e.sourceProvider }
+func (e *CheckCppJobExecutor) ErrorResult(err error) results.Result {
+	return results.NewCheckResultErr(e.job.GetID(), err.Error())
+}
+func (e *CheckCppJobExecutor) PrepareInput(ctx context.Context) error {
+	if e.manageRuntime {
+		if err := e.runtime.InitRuntime(); err != nil {
+			return err
+		}
 	}
-
-	if jb.GetType() != job.CheckCpp {
-		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", jb.GetType(), job.CheckCpp))
-	}
-	checkCppJob := jb.AsCheckCpp()
-
-	compiledChecker, unlock, err := e.sourceProvider.Locate(ctx, checkCppJob.CompiledChecker.SourceID)
+	checkJob := e.job.AsCheckCpp()
+	checkerRuntime, uc, err := resolveInputPath(ctx, e.sourceProvider, e.runtime, checkJob.CompiledChecker.SourceID, "checker")
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate compiled_checker input: %w", err))
+		return err
 	}
-	defer unlock()
-
-	correctOutput, unlock, err := e.sourceProvider.Locate(ctx, checkCppJob.CorrectOutput.SourceID)
+	correctRuntime, uco, err := resolveInputPath(ctx, e.sourceProvider, e.runtime, checkJob.CorrectOutput.SourceID, "correct")
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate correct_output input: %w", err))
+		uc()
+		return err
 	}
-	defer unlock()
-
-	suspectOutput, unlock, err := e.sourceProvider.Locate(ctx, checkCppJob.SuspectOutput.SourceID)
+	suspectRuntime, us, err := resolveInputPath(ctx, e.sourceProvider, e.runtime, checkJob.SuspectOutput.SourceID, "suspect")
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate suspect_output input: %w", err))
+		uco()
+		uc()
+		return err
 	}
-	defer unlock()
-
-	checkVerdict, err := os.CreateTemp("/tmp", "*")
-	if err != nil {
-		return errorResult(fmt.Errorf("failed to create temporary file for verdict: %w", err))
+	e.inputUnlock = func() { us(); uco(); uc() }
+	e.checkerRuntime = checkerRuntime
+	e.correctRuntime = correctRuntime
+	e.suspectRuntime = suspectRuntime
+	e.verdictRuntime = runtimeOutputPath(e.job.GetID(), "verdict")
+	return nil
+}
+func (e *CheckCppJobExecutor) PrepareOutput(context.Context) error { return nil }
+func (e *CheckCppJobExecutor) Execute(ctx context.Context, resultsCh chan<- results.Result) results.Result {
+	emit := func(res results.Result) results.Result {
+		if resultsCh != nil {
+			resultsCh <- res
+		}
+		return res
 	}
-	defer func() { _ = os.Remove(checkVerdict.Name()) }()
-	defer func() { _ = checkVerdict.Close() }()
-
 	stderr := bytes.NewBuffer(nil)
-	err = e.runtime.Execute(ctx,
-		[]string{compiledChecker, correctOutput, suspectOutput},
-		runtime.ExecuteParams{
-			Limits: runtime.Limits{
-				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
-				Time:   runtime.TimeLimit(2000 * int64(time.Millisecond)),
-			},
-			InFiles:    []string{compiledChecker, correctOutput, suspectOutput},
-			StdoutFile: checkVerdict.Name(),
-			Stderr:     stderr,
-		})
+	err := e.runtime.RunCommand(ctx, []string{e.checkerRuntime, e.correctRuntime, e.suspectRuntime}, runtime.RunParams{Limits: runtime.Limits{Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)), Time: runtime.TimeLimit(2000 * int64(time.Millisecond))}, StdoutFile: e.verdictRuntime, Stderr: stderr})
 	if err != nil {
-		e.log.Error("execute checker in runtime error", slog.Any("err", err))
-		return errorResult(err)
+		e.lastResult = e.ErrorResult(err)
+		return emit(e.lastResult)
 	}
-
-	e.log.Info("command ok")
-
-	checkVerdictOutput, err := io.ReadAll(checkVerdict)
+	f, err := os.CreateTemp("", "exesh-check-verdict-*")
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to read check_verdict output: %w", err))
+		e.lastResult = e.ErrorResult(err)
+		return emit(e.lastResult)
 	}
-
-	if string(checkVerdictOutput) == string(job.StatusOK) {
-		return results.NewCheckResultOK(jb.GetID())
+	_ = f.Close()
+	defer func() { _ = os.Remove(f.Name()) }()
+	if err = e.runtime.CopyFromRuntime(e.verdictRuntime, f.Name()); err != nil {
+		e.lastResult = e.ErrorResult(err)
+		return emit(e.lastResult)
 	}
-	if string(checkVerdictOutput) == string(job.StatusWA) {
-		return results.NewCheckResultWA(jb.GetID())
+	r, err := os.Open(f.Name())
+	if err != nil {
+		e.lastResult = e.ErrorResult(err)
+		return emit(e.lastResult)
 	}
-	return errorResult(fmt.Errorf("failed to parse check_verdict output: %s", string(checkVerdictOutput)))
+	defer func() { _ = r.Close() }()
+	out, err := io.ReadAll(r)
+	if err != nil {
+		e.lastResult = e.ErrorResult(err)
+		return emit(e.lastResult)
+	}
+	if string(out) == string(job.StatusOK) {
+		e.lastResult = results.NewCheckResultOK(e.job.GetID())
+	} else if string(out) == string(job.StatusWA) {
+		e.lastResult = results.NewCheckResultWA(e.job.GetID())
+	} else {
+		e.lastResult = e.ErrorResult(fmt.Errorf("failed to parse check_verdict output: %s", string(out)))
+	}
+	return emit(e.lastResult)
+}
+func (e *CheckCppJobExecutor) StopExecutor(context.Context) error {
+	return cleanupExecutor(e.inputUnlock, e.manageRuntime, e.runtime)
 }

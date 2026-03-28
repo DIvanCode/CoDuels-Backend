@@ -117,6 +117,18 @@ func (f *ExecutionFactory) createStage(ex *execution.Execution, def execution.St
 }
 
 func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definition) (jobs.Job, error) {
+	return f.createJobWithLookup(ex, def, func(name job.DefinitionName) (jobs.Job, bool) {
+		jb, ok := ex.JobByName[name]
+		return jb, ok
+	}, true)
+}
+
+func (f *ExecutionFactory) createJobWithLookup(
+	ex *execution.Execution,
+	def jobs.Definition,
+	jobLookup func(job.DefinitionName) (jobs.Job, bool),
+	register bool,
+) (jobs.Job, error) {
 	var jb jobs.Job
 
 	id, err := f.calculateJobID(ex.ID.String(), string(def.GetName()))
@@ -130,7 +142,7 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 	case job.CompileCpp:
 		typedDef := def.AsCompileCpp()
 
-		code, err := f.createInput(ex, typedDef.Code)
+		code, err := f.createInput(ex, typedDef.Code, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create code source: %w", err)
 		}
@@ -140,7 +152,7 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 	case job.CompileGo:
 		typedDef := def.AsCompileGo()
 
-		code, err := f.createInput(ex, typedDef.Code)
+		code, err := f.createInput(ex, typedDef.Code, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create code source: %w", err)
 		}
@@ -150,11 +162,11 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 	case job.RunCpp:
 		typedDef := def.AsRunCpp()
 
-		compiledCode, err := f.createInput(ex, typedDef.CompiledCode)
+		compiledCode, err := f.createInput(ex, typedDef.CompiledCode, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create compiled_code source: %w", err)
 		}
-		runInput, err := f.createInput(ex, typedDef.RunInput)
+		runInput, err := f.createInput(ex, typedDef.RunInput, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create run_input source: %w", err)
 		}
@@ -167,11 +179,11 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 	case job.RunGo:
 		typedDef := def.AsRunGo()
 
-		compiledCode, err := f.createInput(ex, typedDef.CompiledCode)
+		compiledCode, err := f.createInput(ex, typedDef.CompiledCode, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create compiled_code source: %w", err)
 		}
-		runInput, err := f.createInput(ex, typedDef.RunInput)
+		runInput, err := f.createInput(ex, typedDef.RunInput, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create run_input source: %w", err)
 		}
@@ -184,11 +196,11 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 	case job.RunPy:
 		typedDef := def.AsRunPy()
 
-		code, err := f.createInput(ex, typedDef.Code)
+		code, err := f.createInput(ex, typedDef.Code, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create code source: %w", err)
 		}
-		runInput, err := f.createInput(ex, typedDef.RunInput)
+		runInput, err := f.createInput(ex, typedDef.RunInput, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create run_input source: %w", err)
 		}
@@ -201,15 +213,15 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 	case job.CheckCpp:
 		typedDef := def.AsCheckCpp()
 
-		compiledChecker, err := f.createInput(ex, typedDef.CompiledChecker)
+		compiledChecker, err := f.createInput(ex, typedDef.CompiledChecker, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create compiled_checker source: %w", err)
 		}
-		correctOutput, err := f.createInput(ex, typedDef.CorrectOutput)
+		correctOutput, err := f.createInput(ex, typedDef.CorrectOutput, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create correct_output source: %w", err)
 		}
-		suspectOutput, err := f.createInput(ex, typedDef.SuspectOutput)
+		suspectOutput, err := f.createInput(ex, typedDef.SuspectOutput, jobLookup)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create suspect_output source: %w", err)
 		}
@@ -219,17 +231,23 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 		return jb, fmt.Errorf("unknown job type %s", def.GetType())
 	}
 
-	ex.JobDefinitionByID[jb.GetID()] = def
+	if register {
+		ex.JobDefinitionByID[jb.GetID()] = def
 
-	out := jb.GetOutput()
-	if out != nil {
-		ex.OutputByJob[jb.GetID()] = *out
+		out := jb.GetOutput()
+		if out != nil {
+			ex.OutputByJob[jb.GetID()] = *out
+		}
 	}
 
 	return jb, nil
 }
 
-func (f *ExecutionFactory) createInput(ex *execution.Execution, def inputs.Definition) (input.Input, error) {
+func (f *ExecutionFactory) createInput(
+	ex *execution.Execution,
+	def inputs.Definition,
+	jobLookup func(job.DefinitionName) (jobs.Job, bool),
+) (input.Input, error) {
 	var in input.Input
 
 	switch def.GetType() {
@@ -298,7 +316,7 @@ func (f *ExecutionFactory) createInput(ex *execution.Execution, def inputs.Defin
 	case input.ArtifactDefinition:
 		typedDef := def.AsArtifact()
 
-		jb, ok := ex.JobByName[typedDef.JobDefinitionName]
+		jb, ok := jobLookup(typedDef.JobDefinitionName)
 		if !ok {
 			return in, fmt.Errorf("failed to find job '%s'", typedDef.JobDefinitionName)
 		}

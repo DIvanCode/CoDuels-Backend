@@ -48,6 +48,7 @@ func NewExecution(def Definition) *Execution {
 }
 
 func (ex *Execution) BuildGraph() {
+	ex.optimizeChains()
 	ex.graph = newGraph(ex.Stages)
 }
 

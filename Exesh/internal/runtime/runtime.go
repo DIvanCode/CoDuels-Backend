@@ -22,12 +22,10 @@ type Limits struct {
 	Time   TimeLimit
 }
 
-type ExecuteParams struct {
+type RunParams struct {
 	Limits     Limits    // memory and time limits
-	InFiles    []string  // files that should be copied from host to runtime
-	OutFiles   []string  // files that should be copied from runtime to host
-	StdinFile  string    // file that is stdin for command
-	StdoutFile string    // file that is stdout for command
+	StdinFile  string    // file inside runtime that is stdin for command
+	StdoutFile string    // file inside runtime that is stdout for command
 	Stderr     io.Writer // stderr should be written to this writer
 }
 
@@ -42,5 +40,9 @@ var (
 //
 // a Runtime may be shared or isolated, local or remote, generic or specific for some task, and so on
 type Runtime interface {
-	Execute(ctx context.Context, cmd []string, params ExecuteParams) error
+	InitRuntime() error
+	CopyToRuntime(src, dst string) error
+	CopyFromRuntime(src, dst string) error
+	RunCommand(ctx context.Context, cmd []string, params RunParams) error
+	StopRuntime() error
 }

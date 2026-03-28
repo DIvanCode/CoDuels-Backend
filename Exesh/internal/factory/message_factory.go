@@ -29,6 +29,10 @@ func (f *MessageFactory) CreateForJob(
 	switch res.GetType() {
 	case result.Compile:
 		typedRes := res.AsCompile()
+		if typedRes.GetError() != nil {
+			msg = messages.NewCompileJobMessageError(executionID, jobName, typedRes.GetError().Error())
+			break
+		}
 		switch typedRes.Status {
 		case job.StatusOK:
 			msg = messages.NewCompileJobMessageOk(executionID, jobName)
@@ -43,6 +47,10 @@ func (f *MessageFactory) CreateForJob(
 		}
 	case result.Run:
 		typedRes := res.AsRun()
+		if typedRes.GetError() != nil {
+			msg = messages.NewRunJobMessage(executionID, jobName, job.StatusRE)
+			break
+		}
 		if !typedRes.HasOutput {
 			msg = messages.NewRunJobMessage(executionID, jobName, typedRes.Status)
 		} else {
@@ -50,6 +58,10 @@ func (f *MessageFactory) CreateForJob(
 		}
 	case result.Check:
 		typedRes := res.AsCheck()
+		if typedRes.GetError() != nil {
+			msg = messages.NewCheckJobMessage(executionID, jobName, job.StatusRE)
+			break
+		}
 		msg = messages.NewCheckJobMessage(executionID, jobName, typedRes.Status)
 	default:
 		return msg, fmt.Errorf("unknown result type %s", res.GetType())

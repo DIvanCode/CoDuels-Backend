@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -21,8 +20,13 @@ type Runtime struct {
 	binPath    string
 	boxIDStart int
 	boxIDCount int
-	nextBox    uint32
+
+	boxID   int
+	boxRoot string
+	boxDir  string
 }
+
+var nextBox uint32
 
 type FuncOpt func(r *Runtime) error
 
@@ -34,51 +38,48 @@ func New() *Runtime {
 	}
 }
 
-func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.ExecuteParams) error {
-	if len(cmd) == 0 {
-		return fmt.Errorf("empty command")
+func (rt *Runtime) InitRuntime() error {
+	if rt.boxRoot != "" {
+		return nil
 	}
 
-	boxID, boxRoot, err := rt.initBox(ctx)
+	boxID, boxRoot, err := rt.initBox(context.Background())
 	if err != nil {
 		return err
 	}
-	defer rt.cleanupBox(context.Background(), boxID)
-	boxDir := filepath.Join(boxRoot, "box")
 
-	for _, outsideLocation := range params.InFiles {
-		i := slices.Index(cmd, outsideLocation)
-		if i != -1 {
-			cmd[i] = filepath.Base(outsideLocation)
-		}
+	rt.boxID = boxID
+	rt.boxRoot = boxRoot
+	rt.boxDir = filepath.Join(boxRoot, "box")
+	return nil
+}
 
-		location := filepath.Join(boxDir, filepath.Base(outsideLocation))
-		if err := os.MkdirAll(filepath.Dir(location), 0o755); err != nil {
-			return fmt.Errorf("create dir for %s: %w", location, err)
-		}
-		if err := copyFile(outsideLocation, location); err != nil {
-			return fmt.Errorf("copy in file %s: %w", outsideLocation, err)
-		}
+func (rt *Runtime) CopyToRuntime(src, dst string) error {
+	if rt.boxDir == "" {
+		return fmt.Errorf("runtime is not initialized")
 	}
-	for _, outsideLocation := range params.OutFiles {
-		i := slices.Index(cmd, outsideLocation)
-		if i != -1 {
-			cmd[i] = filepath.Base(outsideLocation)
-		}
+	return copyFile(src, filepath.Join(rt.boxDir, dst))
+}
+
+func (rt *Runtime) CopyFromRuntime(src, dst string) error {
+	if rt.boxDir == "" {
+		return fmt.Errorf("runtime is not initialized")
+	}
+	return copyFile(filepath.Join(rt.boxDir, src), dst)
+}
+
+func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) error {
+	if len(cmd) == 0 {
+		return fmt.Errorf("empty command")
+	}
+	if rt.boxRoot == "" {
+		return fmt.Errorf("runtime is not initialized")
 	}
 
-	var stdinFile string
-	if params.StdinFile != "" {
-		stdinFile = filepath.Base(params.StdinFile)
-	}
-	var stdoutFile string
-	if params.StdoutFile != "" {
-		stdoutFile = filepath.Base(params.StdoutFile)
-	}
 	stderrFile := ".stderr"
 	metaFile := ".meta"
 
-	runArgs := []string{"-b", strconv.Itoa(boxID), "--run"}
+	runArgs := []string{"-b", strconv.Itoa(rt.boxID), "--run"}
 	if params.Limits.Time != 0 {
 		secs := time.Duration(params.Limits.Time).Seconds()
 		runArgs = append(runArgs, "--time="+formatSeconds(secs))
@@ -88,11 +89,11 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		memKB := (int64(params.Limits.Memory) + 1023) / 1024
 		runArgs = append(runArgs, "--mem="+strconv.FormatInt(memKB, 10))
 	}
-	if stdinFile != "" {
-		runArgs = append(runArgs, "--stdin="+stdinFile)
+	if params.StdinFile != "" {
+		runArgs = append(runArgs, "--stdin="+params.StdinFile)
 	}
-	if stdoutFile != "" {
-		runArgs = append(runArgs, "--stdout="+stdoutFile)
+	if params.StdoutFile != "" {
+		runArgs = append(runArgs, "--stdout="+params.StdoutFile)
 	}
 	runArgs = append(runArgs, "--stderr="+stderrFile)
 	runArgs = append(runArgs, "--meta="+metaFile)
@@ -100,13 +101,13 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	runArgs = append(runArgs, cmd...)
 
 	runCmd := exec.CommandContext(ctx, rt.binPath, runArgs...)
-	runCmd.Dir = boxRoot
+	runCmd.Dir = rt.boxRoot
 	var runStderr bytes.Buffer
 	runCmd.Stderr = &runStderr
 
 	runErr := runCmd.Run()
 
-	if err := rt.handleMeta(filepath.Join(boxDir, metaFile)); err != nil {
+	if err := rt.handleMeta(filepath.Join(rt.boxDir, metaFile)); err != nil {
 		return err
 	}
 
@@ -120,31 +121,29 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		return fmt.Errorf("isolate run: %w: %s", runErr, strings.TrimSpace(runStderr.String()))
 	}
 
-	if stdoutFile != "" {
-		if err := copyFile(filepath.Join(boxDir, stdoutFile), params.StdoutFile); err != nil {
-			return fmt.Errorf("copy stdout: %w", err)
-		}
-	}
 	if params.Stderr != nil {
-		if err := copyFileToWriter(filepath.Join(boxDir, stderrFile), params.Stderr); err != nil {
+		if err := copyFileToWriter(filepath.Join(rt.boxDir, stderrFile), params.Stderr); err != nil {
 			return fmt.Errorf("copy stderr: %w", err)
-		}
-	}
-
-	for _, location := range params.OutFiles {
-		if err := os.MkdirAll(filepath.Dir(location), 0o755); err != nil {
-			return fmt.Errorf("create dir for %s: %w", location, err)
-		}
-		if err := copyFile(filepath.Join(boxDir, filepath.Base(location)), location); err != nil {
-			return fmt.Errorf("copy out file %s: %w", location, err)
 		}
 	}
 
 	return nil
 }
 
+func (rt *Runtime) StopRuntime() error {
+	if rt.boxRoot == "" {
+		return nil
+	}
+
+	rt.cleanupBox(context.Background(), rt.boxID)
+	rt.boxID = 0
+	rt.boxRoot = ""
+	rt.boxDir = ""
+	return nil
+}
+
 func (rt *Runtime) initBox(ctx context.Context) (int, string, error) {
-	start := int(atomic.AddUint32(&rt.nextBox, 1))
+	start := int(atomic.AddUint32(&nextBox, 1))
 	for i := 0; i < rt.boxIDCount; i++ {
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
@@ -156,7 +155,14 @@ func (rt *Runtime) initBox(ctx context.Context) (int, string, error) {
 		cmd.Stderr = &stderr
 
 		if err := cmd.Run(); err != nil {
-			return 0, "", fmt.Errorf("isolate init box %d: %w: %s", id, err, strings.TrimSpace(stderr.String()))
+			errText := strings.TrimSpace(stderr.String())
+			if strings.Contains(errText, "currently in use") {
+				if ctx.Err() != nil {
+					return 0, "", ctx.Err()
+				}
+				continue
+			}
+			return 0, "", fmt.Errorf("isolate init box %d: %w: %s", id, err, errText)
 		}
 
 		boxRoot := strings.TrimSpace(stdout.String())
@@ -228,6 +234,10 @@ func copyFile(src, dst string) error {
 
 	st, err := in.Stat()
 	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 

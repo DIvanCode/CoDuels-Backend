@@ -76,8 +76,20 @@ func (s *KafkaSender) Send(ctx context.Context, msg messages.Message) error {
 		FailedAt:    nil,
 		FailedTries: 0,
 	}
-	if err = s.outboxStorage.CreateOutbox(ctx, ox); err != nil {
-		return fmt.Errorf("failed to create outbox: %w", err)
+
+	createOutbox := func(ctx context.Context) error {
+		if err = s.outboxStorage.CreateOutbox(ctx, ox); err != nil {
+			return fmt.Errorf("failed to create outbox: %w", err)
+		}
+		return nil
+	}
+
+	if ctx.Value("tx") != nil {
+		return createOutbox(ctx)
+	}
+
+	if err = s.unitOfWork.Do(ctx, createOutbox); err != nil {
+		return err
 	}
 
 	return nil

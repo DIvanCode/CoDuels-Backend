@@ -125,62 +125,68 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 
 func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider, outputProvider *provider.OutputProvider, runtimeName string) (*executor.JobExecutor, error) {
 	var (
-		compileCppRT runtime.Runtime
-		compileGoRT  runtime.Runtime
-		runCppRT     runtime.Runtime
-		runGoRT      runtime.Runtime
-		runPyRT      runtime.Runtime
-		err          error
+		compileCppFactory func() (runtime.Runtime, error)
+		compileGoFactory  func() (runtime.Runtime, error)
+		runCppFactory     func() (runtime.Runtime, error)
+		runGoFactory      func() (runtime.Runtime, error)
+		runPyFactory      func() (runtime.Runtime, error)
+		chainFactory      func() (runtime.Runtime, error)
 	)
 
-	localRT := localrt.New()
-	compileCppRT = localRT
-	compileGoRT = localRT
+	compileCppFactory = func() (runtime.Runtime, error) { return localrt.New(), nil }
+	compileGoFactory = func() (runtime.Runtime, error) { return localrt.New(), nil }
 
 	switch runtimeName {
 	case "docker":
-		runCppRT, err = docker.New(
-			docker.WithDefaultClient(),
-			docker.WithBaseImage("gcc:latest"),
-			docker.WithRestrictivePolicy(),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("create run cpp runtime: %w", err)
+		runCppFactory = func() (runtime.Runtime, error) {
+			return docker.New(docker.WithDefaultClient(), docker.WithBaseImage("gcc:latest"), docker.WithRestrictivePolicy())
 		}
-		runGoRT, err = docker.New(
-			docker.WithDefaultClient(),
-			docker.WithBaseImage("golang:latest"),
-			docker.WithRestrictivePolicy(),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("create run go runtime: %w", err)
+		runGoFactory = func() (runtime.Runtime, error) {
+			return docker.New(docker.WithDefaultClient(), docker.WithBaseImage("golang:latest"), docker.WithRestrictivePolicy())
 		}
-		runPyRT, err = docker.New(
-			docker.WithDefaultClient(),
-			docker.WithBaseImage("python:3"),
-			docker.WithRestrictivePolicy(),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("create run python runtime: %w", err)
+		runPyFactory = func() (runtime.Runtime, error) {
+			return docker.New(docker.WithDefaultClient(), docker.WithBaseImage("python:3"), docker.WithRestrictivePolicy())
+		}
+		chainFactory = func() (runtime.Runtime, error) {
+			return docker.New(docker.WithDefaultClient(), docker.WithBaseImage("python:3"), docker.WithRestrictivePolicy())
 		}
 	case "local":
-		runCppRT = localRT
-		runGoRT = localRT
-		runPyRT = localRT
+		runCppFactory = func() (runtime.Runtime, error) { return localrt.New(), nil }
+		runGoFactory = func() (runtime.Runtime, error) { return localrt.New(), nil }
+		runPyFactory = func() (runtime.Runtime, error) { return localrt.New(), nil }
+		chainFactory = func() (runtime.Runtime, error) { return localrt.New(), nil }
 	case "isolate":
-		isolateRT := isolatert.New()
-		runCppRT = isolateRT
-		runGoRT = isolateRT
-		runPyRT = isolateRT
+		runCppFactory = func() (runtime.Runtime, error) { return isolatert.New(), nil }
+		runGoFactory = func() (runtime.Runtime, error) { return isolatert.New(), nil }
+		runPyFactory = func() (runtime.Runtime, error) { return isolatert.New(), nil }
+		chainFactory = func() (runtime.Runtime, error) { return isolatert.New(), nil }
 	default:
 		return nil, fmt.Errorf("unknown runtime name: %s", runtimeName)
 	}
 
-	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, sourceProvider, outputProvider, compileCppRT)
-	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, sourceProvider, outputProvider, compileGoRT)
-	runCppJobExecutor := executors.NewRunCppJobExecutor(log, sourceProvider, outputProvider, runCppRT)
-	runPyJobExecutor := executors.NewRunPyJobExecutor(log, sourceProvider, outputProvider, runPyRT)
-	runGoJobExecutor := executors.NewRunGoJobExecutor(log, sourceProvider, outputProvider, runGoRT)
-	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, sourceProvider, outputProvider, runCppRT)
-	return executor.NewJobExecutor(compileCppJobExecutor, compileGoJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
+	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, sourceProvider, outputProvider, compileCppFactory)
+	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, sourceProvider, outputProvider, compileGoFactory)
+	runCppJobExecutor := executors.NewRunCppJobExecutor(log, sourceProvider, outputProvider, runCppFactory)
+	runPyJobExecutor := executors.NewRunPyJobExecutor(log, sourceProvider, outputProvider, runPyFactory)
+	runGoJobExecutor := executors.NewRunGoJobExecutor(log, sourceProvider, outputProvider, runGoFactory)
+	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, sourceProvider, outputProvider, runCppFactory)
+	chainJobExecutor := executors.NewChainJobExecutor(
+		log,
+		chainFactory,
+		compileCppJobExecutor,
+		compileGoJobExecutor,
+		runCppJobExecutor,
+		runPyJobExecutor,
+		runGoJobExecutor,
+		checkCppJobExecutor,
+	)
+	return executor.NewJobExecutor(
+		compileCppJobExecutor,
+		compileGoJobExecutor,
+		runCppJobExecutor,
+		runPyJobExecutor,
+		runGoJobExecutor,
+		checkCppJobExecutor,
+		chainJobExecutor,
+	), nil
 }

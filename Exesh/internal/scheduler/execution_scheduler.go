@@ -9,10 +9,12 @@ import (
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/message/messages"
+	"exesh/internal/domain/execution/result"
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/domain/execution/source/sources"
 	"fmt"
 	"log/slog"
+	"sort"
 	"sync/atomic"
 	"time"
 
@@ -277,7 +279,13 @@ func (s *ExecutionScheduler) failJob(
 		slog.Any("error", res.GetError()),
 	)
 
-	s.finishExecution(ctx, ex, res.GetError())
+	exError := res.GetError()
+	if err := s.sendMessagesForResult(ctx, ex, res); err != nil {
+		s.log.Error("failed to send messages for failed job", slog.Any("error", err))
+		exError = fmt.Errorf("%w: %w", exError, err)
+	}
+
+	s.finishExecution(ctx, ex, exError)
 }
 
 func (s *ExecutionScheduler) doneJob(
@@ -305,14 +313,8 @@ func (s *ExecutionScheduler) doneJob(
 			return fmt.Errorf("failed to get execution for update from storage: not found")
 		}
 
-		jobName := ex.JobDefinitionByID[jobID].GetName()
-		msg, err := s.messageFactory.CreateForJob(ex.ID, jobName, res)
-		if err != nil {
-			return fmt.Errorf("failed to create message for job: %w", err)
-		}
-
-		if err = s.messageSender.Send(ctx, msg); err != nil {
-			return fmt.Errorf("failed to send message for step: %w", err)
+		if err = s.sendMessagesForResult(ctx, ex, res); err != nil {
+			return fmt.Errorf("failed to send message for job: %w", err)
 		}
 
 		ex.DoneJob(jobID, res.GetStatus())
@@ -344,6 +346,53 @@ func (s *ExecutionScheduler) doneJob(
 			s.finishExecution(ctx, ex, fmt.Errorf("failed to schedule job %s: %w", pickedJobID, err))
 		}
 	}
+}
+
+func (s *ExecutionScheduler) sendMessagesForResult(
+	ctx context.Context,
+	ex *execution.Execution,
+	res results.Result,
+) error {
+	if res.GetType() == result.Chain {
+		chainRes := res.AsChain()
+		innerResults := make([]results.Result, 0, len(chainRes.Results))
+		for _, innerRes := range chainRes.Results {
+			innerResults = append(innerResults, innerRes)
+		}
+		sort.Slice(innerResults, func(i, j int) bool {
+			left := innerResults[i]
+			right := innerResults[j]
+			if left.GetDoneAt().Equal(right.GetDoneAt()) {
+				leftJobID := left.GetJobID()
+				rightJobID := right.GetJobID()
+				return leftJobID.String() < rightJobID.String()
+			}
+			return left.GetDoneAt().Before(right.GetDoneAt())
+		})
+		for _, innerRes := range innerResults {
+			if err := s.sendMessagesForResult(ctx, ex, innerRes); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	jobDef, ok := ex.JobDefinitionByID[res.GetJobID()]
+	jobID := res.GetJobID()
+	if !ok {
+		return fmt.Errorf("failed to find job definition for job %s", jobID.String())
+	}
+
+	msg, err := s.messageFactory.CreateForJob(ex.ID, jobDef.GetName(), res)
+	if err != nil {
+		return fmt.Errorf("failed to create message for job %s: %w", jobID.String(), err)
+	}
+
+	if err = s.messageSender.Send(ctx, msg); err != nil {
+		return fmt.Errorf("failed to send message for job %s: %w", jobID.String(), err)
+	}
+
+	return nil
 }
 
 func (s *ExecutionScheduler) finishExecution(

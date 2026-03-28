@@ -31,6 +31,8 @@ func (res *Result) UnmarshalJSON(data []byte) error {
 		res.IResult = &RunResult{}
 	case result.Check:
 		res.IResult = &CheckResult{}
+	case result.Chain:
+		res.IResult = &ChainResult{}
 	default:
 		return fmt.Errorf("unknown result type: %s", details.Type)
 	}
@@ -52,4 +54,8 @@ func (res *Result) AsRun() *RunResult {
 
 func (res *Result) AsCheck() *CheckResult {
 	return res.IResult.(*CheckResult)
+}
+
+func (res *Result) AsChain() *ChainResult {
+	return res.IResult.(*ChainResult)
 }

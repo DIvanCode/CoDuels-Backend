@@ -6,121 +6,176 @@ import (
 	"errors"
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
-	"fmt"
+	"exesh/internal/domain/execution/result/results"
+	"exesh/internal/executor"
+	"exesh/internal/runtime"
 	errs "github.com/DIvanCode/filestorage/pkg/errors"
 	"io"
 	"log/slog"
+	"os"
 	"time"
-
-	"exesh/internal/domain/execution/result/results"
-	"exesh/internal/runtime"
 )
 
 type RunGoJobExecutor struct {
 	log            *slog.Logger
 	sourceProvider sourceProvider
 	outputProvider outputProvider
+	newRuntime     runtimeFactory
+	job            jobs.Job
 	runtime        runtime.Runtime
+	manageRuntime  bool
+	inputUnlock    func()
+	outputCommit   func() error
+	outputAbort    func() error
+	binaryRuntime  string
+	stdinRuntime   string
+	outputRuntime  string
+	outputHost     string
+	alreadyExists  bool
+	lastResult     results.Result
 }
 
-func NewRunGoJobExecutor(log *slog.Logger, sourceProvider sourceProvider, outputProvider outputProvider, rt runtime.Runtime) *RunGoJobExecutor {
-	return &RunGoJobExecutor{
-		log:            log,
-		sourceProvider: sourceProvider,
-		outputProvider: outputProvider,
-		runtime:        rt,
-	}
+func NewRunGoJobExecutor(log *slog.Logger, sourceProvider sourceProvider, outputProvider outputProvider, newRuntime runtimeFactory) *RunGoJobExecutor {
+	return &RunGoJobExecutor{log: log, sourceProvider: sourceProvider, outputProvider: outputProvider, newRuntime: newRuntime}
 }
-
-func (e *RunGoJobExecutor) SupportsType(jobType job.Type) bool {
-	return jobType == job.RunGo
-}
-
-func (e *RunGoJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Result {
-	errorResult := func(err error) results.Result {
-		return results.NewRunResultErr(jb.GetID(), err.Error())
-	}
-
-	if jb.GetType() != job.RunGo {
-		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", jb.GetType(), job.RunGo))
-	}
-	runGoJob := jb.AsRunGo()
-
-	compiledCode, unlock, err := e.sourceProvider.Locate(ctx, runGoJob.CompiledCode.SourceID)
+func (e *RunGoJobExecutor) SupportsType(jobType job.Type) bool { return jobType == job.RunGo }
+func (e *RunGoJobExecutor) InitExecutor(jb jobs.Job) (executor.Executor, error) {
+	rt, err := e.newRuntime()
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate compiled_code input: %w", err))
+		return nil, err
 	}
-	defer unlock()
-
-	runInput, unlock, err := e.sourceProvider.Locate(ctx, runGoJob.RunInput.SourceID)
-	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate run_input input: %w", err))
-	}
-	defer unlock()
-
-	runOutput, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, jb.GetID(), runGoJob.RunOutput.File)
-	if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
-		return errorResult(fmt.Errorf("failed to reserve run_output output: %w", err))
-	}
-	if err == nil { // if file already exists, do not run command
-		commit := func() error {
-			if err = commitOutput(); err != nil {
-				_ = abortOutput()
-				return fmt.Errorf("failed to commit run_output output: %w", err)
-			}
-			abortOutput = func() error { return nil }
-			return nil
+	return e.initWithRuntime(jb, rt, true)
+}
+func (e *RunGoJobExecutor) initWithRuntime(jb jobs.Job, rt runtime.Runtime, manageRuntime bool) (executor.Executor, error) {
+	return &RunGoJobExecutor{log: e.log, sourceProvider: e.sourceProvider, outputProvider: e.outputProvider, newRuntime: e.newRuntime, job: jb, runtime: rt, manageRuntime: manageRuntime, outputCommit: noopAction, outputAbort: noopAction}, nil
+}
+func (e *RunGoJobExecutor) withSourceProvider(sp sourceProvider) initWithRuntimeExecutor {
+	cp := *e
+	cp.sourceProvider = sp
+	return &cp
+}
+func (e *RunGoJobExecutor) getSourceProvider() sourceProvider { return e.sourceProvider }
+func (e *RunGoJobExecutor) ErrorResult(err error) results.Result {
+	return results.NewRunResultErr(e.job.GetID(), err.Error())
+}
+func (e *RunGoJobExecutor) PrepareInput(ctx context.Context) error {
+	if e.manageRuntime {
+		if err := e.runtime.InitRuntime(); err != nil {
+			return err
 		}
-		defer func() {
-			_ = abortOutput()
-		}()
-
+	}
+	runGoJob := e.job.AsRunGo()
+	binRuntime, ub, err := resolveInputPath(ctx, e.sourceProvider, e.runtime, runGoJob.CompiledCode.SourceID, "program")
+	if err != nil {
+		return err
+	}
+	inRuntime, ui, err := resolveInputPath(ctx, e.sourceProvider, e.runtime, runGoJob.RunInput.SourceID, "stdin")
+	if err != nil {
+		ub()
+		return err
+	}
+	e.inputUnlock = func() { ui(); ub() }
+	e.binaryRuntime = binRuntime
+	e.stdinRuntime = inRuntime
+	e.outputRuntime = runtimeOutputPath(e.job.GetID(), runGoJob.RunOutput.File)
+	return nil
+}
+func (e *RunGoJobExecutor) PrepareOutput(ctx context.Context) error {
+	runGoJob := e.job.AsRunGo()
+	path, commit, abort, err := e.outputProvider.Reserve(ctx, e.job.GetID(), runGoJob.RunOutput.File)
+	if errors.Is(err, errs.ErrFileAlreadyExists) {
+		e.alreadyExists = true
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	e.outputHost = path
+	e.outputCommit = func() error {
+		if err := e.runtime.CopyFromRuntime(e.outputRuntime, e.outputHost); err != nil {
+			_ = abort()
+			return err
+		}
+		if err := commit(); err != nil {
+			_ = abort()
+			return err
+		}
+		return nil
+	}
+	e.outputAbort = abort
+	return nil
+}
+func (e *RunGoJobExecutor) Execute(ctx context.Context, resultsCh chan<- results.Result) results.Result {
+	emit := func(res results.Result) results.Result {
+		if resultsCh != nil {
+			resultsCh <- res
+		}
+		return res
+	}
+	runGoJob := e.job.AsRunGo()
+	if !e.alreadyExists {
 		stderr := bytes.NewBuffer(nil)
-		err = e.runtime.Execute(ctx,
-			[]string{compiledCode},
-			runtime.ExecuteParams{
-				Limits: runtime.Limits{
-					Memory: runtime.MemoryLimit(int64(runGoJob.MemoryLimit) * int64(runtime.Megabyte)),
-					Time:   runtime.TimeLimit(int64(runGoJob.TimeLimit) * int64(time.Millisecond)),
-				},
-				InFiles:    []string{compiledCode, runInput},
-				OutFiles:   []string{runOutput},
-				StdinFile:  runInput,
-				StdoutFile: runOutput,
-				Stderr:     stderr,
-			})
+		err := e.runtime.RunCommand(ctx, []string{e.binaryRuntime}, runtime.RunParams{Limits: runtime.Limits{Memory: runtime.MemoryLimit(int64(runGoJob.MemoryLimit) * int64(runtime.Megabyte)), Time: runtime.TimeLimit(int64(runGoJob.TimeLimit) * int64(time.Millisecond))}, StdinFile: e.stdinRuntime, StdoutFile: e.outputRuntime, Stderr: stderr})
 		if err != nil {
 			e.log.Error("execute binary in runtime error", slog.Any("err", err))
 			if errors.Is(err, runtime.ErrTimeout) {
-				return results.NewRunResultTL(jb.GetID())
+				e.lastResult = results.NewRunResultTL(e.job.GetID())
+			} else if errors.Is(err, runtime.ErrOutOfMemory) {
+				e.lastResult = results.NewRunResultML(e.job.GetID())
+			} else {
+				e.lastResult = results.NewRunResultRE(e.job.GetID())
 			}
-			if errors.Is(err, runtime.ErrOutOfMemory) {
-				return results.NewRunResultML(jb.GetID())
-			}
-			return results.NewRunResultRE(jb.GetID())
-		}
-
-		e.log.Info("command ok")
-
-		if err = commit(); err != nil {
-			return errorResult(fmt.Errorf("failed to commit output creation: %w", err))
+			return emit(e.lastResult)
 		}
 	}
-
 	if !runGoJob.ShowOutput {
-		return results.NewRunResultOK(jb.GetID())
+		e.lastResult = results.NewRunResultOK(e.job.GetID())
+		return emit(e.lastResult)
 	}
-
-	runOutputReader, unlock, err := e.outputProvider.Read(ctx, jb.GetID(), runGoJob.RunOutput.File)
+	outputPath := e.outputHost
+	temp := ""
+	if outputPath == "" {
+		f, err := os.CreateTemp("", "exesh-run-output-*")
+		if err != nil {
+			e.lastResult = e.ErrorResult(err)
+			return emit(e.lastResult)
+		}
+		_ = f.Close()
+		outputPath = f.Name()
+		temp = outputPath
+	}
+	if err := e.runtime.CopyFromRuntime(e.outputRuntime, outputPath); err != nil {
+		e.lastResult = e.ErrorResult(err)
+		return emit(e.lastResult)
+	}
+	if temp != "" {
+		defer func() { _ = os.Remove(temp) }()
+	}
+	r, err := os.Open(outputPath)
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to open run output: %w", err))
+		e.lastResult = e.ErrorResult(err)
+		return emit(e.lastResult)
 	}
-	defer unlock()
-
-	out, err := io.ReadAll(runOutputReader)
+	defer func() { _ = r.Close() }()
+	out, err := io.ReadAll(r)
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to read run output: %w", err))
+		e.lastResult = e.ErrorResult(err)
+		return emit(e.lastResult)
 	}
-
-	return results.NewRunResultWithOutput(jb.GetID(), string(out))
+	e.lastResult = results.NewRunResultWithOutput(e.job.GetID(), string(out))
+	return emit(e.lastResult)
+}
+func (e *RunGoJobExecutor) StopExecutor(context.Context) error {
+	if e.alreadyExists {
+		return cleanupExecutor(e.inputUnlock, e.manageRuntime, e.runtime)
+	}
+	return finalizeExecutor(
+		e.lastResult,
+		e.job.GetSuccessStatus(),
+		e.outputCommit,
+		e.outputAbort,
+		e.inputUnlock,
+		e.manageRuntime,
+		e.runtime,
+	)
 }

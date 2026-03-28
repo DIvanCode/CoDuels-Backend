@@ -120,3 +120,7 @@ func (p *SourceProvider) Locate(ctx context.Context, sourceID source.ID) (path s
 
 	return p.filestorage.LocateFile(ctx, src.BucketID, src.File, p.cfg.FilestorageBucketTTL)
 }
+
+func (*SourceProvider) RuntimePath(source.ID) (string, bool) {
+	return "", false
+}

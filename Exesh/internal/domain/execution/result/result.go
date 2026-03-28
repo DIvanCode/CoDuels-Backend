@@ -30,6 +30,7 @@ const (
 	Compile Type = "compile"
 	Run     Type = "run"
 	Check   Type = "check"
+	Chain   Type = "chain"
 )
 
 func (res *Details) GetType() Type {

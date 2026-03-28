@@ -7,7 +7,9 @@ import (
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/domain/execution/source/sources"
+	"exesh/internal/executor"
 	"exesh/internal/lib/queue"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -40,7 +42,8 @@ type (
 	}
 
 	jobExecutor interface {
-		Execute(context.Context, jobs.Job) results.Result
+		InitExecutor(jobs.Job) (executor.Executor, error)
+		ErrorResult(jobs.Job, error) results.Result
 	}
 )
 
@@ -141,7 +144,54 @@ func (w *Worker) runWorker(ctx context.Context) {
 		jobID := job.GetID()
 		w.log.Debug("picked job", slog.String("job", jobID.String()))
 
-		result := w.jobExecutor.Execute(ctx, *job)
+		exec, err := w.jobExecutor.InitExecutor(*job)
+		if err != nil {
+			result := w.jobExecutor.ErrorResult(*job, fmt.Errorf("failed to init executor: %w", err))
+			w.mu.Lock()
+			w.doneJobs = append(w.doneJobs, result)
+			w.mu.Unlock()
+			w.log.Debug("done job", slog.String("job", jobID.String()))
+			w.changeFreeSlots(+1)
+			continue
+		}
+
+		err = exec.PrepareInput(ctx)
+		if err != nil {
+			result := exec.ErrorResult(fmt.Errorf("failed to prepare input: %w", err))
+			_ = exec.StopExecutor(ctx)
+			w.mu.Lock()
+			w.doneJobs = append(w.doneJobs, result)
+			w.mu.Unlock()
+			w.log.Debug("done job", slog.String("job", jobID.String()))
+			w.changeFreeSlots(+1)
+			continue
+		}
+		err = exec.PrepareOutput(ctx)
+		if err != nil {
+			result := exec.ErrorResult(fmt.Errorf("failed to prepare output: %w", err))
+			_ = exec.StopExecutor(ctx)
+			w.mu.Lock()
+			w.doneJobs = append(w.doneJobs, result)
+			w.mu.Unlock()
+			w.log.Debug("done job", slog.String("job", jobID.String()))
+			w.changeFreeSlots(+1)
+			continue
+		}
+		resultsCh := make(chan results.Result, 16)
+		var readWG sync.WaitGroup
+		readWG.Add(1)
+		go func() {
+			defer readWG.Done()
+			for range resultsCh {
+			}
+		}()
+
+		result := exec.Execute(ctx, resultsCh)
+		close(resultsCh)
+		readWG.Wait()
+		if err := exec.StopExecutor(ctx); err != nil {
+			result = exec.ErrorResult(fmt.Errorf("failed to stop executor: %w", err))
+		}
 
 		w.mu.Lock()
 		w.doneJobs = append(w.doneJobs, result)
