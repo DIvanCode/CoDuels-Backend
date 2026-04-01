@@ -2,12 +2,16 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"exesh/internal/api/heartbeat"
 	"exesh/internal/config"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/domain/execution/source/sources"
+	"exesh/internal/executor"
 	"exesh/internal/lib/queue"
+	"fmt"
+	errs "github.com/DIvanCode/filestorage/pkg/errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -19,7 +23,7 @@ type (
 		cfg config.WorkConfig
 
 		heartbeatClient heartbeatClient
-		jobExecutor     jobExecutor
+		executorFactory *executor.ExecutorFactory
 
 		jobs queue.Queue[jobs.Job]
 
@@ -38,19 +42,19 @@ type (
 		SaveSource(ctx context.Context, src sources.Source) error
 		RemoveSource(ctx context.Context, src sources.Source)
 	}
-
-	jobExecutor interface {
-		Execute(context.Context, jobs.Job) results.Result
-	}
 )
 
-func NewWorker(log *slog.Logger, cfg config.WorkConfig, sourceProvider sourceProvider, jobExecutor jobExecutor) *Worker {
+func NewWorker(
+	log *slog.Logger,
+	cfg config.WorkConfig,
+	sourceProvider sourceProvider,
+	executorFactory *executor.ExecutorFactory) *Worker {
 	return &Worker{
 		log: log,
 		cfg: cfg,
 
 		heartbeatClient: heartbeat.NewHeartbeatClient(cfg.CoordinatorEndpoint),
-		jobExecutor:     jobExecutor,
+		executorFactory: executorFactory,
 
 		jobs: *queue.NewQueue[jobs.Job](),
 
@@ -141,7 +145,7 @@ func (w *Worker) runWorker(ctx context.Context) {
 		jobID := job.GetID()
 		w.log.Debug("picked job", slog.String("job", jobID.String()))
 
-		result := w.jobExecutor.Execute(ctx, *job)
+		result := w.executeJob(ctx, *job)
 
 		w.mu.Lock()
 		w.doneJobs = append(w.doneJobs, result)
@@ -162,4 +166,36 @@ func (w *Worker) changeFreeSlots(delta int) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.freeSlots += delta
+}
+
+func (w *Worker) executeJob(ctx context.Context, jb jobs.Job) results.Result {
+	exec, err := w.executorFactory.Create(jb)
+	if err != nil {
+		return results.Error(jb, fmt.Errorf("create job executor: %w", err))
+	}
+
+	defer func() {
+		if stopErr := exec.Stop(ctx); stopErr != nil {
+			jobID := jb.GetID()
+			w.log.Error(
+				"failed to stop job executor",
+				slog.String("job", jobID.String()),
+				slog.Any("err", stopErr),
+			)
+		}
+	}()
+
+	if err = exec.Init(ctx); err != nil {
+		return results.Error(jb, fmt.Errorf("init job executor: %w", err))
+	}
+	if err = exec.PrepareInput(ctx); err != nil {
+		return results.Error(jb, fmt.Errorf("prepare input: %w", err))
+	}
+	result := exec.ExecuteCommand(ctx)
+	err = exec.SaveOutput(ctx)
+	if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
+		w.log.Error("failed to save output", slog.Any("err", err))
+	}
+
+	return result
 }

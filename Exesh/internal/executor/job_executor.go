@@ -5,30 +5,37 @@ import (
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result/results"
+	"fmt"
 )
 
 type (
-	JobExecutor struct {
-		executors []jobExecutor
+	ExecutorFactory struct {
+		executorFactories []executorFactory
 	}
 
-	jobExecutor interface {
+	JobExecutor interface {
+		Init(context.Context) error
+		PrepareInput(context.Context) error
+		ExecuteCommand(context.Context) results.Result
+		SaveOutput(context.Context) error
+		Stop(context.Context) error
+	}
+
+	executorFactory interface {
 		SupportsType(job.Type) bool
-		Execute(context.Context, jobs.Job) results.Result
+		Create(jobs.Job) (JobExecutor, error)
 	}
 )
 
-func NewJobExecutor(executors ...jobExecutor) *JobExecutor {
-	return &JobExecutor{executors: executors}
+func NewExecutorFactory(executorFactories ...executorFactory) *ExecutorFactory {
+	return &ExecutorFactory{executorFactories: executorFactories}
 }
 
-func (e *JobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Result {
-	var res results.Result
-	for _, executor := range e.executors {
-		if executor.SupportsType(jb.GetType()) {
-			res = executor.Execute(ctx, jb)
-			break
+func (f *ExecutorFactory) Create(jb jobs.Job) (JobExecutor, error) {
+	for _, factory := range f.executorFactories {
+		if factory.SupportsType(jb.GetType()) {
+			return factory.Create(jb)
 		}
 	}
-	return res
+	return nil, fmt.Errorf("unsupported job type %s", jb.GetType())
 }

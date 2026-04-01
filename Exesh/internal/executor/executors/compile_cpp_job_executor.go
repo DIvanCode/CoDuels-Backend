@@ -6,6 +6,7 @@ import (
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result/results"
+	"exesh/internal/executor"
 	"exesh/internal/runtime"
 	"fmt"
 	"log/slog"
@@ -17,10 +18,22 @@ type CompileCppJobExecutor struct {
 	sourceProvider sourceProvider
 	outputProvider outputProvider
 	runtime        runtime.Runtime
+
+	job jobs.Job
+
+	codeRuntimePath         string
+	compiledCodeRuntimePath string
 }
 
-func NewCompileCppJobExecutor(log *slog.Logger, sourceProvider sourceProvider, outputProvider outputProvider, rt runtime.Runtime) *CompileCppJobExecutor {
-	return &CompileCppJobExecutor{
+type CompileCppExecutorFactory struct {
+	log            *slog.Logger
+	sourceProvider sourceProvider
+	outputProvider outputProvider
+	runtime        runtime.Runtime
+}
+
+func NewCompileCppExecutorFactory(log *slog.Logger, sourceProvider sourceProvider, outputProvider outputProvider, rt runtime.Runtime) *CompileCppExecutorFactory {
+	return &CompileCppExecutorFactory{
 		log:            log,
 		sourceProvider: sourceProvider,
 		outputProvider: outputProvider,
@@ -28,29 +41,81 @@ func NewCompileCppJobExecutor(log *slog.Logger, sourceProvider sourceProvider, o
 	}
 }
 
-func (e *CompileCppJobExecutor) SupportsType(jobType job.Type) bool {
+func (f *CompileCppExecutorFactory) SupportsType(jobType job.Type) bool {
 	return jobType == job.CompileCpp
 }
 
-func (e *CompileCppJobExecutor) Execute(ctx context.Context, jb jobs.Job) results.Result {
-	errorResult := func(err error) results.Result {
-		return results.NewCompileResultErr(jb.GetID(), err.Error())
-	}
-
+func (f *CompileCppExecutorFactory) Create(jb jobs.Job) (executor.JobExecutor, error) {
 	if jb.GetType() != job.CompileCpp {
-		return errorResult(fmt.Errorf("unsupported job type %s for %s executor", jb.GetType(), job.CompileCpp))
+		return nil, fmt.Errorf("unsupported job type %s for %s executor", jb.GetType(), job.CompileCpp)
 	}
-	compileCppJob := jb.AsCompileCpp()
 
-	code, unlock, err := e.sourceProvider.Locate(ctx, compileCppJob.Code.SourceID)
+	return &CompileCppJobExecutor{
+		log:            f.log,
+		sourceProvider: f.sourceProvider,
+		outputProvider: f.outputProvider,
+		runtime:        f.runtime,
+
+		job: jb,
+	}, nil
+}
+
+func (e *CompileCppJobExecutor) Init(ctx context.Context) error {
+	if err := e.runtime.Init(ctx); err != nil {
+		return fmt.Errorf("failed to init runtime: %w", err)
+	}
+	return nil
+}
+
+func (e *CompileCppJobExecutor) PrepareInput(ctx context.Context) error {
+	jb := e.job.AsCompileCpp()
+
+	code, unlock, err := e.sourceProvider.Locate(ctx, jb.Code.SourceID)
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate code input: %w", err))
+		return fmt.Errorf("failed to get code: %w", err)
 	}
 	defer unlock()
 
-	compiledCode, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, jb.GetID(), compileCppJob.CompiledCode.File)
+	e.codeRuntimePath = "source.cpp"
+	if err = e.runtime.CopyToRuntime(ctx, code, e.codeRuntimePath); err != nil {
+		return fmt.Errorf("failed to copy code to runtime: %w", err)
+	}
+
+	return nil
+}
+
+func (e *CompileCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
+	jb := e.job.AsCompileCpp()
+
+	stderr := bytes.NewBuffer(nil)
+	e.compiledCodeRuntimePath = "a.out"
+	err := e.runtime.RunCommand(
+		ctx,
+		[]string{"g++", e.codeRuntimePath, "-o", e.compiledCodeRuntimePath},
+		runtime.RunParams{
+			Limits: runtime.Limits{
+				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
+				Time:   runtime.TimeLimit(5000 * int64(time.Millisecond)),
+			},
+			Stderr: stderr,
+		},
+	)
 	if err != nil {
-		return errorResult(fmt.Errorf("failed to locate compiled_code output: %w", err))
+		e.log.Error("execute g++ in runtime error", slog.Any("err", err))
+		return results.NewCompileResultCE(jb.GetID(), stderr.String())
+	}
+
+	e.log.Info("command ok")
+
+	return results.NewCompileResultOK(jb.GetID())
+}
+
+func (e *CompileCppJobExecutor) SaveOutput(ctx context.Context) error {
+	jb := e.job.AsCompileCpp()
+
+	compiledCode, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, jb.GetID(), jb.CompiledCode.File)
+	if err != nil {
+		return fmt.Errorf("failed to reserve compiled_code output: %w", err)
 	}
 	commit := func() error {
 		if err = commitOutput(); err != nil {
@@ -64,28 +129,17 @@ func (e *CompileCppJobExecutor) Execute(ctx context.Context, jb jobs.Job) result
 		_ = abortOutput()
 	}()
 
-	stderr := bytes.NewBuffer(nil)
-	err = e.runtime.Execute(ctx,
-		[]string{"g++", code, "-o", compiledCode},
-		runtime.ExecuteParams{
-			Limits: runtime.Limits{
-				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
-				Time:   runtime.TimeLimit(5000 * int64(time.Millisecond)),
-			},
-			InFiles:  []string{code},
-			OutFiles: []string{compiledCode},
-			Stderr:   stderr,
-		})
-	if err != nil {
-		e.log.Error("execute g++ in runtime error", slog.Any("err", err))
-		return results.NewCompileResultCE(jb.GetID(), stderr.String())
+	if err = e.runtime.CopyFromRuntime(ctx, e.compiledCodeRuntimePath, compiledCode); err != nil {
+		return fmt.Errorf("failed to copy compiled_code from runtime: %w", err)
 	}
-
-	e.log.Info("command ok")
 
 	if commitErr := commit(); commitErr != nil {
-		return errorResult(commitErr)
+		return commitErr
 	}
 
-	return results.NewCompileResultOK(jb.GetID())
+	return nil
+}
+
+func (e *CompileCppJobExecutor) Stop(_ context.Context) error {
+	return nil
 }

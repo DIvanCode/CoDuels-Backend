@@ -2,12 +2,27 @@ package results
 
 import (
 	"encoding/json"
+	"exesh/internal/domain/execution/job"
+	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result"
 	"fmt"
 )
 
 type Result struct {
 	result.IResult
+}
+
+func Error(jb jobs.Job, err error) Result {
+	switch jb.GetType() {
+	case job.CompileCpp, job.CompileGo:
+		return NewCompileResultErr(jb.GetID(), err.Error())
+	case job.CheckCpp:
+		return NewCheckResultErr(jb.GetID(), err.Error())
+	case job.RunCpp, job.RunGo, job.RunPy:
+		return NewRunResultErr(jb.GetID(), err.Error())
+	default:
+		return NewUnknownResultErr(jb.GetID(), err.Error())
+	}
 }
 
 func (res Result) MarshalJSON() ([]byte, error) {
@@ -31,6 +46,8 @@ func (res *Result) UnmarshalJSON(data []byte) error {
 		res.IResult = &RunResult{}
 	case result.Check:
 		res.IResult = &CheckResult{}
+	case result.Unknown:
+		res.IResult = &UnknownResult{}
 	default:
 		return fmt.Errorf("unknown result type: %s", details.Type)
 	}
@@ -52,4 +69,8 @@ func (res *Result) AsRun() *RunResult {
 
 func (res *Result) AsCheck() *CheckResult {
 	return res.IResult.(*CheckResult)
+}
+
+func (res *Result) AsUnknown() *UnknownResult {
+	return res.IResult.(*UnknownResult)
 }

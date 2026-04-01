@@ -59,12 +59,12 @@ func main() {
 	sourceProvider := provider.NewSourceProvider(cfg.SourceProvider, filestorageAdapter)
 	outputProvider := provider.NewOutputProvider(cfg.OutputProvider, filestorageAdapter)
 
-	jobExecutor, err := setupJobExecutor(log, sourceProvider, outputProvider, cfg.Runtime)
+	executorFactory, err := setupExecutorFactory(log, sourceProvider, outputProvider, cfg.Runtime)
 	if err != nil {
 		flog.Fatal(err)
 	}
 
-	worker.NewWorker(log, cfg.Worker, sourceProvider, jobExecutor).Start(ctx)
+	worker.NewWorker(log, cfg.Worker, sourceProvider, executorFactory).Start(ctx)
 
 	promRegistry := prometheus.NewRegistry()
 	promRegistry.MustRegister(
@@ -123,7 +123,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 	return log, err
 }
 
-func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider, outputProvider *provider.OutputProvider, runtimeName string) (*executor.JobExecutor, error) {
+func setupExecutorFactory(log *slog.Logger, sourceProvider *provider.SourceProvider, outputProvider *provider.OutputProvider, runtimeName string) (*executor.ExecutorFactory, error) {
 	var (
 		compileCppRT runtime.Runtime
 		compileGoRT  runtime.Runtime
@@ -176,11 +176,18 @@ func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider,
 		return nil, fmt.Errorf("unknown runtime name: %s", runtimeName)
 	}
 
-	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, sourceProvider, outputProvider, compileCppRT)
-	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, sourceProvider, outputProvider, compileGoRT)
-	runCppJobExecutor := executors.NewRunCppJobExecutor(log, sourceProvider, outputProvider, runCppRT)
-	runPyJobExecutor := executors.NewRunPyJobExecutor(log, sourceProvider, outputProvider, runPyRT)
-	runGoJobExecutor := executors.NewRunGoJobExecutor(log, sourceProvider, outputProvider, runGoRT)
-	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, sourceProvider, outputProvider, runCppRT)
-	return executor.NewJobExecutor(compileCppJobExecutor, compileGoJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
+	compileCppExecutorFactory := executors.NewCompileCppExecutorFactory(log, sourceProvider, outputProvider, compileCppRT)
+	compileGoExecutorFactory := executors.NewCompileGoExecutorFactory(log, sourceProvider, outputProvider, compileGoRT)
+	runCppExecutorFactory := executors.NewRunCppExecutorFactory(log, sourceProvider, outputProvider, runCppRT)
+	runPyExecutorFactory := executors.NewRunPyExecutorFactory(log, sourceProvider, outputProvider, runPyRT)
+	runGoExecutorFactory := executors.NewRunGoExecutorFactory(log, sourceProvider, outputProvider, runGoRT)
+	checkCppExecutorFactory := executors.NewCheckCppExecutorFactory(log, sourceProvider, outputProvider, runCppRT)
+	return executor.NewExecutorFactory(
+		compileCppExecutorFactory,
+		compileGoExecutorFactory,
+		runCppExecutorFactory,
+		runPyExecutorFactory,
+		runGoExecutorFactory,
+		checkCppExecutorFactory,
+	), nil
 }
