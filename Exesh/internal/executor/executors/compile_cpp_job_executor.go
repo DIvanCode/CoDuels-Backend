@@ -18,6 +18,7 @@ type CompileCppJobExecutor struct {
 	sourceProvider sourceProvider
 	outputProvider outputProvider
 	runtime        runtime.Runtime
+	runtimeID      runtime.ID
 
 	job jobs.Job
 
@@ -61,9 +62,11 @@ func (f *CompileCppExecutorFactory) Create(jb jobs.Job) (executor.JobExecutor, e
 }
 
 func (e *CompileCppJobExecutor) Init(ctx context.Context) error {
-	if err := e.runtime.Init(ctx); err != nil {
+	runtimeID, err := e.runtime.Init(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to init runtime: %w", err)
 	}
+	e.runtimeID = runtimeID
 	return nil
 }
 
@@ -77,7 +80,7 @@ func (e *CompileCppJobExecutor) PrepareInput(ctx context.Context) error {
 	defer unlock()
 
 	e.codeRuntimePath = "source.cpp"
-	if err = e.runtime.CopyToRuntime(ctx, code, e.codeRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, e.runtimeID, code, e.codeRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy code to runtime: %w", err)
 	}
 
@@ -91,6 +94,7 @@ func (e *CompileCppJobExecutor) ExecuteCommand(ctx context.Context) results.Resu
 	e.compiledCodeRuntimePath = "a.out"
 	err := e.runtime.RunCommand(
 		ctx,
+		e.runtimeID,
 		[]string{"g++", e.codeRuntimePath, "-o", e.compiledCodeRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
@@ -129,7 +133,7 @@ func (e *CompileCppJobExecutor) SaveOutput(ctx context.Context) error {
 		_ = abortOutput()
 	}()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.compiledCodeRuntimePath, compiledCode); err != nil {
+	if err = e.runtime.CopyFromRuntime(ctx, e.runtimeID, e.compiledCodeRuntimePath, compiledCode); err != nil {
 		return fmt.Errorf("failed to copy compiled_code from runtime: %w", err)
 	}
 
@@ -140,6 +144,6 @@ func (e *CompileCppJobExecutor) SaveOutput(ctx context.Context) error {
 	return nil
 }
 
-func (e *CompileCppJobExecutor) Stop(_ context.Context) error {
-	return nil
+func (e *CompileCppJobExecutor) Stop(ctx context.Context) error {
+	return e.runtime.Stop(ctx, e.runtimeID)
 }

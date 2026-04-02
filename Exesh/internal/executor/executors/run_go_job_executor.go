@@ -21,6 +21,7 @@ type RunGoJobExecutor struct {
 	sourceProvider sourceProvider
 	outputProvider outputProvider
 	runtime        runtime.Runtime
+	runtimeID      runtime.ID
 
 	job jobs.Job
 
@@ -64,9 +65,11 @@ func (f *RunGoExecutorFactory) Create(jb jobs.Job) (executor.JobExecutor, error)
 }
 
 func (e *RunGoJobExecutor) Init(ctx context.Context) error {
-	if err := e.runtime.Init(ctx); err != nil {
+	runtimeID, err := e.runtime.Init(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to init runtime: %w", err)
 	}
+	e.runtimeID = runtimeID
 	return nil
 }
 
@@ -88,10 +91,10 @@ func (e *RunGoJobExecutor) PrepareInput(ctx context.Context) error {
 	e.compiledCodeRuntimePath = "compiled"
 	e.runInputRuntimePath = "input.txt"
 
-	if err = e.runtime.CopyToRuntime(ctx, compiledCode, e.compiledCodeRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, e.runtimeID, compiledCode, e.compiledCodeRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy compiled code to runtime: %w", err)
 	}
-	if err = e.runtime.CopyToRuntime(ctx, runInput, e.runInputRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, e.runtimeID, runInput, e.runInputRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy run input to runtime: %w", err)
 	}
 
@@ -105,6 +108,7 @@ func (e *RunGoJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	stderr := bytes.NewBuffer(nil)
 	err := e.runtime.RunCommand(
 		ctx,
+		e.runtimeID,
 		[]string{"./" + e.compiledCodeRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
@@ -140,7 +144,7 @@ func (e *RunGoJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	defer func() { _ = os.Remove(tmp.Name()) }()
 	defer func() { _ = tmp.Close() }()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.runOutputRuntimePath, tmp.Name()); err != nil {
+	if err = e.runtime.CopyFromRuntime(ctx, e.runtimeID, e.runOutputRuntimePath, tmp.Name()); err != nil {
 		return results.Error(e.job, fmt.Errorf("failed to copy run output from runtime: %w", err))
 	}
 	out, err := os.ReadFile(tmp.Name())
@@ -172,7 +176,7 @@ func (e *RunGoJobExecutor) SaveOutput(ctx context.Context) error {
 		_ = abortOutput()
 	}()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.runOutputRuntimePath, runOutput); err != nil {
+	if err = e.runtime.CopyFromRuntime(ctx, e.runtimeID, e.runOutputRuntimePath, runOutput); err != nil {
 		return fmt.Errorf("failed to copy run_output from runtime: %w", err)
 	}
 
@@ -183,6 +187,6 @@ func (e *RunGoJobExecutor) SaveOutput(ctx context.Context) error {
 	return nil
 }
 
-func (e *RunGoJobExecutor) Stop(_ context.Context) error {
-	return nil
+func (e *RunGoJobExecutor) Stop(ctx context.Context) error {
+	return e.runtime.Stop(ctx, e.runtimeID)
 }

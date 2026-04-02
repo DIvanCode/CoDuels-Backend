@@ -20,6 +20,7 @@ type CheckCppJobExecutor struct {
 	sourceProvider sourceProvider
 	outputProvider outputProvider
 	runtime        runtime.Runtime
+	runtimeID      runtime.ID
 
 	job jobs.Job
 
@@ -64,9 +65,11 @@ func (f *CheckCppExecutorFactory) Create(jb jobs.Job) (executor.JobExecutor, err
 }
 
 func (e *CheckCppJobExecutor) Init(ctx context.Context) error {
-	if err := e.runtime.Init(ctx); err != nil {
+	runtimeID, err := e.runtime.Init(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to init runtime: %w", err)
 	}
+	e.runtimeID = runtimeID
 	return nil
 }
 
@@ -92,17 +95,17 @@ func (e *CheckCppJobExecutor) PrepareInput(ctx context.Context) error {
 	defer unlock()
 
 	e.compiledCheckerRuntimePath = "checker"
-	if err = e.runtime.CopyToRuntime(ctx, compiledChecker, e.compiledCheckerRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, e.runtimeID, compiledChecker, e.compiledCheckerRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy compiled checker to runtime: %w", err)
 	}
 
 	e.correctOutputRuntimePath = "correct.txt"
-	if err = e.runtime.CopyToRuntime(ctx, correctOutput, e.correctOutputRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, e.runtimeID, correctOutput, e.correctOutputRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy correct output to runtime: %w", err)
 	}
 
 	e.suspectOutputRuntimePath = "suspect.txt"
-	if err = e.runtime.CopyToRuntime(ctx, suspectOutput, e.suspectOutputRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, e.runtimeID, suspectOutput, e.suspectOutputRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy suspect output to runtime: %w", err)
 	}
 
@@ -116,6 +119,7 @@ func (e *CheckCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result
 	e.checkVerdictRuntimePath = "verdict.txt"
 	err := e.runtime.RunCommand(
 		ctx,
+		e.runtimeID,
 		[]string{"./" + e.compiledCheckerRuntimePath, e.correctOutputRuntimePath, e.suspectOutputRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
@@ -140,7 +144,7 @@ func (e *CheckCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result
 	defer func() { _ = os.Remove(checkVerdict.Name()) }()
 	defer func() { _ = checkVerdict.Close() }()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.checkVerdictRuntimePath, checkVerdict.Name()); err != nil {
+	if err = e.runtime.CopyFromRuntime(ctx, e.runtimeID, e.checkVerdictRuntimePath, checkVerdict.Name()); err != nil {
 		return results.Error(e.job, fmt.Errorf("failed to copy check verdict from runtime: %w", err))
 	}
 	checkVerdictOutput, err := os.ReadFile(checkVerdict.Name())
@@ -162,6 +166,6 @@ func (e *CheckCppJobExecutor) SaveOutput(_ context.Context) error {
 	return nil
 }
 
-func (e *CheckCppJobExecutor) Stop(_ context.Context) error {
-	return nil
+func (e *CheckCppJobExecutor) Stop(ctx context.Context) error {
+	return e.runtime.Stop(ctx, e.runtimeID)
 }

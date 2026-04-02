@@ -18,6 +18,7 @@ type CompileGoJobExecutor struct {
 	sourceProvider sourceProvider
 	outputProvider outputProvider
 	runtime        runtime.Runtime
+	runtimeID      runtime.ID
 
 	job jobs.Job
 
@@ -60,9 +61,11 @@ func (f *CompileGoExecutorFactory) Create(jb jobs.Job) (executor.JobExecutor, er
 }
 
 func (e *CompileGoJobExecutor) Init(ctx context.Context) error {
-	if err := e.runtime.Init(ctx); err != nil {
+	runtimeID, err := e.runtime.Init(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to init runtime: %w", err)
 	}
+	e.runtimeID = runtimeID
 	return nil
 }
 
@@ -76,7 +79,7 @@ func (e *CompileGoJobExecutor) PrepareInput(ctx context.Context) error {
 	defer unlock()
 
 	e.codeRuntimePath = "source.go"
-	if err = e.runtime.CopyToRuntime(ctx, code, e.codeRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, e.runtimeID, code, e.codeRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy code to runtime: %w", err)
 	}
 
@@ -90,6 +93,7 @@ func (e *CompileGoJobExecutor) ExecuteCommand(ctx context.Context) results.Resul
 	e.compiledCodeRuntimePath = "bin"
 	err := e.runtime.RunCommand(
 		ctx,
+		e.runtimeID,
 		[]string{"go", "build", "-o", e.compiledCodeRuntimePath, e.codeRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
@@ -128,7 +132,7 @@ func (e *CompileGoJobExecutor) SaveOutput(ctx context.Context) error {
 		_ = abortOutput()
 	}()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.compiledCodeRuntimePath, compiledCode); err != nil {
+	if err = e.runtime.CopyFromRuntime(ctx, e.runtimeID, e.compiledCodeRuntimePath, compiledCode); err != nil {
 		return fmt.Errorf("failed to copy compiled_code from runtime: %w", err)
 	}
 
@@ -139,6 +143,6 @@ func (e *CompileGoJobExecutor) SaveOutput(ctx context.Context) error {
 	return nil
 }
 
-func (e *CompileGoJobExecutor) Stop(_ context.Context) error {
-	return nil
+func (e *CompileGoJobExecutor) Stop(ctx context.Context) error {
+	return e.runtime.Stop(ctx, e.runtimeID)
 }

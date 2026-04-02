@@ -174,9 +174,10 @@ func (w *Worker) executeJob(ctx context.Context, jb jobs.Job) results.Result {
 		return results.Error(jb, fmt.Errorf("create job executor: %w", err))
 	}
 
+	jobID := jb.GetID()
+
 	defer func() {
 		if stopErr := exec.Stop(ctx); stopErr != nil {
-			jobID := jb.GetID()
 			w.log.Error(
 				"failed to stop job executor",
 				slog.String("job", jobID.String()),
