@@ -330,11 +330,6 @@ func (s *ExecutionScheduler) doneJob(
 		return
 	}
 
-	if ex.IsDone() {
-		s.finishExecution(ctx, ex, nil)
-		return
-	}
-
 	for _, pickedJob := range ex.PickJobs() {
 		if err := s.scheduleJob(ctx, ex, pickedJob); err != nil {
 			pickedJobID := pickedJob.GetID()
@@ -343,6 +338,10 @@ func (s *ExecutionScheduler) doneJob(
 				slog.Any("error", err))
 			s.finishExecution(ctx, ex, fmt.Errorf("failed to schedule job %s: %w", pickedJobID, err))
 		}
+	}
+
+	if ex.IsDone() {
+		s.finishExecution(ctx, ex, nil)
 	}
 }
 
