@@ -9,45 +9,36 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 type Runtime struct {
-	nextID uint64
-
 	mu      sync.Mutex
-	workDir map[runtime.ID]string
+	workDir string
 }
 
 type FuncOpt func(r *Runtime) error
 
 func New() *Runtime {
-	return &Runtime{
-		workDir: make(map[runtime.ID]string),
-	}
+	return &Runtime{}
 }
 
-func (rt *Runtime) Init(_ context.Context) (runtime.ID, error) {
-	idNum := atomic.AddUint64(&rt.nextID, 1)
-	runtimeID := runtime.ID(strconv.FormatUint(idNum, 10))
-
+func (rt *Runtime) Init(_ context.Context) error {
 	workDir, err := os.MkdirTemp("/tmp", "*")
 	if err != nil {
-		return "", fmt.Errorf("create local runtime dir: %w", err)
+		return fmt.Errorf("create local runtime dir: %w", err)
 	}
 
 	rt.mu.Lock()
-	rt.workDir[runtimeID] = workDir
+	rt.workDir = workDir
 	rt.mu.Unlock()
 
-	return runtimeID, nil
+	return nil
 }
 
-func (rt *Runtime) CopyToRuntime(_ context.Context, runtimeID runtime.ID, src, dst string) error {
-	dstPath, err := rt.runtimePath(runtimeID, dst)
+func (rt *Runtime) CopyToRuntime(_ context.Context, src, dst string) error {
+	dstPath, err := rt.runtimePath(dst)
 	if err != nil {
 		return err
 	}
@@ -61,8 +52,8 @@ func (rt *Runtime) CopyToRuntime(_ context.Context, runtimeID runtime.ID, src, d
 	return nil
 }
 
-func (rt *Runtime) CopyFromRuntime(_ context.Context, runtimeID runtime.ID, src, dst string) error {
-	srcPath, err := rt.runtimePath(runtimeID, src)
+func (rt *Runtime) CopyFromRuntime(_ context.Context, src, dst string) error {
+	srcPath, err := rt.runtimePath(src)
 	if err != nil {
 		return err
 	}
@@ -76,8 +67,8 @@ func (rt *Runtime) CopyFromRuntime(_ context.Context, runtimeID runtime.ID, src,
 	return nil
 }
 
-func (rt *Runtime) RunCommand(ctx context.Context, runtimeID runtime.ID, cmd []string, params runtime.RunParams) error {
-	workDir, err := rt.getWorkDir(runtimeID)
+func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) error {
+	workDir, err := rt.getWorkDir()
 	if err != nil {
 		return err
 	}
@@ -97,7 +88,7 @@ func (rt *Runtime) RunCommand(ctx context.Context, runtimeID runtime.ID, cmd []s
 	execCmd.Stderr = params.Stderr
 
 	if params.StdinFile != "" {
-		stdinPath, err := rt.runtimePath(runtimeID, params.StdinFile)
+		stdinPath, err := rt.runtimePath(params.StdinFile)
 		if err != nil {
 			return err
 		}
@@ -110,7 +101,7 @@ func (rt *Runtime) RunCommand(ctx context.Context, runtimeID runtime.ID, cmd []s
 	}
 
 	if params.StdoutFile != "" {
-		stdoutPath, err := rt.runtimePath(runtimeID, params.StdoutFile)
+		stdoutPath, err := rt.runtimePath(params.StdoutFile)
 		if err != nil {
 			return err
 		}
@@ -139,15 +130,13 @@ func (rt *Runtime) RunCommand(ctx context.Context, runtimeID runtime.ID, cmd []s
 	return nil
 }
 
-func (rt *Runtime) Stop(_ context.Context, runtimeID runtime.ID) error {
+func (rt *Runtime) Stop(_ context.Context) error {
 	rt.mu.Lock()
-	workDir, ok := rt.workDir[runtimeID]
-	if ok {
-		delete(rt.workDir, runtimeID)
-	}
+	workDir := rt.workDir
+	rt.workDir = ""
 	rt.mu.Unlock()
 
-	if !ok {
+	if workDir == "" {
 		return nil
 	}
 
@@ -157,24 +146,20 @@ func (rt *Runtime) Stop(_ context.Context, runtimeID runtime.ID) error {
 	return nil
 }
 
-func (rt *Runtime) getWorkDir(runtimeID runtime.ID) (string, error) {
-	if runtimeID == "" {
-		return "", fmt.Errorf("runtime id is required")
-	}
-
+func (rt *Runtime) getWorkDir() (string, error) {
 	rt.mu.Lock()
-	workDir, ok := rt.workDir[runtimeID]
+	workDir := rt.workDir
 	rt.mu.Unlock()
 
-	if !ok {
+	if workDir == "" {
 		return "", fmt.Errorf("runtime is not initialized")
 	}
 
 	return workDir, nil
 }
 
-func (rt *Runtime) runtimePath(runtimeID runtime.ID, path string) (string, error) {
-	workDir, err := rt.getWorkDir(runtimeID)
+func (rt *Runtime) runtimePath(path string) (string, error) {
+	workDir, err := rt.getWorkDir()
 	if err != nil {
 		return "", err
 	}

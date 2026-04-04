@@ -9,6 +9,7 @@ import (
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/message/messages"
+	"exesh/internal/domain/execution/result"
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/domain/execution/source/sources"
 	"fmt"
@@ -208,7 +209,14 @@ func (s *ExecutionScheduler) scheduleJob(
 	}
 
 	jobID := jb.GetID()
-	s.log.Info("schedule job", slog.String("job", jobID.String()))
+	logArgs := []any{
+		slog.String("job", jobID.String()),
+		slog.String("type", string(jb.GetType())),
+	}
+	if jb.GetType() == job.Chain {
+		logArgs = append(logArgs, slog.Int("chain_jobs", len(jb.AsChain().Jobs)))
+	}
+	s.log.Info("schedule job", logArgs...)
 
 	srcs := make([]sources.Source, 0)
 	for _, in := range jb.GetInputs() {
@@ -305,14 +313,26 @@ func (s *ExecutionScheduler) doneJob(
 			return fmt.Errorf("failed to get execution for update from storage: not found")
 		}
 
-		jobName := ex.JobDefinitionByID[jobID].GetName()
-		msg, err := s.messageFactory.CreateForJob(ex.ID, jobName, res)
-		if err != nil {
-			return fmt.Errorf("failed to create message for job: %w", err)
+		jobResults := []results.Result{res}
+		if res.GetType() == result.Chain {
+			jobResults = res.AsChain().Results
 		}
 
-		if err = s.messageSender.Send(ctx, msg); err != nil {
-			return fmt.Errorf("failed to send message for step: %w", err)
+		for _, jobRes := range jobResults {
+			jobDef, ok := ex.JobDefinitionByID[jobRes.GetJobID()]
+			if !ok {
+				jobResID := jobRes.GetJobID()
+				return fmt.Errorf("failed to find job definition by id: %s", jobResID.String())
+			}
+
+			msg, msgErr := s.messageFactory.CreateForJob(ex.ID, jobDef.GetName(), jobRes)
+			if msgErr != nil {
+				return fmt.Errorf("failed to create message for job: %w", msgErr)
+			}
+
+			if err = s.messageSender.Send(ctx, msg); err != nil {
+				return fmt.Errorf("failed to send message for step: %w", err)
+			}
 		}
 
 		ex.DoneJob(jobID, res.GetStatus())

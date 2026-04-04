@@ -30,7 +30,6 @@ type RunParams struct {
 }
 
 type LimitError error
-type ID string
 
 var (
 	ErrOutOfMemory LimitError = errors.New("out of memory")
@@ -41,9 +40,9 @@ var (
 //
 // a Runtime may be shared or isolated, local or remote, generic or specific for some task, and so on
 type Runtime interface {
-	Init(context.Context) (ID, error)
-	CopyToRuntime(context.Context, ID, string, string) error
-	CopyFromRuntime(context.Context, ID, string, string) error
-	RunCommand(context.Context, ID, []string, RunParams) error
-	Stop(context.Context, ID) error
+	Init(context.Context) error
+	CopyToRuntime(context.Context, string, string) error
+	CopyFromRuntime(context.Context, string, string) error
+	RunCommand(context.Context, []string, RunParams) error
+	Stop(context.Context) error
 }

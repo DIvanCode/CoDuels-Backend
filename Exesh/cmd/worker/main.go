@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"exesh/internal/config"
+	"exesh/internal/domain/execution/job"
 	"exesh/internal/executor"
 	"exesh/internal/executor/executors"
 	"exesh/internal/provider"
@@ -58,10 +59,7 @@ func main() {
 	sourceProvider := provider.NewSourceProvider(cfg.SourceProvider, filestorageAdapter)
 	outputProvider := provider.NewOutputProvider(cfg.OutputProvider, filestorageAdapter)
 
-	executorFactory, err := setupExecutorFactory(log, sourceProvider, outputProvider, cfg.Runtime)
-	if err != nil {
-		flog.Fatal(err)
-	}
+	executorFactory := setupExecutorFactory(log, sourceProvider, outputProvider)
 
 	worker.NewWorker(log, cfg.Worker, sourceProvider, executorFactory).Start(ctx)
 
@@ -126,40 +124,37 @@ func setupExecutorFactory(
 	log *slog.Logger,
 	sourceProvider *provider.SourceProvider,
 	outputProvider *provider.OutputProvider,
-	runtimeName string,
-) (*executor.ExecutorFactory, error) {
-	var (
-		compileCppRuntime runtime.Runtime
-		compileGoRuntime  runtime.Runtime
-		runCppRuntime     runtime.Runtime
-		runGoRuntime      runtime.Runtime
-		runPyRuntime      runtime.Runtime
+) *executor.ExecutorFactory {
+	localRuntimeFactory := local.NewRuntimeFactory(job.CompileCpp, job.CompileGo)
+	isolateRuntimeFactory := isolate.NewRuntimeFactory(job.RunCpp, job.RunPy, job.RunGo, job.CheckCpp)
+	runtimeFactory := runtime.NewJobRuntimeFactory(localRuntimeFactory, isolateRuntimeFactory)
+
+	compileCppExecutorFactory := executors.NewCompileCppExecutorFactory(log, sourceProvider, outputProvider, localRuntimeFactory)
+	compileGoExecutorFactory := executors.NewCompileGoExecutorFactory(log, sourceProvider, outputProvider, localRuntimeFactory)
+	runCppExecutorFactory := executors.NewRunCppExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
+	runPyExecutorFactory := executors.NewRunPyExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
+	runGoExecutorFactory := executors.NewRunGoExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
+	checkCppExecutorFactory := executors.NewCheckCppExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
+
+	baseExecutorFactory := executor.NewExecutorFactory(
+		compileCppExecutorFactory,
+		compileGoExecutorFactory,
+		runCppExecutorFactory,
+		runPyExecutorFactory,
+		runGoExecutorFactory,
+		checkCppExecutorFactory,
+	)
+	chainExecutorFactory := executors.NewChainExecutorFactory(log, sourceProvider, runtimeFactory, baseExecutorFactory)
+
+	executorFactory := executor.NewExecutorFactory(
+		compileCppExecutorFactory,
+		compileGoExecutorFactory,
+		runCppExecutorFactory,
+		runPyExecutorFactory,
+		runGoExecutorFactory,
+		checkCppExecutorFactory,
+		chainExecutorFactory,
 	)
 
-	localRuntime := local.New()
-	compileCppRuntime = localRuntime
-	compileGoRuntime = localRuntime
-
-	switch runtimeName {
-	case "local":
-		runCppRuntime = localRuntime
-		runGoRuntime = localRuntime
-		runPyRuntime = localRuntime
-	case "isolate":
-		isolateRT := isolate.New()
-		runCppRuntime = isolateRT
-		runGoRuntime = isolateRT
-		runPyRuntime = isolateRT
-	default:
-		return nil, fmt.Errorf("unknown runtime name: %s", runtimeName)
-	}
-
-	return executor.NewExecutorFactory(
-		executors.NewCompileCppExecutorFactory(log, sourceProvider, outputProvider, compileCppRuntime),
-		executors.NewCompileGoExecutorFactory(log, sourceProvider, outputProvider, compileGoRuntime),
-		executors.NewRunCppExecutorFactory(log, sourceProvider, outputProvider, runCppRuntime),
-		executors.NewRunPyExecutorFactory(log, sourceProvider, outputProvider, runPyRuntime),
-		executors.NewRunGoExecutorFactory(log, sourceProvider, outputProvider, runGoRuntime),
-		executors.NewCheckCppExecutorFactory(log, sourceProvider, outputProvider, runCppRuntime),
-	), nil
+	return executorFactory
 }

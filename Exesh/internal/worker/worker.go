@@ -74,9 +74,10 @@ func (w *Worker) Start(ctx context.Context) {
 }
 
 func (w *Worker) runHeartbeat(ctx context.Context) {
-	for {
-		timer := time.NewTicker(w.cfg.HeartbeatDelay)
+	timer := time.NewTicker(w.cfg.HeartbeatDelay)
+	defer timer.Stop()
 
+	for {
 		select {
 		case <-ctx.Done():
 			w.log.Info("exit heartbeat loop")
@@ -123,9 +124,10 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 }
 
 func (w *Worker) runWorker(ctx context.Context) {
-	for {
-		timer := time.NewTicker(w.cfg.WorkerDelay)
+	timer := time.NewTicker(w.cfg.WorkerDelay)
+	defer timer.Stop()
 
+	for {
 		select {
 		case <-ctx.Done():
 			w.log.Info("exit worker")

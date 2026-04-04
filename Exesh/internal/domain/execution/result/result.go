@@ -31,6 +31,7 @@ const (
 	Compile Type = "compile"
 	Run     Type = "run"
 	Check   Type = "check"
+	Chain   Type = "chain"
 	Unknown Type = "unknown"
 )
 

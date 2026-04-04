@@ -12,7 +12,7 @@ type CheckResult struct {
 
 func NewCheckResultOK(jobID job.ID) Result {
 	return Result{
-		&CompileResult{
+		&CheckResult{
 			Details: result.Details{
 				Type:   result.Check,
 				JobID:  jobID,
@@ -25,7 +25,7 @@ func NewCheckResultOK(jobID job.ID) Result {
 
 func NewCheckResultWA(jobID job.ID) Result {
 	return Result{
-		&CompileResult{
+		&CheckResult{
 			Details: result.Details{
 				Type:   result.Check,
 				JobID:  jobID,
@@ -38,7 +38,7 @@ func NewCheckResultWA(jobID job.ID) Result {
 
 func NewCheckResultErr(jobID job.ID, err string) Result {
 	return Result{
-		&CompileResult{
+		&CheckResult{
 			Details: result.Details{
 				Type:   result.Check,
 				JobID:  jobID,

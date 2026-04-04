@@ -32,6 +32,7 @@ const (
 	RunPy      Type = "run_py"
 	RunGo      Type = "run_go"
 	CheckCpp   Type = "check_cpp"
+	Chain      Type = "chain"
 
 	StatusOK Status = "OK"
 	StatusCE Status = "CE"

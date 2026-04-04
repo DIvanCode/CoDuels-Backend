@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -23,44 +22,48 @@ type box struct {
 }
 
 type Runtime struct {
-	binPath    string
-	boxIDStart int
-	boxIDCount int
-	nextBox    uint32
-	nextID     uint64
+	binPath string
+	boxID   int
+	onStop  func()
 
-	mu    sync.Mutex
-	boxes map[runtime.ID]box
+	mu  sync.Mutex
+	box *box
 }
 
 type FuncOpt func(r *Runtime) error
 
-func New() *Runtime {
+func NewWithBoxID(boxID int) *Runtime {
 	return &Runtime{
-		binPath:    "isolate",
-		boxIDStart: 0,
-		boxIDCount: 1000,
-		boxes:      make(map[runtime.ID]box),
+		binPath: "isolate",
+		boxID:   boxID,
 	}
 }
 
-func (rt *Runtime) Init(ctx context.Context) (runtime.ID, error) {
-	runtimeID := runtime.ID(strconv.FormatUint(atomic.AddUint64(&rt.nextID, 1), 10))
+func NewWithBoxIDAndOnStop(boxID int, onStop func()) *Runtime {
+	rt := NewWithBoxID(boxID)
+	rt.onStop = onStop
+	return rt
+}
 
+func New() *Runtime {
+	return NewWithBoxID(0)
+}
+
+func (rt *Runtime) Init(ctx context.Context) error {
 	boxID, boxRoot, err := rt.initBox(ctx)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	rt.mu.Lock()
-	rt.boxes[runtimeID] = box{ID: boxID, Root: boxRoot}
+	rt.box = &box{ID: boxID, Root: boxRoot}
 	rt.mu.Unlock()
 
-	return runtimeID, nil
+	return nil
 }
 
-func (rt *Runtime) CopyToRuntime(_ context.Context, runtimeID runtime.ID, src, dst string) error {
-	b, err := rt.getBox(runtimeID)
+func (rt *Runtime) CopyToRuntime(_ context.Context, src, dst string) error {
+	b, err := rt.getBox()
 	if err != nil {
 		return err
 	}
@@ -79,8 +82,8 @@ func (rt *Runtime) CopyToRuntime(_ context.Context, runtimeID runtime.ID, src, d
 	return nil
 }
 
-func (rt *Runtime) CopyFromRuntime(_ context.Context, runtimeID runtime.ID, src, dst string) error {
-	b, err := rt.getBox(runtimeID)
+func (rt *Runtime) CopyFromRuntime(_ context.Context, src, dst string) error {
+	b, err := rt.getBox()
 	if err != nil {
 		return err
 	}
@@ -99,8 +102,8 @@ func (rt *Runtime) CopyFromRuntime(_ context.Context, runtimeID runtime.ID, src,
 	return nil
 }
 
-func (rt *Runtime) RunCommand(ctx context.Context, runtimeID runtime.ID, cmd []string, params runtime.RunParams) error {
-	b, err := rt.getBox(runtimeID)
+func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) error {
+	b, err := rt.getBox()
 	if err != nil {
 		return err
 	}
@@ -162,36 +165,38 @@ func (rt *Runtime) RunCommand(ctx context.Context, runtimeID runtime.ID, cmd []s
 	return nil
 }
 
-func (rt *Runtime) Stop(ctx context.Context, runtimeID runtime.ID) error {
+func (rt *Runtime) Stop(ctx context.Context) error {
 	rt.mu.Lock()
-	b, exists := rt.boxes[runtimeID]
-	if exists {
-		delete(rt.boxes, runtimeID)
-	}
+	b := rt.box
+	onStop := rt.onStop
+	rt.onStop = nil
+	rt.box = nil
 	rt.mu.Unlock()
 
-	if !exists {
+	if b == nil {
+		if onStop != nil {
+			onStop()
+		}
 		return nil
 	}
 
 	rt.cleanupBox(ctx, b.ID)
+	if onStop != nil {
+		onStop()
+	}
 	return nil
 }
 
-func (rt *Runtime) getBox(runtimeID runtime.ID) (box, error) {
-	if runtimeID == "" {
-		return box{}, fmt.Errorf("runtime id is required")
-	}
-
+func (rt *Runtime) getBox() (box, error) {
 	rt.mu.Lock()
-	b, exists := rt.boxes[runtimeID]
+	b := rt.box
 	rt.mu.Unlock()
 
-	if !exists {
+	if b == nil {
 		return box{}, fmt.Errorf("runtime is not initialized")
 	}
 
-	return b, nil
+	return *b, nil
 }
 
 func runtimePath(boxRoot string, path string) (string, error) {
@@ -209,31 +214,23 @@ func runtimePath(boxRoot string, path string) (string, error) {
 }
 
 func (rt *Runtime) initBox(ctx context.Context) (int, string, error) {
-	start := int(atomic.AddUint32(&rt.nextBox, 1))
-	for i := 0; i < rt.boxIDCount; i++ {
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
 
-		id := rt.boxIDStart + (start+i)%rt.boxIDCount
-		args := []string{"--init", "-b", strconv.Itoa(id)}
-		cmd := exec.CommandContext(ctx, rt.binPath, args...)
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
+	args := []string{"--init", "-b", strconv.Itoa(rt.boxID)}
+	cmd := exec.CommandContext(ctx, rt.binPath, args...)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
-		if err := cmd.Run(); err != nil {
-			return 0, "", fmt.Errorf("isolate init box %d: %w: %s", id, err, strings.TrimSpace(stderr.String()))
-		}
-
-		boxRoot := strings.TrimSpace(stdout.String())
-		if boxRoot != "" {
-			return id, boxRoot, nil
-		}
-
-		if ctx.Err() != nil {
-			return 0, "", ctx.Err()
-		}
+	if err := cmd.Run(); err != nil {
+		return 0, "", fmt.Errorf("isolate init box %d: %w: %s", rt.boxID, err, strings.TrimSpace(stderr.String()))
 	}
-	return 0, "", fmt.Errorf("no available isolate boxes")
+
+	boxRoot := strings.TrimSpace(stdout.String())
+	if boxRoot == "" {
+		return 0, "", fmt.Errorf("empty isolate box root for box %d", rt.boxID)
+	}
+	return rt.boxID, boxRoot, nil
 }
 
 func (rt *Runtime) cleanupBox(ctx context.Context, id int) {

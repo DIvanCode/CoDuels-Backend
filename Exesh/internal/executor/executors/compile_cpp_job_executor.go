@@ -17,28 +17,36 @@ type CompileCppJobExecutor struct {
 	log            *slog.Logger
 	sourceProvider sourceProvider
 	outputProvider outputProvider
+	runtimeFactory runtime.RuntimeFactory
 	runtime        runtime.Runtime
-	runtimeID      runtime.ID
 
 	job jobs.Job
 
 	codeRuntimePath         string
 	compiledCodeRuntimePath string
+	runtimeResourceRegistry *executor.RuntimeResourceRegistry
 }
 
 type CompileCppExecutorFactory struct {
 	log            *slog.Logger
 	sourceProvider sourceProvider
 	outputProvider outputProvider
-	runtime        runtime.Runtime
+
+	runtimeFactory runtime.RuntimeFactory
 }
 
-func NewCompileCppExecutorFactory(log *slog.Logger, sourceProvider sourceProvider, outputProvider outputProvider, rt runtime.Runtime) *CompileCppExecutorFactory {
+func NewCompileCppExecutorFactory(
+	log *slog.Logger,
+	sourceProvider sourceProvider,
+	outputProvider outputProvider,
+	runtimeFactory runtime.RuntimeFactory,
+) *CompileCppExecutorFactory {
 	return &CompileCppExecutorFactory{
 		log:            log,
 		sourceProvider: sourceProvider,
 		outputProvider: outputProvider,
-		runtime:        rt,
+
+		runtimeFactory: runtimeFactory,
 	}
 }
 
@@ -47,59 +55,83 @@ func (f *CompileCppExecutorFactory) SupportsType(jobType job.Type) bool {
 }
 
 func (f *CompileCppExecutorFactory) Create(jb jobs.Job) (executor.JobExecutor, error) {
+	return f.CreateWithRuntime(jb, nil, executor.NewRuntimeResourceRegistry(8))
+}
+
+func (f *CompileCppExecutorFactory) CreateWithRuntime(
+	jb jobs.Job,
+	rt runtime.Runtime,
+	runtimeResourceRegistry *executor.RuntimeResourceRegistry,
+) (executor.JobExecutor, error) {
 	if jb.GetType() != job.CompileCpp {
 		return nil, fmt.Errorf("unsupported job type %s for %s executor", jb.GetType(), job.CompileCpp)
 	}
+	if runtimeResourceRegistry == nil {
+		runtimeResourceRegistry = executor.NewRuntimeResourceRegistry(8)
+	}
 
 	return &CompileCppJobExecutor{
-		log:            f.log,
-		sourceProvider: f.sourceProvider,
-		outputProvider: f.outputProvider,
-		runtime:        f.runtime,
+		log:                     f.log,
+		sourceProvider:          f.sourceProvider,
+		outputProvider:          f.outputProvider,
+		runtimeFactory:          f.runtimeFactory,
+		runtime:                 rt,
+		runtimeResourceRegistry: runtimeResourceRegistry,
 
 		job: jb,
 	}, nil
 }
 
 func (e *CompileCppJobExecutor) Init(ctx context.Context) error {
-	runtimeID, err := e.runtime.Init(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to init runtime: %w", err)
+	if e.runtime == nil {
+		rt, err := e.runtimeFactory.Create(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to init runtime: %w", err)
+		}
+		e.runtime = rt
 	}
-	e.runtimeID = runtimeID
 	return nil
 }
 
 func (e *CompileCppJobExecutor) PrepareInput(ctx context.Context) error {
 	jb := e.job.AsCompileCpp()
 
-	code, unlock, err := e.sourceProvider.Locate(ctx, jb.Code.SourceID)
+	codePath, unlock, err := e.sourceProvider.Locate(ctx, jb.Code.SourceID)
 	if err != nil {
 		return fmt.Errorf("failed to get code: %w", err)
 	}
 	defer unlock()
 
 	e.codeRuntimePath = "source.cpp"
-	if err = e.runtime.CopyToRuntime(ctx, e.runtimeID, code, e.codeRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, codePath, e.codeRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy code to runtime: %w", err)
 	}
+	e.runtimeResourceRegistry.Set(jb.Code.SourceID, e.codeRuntimePath)
 
 	return nil
 }
 
 func (e *CompileCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
+	if e.runtimeResourceRegistry == nil {
+		return results.Error(e.job, fmt.Errorf("runtime resource registry is not set"))
+	}
+
 	jb := e.job.AsCompileCpp()
+	codeRuntimePath, err := e.runtimeResourceRegistry.Get(jb.Code.SourceID)
+	if err != nil {
+		return results.Error(e.job, err)
+	}
+	e.codeRuntimePath = codeRuntimePath
 
 	stderr := bytes.NewBuffer(nil)
 	e.compiledCodeRuntimePath = "a.out"
-	err := e.runtime.RunCommand(
+	err = e.runtime.RunCommand(
 		ctx,
-		e.runtimeID,
 		[]string{"g++", e.codeRuntimePath, "-o", e.compiledCodeRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
-				Time:   runtime.TimeLimit(5000 * int64(time.Millisecond)),
+				Time:   runtime.TimeLimit(15000 * int64(time.Millisecond)),
 			},
 			Stderr: stderr,
 		},
@@ -110,6 +142,7 @@ func (e *CompileCppJobExecutor) ExecuteCommand(ctx context.Context) results.Resu
 	}
 
 	e.log.Info("command ok")
+	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), e.compiledCodeRuntimePath)
 
 	return results.NewCompileResultOK(jb.GetID())
 }
@@ -133,7 +166,7 @@ func (e *CompileCppJobExecutor) SaveOutput(ctx context.Context) error {
 		_ = abortOutput()
 	}()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.runtimeID, e.compiledCodeRuntimePath, compiledCode); err != nil {
+	if err = e.runtime.CopyFromRuntime(ctx, e.compiledCodeRuntimePath, compiledCode); err != nil {
 		return fmt.Errorf("failed to copy compiled_code from runtime: %w", err)
 	}
 
@@ -145,5 +178,8 @@ func (e *CompileCppJobExecutor) SaveOutput(ctx context.Context) error {
 }
 
 func (e *CompileCppJobExecutor) Stop(ctx context.Context) error {
-	return e.runtime.Stop(ctx, e.runtimeID)
+	if e.runtime == nil {
+		return nil
+	}
+	return e.runtime.Stop(ctx)
 }
