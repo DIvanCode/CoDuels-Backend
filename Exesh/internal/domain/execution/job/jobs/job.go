@@ -38,6 +38,8 @@ func (jb *Job) UnmarshalJSON(data []byte) error {
 		jb.IJob = &RunPyJob{}
 	case job.CheckCpp:
 		jb.IJob = &CheckCppJob{}
+	case job.Chain:
+		jb.IJob = &ChainJob{}
 	default:
 		return fmt.Errorf("unknown job type: %s", details.Type)
 	}
@@ -71,6 +73,10 @@ func (jb *Job) AsRunPy() *RunPyJob {
 
 func (jb *Job) AsCheckCpp() *CheckCppJob {
 	return jb.IJob.(*CheckCppJob)
+}
+
+func (jb *Job) AsChain() *ChainJob {
+	return jb.IJob.(*ChainJob)
 }
 
 func getDependencies(ins []input.Input) []job.ID {

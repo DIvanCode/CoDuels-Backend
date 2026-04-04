@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"exesh/internal/config"
+	"exesh/internal/domain/execution/job"
 	"exesh/internal/executor"
 	"exesh/internal/executor/executors"
 	"exesh/internal/provider"
 	"exesh/internal/provider/adapter"
 	"exesh/internal/runtime"
-	"exesh/internal/runtime/docker"
-	isolatert "exesh/internal/runtime/isolate"
-	localrt "exesh/internal/runtime/local"
+	"exesh/internal/runtime/isolate"
+	"exesh/internal/runtime/local"
 	"exesh/internal/worker"
 	"fmt"
 	flog "log"
@@ -59,12 +59,9 @@ func main() {
 	sourceProvider := provider.NewSourceProvider(cfg.SourceProvider, filestorageAdapter)
 	outputProvider := provider.NewOutputProvider(cfg.OutputProvider, filestorageAdapter)
 
-	jobExecutor, err := setupJobExecutor(log, sourceProvider, outputProvider, cfg.Runtime)
-	if err != nil {
-		flog.Fatal(err)
-	}
+	executorFactory := setupExecutorFactory(log, sourceProvider, outputProvider)
 
-	worker.NewWorker(log, cfg.Worker, sourceProvider, jobExecutor).Start(ctx)
+	worker.NewWorker(log, cfg.Worker, sourceProvider, executorFactory).Start(ctx)
 
 	promRegistry := prometheus.NewRegistry()
 	promRegistry.MustRegister(
@@ -123,64 +120,41 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 	return log, err
 }
 
-func setupJobExecutor(log *slog.Logger, sourceProvider *provider.SourceProvider, outputProvider *provider.OutputProvider, runtimeName string) (*executor.JobExecutor, error) {
-	var (
-		compileCppRT runtime.Runtime
-		compileGoRT  runtime.Runtime
-		runCppRT     runtime.Runtime
-		runGoRT      runtime.Runtime
-		runPyRT      runtime.Runtime
-		err          error
+func setupExecutorFactory(
+	log *slog.Logger,
+	sourceProvider *provider.SourceProvider,
+	outputProvider *provider.OutputProvider,
+) *executor.ExecutorFactory {
+	localRuntimeFactory := local.NewRuntimeFactory(job.CompileCpp, job.CompileGo)
+	isolateRuntimeFactory := isolate.NewRuntimeFactory(job.RunCpp, job.RunPy, job.RunGo, job.CheckCpp)
+	runtimeFactory := runtime.NewJobRuntimeFactory(localRuntimeFactory, isolateRuntimeFactory)
+
+	compileCppExecutorFactory := executors.NewCompileCppExecutorFactory(log, sourceProvider, outputProvider, localRuntimeFactory)
+	compileGoExecutorFactory := executors.NewCompileGoExecutorFactory(log, sourceProvider, outputProvider, localRuntimeFactory)
+	runCppExecutorFactory := executors.NewRunCppExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
+	runPyExecutorFactory := executors.NewRunPyExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
+	runGoExecutorFactory := executors.NewRunGoExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
+	checkCppExecutorFactory := executors.NewCheckCppExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
+
+	baseExecutorFactory := executor.NewExecutorFactory(
+		compileCppExecutorFactory,
+		compileGoExecutorFactory,
+		runCppExecutorFactory,
+		runPyExecutorFactory,
+		runGoExecutorFactory,
+		checkCppExecutorFactory,
+	)
+	chainExecutorFactory := executors.NewChainExecutorFactory(log, sourceProvider, runtimeFactory, baseExecutorFactory)
+
+	executorFactory := executor.NewExecutorFactory(
+		compileCppExecutorFactory,
+		compileGoExecutorFactory,
+		runCppExecutorFactory,
+		runPyExecutorFactory,
+		runGoExecutorFactory,
+		checkCppExecutorFactory,
+		chainExecutorFactory,
 	)
 
-	localRT := localrt.New()
-	compileCppRT = localRT
-	compileGoRT = localRT
-
-	switch runtimeName {
-	case "docker":
-		runCppRT, err = docker.New(
-			docker.WithDefaultClient(),
-			docker.WithBaseImage("gcc:latest"),
-			docker.WithRestrictivePolicy(),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("create run cpp runtime: %w", err)
-		}
-		runGoRT, err = docker.New(
-			docker.WithDefaultClient(),
-			docker.WithBaseImage("golang:latest"),
-			docker.WithRestrictivePolicy(),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("create run go runtime: %w", err)
-		}
-		runPyRT, err = docker.New(
-			docker.WithDefaultClient(),
-			docker.WithBaseImage("python:3"),
-			docker.WithRestrictivePolicy(),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("create run python runtime: %w", err)
-		}
-	case "local":
-		runCppRT = localRT
-		runGoRT = localRT
-		runPyRT = localRT
-	case "isolate":
-		isolateRT := isolatert.New()
-		runCppRT = isolateRT
-		runGoRT = isolateRT
-		runPyRT = isolateRT
-	default:
-		return nil, fmt.Errorf("unknown runtime name: %s", runtimeName)
-	}
-
-	compileCppJobExecutor := executors.NewCompileCppJobExecutor(log, sourceProvider, outputProvider, compileCppRT)
-	compileGoJobExecutor := executors.NewCompileGoJobExecutor(log, sourceProvider, outputProvider, compileGoRT)
-	runCppJobExecutor := executors.NewRunCppJobExecutor(log, sourceProvider, outputProvider, runCppRT)
-	runPyJobExecutor := executors.NewRunPyJobExecutor(log, sourceProvider, outputProvider, runPyRT)
-	runGoJobExecutor := executors.NewRunGoJobExecutor(log, sourceProvider, outputProvider, runGoRT)
-	checkCppJobExecutor := executors.NewCheckCppJobExecutor(log, sourceProvider, outputProvider, runCppRT)
-	return executor.NewJobExecutor(compileCppJobExecutor, compileGoJobExecutor, runCppJobExecutor, runPyJobExecutor, runGoJobExecutor, checkCppJobExecutor), nil
+	return executorFactory
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
+	"exesh/internal/domain/execution/result"
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/domain/execution/source/sources"
 	"log/slog"
@@ -52,7 +53,13 @@ func (uc *UseCase) Heartbeat(ctx context.Context, command Command) ([]jobs.Job, 
 	uc.workerPool.Heartbeat(ctx, command.WorkerID)
 
 	for _, jobResult := range command.DoneJobs {
-		uc.artifactRegistry.PutArtifact(command.WorkerID, jobResult.GetJobID())
+		if jobResult.GetType() == result.Chain {
+			for _, innerJobResult := range jobResult.AsChain().Results {
+				uc.artifactRegistry.PutArtifact(command.WorkerID, innerJobResult.GetJobID())
+			}
+		} else {
+			uc.artifactRegistry.PutArtifact(command.WorkerID, jobResult.GetJobID())
+		}
 		uc.jobScheduler.DoneJob(ctx, command.WorkerID, jobResult)
 	}
 

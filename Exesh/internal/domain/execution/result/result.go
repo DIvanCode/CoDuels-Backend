@@ -23,13 +23,16 @@ type (
 		Error  string     `json:"error,omitempty"`
 	}
 
-	Type string
+	Type   string
+	Result = IResult
 )
 
 const (
 	Compile Type = "compile"
 	Run     Type = "run"
 	Check   Type = "check"
+	Chain   Type = "chain"
+	Unknown Type = "unknown"
 )
 
 func (res *Details) GetType() Type {

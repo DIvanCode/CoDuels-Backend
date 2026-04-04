@@ -10,75 +10,111 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
+type box struct {
+	ID   int
+	Root string
+}
+
 type Runtime struct {
-	binPath    string
-	boxIDStart int
-	boxIDCount int
-	nextBox    uint32
+	binPath string
+	boxID   int
+	onStop  func()
+
+	mu  sync.Mutex
+	box *box
 }
 
 type FuncOpt func(r *Runtime) error
 
-func New() *Runtime {
+func NewWithBoxID(boxID int) *Runtime {
 	return &Runtime{
-		binPath:    "isolate",
-		boxIDStart: 0,
-		boxIDCount: 1000,
+		binPath: "isolate",
+		boxID:   boxID,
 	}
 }
 
-func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.ExecuteParams) error {
-	if len(cmd) == 0 {
-		return fmt.Errorf("empty command")
-	}
+func NewWithBoxIDAndOnStop(boxID int, onStop func()) *Runtime {
+	rt := NewWithBoxID(boxID)
+	rt.onStop = onStop
+	return rt
+}
 
+func New() *Runtime {
+	return NewWithBoxID(0)
+}
+
+func (rt *Runtime) Init(ctx context.Context) error {
 	boxID, boxRoot, err := rt.initBox(ctx)
 	if err != nil {
 		return err
 	}
-	defer rt.cleanupBox(context.Background(), boxID)
-	boxDir := filepath.Join(boxRoot, "box")
 
-	for _, outsideLocation := range params.InFiles {
-		i := slices.Index(cmd, outsideLocation)
-		if i != -1 {
-			cmd[i] = filepath.Base(outsideLocation)
-		}
+	rt.mu.Lock()
+	rt.box = &box{ID: boxID, Root: boxRoot}
+	rt.mu.Unlock()
 
-		location := filepath.Join(boxDir, filepath.Base(outsideLocation))
-		if err := os.MkdirAll(filepath.Dir(location), 0o755); err != nil {
-			return fmt.Errorf("create dir for %s: %w", location, err)
-		}
-		if err := copyFile(outsideLocation, location); err != nil {
-			return fmt.Errorf("copy in file %s: %w", outsideLocation, err)
-		}
-	}
-	for _, outsideLocation := range params.OutFiles {
-		i := slices.Index(cmd, outsideLocation)
-		if i != -1 {
-			cmd[i] = filepath.Base(outsideLocation)
-		}
+	return nil
+}
+
+func (rt *Runtime) CopyToRuntime(_ context.Context, src, dst string) error {
+	b, err := rt.getBox()
+	if err != nil {
+		return err
 	}
 
-	var stdinFile string
-	if params.StdinFile != "" {
-		stdinFile = filepath.Base(params.StdinFile)
+	dstPath, err := runtimePath(b.Root, dst)
+	if err != nil {
+		return err
 	}
-	var stdoutFile string
-	if params.StdoutFile != "" {
-		stdoutFile = filepath.Base(params.StdoutFile)
+
+	if err = os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+		return fmt.Errorf("create dir for %s: %w", dst, err)
 	}
+	if err = copyFile(src, dstPath); err != nil {
+		return fmt.Errorf("copy %s to runtime %s: %w", src, dst, err)
+	}
+	return nil
+}
+
+func (rt *Runtime) CopyFromRuntime(_ context.Context, src, dst string) error {
+	b, err := rt.getBox()
+	if err != nil {
+		return err
+	}
+
+	srcPath, err := runtimePath(b.Root, src)
+	if err != nil {
+		return err
+	}
+
+	if err = os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("create dir for %s: %w", dst, err)
+	}
+	if err = copyFile(srcPath, dst); err != nil {
+		return fmt.Errorf("copy runtime %s to %s: %w", src, dst, err)
+	}
+	return nil
+}
+
+func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) error {
+	b, err := rt.getBox()
+	if err != nil {
+		return err
+	}
+	if len(cmd) == 0 {
+		return fmt.Errorf("empty command")
+	}
+
 	stderrFile := ".stderr"
 	metaFile := ".meta"
 
-	runArgs := []string{"-b", strconv.Itoa(boxID), "--run"}
+	runArgs := []string{"-b", strconv.Itoa(b.ID), "--run"}
 	if params.Limits.Time != 0 {
 		secs := time.Duration(params.Limits.Time).Seconds()
 		runArgs = append(runArgs, "--time="+formatSeconds(secs))
@@ -88,11 +124,11 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		memKB := (int64(params.Limits.Memory) + 1023) / 1024
 		runArgs = append(runArgs, "--mem="+strconv.FormatInt(memKB, 10))
 	}
-	if stdinFile != "" {
-		runArgs = append(runArgs, "--stdin="+stdinFile)
+	if params.StdinFile != "" {
+		runArgs = append(runArgs, "--stdin="+filepath.Clean(params.StdinFile))
 	}
-	if stdoutFile != "" {
-		runArgs = append(runArgs, "--stdout="+stdoutFile)
+	if params.StdoutFile != "" {
+		runArgs = append(runArgs, "--stdout="+filepath.Clean(params.StdoutFile))
 	}
 	runArgs = append(runArgs, "--stderr="+stderrFile)
 	runArgs = append(runArgs, "--meta="+metaFile)
@@ -100,14 +136,20 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 	runArgs = append(runArgs, cmd...)
 
 	runCmd := exec.CommandContext(ctx, rt.binPath, runArgs...)
-	runCmd.Dir = boxRoot
+	runCmd.Dir = b.Root
 	var runStderr bytes.Buffer
 	runCmd.Stderr = &runStderr
 
 	runErr := runCmd.Run()
 
-	if err := rt.handleMeta(filepath.Join(boxDir, metaFile)); err != nil {
+	if err = handleMeta(filepath.Join(b.Root, "box", metaFile)); err != nil {
 		return err
+	}
+
+	if params.Stderr != nil {
+		if err = copyFileToWriter(filepath.Join(b.Root, "box", stderrFile), params.Stderr); err != nil {
+			return fmt.Errorf("copy stderr: %w", err)
+		}
 	}
 
 	if runErr != nil {
@@ -120,55 +162,75 @@ func (rt *Runtime) Execute(ctx context.Context, cmd []string, params runtime.Exe
 		return fmt.Errorf("isolate run: %w: %s", runErr, strings.TrimSpace(runStderr.String()))
 	}
 
-	if stdoutFile != "" {
-		if err := copyFile(filepath.Join(boxDir, stdoutFile), params.StdoutFile); err != nil {
-			return fmt.Errorf("copy stdout: %w", err)
-		}
-	}
-	if params.Stderr != nil {
-		if err := copyFileToWriter(filepath.Join(boxDir, stderrFile), params.Stderr); err != nil {
-			return fmt.Errorf("copy stderr: %w", err)
-		}
-	}
-
-	for _, location := range params.OutFiles {
-		if err := os.MkdirAll(filepath.Dir(location), 0o755); err != nil {
-			return fmt.Errorf("create dir for %s: %w", location, err)
-		}
-		if err := copyFile(filepath.Join(boxDir, filepath.Base(location)), location); err != nil {
-			return fmt.Errorf("copy out file %s: %w", location, err)
-		}
-	}
-
 	return nil
 }
 
-func (rt *Runtime) initBox(ctx context.Context) (int, string, error) {
-	start := int(atomic.AddUint32(&rt.nextBox, 1))
-	for i := 0; i < rt.boxIDCount; i++ {
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
+func (rt *Runtime) Stop(ctx context.Context) error {
+	rt.mu.Lock()
+	b := rt.box
+	onStop := rt.onStop
+	rt.onStop = nil
+	rt.box = nil
+	rt.mu.Unlock()
 
-		id := rt.boxIDStart + (start+i)%rt.boxIDCount
-		args := []string{"--init", "-b", strconv.Itoa(id)}
-		cmd := exec.CommandContext(ctx, rt.binPath, args...)
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-
-		if err := cmd.Run(); err != nil {
-			return 0, "", fmt.Errorf("isolate init box %d: %w: %s", id, err, strings.TrimSpace(stderr.String()))
+	if b == nil {
+		if onStop != nil {
+			onStop()
 		}
-
-		boxRoot := strings.TrimSpace(stdout.String())
-		if boxRoot != "" {
-			return id, boxRoot, nil
-		}
-
-		if ctx.Err() != nil {
-			return 0, "", ctx.Err()
-		}
+		return nil
 	}
-	return 0, "", fmt.Errorf("no available isolate boxes")
+
+	rt.cleanupBox(ctx, b.ID)
+	if onStop != nil {
+		onStop()
+	}
+	return nil
+}
+
+func (rt *Runtime) getBox() (box, error) {
+	rt.mu.Lock()
+	b := rt.box
+	rt.mu.Unlock()
+
+	if b == nil {
+		return box{}, fmt.Errorf("runtime is not initialized")
+	}
+
+	return *b, nil
+}
+
+func runtimePath(boxRoot string, path string) (string, error) {
+	if boxRoot == "" {
+		return "", fmt.Errorf("runtime is not initialized")
+	}
+	if filepath.IsAbs(path) {
+		return "", fmt.Errorf("runtime path must be relative: %s", path)
+	}
+	cleanPath := filepath.Clean(path)
+	if cleanPath == ".." || strings.HasPrefix(cleanPath, "../") {
+		return "", fmt.Errorf("invalid runtime path: %s", path)
+	}
+	return filepath.Join(boxRoot, "box", cleanPath), nil
+}
+
+func (rt *Runtime) initBox(ctx context.Context) (int, string, error) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	args := []string{"--init", "-b", strconv.Itoa(rt.boxID)}
+	cmd := exec.CommandContext(ctx, rt.binPath, args...)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return 0, "", fmt.Errorf("isolate init box %d: %w: %s", rt.boxID, err, strings.TrimSpace(stderr.String()))
+	}
+
+	boxRoot := strings.TrimSpace(stdout.String())
+	if boxRoot == "" {
+		return 0, "", fmt.Errorf("empty isolate box root for box %d", rt.boxID)
+	}
+	return rt.boxID, boxRoot, nil
 }
 
 func (rt *Runtime) cleanupBox(ctx context.Context, id int) {
@@ -177,7 +239,7 @@ func (rt *Runtime) cleanupBox(ctx context.Context, id int) {
 	_ = cmd.Run()
 }
 
-func (rt *Runtime) handleMeta(metaPath string) error {
+func handleMeta(metaPath string) error {
 	b, err := os.ReadFile(metaPath)
 	if err != nil {
 		return nil
