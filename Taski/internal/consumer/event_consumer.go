@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/scram"
 )
 
 type KafkaConsumer struct {
@@ -22,11 +23,24 @@ type KafkaConsumer struct {
 }
 
 func NewKafkaConsumer(log *slog.Logger, cfg config.EventConsumerConfig, usecase *update.UseCase) *KafkaConsumer {
-	reader := kafka.NewReader(kafka.ReaderConfig{
+	readerConfig := kafka.ReaderConfig{
 		Brokers: cfg.Brokers,
 		Topic:   cfg.Topic,
 		GroupID: cfg.GroupID,
-	})
+	}
+
+	if cfg.SaslAuth {
+		mechanism, err := scram.Mechanism(scram.SHA512, cfg.SaslUsername, cfg.SaslPassword)
+		if err != nil {
+			log.Error("failed to create kafka sasl mechanism", slog.Any("error", err))
+		}
+
+		readerConfig.Dialer = &kafka.Dialer{
+			SASLMechanism: mechanism,
+		}
+	}
+
+	reader := kafka.NewReader(readerConfig)
 
 	return &KafkaConsumer{
 		log: log,

@@ -43,11 +43,17 @@ type (
 		Topic         string        `yaml:"topic" env:"TOPIC"`
 		GroupID       string        `yaml:"group_id" env:"GROUP_ID"`
 		FetchInterval time.Duration `yaml:"fetch_interval" env:"FETCH_INTERVAL"`
+		SaslAuth      bool          `yaml:"sasl_auth" env:"SASL_AUTH"`
+		SaslUsername  string        `yaml:"sasl_username" env:"SASL_USERNAME"`
+		SaslPassword  string        `yaml:"sasl_password" env:"SASL_PASSWORD"`
 	}
 
 	MessageProducerConfig struct {
-		Brokers []string `yaml:"brokers" env:"BROKERS" env-separator:","`
-		Topic   string   `yaml:"topic" env:"TOPIC"`
+		Brokers      []string `yaml:"brokers" env:"BROKERS" env-separator:","`
+		Topic        string   `yaml:"topic" env:"TOPIC"`
+		SaslAuth     bool     `yaml:"sasl_auth" env:"SASL_AUTH"`
+		SaslUsername string   `yaml:"sasl_username" env:"SASL_USERNAME"`
+		SaslPassword string   `yaml:"sasl_password" env:"SASL_PASSWORD"`
 	}
 
 	MetricsCollectorConfig struct {

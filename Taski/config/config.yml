@@ -20,10 +20,12 @@ event_consumer:
   topic: exesh.step-updates
   group_id: taski
   fetch_interval: 50ms
+  sasl_auth: false
 message_producer:
   brokers:
     - 0.0.0.0:29092
   topic: taski.testing
+  sasl_auth: false
 metrics_collector:
   collect_interval: 5s
 tasks:
