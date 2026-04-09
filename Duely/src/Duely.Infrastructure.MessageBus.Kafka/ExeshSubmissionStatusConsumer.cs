@@ -31,6 +31,14 @@ public sealed class ExeshSubmissionStatusConsumer : BackgroundService
             GroupId = kafkaOptions.Value.GroupId,
             AutoOffsetReset = AutoOffsetReset.Earliest
         };
+        
+        if (kafkaOptions.Value.SaslAuth)
+        {
+            config.SecurityProtocol = SecurityProtocol.SaslPlaintext;
+            config.SaslMechanism = SaslMechanism.ScramSha512;
+            config.SaslUsername = kafkaOptions.Value.Username;
+            config.SaslPassword = kafkaOptions.Value.Password;
+        }
 
         _consumer = new ConsumerBuilder<string, ExeshStatusEvent>(config)
             .SetValueDeserializer(new KafkaValueDeserializer<ExeshStatusEvent>())

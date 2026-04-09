@@ -29,6 +29,14 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
             BootstrapServers = kafkaOptions.Value.BootstrapServers,
             GroupId = kafkaOptions.Value.GroupId
         };
+        
+        if (kafkaOptions.Value.SaslAuth)
+        {
+            config.SecurityProtocol = SecurityProtocol.SaslPlaintext;
+            config.SaslMechanism = SaslMechanism.ScramSha512;
+            config.SaslUsername = kafkaOptions.Value.Username;
+            config.SaslPassword = kafkaOptions.Value.Password;
+        }
 
         _consumer = new ConsumerBuilder<string, TaskiStatusEvent>(config)
             .SetValueDeserializer(new KafkaValueDeserializer<TaskiStatusEvent>())

@@ -63,6 +63,7 @@ services:
       Exesh__BaseUrl: http://coordinator:5253
       Analyzer__BaseUrl: http://analyzer:8000
       Kafka__BootstrapServers: kafka:9092
+      Kafka__SaslAuth: false
     depends_on:
       postgres:
         condition: service_healthy
