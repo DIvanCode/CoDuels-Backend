@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/segmentio/kafka-go/sasl/scram"
 	"log/slog"
 	"math"
 	"strconv"
@@ -48,6 +49,16 @@ func NewMessageProducer(
 		Topic:       cfg.Topic,
 		MaxAttempts: 1,
 		BatchSize:   1,
+	}
+	if cfg.SaslAuth {
+		mechanism, err := scram.Mechanism(scram.SHA512, cfg.SaslUsername, cfg.SaslPassword)
+		if err != nil {
+			log.Error("failed to create kafka sasl mechanism", slog.Any("error", err))
+		}
+
+		writer.Transport = &kafka.Transport{
+			SASL: mechanism,
+		}
 	}
 
 	return &MessageProducer{
