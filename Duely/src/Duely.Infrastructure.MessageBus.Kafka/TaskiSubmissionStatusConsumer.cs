@@ -34,8 +34,8 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
         {
             config.SecurityProtocol = SecurityProtocol.SaslPlaintext;
             config.SaslMechanism = SaslMechanism.ScramSha512;
-            config.SaslUsername = kafkaOptions.Value.Username;
-            config.SaslPassword = kafkaOptions.Value.Password;
+            config.SaslUsername = kafkaOptions.Value.SaslUsername;
+            config.SaslPassword = kafkaOptions.Value.SaslPassword;
         }
 
         _consumer = new ConsumerBuilder<string, TaskiStatusEvent>(config)

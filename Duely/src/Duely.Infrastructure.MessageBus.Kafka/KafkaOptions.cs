@@ -9,6 +9,6 @@ public sealed class KafkaOptions
     public required string ExeshTopic { get; init; }
     public required string GroupId { get; init; }
     public required bool SaslAuth { get; init; }
-    public string? Username { get; init; }
-    public string? Password { get; init; }
+    public string? SaslUsername { get; init; }
+    public string? SaslPassword { get; init; }
 }
