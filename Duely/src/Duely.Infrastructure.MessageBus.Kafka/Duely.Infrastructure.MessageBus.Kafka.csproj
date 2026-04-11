@@ -10,10 +10,13 @@
     <ItemGroup>
       <PackageReference Include="Confluent.Kafka" Version="2.4.0" />
       <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.9" />
+      <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.9" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.Gateway.Exesh.Abstracts\Duely.Infrastructure.Gateway.Exesh.Abstracts.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj" />
     </ItemGroup>
 
 </Project>

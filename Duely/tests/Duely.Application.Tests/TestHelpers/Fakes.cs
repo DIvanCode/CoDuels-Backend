@@ -32,4 +32,11 @@ public sealed class TaskiClientSuccessFake : ITaskiClient
     public Task<Result> TestSolutionAsync(
         string taskId, string solutionId, string solution, Language language, CancellationToken cancellationToken)
         => Task.FromResult(_testSolutionSucceeds ? Result.Ok() : Result.Fail("forced-fail"));
+
+    public Task<Result<IReadOnlyList<TaskiSolutionEvent>>> GetSolutionEventsAsync(
+        string solutionId,
+        int startId,
+        int count,
+        CancellationToken cancellationToken)
+        => Task.FromResult(Result.Ok<IReadOnlyList<TaskiSolutionEvent>>([]));
 }

@@ -36,8 +36,11 @@ public sealed class UpdateSubmissionStatusHandler(Context context)
             return new EntityNotFoundError(nameof(Submission), nameof(Submission.Id), command.SubmissionId);
         }
 
+        submission.HandledStatusCount++;
+
         if (submission.Status == SubmissionStatus.Done)
         {
+            await context.SaveChangesAsync(cancellationToken);
             return Result.Ok();
         }
 

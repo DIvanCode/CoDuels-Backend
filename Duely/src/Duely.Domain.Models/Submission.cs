@@ -14,6 +14,7 @@ public sealed class Submission
     public required SubmissionStatus Status { get; set; }
     public string? Verdict { get; set; }
     public string? Message { get; set; }
+    public int HandledStatusCount { get; set; }
     public required bool IsUpsolving { get; init; }
 }
 

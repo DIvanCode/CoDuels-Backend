@@ -59,6 +59,12 @@ public sealed class CodeRunsConfiguration : IEntityTypeConfiguration<CodeRun>
             .HasColumnType("text")
             .IsRequired(false);
 
+        builder.Property(r => r.HandledStatusCount)
+            .HasColumnName("HandledStatusCount")
+            .HasColumnType("integer")
+            .HasDefaultValue(0)
+            .IsRequired();
+
         builder.Property(u => u.CreatedAt)
             .HasColumnName("CreatedAt")
             .HasColumnType("timestamp")

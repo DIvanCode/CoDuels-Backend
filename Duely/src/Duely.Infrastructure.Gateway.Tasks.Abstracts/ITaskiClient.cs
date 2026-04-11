@@ -13,4 +13,10 @@ public interface ITaskiClient
         CancellationToken cancellationToken);
     
     Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken);
+
+    Task<Result<IReadOnlyList<TaskiSolutionEvent>>> GetSolutionEventsAsync(
+        string solutionId,
+        int startId,
+        int count,
+        CancellationToken cancellationToken);
 }

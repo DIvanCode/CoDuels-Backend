@@ -13,6 +13,7 @@ public sealed class CodeRun
     public string? Output { get; set; }
     public string? Error { get; set; }
     public string? ExecutionId { get; set; }
+    public int HandledStatusCount { get; set; }
     public required DateTime CreatedAt { get; init; }
 }
 

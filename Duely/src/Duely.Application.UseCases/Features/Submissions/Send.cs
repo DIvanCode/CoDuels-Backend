@@ -79,6 +79,7 @@ public sealed class SendSubmissionHandler(
             Language = command.Language,
             SubmitTime = DateTime.UtcNow,
             Status = SubmissionStatus.Queued,
+            HandledStatusCount = 0,
             IsUpsolving = isUpsolving
         };
         

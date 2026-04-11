@@ -31,8 +31,11 @@ public sealed class UpdateCodeRunHandler(Context context) : IRequestHandler<Upda
             return new EntityNotFoundError(nameof(CodeRun), nameof(CodeRun.ExecutionId), command.ExecutionId);
         }
 
+        codeRun.HandledStatusCount++;
+
         if (codeRun.Status == UserCodeRunStatus.Done)
         {
+            await context.SaveChangesAsync(cancellationToken);
             return Result.Ok();
         }
 
