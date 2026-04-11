@@ -17,7 +17,8 @@ import (
 
 type (
 	Command struct {
-		Event events.Event
+		Event     events.Event
+		MessageID *int64
 	}
 
 	UseCase struct {
@@ -68,6 +69,11 @@ func (uc *UseCase) Update(ctx context.Context, command Command) error {
 		if err != nil {
 			return fmt.Errorf("failed to get solution by execution id: %w", err)
 		}
+		if command.MessageID != nil {
+			if *command.MessageID <= sol.HandledEventsCount {
+				return nil
+			}
+		}
 
 		msg, hasMsg, err := uc.handleExecutionEvent(&sol, command.Event, time.Now())
 		if err != nil {
@@ -79,6 +85,7 @@ func (uc *UseCase) Update(ctx context.Context, command Command) error {
 			}
 		}
 
+		sol.HandledEventsCount++
 		if err = uc.solutionStorage.Update(ctx, sol); err != nil {
 			return fmt.Errorf("failed to update solution in storage: %w", err)
 		}
@@ -94,7 +101,7 @@ func (uc *UseCase) handleExecutionEvent(sol *testing.Solution, evt events.Event,
 
 	switch evt.GetType() {
 	case event.StartExecution:
-		if sol.StartedAt != nil {
+		if sol.StartedAt == nil {
 			sol.StartedAt = &now
 		}
 		return messages.NewStartTestingMessage(sol.ExternalID), true, nil
