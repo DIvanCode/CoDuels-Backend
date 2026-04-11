@@ -39,10 +39,14 @@ type (
 	}
 
 	EventConsumerConfig struct {
+		Mode          string        `yaml:"mode" env:"MODE"`
 		Brokers       []string      `yaml:"brokers" env:"BROKERS" env-separator:","`
 		Topic         string        `yaml:"topic" env:"TOPIC"`
 		GroupID       string        `yaml:"group_id" env:"GROUP_ID"`
 		FetchInterval time.Duration `yaml:"fetch_interval" env:"FETCH_INTERVAL"`
+		RestEndpoint  string        `yaml:"rest_endpoint" env:"REST_ENDPOINT"`
+		PollInterval  time.Duration `yaml:"poll_interval" env:"POLL_INTERVAL"`
+		MessagesCount int           `yaml:"messages_count" env:"MESSAGES_COUNT"`
 		SaslAuth      bool          `yaml:"sasl_auth" env:"SASL_AUTH"`
 		SaslUsername  string        `yaml:"sasl_username" env:"SASL_USERNAME"`
 		SaslPassword  string        `yaml:"sasl_password" env:"SASL_PASSWORD"`

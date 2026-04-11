@@ -18,7 +18,7 @@ import (
 	"taski/internal/api/testing/execute"
 	testAPI "taski/internal/api/testing/test"
 	"taski/internal/config"
-	"taski/internal/consumer"
+	"taski/internal/handler"
 	"taski/internal/metrics"
 	"taski/internal/producer"
 	"taski/internal/storage/filestorage"
@@ -107,10 +107,9 @@ func main() {
 	messageProducer.Start(ctx)
 
 	updateTestingUseCase := update.NewUseCase(log, solutionStorage, unitOfWork, messageProducer)
-
-	eventConsumer := consumer.NewKafkaConsumer(log, cfg.EventConsumer, updateTestingUseCase)
-	eventConsumer.Start(ctx)
-	defer func() { _ = eventConsumer.Close() }()
+	eventHandler := handler.NewEventHandler(log, cfg, unitOfWork, solutionStorage, updateTestingUseCase)
+	eventHandler.Start(ctx)
+	defer func() { _ = eventHandler.Close() }()
 
 	promRegistry := prometheus.NewRegistry()
 	promRegistry.MustRegister(

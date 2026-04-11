@@ -26,10 +26,15 @@ const (
 			lang varchar(16),
 			testing_strategy jsonb,
 		    last_testing_status text NULL,
+		    handled_events_count bigint NOT NULL DEFAULT 0,
 		    created_at timestamp,
 		    started_at timestamp NULL,
 		    finished_at timestamp NULL
 		);
+	`
+	addHandledEventsCountColumnQuery = `
+		ALTER TABLE Solutions
+		ADD COLUMN IF NOT EXISTS handled_events_count bigint NOT NULL DEFAULT 0;
 	`
 
 	insertQuery = `
@@ -41,10 +46,11 @@ const (
 		                      lang, 
 		                      testing_strategy, 
 		                      last_testing_status,
+		                      handled_events_count,
 		                      created_at, 
 		                      started_at, 
 		                      finished_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id;
 	`
 
@@ -57,9 +63,10 @@ const (
 		    lang=$6, 
 		    testing_strategy=$7, 
 		    last_testing_status=$8, 
-		    created_at=$9, 
-		    started_at=$10, 
-		    finished_at=$11
+		    handled_events_count=$9,
+		    created_at=$10, 
+		    started_at=$11, 
+		    finished_at=$12
 		WHERE id=$1;
 	`
 
@@ -72,6 +79,7 @@ const (
 		       lang, 
 		       testing_strategy, 
 		       last_testing_status, 
+		       handled_events_count,
 		       created_at, 
 		       started_at, 
 		       finished_at
@@ -89,10 +97,28 @@ const (
 		       lang, 
 		       testing_strategy, 
 		       last_testing_status, 
+		       handled_events_count,
 		       created_at, 
 		       started_at, 
 		       finished_at
 		FROM Solutions
+	`
+
+	selectInProgressSolutionsQuery = `
+		SELECT id,
+		       external_id,
+		       task_id,
+		       execution_id,
+		       solution,
+		       lang,
+		       testing_strategy,
+		       last_testing_status,
+		       handled_events_count,
+		       created_at,
+		       started_at,
+		       finished_at
+		FROM Solutions
+		WHERE finished_at IS NULL;
 	`
 )
 
@@ -105,6 +131,9 @@ func NewSolutionStorage(ctx context.Context, log *slog.Logger) (*SolutionStorage
 
 	if _, err := tx.ExecContext(ctx, createTableQuery); err != nil {
 		return nil, fmt.Errorf("failed to create table: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, addHandledEventsCountColumnQuery); err != nil {
+		return nil, fmt.Errorf("failed to add handled_events_count column: %w", err)
 	}
 
 	return &SolutionStorage{log: log}, nil
@@ -126,6 +155,7 @@ func (s *SolutionStorage) Create(ctx context.Context, sol testing.Solution) erro
 		sol.Lang,
 		testingStrategy,
 		sol.LastTestingStatus,
+		sol.HandledEventsCount,
 		sol.CreatedAt,
 		sol.StartedAt,
 		sol.FinishedAt,
@@ -153,6 +183,7 @@ func (s *SolutionStorage) Update(ctx context.Context, sol testing.Solution) erro
 		sol.Lang,
 		testingStrategy,
 		sol.LastTestingStatus,
+		sol.HandledEventsCount,
 		sol.CreatedAt,
 		sol.StartedAt,
 		sol.FinishedAt,
@@ -178,6 +209,7 @@ func (s *SolutionStorage) GetByExecutionID(ctx context.Context, executionID exec
 		&sol.Lang,
 		&testingStrategy,
 		&sol.LastTestingStatus,
+		&sol.HandledEventsCount,
 		&sol.CreatedAt,
 		&sol.StartedAt,
 		&sol.FinishedAt,
@@ -226,11 +258,58 @@ func (s *SolutionStorage) GetAll(ctx context.Context) (solutions []testing.Solut
 			&sol.Lang,
 			&testingStrategy,
 			&sol.LastTestingStatus,
+			&sol.HandledEventsCount,
 			&sol.CreatedAt,
 			&sol.StartedAt,
 			&sol.FinishedAt,
 		); err != nil {
 			err = fmt.Errorf("failed to do select query: %w", err)
+			return
+		}
+		if err = sol.TaskID.FromString(taskID); err != nil {
+			err = fmt.Errorf("failed to unmarshal task id: %w", err)
+			return
+		}
+		if err = json.Unmarshal(testingStrategy, &sol.TestingStrategy); err != nil {
+			err = fmt.Errorf("failed to unmarshal testing strategy: %w", err)
+			return
+		}
+		solutions = append(solutions, sol)
+	}
+
+	return
+}
+
+func (s *SolutionStorage) GetInProgress(ctx context.Context) (solutions []testing.Solution, err error) {
+	tx := extractTx(ctx)
+
+	var rows *sql.Rows
+	rows, err = tx.QueryContext(ctx, selectInProgressSolutionsQuery)
+	if err != nil {
+		err = fmt.Errorf("failed to do select in progress query: %w", err)
+		return
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var sol testing.Solution
+		var taskID string
+		var testingStrategy json.RawMessage
+		if err = rows.Scan(
+			&sol.ID,
+			&sol.ExternalID,
+			&taskID,
+			&sol.ExecutionID,
+			&sol.Solution,
+			&sol.Lang,
+			&testingStrategy,
+			&sol.LastTestingStatus,
+			&sol.HandledEventsCount,
+			&sol.CreatedAt,
+			&sol.StartedAt,
+			&sol.FinishedAt,
+		); err != nil {
+			err = fmt.Errorf("failed to do select in progress query: %w", err)
 			return
 		}
 		if err = sol.TaskID.FromString(taskID); err != nil {

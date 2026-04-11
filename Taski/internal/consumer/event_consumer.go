@@ -14,7 +14,7 @@ import (
 	"github.com/segmentio/kafka-go/sasl/scram"
 )
 
-type KafkaConsumer struct {
+type EventConsumer struct {
 	log *slog.Logger
 	cfg config.EventConsumerConfig
 
@@ -22,7 +22,7 @@ type KafkaConsumer struct {
 	usecase *update.UseCase
 }
 
-func NewKafkaConsumer(log *slog.Logger, cfg config.EventConsumerConfig, usecase *update.UseCase) *KafkaConsumer {
+func NewEventConsumer(log *slog.Logger, cfg config.EventConsumerConfig, usecase *update.UseCase) *EventConsumer {
 	readerConfig := kafka.ReaderConfig{
 		Brokers: cfg.Brokers,
 		Topic:   cfg.Topic,
@@ -42,7 +42,7 @@ func NewKafkaConsumer(log *slog.Logger, cfg config.EventConsumerConfig, usecase 
 
 	reader := kafka.NewReader(readerConfig)
 
-	return &KafkaConsumer{
+	return &EventConsumer{
 		log: log,
 		cfg: cfg,
 
@@ -51,11 +51,11 @@ func NewKafkaConsumer(log *slog.Logger, cfg config.EventConsumerConfig, usecase 
 	}
 }
 
-func (c *KafkaConsumer) Start(ctx context.Context) {
+func (c *EventConsumer) Start(ctx context.Context) {
 	go c.runConsumer(ctx)
 }
 
-func (c *KafkaConsumer) runConsumer(ctx context.Context) {
+func (c *EventConsumer) runConsumer(ctx context.Context) {
 	c.log.Info("kafka consumer started", slog.String("topic", c.reader.Config().Topic))
 
 	for {
@@ -81,7 +81,7 @@ func (c *KafkaConsumer) runConsumer(ctx context.Context) {
 	}
 }
 
-func (c *KafkaConsumer) processMessage(ctx context.Context, msg kafka.Message) error {
+func (c *EventConsumer) processMessage(ctx context.Context, msg kafka.Message) error {
 	c.log.Info("received message", slog.Int64("offset", msg.Offset), slog.String("key", string(msg.Key)))
 
 	var evt events.Event
@@ -102,7 +102,7 @@ func (c *KafkaConsumer) processMessage(ctx context.Context, msg kafka.Message) e
 	return nil
 }
 
-func (c *KafkaConsumer) Close() error {
+func (c *EventConsumer) Close() error {
 	if c.reader != nil {
 		return c.reader.Close()
 	}

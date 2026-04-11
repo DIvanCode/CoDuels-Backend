@@ -15,11 +15,15 @@ execute:
   endpoint: http://localhost:5253
   download_task_endpoint: http://localhost:5252
 event_consumer:
+  mode: kafka
   brokers:
     - 0.0.0.0:29092
   topic: exesh.step-updates
   group_id: taski
   fetch_interval: 50ms
+  rest_endpoint: http://localhost:5253
+  poll_interval: 250ms
+  messages_count: 100
   sasl_auth: false
 message_producer:
   brokers:
