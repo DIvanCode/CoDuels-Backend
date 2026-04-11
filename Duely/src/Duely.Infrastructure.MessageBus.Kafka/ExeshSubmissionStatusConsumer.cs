@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Confluent.Kafka;
 using Duely.Application.UseCases.Features.CodeRuns;
+using Duely.Infrastructure.Gateway.Exesh.Abstracts;
 using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;

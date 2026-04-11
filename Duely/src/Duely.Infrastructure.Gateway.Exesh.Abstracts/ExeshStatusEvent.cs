@@ -1,8 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace Duely.Infrastructure.MessageBus.Kafka;
-
+namespace Duely.Infrastructure.Gateway.Exesh.Abstracts;
 
 public sealed class ExeshStatusEvent
 {
@@ -12,7 +11,7 @@ public sealed class ExeshStatusEvent
     [JsonPropertyName("type"), Required]
     public required string Type { get; init; }
 
-    [JsonPropertyName("status")]    
+    [JsonPropertyName("status")]
     public string? Status { get; init; }
 
     [JsonPropertyName("output")]

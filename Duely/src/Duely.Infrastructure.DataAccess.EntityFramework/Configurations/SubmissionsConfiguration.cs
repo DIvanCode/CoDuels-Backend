@@ -57,6 +57,12 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
             .HasColumnName("Message")
             .HasColumnType("text")
             .IsRequired(false);
+
+        builder.Property(s => s.HandledStatusCount)
+            .HasColumnName("HandledStatusCount")
+            .HasColumnType("integer")
+            .HasDefaultValue(0)
+            .IsRequired();
         
         builder.Property(s => s.IsUpsolving)
             .HasColumnName("IsUpsolving")

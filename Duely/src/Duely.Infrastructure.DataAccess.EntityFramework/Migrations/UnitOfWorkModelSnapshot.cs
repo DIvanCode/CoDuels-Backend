@@ -48,6 +48,12 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("ExecutionId");
 
+                    b.Property<int>("HandledStatusCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("HandledStatusCount");
+
                     b.Property<string>("Input")
                         .IsRequired()
                         .HasColumnType("text")
@@ -353,6 +359,12 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
                     b.Property<int>("DuelId")
                         .HasColumnType("integer");
+
+                    b.Property<int>("HandledStatusCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("HandledStatusCount");
 
                     b.Property<bool>("IsUpsolving")
                         .ValueGeneratedOnAdd()

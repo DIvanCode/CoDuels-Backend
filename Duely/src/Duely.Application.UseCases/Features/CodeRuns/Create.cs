@@ -46,6 +46,7 @@ public sealed class CreateCodeRunHandler(Context context, IRunUserCodeLimiter ru
             Language = command.Language,
             Input = command.Input,
             Status = UserCodeRunStatus.Queued,
+            HandledStatusCount = 0,
             CreatedAt = DateTime.UtcNow
         };
 

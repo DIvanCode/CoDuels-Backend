@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using Duely.Domain.Models.Duels;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentResults;
@@ -64,5 +66,66 @@ public sealed class TaskiClient(HttpClient httpClient, ILogger<TaskiClient> logg
             logger.LogError(e, "failed to get tasks list");
             return Result.Fail<TaskListResponse>(e.Message);
         }
+    }
+
+    public async Task<Result<IReadOnlyList<TaskiSolutionEvent>>> GetSolutionEventsAsync(
+        string solutionId,
+        int startId,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var uri = $"solutions/{solutionId}/messages?start_id={startId}&count={count}";
+            using var response = await httpClient.GetAsync(uri, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning(
+                    "solution messages request failed {StatusCode}, SolutionId={SolutionId}, StartId={StartId}, Count={Count}",
+                    response.StatusCode,
+                    solutionId,
+                    startId,
+                    count);
+                return Result.Fail<IReadOnlyList<TaskiSolutionEvent>>($"failed to get messages for solution {solutionId}");
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<GetSolutionMessagesResponse>(cancellationToken);
+            if (payload is null)
+            {
+                logger.LogWarning(
+                    "solution messages returned empty body, SolutionId={SolutionId}, StartId={StartId}, Count={Count}",
+                    solutionId,
+                    startId,
+                    count);
+                return Result.Fail<IReadOnlyList<TaskiSolutionEvent>>("solution messages empty response");
+            }
+
+            if (!string.Equals(payload.Status, "OK", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogWarning(
+                    "solution messages returned non-OK status. SolutionId={SolutionId}, StartId={StartId}, Count={Count}, Status={Status}",
+                    solutionId,
+                    startId,
+                    count,
+                    payload.Status);
+                return Result.Fail<IReadOnlyList<TaskiSolutionEvent>>($"solution messages non-OK status: {payload.Status}");
+            }
+
+            return Result.Ok<IReadOnlyList<TaskiSolutionEvent>>(payload.Events);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "failed to get solution messages, SolutionId={SolutionId}", solutionId);
+            return Result.Fail<IReadOnlyList<TaskiSolutionEvent>>(e.Message);
+        }
+    }
+
+    private sealed class GetSolutionMessagesResponse
+    {
+        [JsonPropertyName("status"), Required]
+        public required string Status { get; init; }
+
+        [JsonPropertyName("messages")]
+        public IReadOnlyList<TaskiSolutionEvent> Events { get; init; } = [];
     }
 }
