@@ -1,27 +1,31 @@
-package producer
+package dispatcher
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/segmentio/kafka-go/sasl/scram"
 	"log/slog"
 	"math"
 	"strconv"
 	"taski/internal/config"
 	"taski/internal/domain/outbox"
+	"taski/internal/domain/testing"
 	"taski/internal/domain/testing/message/messages"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/scram"
 )
 
 type (
-	MessageProducer struct {
+	MessageDispatcher struct {
 		log *slog.Logger
 
-		unitOfWork    unitOfWork
-		outboxStorage outboxStorage
+		kafkaEnabled bool
+
+		unitOfWork     unitOfWork
+		outboxStorage  outboxStorage
+		messageStorage messageStorage
 
 		writer *kafka.Writer
 	}
@@ -33,17 +37,22 @@ type (
 		DeleteOutbox(ctx context.Context, ox outbox.Outbox) error
 	}
 
+	messageStorage interface {
+		CreateMessage(context.Context, testing.ExternalSolutionID, string, time.Time) error
+	}
+
 	unitOfWork interface {
 		Do(context.Context, func(context.Context) error) error
 	}
 )
 
-func NewMessageProducer(
+func NewMessageDispatcher(
 	log *slog.Logger,
 	cfg config.MessageDispatcherConfig,
 	unitOfWork unitOfWork,
 	outboxStorage outboxStorage,
-) *MessageProducer {
+	messageStorage messageStorage,
+) *MessageDispatcher {
 	writer := &kafka.Writer{
 		Addr:        kafka.TCP(cfg.Brokers...),
 		Topic:       cfg.Topic,
@@ -61,40 +70,57 @@ func NewMessageProducer(
 		}
 	}
 
-	return &MessageProducer{
+	return &MessageDispatcher{
 		log: log,
 
-		unitOfWork:    unitOfWork,
-		outboxStorage: outboxStorage,
+		kafkaEnabled: cfg.KafkaEnabled,
+
+		unitOfWork:     unitOfWork,
+		outboxStorage:  outboxStorage,
+		messageStorage: messageStorage,
 
 		writer: writer,
 	}
 }
 
-func (p *MessageProducer) Start(ctx context.Context) {
-	go p.run(ctx)
+func (s *MessageDispatcher) Start(ctx context.Context) {
+	if !s.kafkaEnabled {
+		return
+	}
+	go s.run(ctx)
 }
 
-func (p *MessageProducer) Produce(ctx context.Context, msg messages.Message) error {
+func (s *MessageDispatcher) Send(ctx context.Context, msg messages.Message) error {
 	payload, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
+	payloadStr := string(payload)
+	createdAt := time.Now()
+
+	if err = s.messageStorage.CreateMessage(ctx, msg.GetExternalID(), payloadStr, createdAt); err != nil {
+		return fmt.Errorf("failed to create message: %w", err)
+	}
+
+	if !s.kafkaEnabled {
+		return nil
+	}
+
 	ox := outbox.Outbox{
-		Payload:     string(payload),
-		CreatedAt:   time.Now(),
+		Payload:     payloadStr,
+		CreatedAt:   createdAt,
 		FailedAt:    nil,
 		FailedTries: 0,
 	}
-	if err = p.outboxStorage.CreateOutbox(ctx, ox); err != nil {
+	if err = s.outboxStorage.CreateOutbox(ctx, ox); err != nil {
 		return fmt.Errorf("failed to create outbox: %w", err)
 	}
 
 	return nil
 }
 
-func (p *MessageProducer) run(ctx context.Context) {
+func (s *MessageDispatcher) run(ctx context.Context) {
 	consequentFails := 0
 
 	for {
@@ -108,8 +134,8 @@ func (p *MessageProducer) run(ctx context.Context) {
 			break
 		}
 
-		if err := p.process(ctx); err != nil {
-			p.log.Error("failed to process outbox", slog.Any("error", err))
+		if err := s.process(ctx); err != nil {
+			s.log.Error("failed to process outbox", slog.Any("error", err))
 			consequentFails++
 			continue
 		}
@@ -118,12 +144,12 @@ func (p *MessageProducer) run(ctx context.Context) {
 	}
 }
 
-func (p *MessageProducer) process(ctx context.Context) error {
+func (s *MessageDispatcher) process(ctx context.Context) error {
 	uowCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	if err := p.unitOfWork.Do(uowCtx, func(ctx context.Context) error {
-		ox, err := p.outboxStorage.GetOutboxForProduce(ctx)
+	if err := s.unitOfWork.Do(uowCtx, func(ctx context.Context) error {
+		ox, err := s.outboxStorage.GetOutboxForProduce(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get outbox for send: %w", err)
 		}
@@ -144,18 +170,18 @@ func (p *MessageProducer) process(ctx context.Context) error {
 			Value: []byte(ox.Payload),
 		}
 
-		p.log.Debug("produce to kafka", slog.Int64("outbox_id", ox.ID))
-		err = p.writer.WriteMessages(ctx, message)
+		s.log.Debug("produce to kafka", slog.Int64("outbox_id", ox.ID))
+		err = s.writer.WriteMessages(ctx, message)
 		if err != nil {
 			failedAt := time.Now()
 			ox.FailedAt = &failedAt
 			ox.FailedTries++
 
-			_ = p.outboxStorage.SaveOutbox(ctx, *ox)
+			_ = s.outboxStorage.SaveOutbox(ctx, *ox)
 			return fmt.Errorf("failed to produce message to kafka: %w", err)
 		}
 
-		if err = p.outboxStorage.DeleteOutbox(ctx, *ox); err != nil {
+		if err = s.outboxStorage.DeleteOutbox(ctx, *ox); err != nil {
 			return fmt.Errorf("failed to delete outbox: %w", err)
 		}
 

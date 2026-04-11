@@ -44,11 +44,15 @@ func NewEventHandler(
 	}
 
 	var processor eventProcessor
+	eventConsumerCfg := cfg.EventConsumer
+	if eventConsumerCfg.RestEndpoint == "" {
+		eventConsumerCfg.RestEndpoint = cfg.Execute.Endpoint
+	}
 	switch mode {
 	case "rest":
-		processor = consumer.NewEventPoller(log, cfg.EventConsumer, unitOfWork, solutionStorage, usecase)
+		processor = consumer.NewEventPoller(log, eventConsumerCfg, unitOfWork, solutionStorage, usecase)
 	default:
-		processor = consumer.NewEventConsumer(log, cfg.EventConsumer, usecase)
+		processor = consumer.NewEventConsumer(log, eventConsumerCfg, usecase)
 	}
 
 	return &EventHandler{

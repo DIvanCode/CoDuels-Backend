@@ -27,7 +27,7 @@ type (
 		unitOfWork      unitOfWork
 		solutionStorage solutionStorage
 
-		messageProducer messageProducer
+		messageDispatcher messageDispatcher
 	}
 
 	unitOfWork interface {
@@ -39,8 +39,8 @@ type (
 		Update(context.Context, testing.Solution) error
 	}
 
-	messageProducer interface {
-		Produce(ctx context.Context, msg messages.Message) error
+	messageDispatcher interface {
+		Send(ctx context.Context, msg messages.Message) error
 	}
 )
 
@@ -48,7 +48,7 @@ func NewUseCase(
 	log *slog.Logger,
 	solutionStorage solutionStorage,
 	unitOfWork unitOfWork,
-	messageProducer messageProducer,
+	messageDispatcher messageDispatcher,
 ) *UseCase {
 	return &UseCase{
 		log: log,
@@ -56,7 +56,7 @@ func NewUseCase(
 		unitOfWork:      unitOfWork,
 		solutionStorage: solutionStorage,
 
-		messageProducer: messageProducer,
+		messageDispatcher: messageDispatcher,
 	}
 }
 
@@ -80,8 +80,8 @@ func (uc *UseCase) Update(ctx context.Context, command Command) error {
 			return err
 		}
 		if hasMsg {
-			if err = uc.messageProducer.Produce(ctx, msg); err != nil {
-				return fmt.Errorf("failed to produce message: %w", err)
+			if err = uc.messageDispatcher.Send(ctx, msg); err != nil {
+				return fmt.Errorf("failed to dispatch message: %w", err)
 			}
 		}
 
