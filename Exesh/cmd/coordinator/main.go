@@ -5,16 +5,18 @@ import (
 	"errors"
 	executeAPI "exesh/internal/api/execute"
 	heartbeatAPI "exesh/internal/api/heartbeat"
+	messagesAPI "exesh/internal/api/messages"
 	"exesh/internal/config"
+	"exesh/internal/dispatcher"
 	"exesh/internal/factory"
 	"exesh/internal/pool"
 	"exesh/internal/provider/adapter"
 	"exesh/internal/registry"
 	schedule "exesh/internal/scheduler"
-	"exesh/internal/sender"
 	"exesh/internal/storage/postgres"
 	executeUC "exesh/internal/usecase/execute"
 	heartbeatUC "exesh/internal/usecase/heartbeat"
+	messagesUC "exesh/internal/usecase/messages"
 	"fmt"
 	flog "log"
 	"log/slog"
@@ -49,7 +51,7 @@ func main() {
 
 	mux := chi.NewRouter()
 
-	unitOfWork, executionStorage, outboxStorage, err := setupStorage(log, cfg.Storage)
+	unitOfWork, executionStorage, outboxStorage, messageStorage, err := setupStorage(log, cfg.Storage)
 	if err != nil {
 		log.Error("failed to setup storage", slog.String("error", err.Error()))
 		return
@@ -71,8 +73,8 @@ func main() {
 	executionFactory := factory.NewExecutionFactory(cfg.JobFactory, filestorageAdapter)
 
 	messageFactory := factory.NewMessageFactory()
-	messageSender := sender.NewKafkaSender(log, cfg.Sender, unitOfWork, outboxStorage)
-	messageSender.Start(ctx)
+	messageDispatcher := dispatcher.NewMessageDispatcher(log, cfg.Dispatcher, unitOfWork, outboxStorage, messageStorage)
+	messageDispatcher.Start(ctx)
 
 	promRegistry := prometheus.NewRegistry()
 	promRegistry.MustRegister(
@@ -83,7 +85,7 @@ func main() {
 
 	jobScheduler := schedule.NewJobScheduler(log)
 	executionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
-		executionFactory, artifactRegistry, jobScheduler, messageFactory, messageSender)
+		executionFactory, artifactRegistry, jobScheduler, messageFactory, messageDispatcher)
 
 	err = executionScheduler.RegisterMetrics(promCoordinatorRegistry)
 	if err != nil {
@@ -98,6 +100,9 @@ func main() {
 
 	heartbeatUseCase := heartbeatUC.NewUseCase(log, workerPool, jobScheduler, artifactRegistry)
 	heartbeatAPI.NewHandler(log, heartbeatUseCase).Register(mux)
+
+	messagesUseCase := messagesUC.NewUseCase(log, unitOfWork, messageStorage)
+	messagesAPI.NewHandler(log, messagesUseCase).Register(mux)
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 
@@ -154,6 +159,7 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	unitOfWork *postgres.UnitOfWork,
 	executionStorage *postgres.ExecutionStorage,
 	outboxStorage *postgres.OutboxStorage,
+	messageStorage *postgres.MessageStorage,
 	err error,
 ) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.InitTimeout)
@@ -162,7 +168,7 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	unitOfWork, err = postgres.NewUnitOfWork(cfg)
 	if err != nil {
 		err = fmt.Errorf("failed to create unit of work: %w", err)
-		return unitOfWork, executionStorage, outboxStorage, err
+		return unitOfWork, executionStorage, outboxStorage, messageStorage, err
 	}
 
 	err = unitOfWork.Do(ctx, func(ctx context.Context) error {
@@ -172,8 +178,11 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 		if outboxStorage, err = postgres.NewOutboxStorage(ctx, log); err != nil {
 			return fmt.Errorf("failed to create outbox storage: %w", err)
 		}
+		if messageStorage, err = postgres.NewMessageStorage(ctx, log); err != nil {
+			return fmt.Errorf("failed to create message storage: %w", err)
+		}
 		return nil
 	})
 
-	return unitOfWork, executionStorage, outboxStorage, err
+	return unitOfWork, executionStorage, outboxStorage, messageStorage, err
 }

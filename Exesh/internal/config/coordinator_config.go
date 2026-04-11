@@ -18,7 +18,7 @@ type (
 		ExecutionScheduler ExecutionSchedulerConfig `yaml:"execution_scheduler" env-prefix:"EXESH_EXECUTION_SCHEDULER_"`
 		WorkerPool         WorkerPoolConfig         `yaml:"worker_pool" env-prefix:"EXESH_WORKER_POOL_"`
 		ArtifactRegistry   ArtifactRegistryConfig   `yaml:"artifact_registry" env-prefix:"EXESH_ARTIFACT_REGISTRY_"`
-		Sender             SenderConfig             `yaml:"sender" env-prefix:"EXESH_SENDER_"`
+		Dispatcher         DispatcherConfig         `yaml:"dispatcher" env-prefix:"EXESH_DISPATCHER_"`
 	}
 
 	StorageConfig struct {
@@ -51,7 +51,8 @@ type (
 		ArtifactTTL time.Duration `yaml:"artifact_ttl" env:"ARTIFACT_TTL"`
 	}
 
-	SenderConfig struct {
+	DispatcherConfig struct {
+		KafkaEnabled bool     `yaml:"kafka_enabled" env:"KAFKA_ENABLED"`
 		Brokers      []string `yaml:"brokers" env:"BROKERS" env-separator:","`
 		Topic        string   `yaml:"topic" env:"TOPIC"`
 		SaslAuth     bool     `yaml:"sasl_auth" env:"SASL_AUTH"`
