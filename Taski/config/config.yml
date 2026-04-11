@@ -25,7 +25,8 @@ event_consumer:
   poll_interval: 250ms
   messages_count: 100
   sasl_auth: false
-message_producer:
+message_dispatcher:
+  kafka_enabled: true
   brokers:
     - 0.0.0.0:29092
   topic: taski.testing

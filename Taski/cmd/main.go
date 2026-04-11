@@ -16,11 +16,12 @@ import (
 	randomTaskAPI "taski/internal/api/task/random"
 	taskTopicsAPI "taski/internal/api/task/topics"
 	"taski/internal/api/testing/execute"
+	messagesAPI "taski/internal/api/testing/messages"
 	testAPI "taski/internal/api/testing/test"
 	"taski/internal/config"
+	"taski/internal/dispatcher"
 	"taski/internal/handler"
 	"taski/internal/metrics"
-	"taski/internal/producer"
 	"taski/internal/storage/filestorage"
 	"taski/internal/storage/postgres"
 	getFileUC "taski/internal/usecase/task/usecase/file"
@@ -28,6 +29,7 @@ import (
 	listUC "taski/internal/usecase/task/usecase/list"
 	randomTaskUC "taski/internal/usecase/task/usecase/random"
 	taskTopicsUC "taski/internal/usecase/task/usecase/topics"
+	messagesUC "taski/internal/usecase/testing/usecase/messages"
 	testUC "taski/internal/usecase/testing/usecase/test"
 	"taski/internal/usecase/testing/usecase/update"
 
@@ -75,7 +77,7 @@ func main() {
 	}
 	defer fileStorage.Shutdown()
 
-	unitOfWork, solutionStorage, outboxStorage, err := setupDb(log, cfg.Db)
+	unitOfWork, solutionStorage, outboxStorage, messageStorage, err := setupDb(log, cfg.Db)
 	if err != nil {
 		log.Error("failed to setup db", slog.String("error", err.Error()))
 		return
@@ -103,10 +105,13 @@ func main() {
 	testUseCase := testUC.NewUseCase(log, taskStorage, unitOfWork, solutionStorage, executeClient, cfg.Execute.DownloadTaskEndpoint)
 	testAPI.NewHandler(log, testUseCase).Register(mux)
 
-	messageProducer := producer.NewMessageProducer(log, cfg.MessageProducer, unitOfWork, outboxStorage)
-	messageProducer.Start(ctx)
+	messagesUseCase := messagesUC.NewUseCase(log, unitOfWork, messageStorage)
+	messagesAPI.NewHandler(log, messagesUseCase).Register(mux)
 
-	updateTestingUseCase := update.NewUseCase(log, solutionStorage, unitOfWork, messageProducer)
+	messageDispatcher := dispatcher.NewMessageDispatcher(log, cfg.MessageDispatcher, unitOfWork, outboxStorage, messageStorage)
+	messageDispatcher.Start(ctx)
+
+	updateTestingUseCase := update.NewUseCase(log, solutionStorage, unitOfWork, messageDispatcher)
 	eventHandler := handler.NewEventHandler(log, cfg, unitOfWork, solutionStorage, updateTestingUseCase)
 	eventHandler.Start(ctx)
 	defer func() { _ = eventHandler.Close() }()
@@ -181,6 +186,7 @@ func setupDb(log *slog.Logger, cfg config.DbConfig) (
 	unitOfWork *postgres.UnitOfWork,
 	solutionStorage *postgres.SolutionStorage,
 	outboxStorage *postgres.OutboxStorage,
+	messageStorage *postgres.MessageStorage,
 	err error,
 ) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.InitTimeout)
@@ -198,6 +204,9 @@ func setupDb(log *slog.Logger, cfg config.DbConfig) (
 		}
 		if outboxStorage, err = postgres.NewOutboxStorage(ctx, log); err != nil {
 			return fmt.Errorf("failed to create outbox storage: %w", err)
+		}
+		if messageStorage, err = postgres.NewMessageStorage(ctx, log); err != nil {
+			return fmt.Errorf("failed to create message storage: %w", err)
 		}
 		return nil
 	})

@@ -11,16 +11,16 @@ import (
 
 type (
 	Config struct {
-		Env              string                 `yaml:"env" env:"ENV"`
-		HttpServer       HttpServerConfig       `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
-		FileStorage      filestorage.Config     `yaml:"filestorage" env-prefix:"FILESTORAGE_"`
-		Db               DbConfig               `yaml:"db" env-prefix:"DB_"`
-		Execute          ExecuteConfig          `yaml:"execute" env-prefix:"EXECUTE_"`
-		EventConsumer    EventConsumerConfig    `yaml:"event_consumer" env-prefix:"EVENT_CONSUMER_"`
-		MessageProducer  MessageProducerConfig  `yaml:"message_producer" env-prefix:"MESSAGE_PRODUCER_"`
-		MetricsCollector MetricsCollectorConfig `yaml:"metrics_collector" env-prefix:"METRICS_COLLECTOR_"`
-		Tasks            TasksList              `yaml:"tasks" env:"TASKS" env-separator:","`
-		TaskTopics       TaskTopicsList         `yaml:"task_topics" env:"TASK_TOPICS" env-separator:","`
+		Env               string                  `yaml:"env" env:"ENV"`
+		HttpServer        HttpServerConfig        `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
+		FileStorage       filestorage.Config      `yaml:"filestorage" env-prefix:"FILESTORAGE_"`
+		Db                DbConfig                `yaml:"db" env-prefix:"DB_"`
+		Execute           ExecuteConfig           `yaml:"execute" env-prefix:"EXECUTE_"`
+		EventConsumer     EventConsumerConfig     `yaml:"event_consumer" env-prefix:"EVENT_CONSUMER_"`
+		MessageDispatcher MessageDispatcherConfig `yaml:"message_dispatcher" env-prefix:"MESSAGE_DISPATCHER_"`
+		MetricsCollector  MetricsCollectorConfig  `yaml:"metrics_collector" env-prefix:"METRICS_COLLECTOR_"`
+		Tasks             TasksList               `yaml:"tasks" env:"TASKS" env-separator:","`
+		TaskTopics        TaskTopicsList          `yaml:"task_topics" env:"TASK_TOPICS" env-separator:","`
 	}
 
 	HttpServerConfig struct {
@@ -52,8 +52,9 @@ type (
 		SaslPassword  string        `yaml:"sasl_password" env:"SASL_PASSWORD"`
 	}
 
-	MessageProducerConfig struct {
-		Brokers      []string `yaml:"brokers" env:"BROKERS" env-separator:","`
+	MessageDispatcherConfig struct {
+		KafkaEnabled bool     `yaml:"kafka_enabled" env:"KAFKA_ENABLED"`
+		Brokers      []string `yaml:"brokers" env:"KAFKA_BROKERS" env-separator:","`
 		Topic        string   `yaml:"topic" env:"TOPIC"`
 		SaslAuth     bool     `yaml:"sasl_auth" env:"SASL_AUTH"`
 		SaslUsername string   `yaml:"sasl_username" env:"SASL_USERNAME"`

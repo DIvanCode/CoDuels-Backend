@@ -44,7 +44,7 @@ services:
       DB_CONNECTION_STRING: host=taski_postgres port=5432 database=taski user=taski password=secret
       EVENT_CONSUMER_MODE: kafka
       EVENT_CONSUMER_BROKERS: kafka:9092
-      MESSAGE_PRODUCER_BROKERS: kafka:9092
+      MESSAGE_DISPATCHER_KAFKA_BROKERS: kafka:9092
     depends_on:
       postgres:
         condition: service_healthy
