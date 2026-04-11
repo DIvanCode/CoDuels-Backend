@@ -35,8 +35,8 @@ type (
 
 		jobScheduler jobScheduler
 
-		messageFactory messageFactory
-		messageSender  messageSender
+		messageFactory    messageFactory
+		messageDispatcher messageDispatcher
 
 		nowExecutions atomic.Int64
 
@@ -72,7 +72,7 @@ type (
 		CreateExecutionFinishedError(execution.ID, string) messages.Message
 	}
 
-	messageSender interface {
+	messageDispatcher interface {
 		Send(context.Context, messages.Message) error
 	}
 )
@@ -86,7 +86,7 @@ func NewExecutionScheduler(
 	artifactRegistry artifactRegistry,
 	jobScheduler jobScheduler,
 	messageFactory messageFactory,
-	messageSender messageSender,
+	messageDispatcher messageDispatcher,
 ) *ExecutionScheduler {
 	s := &ExecutionScheduler{
 		log: log,
@@ -100,8 +100,8 @@ func NewExecutionScheduler(
 
 		jobScheduler: jobScheduler,
 
-		messageFactory: messageFactory,
-		messageSender:  messageSender,
+		messageFactory:    messageFactory,
+		messageDispatcher: messageDispatcher,
 
 		nowExecutions: atomic.Int64{},
 	}
@@ -186,7 +186,7 @@ func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *executio
 	s.log.Info("schedule execution", slog.String("execution_id", ex.ID.String()))
 
 	msg := s.messageFactory.CreateExecutionStarted(ex.ID)
-	if err := s.messageSender.Send(ctx, msg); err != nil {
+	if err := s.messageDispatcher.Send(ctx, msg); err != nil {
 		return fmt.Errorf("failed to send execution started message: %w", err)
 	}
 
@@ -330,7 +330,7 @@ func (s *ExecutionScheduler) doneJob(
 				return fmt.Errorf("failed to create message for job: %w", msgErr)
 			}
 
-			if err = s.messageSender.Send(ctx, msg); err != nil {
+			if err = s.messageDispatcher.Send(ctx, msg); err != nil {
 				return fmt.Errorf("failed to send message for step: %w", err)
 			}
 		}
@@ -394,7 +394,7 @@ func (s *ExecutionScheduler) finishExecution(
 			msg = s.messageFactory.CreateExecutionFinishedError(ex.ID, exError.Error())
 		}
 
-		if err := s.messageSender.Send(ctx, msg); err != nil {
+		if err := s.messageDispatcher.Send(ctx, msg); err != nil {
 			return fmt.Errorf("failed to send execution finished message: %w", err)
 		}
 

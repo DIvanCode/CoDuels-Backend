@@ -26,7 +26,8 @@ worker_pool:
   worker_die_after: 10s
 artifact_registry:
   artifact_ttl: 3m
-sender:
+dispatcher:
+  kafka_enabled: true
   brokers:
     - kafka:9092
   topic: exesh.step-updates

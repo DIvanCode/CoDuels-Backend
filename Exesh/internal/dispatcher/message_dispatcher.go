@@ -1,9 +1,10 @@
-package sender
+package dispatcher
 
 import (
 	"context"
 	"encoding/json"
 	"exesh/internal/config"
+	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/message/messages"
 	"exesh/internal/domain/outbox"
 	"fmt"
@@ -17,11 +18,14 @@ import (
 )
 
 type (
-	KafkaSender struct {
+	MessageDispatcher struct {
 		log *slog.Logger
 
-		unitOfWork    unitOfWork
-		outboxStorage outboxStorage
+		kafkaEnabled bool
+
+		unitOfWork     unitOfWork
+		outboxStorage  outboxStorage
+		messageStorage messageStorage
 
 		writer *kafka.Writer
 	}
@@ -33,17 +37,22 @@ type (
 		DeleteOutbox(ctx context.Context, ox outbox.Outbox) error
 	}
 
+	messageStorage interface {
+		CreateMessage(context.Context, execution.ID, string, time.Time) error
+	}
+
 	unitOfWork interface {
 		Do(context.Context, func(context.Context) error) error
 	}
 )
 
-func NewKafkaSender(
+func NewMessageDispatcher(
 	log *slog.Logger,
-	cfg config.SenderConfig,
+	cfg config.DispatcherConfig,
 	unitOfWork unitOfWork,
 	outboxStorage outboxStorage,
-) *KafkaSender {
+	messageStorage messageStorage,
+) *MessageDispatcher {
 	writer := &kafka.Writer{
 		Addr:        kafka.TCP(cfg.Brokers...),
 		Topic:       cfg.Topic,
@@ -61,29 +70,46 @@ func NewKafkaSender(
 		}
 	}
 
-	return &KafkaSender{
+	return &MessageDispatcher{
 		log: log,
 
-		unitOfWork:    unitOfWork,
-		outboxStorage: outboxStorage,
+		kafkaEnabled: cfg.KafkaEnabled,
+
+		unitOfWork:     unitOfWork,
+		outboxStorage:  outboxStorage,
+		messageStorage: messageStorage,
 
 		writer: writer,
 	}
 }
 
-func (s *KafkaSender) Start(ctx context.Context) {
+func (s *MessageDispatcher) Start(ctx context.Context) {
+	if !s.kafkaEnabled {
+		return
+	}
 	go s.run(ctx)
 }
 
-func (s *KafkaSender) Send(ctx context.Context, msg messages.Message) error {
+func (s *MessageDispatcher) Send(ctx context.Context, msg messages.Message) error {
 	payload, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
+	payloadStr := string(payload)
+	createdAt := time.Now()
+
+	if err = s.messageStorage.CreateMessage(ctx, msg.GetExecutionID(), payloadStr, createdAt); err != nil {
+		return fmt.Errorf("failed to create message: %w", err)
+	}
+
+	if !s.kafkaEnabled {
+		return nil
+	}
+
 	ox := outbox.Outbox{
-		Payload:     string(payload),
-		CreatedAt:   time.Now(),
+		Payload:     payloadStr,
+		CreatedAt:   createdAt,
 		FailedAt:    nil,
 		FailedTries: 0,
 	}
@@ -94,7 +120,7 @@ func (s *KafkaSender) Send(ctx context.Context, msg messages.Message) error {
 	return nil
 }
 
-func (s *KafkaSender) run(ctx context.Context) {
+func (s *MessageDispatcher) run(ctx context.Context) {
 	consequentFails := 0
 
 	for {
@@ -118,7 +144,7 @@ func (s *KafkaSender) run(ctx context.Context) {
 	}
 }
 
-func (s *KafkaSender) process(ctx context.Context) error {
+func (s *MessageDispatcher) process(ctx context.Context) error {
 	uowCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
