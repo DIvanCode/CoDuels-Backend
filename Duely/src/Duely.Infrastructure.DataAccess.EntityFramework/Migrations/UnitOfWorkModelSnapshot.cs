@@ -532,6 +532,60 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.UserAction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DuelId")
+                        .HasColumnType("integer")
+                        .HasColumnName("DuelId")
+                        .HasAnnotation("Relational:JsonPropertyName", "duel_id");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("EventId")
+                        .HasAnnotation("Relational:JsonPropertyName", "event_id");
+
+                    b.Property<int>("SequenceId")
+                        .HasColumnType("integer")
+                        .HasColumnName("SequenceId")
+                        .HasAnnotation("Relational:JsonPropertyName", "sequence_id");
+
+                    b.Property<string>("TaskKey")
+                        .IsRequired()
+                        .HasColumnType("varchar(1)")
+                        .HasColumnName("TaskKey")
+                        .HasAnnotation("Relational:JsonPropertyName", "task_key");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("Timestamp")
+                        .HasAnnotation("Relational:JsonPropertyName", "timestamp");
+
+                    b.Property<string>("UserActionDiscriminator")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Type");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId")
+                        .HasAnnotation("Relational:JsonPropertyName", "user_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserActions", (string)null);
+
+                    b.HasDiscriminator<string>("UserActionDiscriminator");
+
+                    b.UseTphMappingStrategy();
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.Duels.Pending.FriendlyPendingDuel", b =>
                 {
                     b.HasBaseType("Duely.Domain.Models.Duels.Pending.PendingDuel");
@@ -687,6 +741,176 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnName("Nodes");
 
                     b.HasDiscriminator().HasValue("SingleEliminationBracket");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.ChooseLanguageUserAction", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.UserActions.UserAction");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Language")
+                        .HasAnnotation("Relational:JsonPropertyName", "language");
+
+                    b.HasDiscriminator().HasValue("ChooseLanguage");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.CutCodeUserAction", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.UserActions.UserAction");
+
+                    b.Property<int>("BeginLine")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("BeginLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "begin_line");
+
+                    b.Property<int>("CharsCount")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CharsCount")
+                        .HasAnnotation("Relational:JsonPropertyName", "chars_count");
+
+                    b.Property<int>("CodeLength")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CodeLength")
+                        .HasAnnotation("Relational:JsonPropertyName", "code_length");
+
+                    b.Property<int>("CursorLine")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CursorLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "cursor_line");
+
+                    b.Property<int>("EndLine")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("EndLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "end_line");
+
+                    b.HasDiscriminator().HasValue("CutCode");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.DeleteCodeUserAction", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.UserActions.UserAction");
+
+                    b.Property<int>("CodeLength")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CodeLength")
+                        .HasAnnotation("Relational:JsonPropertyName", "code_length");
+
+                    b.Property<int>("CursorLine")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CursorLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "cursor_line");
+
+                    b.HasDiscriminator().HasValue("DeleteCode");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.MoveCursorUserAction", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.UserActions.UserAction");
+
+                    b.Property<int>("CodeLength")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CodeLength")
+                        .HasAnnotation("Relational:JsonPropertyName", "code_length");
+
+                    b.Property<int>("CursorLine")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CursorLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "cursor_line");
+
+                    b.Property<int>("PreviousCursorLine")
+                        .HasColumnType("integer")
+                        .HasColumnName("PreviousCursorLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "previous_cursor_line");
+
+                    b.HasDiscriminator().HasValue("MoveCursor");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.PasteCodeUserAction", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.UserActions.UserAction");
+
+                    b.Property<int>("BeginLine")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("BeginLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "begin_line");
+
+                    b.Property<int>("CharsCount")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CharsCount")
+                        .HasAnnotation("Relational:JsonPropertyName", "chars_count");
+
+                    b.Property<int>("CodeLength")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CodeLength")
+                        .HasAnnotation("Relational:JsonPropertyName", "code_length");
+
+                    b.Property<int>("CursorLine")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CursorLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "cursor_line");
+
+                    b.Property<int>("EndLine")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("EndLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "end_line");
+
+                    b.HasDiscriminator().HasValue("PasteCode");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.RunCustomTestUserAction", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.UserActions.UserAction");
+
+                    b.HasDiscriminator().HasValue("RunCustomTest");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.RunSampleTestUserAction", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.UserActions.UserAction");
+
+                    b.HasDiscriminator().HasValue("RunSampleTest");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.SubmitSolutionUserAction", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.UserActions.UserAction");
+
+                    b.HasDiscriminator().HasValue("SubmitSolution");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.UserActions.WriteCodeUserAction", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.UserActions.UserAction");
+
+                    b.Property<int>("CodeLength")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CodeLength")
+                        .HasAnnotation("Relational:JsonPropertyName", "code_length");
+
+                    b.Property<int>("CursorLine")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("integer")
+                        .HasColumnName("CursorLine")
+                        .HasAnnotation("Relational:JsonPropertyName", "cursor_line");
+
+                    b.HasDiscriminator().HasValue("WriteCode");
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.CodeRun", b =>
