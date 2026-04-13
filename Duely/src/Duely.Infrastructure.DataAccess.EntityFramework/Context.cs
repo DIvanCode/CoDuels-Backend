@@ -6,6 +6,7 @@ using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Groups;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Tournaments;
+using Duely.Domain.Models.UserActions;
 
 namespace Duely.Infrastructure.DataAccess.EntityFramework;
 
@@ -21,6 +22,7 @@ public sealed class Context : DbContext
     public DbSet<Submission> Submissions => Set<Submission>();
     public DbSet<CodeRun> CodeRuns => Set<CodeRun>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<UserAction> UserActions => Set<UserAction>();
 
     public Context(DbContextOptions<Context> options) : base(options)
     {
