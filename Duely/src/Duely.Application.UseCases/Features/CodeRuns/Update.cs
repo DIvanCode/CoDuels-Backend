@@ -35,7 +35,6 @@ public sealed class UpdateCodeRunHandler(Context context) : IRequestHandler<Upda
 
         if (codeRun.Status == UserCodeRunStatus.Done)
         {
-            await context.SaveChangesAsync(cancellationToken);
             return Result.Ok();
         }
 
