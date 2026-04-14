@@ -21,6 +21,7 @@ public sealed class Context : DbContext
     public DbSet<Tournament> Tournaments => Set<Tournament>();
     public DbSet<Submission> Submissions => Set<Submission>();
     public DbSet<CodeRun> CodeRuns => Set<CodeRun>();
+    public DbSet<AnticheatScore> AnticheatScores => Set<AnticheatScore>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<UserAction> UserActions => Set<UserAction>();
 

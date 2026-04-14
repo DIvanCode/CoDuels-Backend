@@ -5,6 +5,7 @@ using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
+using Duely.Domain.Models.UserActions;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -46,8 +47,12 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var messages = await ctx.OutboxMessages.AsNoTracking()
             .Where(m => m.Type == OutboxType.SendMessage)
             .ToListAsync();
+        var anticheatScores = await ctx.AnticheatScores.AsNoTracking()
+            .Where(score => score.DuelId == duel.Id)
+            .ToListAsync();
 
         messages.Should().HaveCount(2);
+        anticheatScores.Should().BeEmpty();
 
     }
 
@@ -84,8 +89,13 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var messages = await ctx.OutboxMessages.AsNoTracking()
             .Where(m => m.Type == OutboxType.SendMessage)
             .ToListAsync();
+        var anticheatScores = await ctx.AnticheatScores.AsNoTracking()
+            .Where(score => score.DuelId == duel.Id)
+            .ToListAsync();
 
         messages.Should().HaveCount(2);
+        anticheatScores.Should().HaveCount(2);
+        anticheatScores.All(score => score.Score is null).Should().BeTrue();
 
         foreach (var m in messages)
         {
@@ -389,5 +399,79 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         var updated = await ctx.Duels.AsNoTracking().Include(x => x.Winner).SingleAsync(dd => dd.Id == 80);
         updated.Status.Should().Be(DuelStatus.Finished);
         updated.Winner.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Deletes_non_accepted_actions_when_duel_finishes()
+    {
+        var ctx = Context;
+        var now = DateTime.UtcNow;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var duel = EntityFactory.MakeDuel(91, u1, u2, "TASK-91", now.AddMinutes(-5), now.AddMinutes(20));
+
+        var accepted = EntityFactory.MakeSubmission(
+            910,
+            duel,
+            u1,
+            time: now.AddSeconds(1),
+            status: SubmissionStatus.Done,
+            verdict: "Accepted");
+
+        var keepActionId = Guid.NewGuid();
+        var deleteActionId = Guid.NewGuid();
+
+        ctx.AddRange(
+            u1,
+            u2,
+            duel,
+            accepted,
+            new RunSampleTestUserAction
+            {
+                EventId = keepActionId,
+                SequenceId = 1,
+                Timestamp = now.AddSeconds(-2),
+                DuelId = duel.Id,
+                TaskKey = 'A',
+                UserId = u1.Id
+            },
+            new RunSampleTestUserAction
+            {
+                EventId = deleteActionId,
+                SequenceId = 2,
+                Timestamp = now.AddSeconds(-1),
+                DuelId = duel.Id,
+                TaskKey = 'A',
+                UserId = u2.Id
+            });
+        await ctx.SaveChangesAsync();
+
+        var ratingManager = new Mock<IRatingManager>();
+        var handler = new CheckDuelsForFinishHandler(
+            ctx,
+            ratingManager.Object,
+            new TaskService(),
+            NullLogger<CheckDuelsForFinishHandler>.Instance);
+
+        var result = await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        var actions = await ctx.UserActions
+            .AsNoTracking()
+            .Where(action => action.DuelId == duel.Id)
+            .ToListAsync();
+        var scores = await ctx.AnticheatScores
+            .AsNoTracking()
+            .Where(score => score.DuelId == duel.Id)
+            .ToListAsync();
+
+        actions.Should().HaveCount(1);
+        actions.Should().Contain(action => action.EventId == keepActionId);
+        actions.Should().NotContain(action => action.EventId == deleteActionId);
+
+        scores.Should().HaveCount(1);
+        scores.Should().Contain(score => score.UserId == u1.Id && score.TaskKey == 'A' && score.Score == null);
     }
 }

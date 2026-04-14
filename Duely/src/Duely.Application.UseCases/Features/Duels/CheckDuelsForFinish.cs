@@ -117,10 +117,45 @@ public sealed class CheckDuelsForFinishHandler(
             },
             RetryUntil = retryUntil
         });
+
+        await CreateAnticheatScores(duel, cancellationToken);
         
         await context.SaveChangesAsync(cancellationToken);
         
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task CreateAnticheatScores(Duel duel, CancellationToken cancellationToken)
+    {
+        var acceptedTasks = duel.Submissions
+            .Where(submission =>
+                submission.Status == SubmissionStatus.Done &&
+                submission.Verdict == "Accepted" &&
+                (submission.User.Id == duel.User1.Id || submission.User.Id == duel.User2.Id))
+            .Select(submission => new { UserId = submission.User.Id, submission.TaskKey })
+            .Distinct()
+            .ToList();
+        var acceptedTaskHashes = acceptedTasks
+            .Select(task => $"{task.UserId}:{task.TaskKey}")
+            .ToHashSet();
+        foreach (var acceptedTask in acceptedTasks)
+        {
+            context.AnticheatScores.Add(new AnticheatScore
+            {
+                DuelId = duel.Id,
+                UserId = acceptedTask.UserId,
+                TaskKey = acceptedTask.TaskKey,
+                Score = null
+            });
+        }
+
+        var duelActions = await context.UserActions
+            .Where(action => action.DuelId == duel.Id)
+            .ToListAsync(cancellationToken);
+        var actionsToDelete = duelActions
+            .Where(action => !acceptedTaskHashes.Contains($"{action.UserId}:{action.TaskKey}"))
+            .ToList();
+        context.UserActions.RemoveRange(actionsToDelete);
     }
 
     private static bool AreAllTasksSolved(Duel duel, IReadOnlyDictionary<char, int> taskWinners)
