@@ -1,0 +1,16 @@
+networks:
+  coduels:
+    name: coduels
+    driver: bridge
+    external: true
+
+services:
+  analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: analyzer
+    networks:
+      - coduels
+    ports:
+      - "8000:8000"
