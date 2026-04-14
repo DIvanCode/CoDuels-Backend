@@ -13,6 +13,10 @@ public static class ServiceCollectionExtensions
         services.Configure<DuelEndWatcherJobOptions>(configuration.GetSection(DuelEndWatcherJobOptions.SectionName));
         services.AddHostedService<DuelEndWatcherJob>();
 
+        services.Configure<AnticheatBackgroundServiceOptions>(
+            configuration.GetSection(AnticheatBackgroundServiceOptions.SectionName));
+        services.AddHostedService<AnticheatBackgroundService>();
+
         services.Configure<TournamentSynchronizationJobOptions>(
             configuration.GetSection(TournamentSynchronizationJobOptions.SectionName));
         services.AddHostedService<TournamentSynchronizationJob>();

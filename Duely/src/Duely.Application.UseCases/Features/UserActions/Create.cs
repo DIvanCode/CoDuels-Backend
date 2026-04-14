@@ -1,9 +1,11 @@
 using Duely.Infrastructure.DataAccess.EntityFramework;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.UserActions;
 using Duely.Application.Services.Errors;
 using FluentResults;
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.UserActions;
 
@@ -23,7 +25,28 @@ public sealed class SaveUserActionsHandler(Context context)
             return new ForbiddenError("Forbidden to save actions for another user.");
         }
 
-        context.UserActions.AddRange(command.Actions);
+        var duelIds = command.Actions
+            .Select(action => action.DuelId)
+            .Distinct()
+            .ToArray();
+
+        var availableDuelIds = await context.Duels
+            .AsNoTracking()
+            .Where(duel => duelIds.Contains(duel.Id) && duel.Status != DuelStatus.Finished)
+            .Select(duel => duel.Id)
+            .ToListAsync(cancellationToken);
+
+        var availableDuelIdsSet = availableDuelIds.ToHashSet();
+        var actionsToSave = command.Actions
+            .Where(action => availableDuelIdsSet.Contains(action.DuelId))
+            .ToList();
+
+        if (actionsToSave.Count == 0)
+        {
+            return Result.Ok();
+        }
+
+        context.UserActions.AddRange(actionsToSave);
         await context.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();

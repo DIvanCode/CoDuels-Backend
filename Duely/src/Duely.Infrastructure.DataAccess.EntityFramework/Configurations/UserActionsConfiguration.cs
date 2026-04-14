@@ -49,6 +49,8 @@ public sealed class UserActionsConfiguration : IEntityTypeConfiguration<UserActi
             .HasColumnType("integer")
             .IsRequired();
 
+        builder.HasIndex(e => new { e.DuelId, e.UserId, e.TaskKey, e.SequenceId });
+
         builder.HasDiscriminator<UserActionType>(DiscriminatorProperty)
             .HasValue<ChooseLanguageUserAction>(UserActionType.ChooseLanguage)
             .HasValue<WriteCodeUserAction>(UserActionType.WriteCode)

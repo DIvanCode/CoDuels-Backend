@@ -22,6 +22,31 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Duely.Domain.Models.AnticheatScore", b =>
+                {
+                    b.Property<int>("DuelId")
+                        .HasColumnType("integer")
+                        .HasColumnName("DuelId");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.Property<string>("TaskKey")
+                        .HasColumnType("varchar(1)")
+                        .HasColumnName("TaskKey");
+
+                    b.Property<float?>("Score")
+                        .HasColumnType("real")
+                        .HasColumnName("Score");
+
+                    b.HasKey("DuelId", "UserId", "TaskKey");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AnticheatScores", (string)null);
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.CodeRun", b =>
                 {
                     b.Property<int>("Id")
@@ -579,6 +604,8 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DuelId", "UserId", "TaskKey", "SequenceId");
+
                     b.ToTable("UserActions", (string)null);
 
                     b.HasDiscriminator<string>("UserActionDiscriminator");
@@ -911,6 +938,21 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasAnnotation("Relational:JsonPropertyName", "cursor_line");
 
                     b.HasDiscriminator().HasValue("WriteCode");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.AnticheatScore", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Duels.Duel", null)
+                        .WithMany()
+                        .HasForeignKey("DuelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.CodeRun", b =>

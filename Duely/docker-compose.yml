@@ -67,6 +67,7 @@ services:
       Exesh__StatusUpdates__Mode: kafka
       Exesh__StatusUpdates__Count: 20
       Exesh__StatusUpdates__PollIntervalMs: 1000
+      Analyzer__BaseUrl: http://analyzer:8000/
       Kafka__GroupId: duely
       Kafka__TaskiTopic: taski.testing
       Kafka__ExeshTopic: exesh.step-updates
