@@ -40,7 +40,6 @@ public sealed class UpdateSubmissionStatusHandler(Context context)
 
         if (submission.Status == SubmissionStatus.Done)
         {
-            await context.SaveChangesAsync(cancellationToken);
             return Result.Ok();
         }
 
@@ -99,6 +98,12 @@ public sealed class UpdateSubmissionStatusHandler(Context context)
             submission.Message = command.Message;
         }
 
+        var statusUpdatedRetryUntil = DateTime.UtcNow.AddSeconds(10);
+        if (!string.IsNullOrEmpty(submission.Verdict))
+        {
+            statusUpdatedRetryUntil = DateTime.UtcNow.AddMinutes(5);
+        }
+        
         context.OutboxMessages.Add(new OutboxMessage
         {
             Type = OutboxType.SendMessage,
@@ -114,7 +119,7 @@ public sealed class UpdateSubmissionStatusHandler(Context context)
                     Verdict = submission.Verdict
                 }
             },
-            RetryUntil = DateTime.UtcNow.AddSeconds(10)
+            RetryUntil = statusUpdatedRetryUntil
         });
 
         await context.SaveChangesAsync(cancellationToken);

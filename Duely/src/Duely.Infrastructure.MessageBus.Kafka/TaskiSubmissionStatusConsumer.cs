@@ -72,7 +72,7 @@ public sealed class TaskiSubmissionStatusConsumer : BackgroundService
                         SubmissionId = submissionId,
                         Type = @event.Type,
                         Verdict = @event.Verdict,
-                        Message = @event.Message,
+                        Message = @event.Message ?? @event.Status,
                         Error = @event.Error
                     };
 

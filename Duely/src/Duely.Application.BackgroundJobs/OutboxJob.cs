@@ -13,7 +13,7 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
 {
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        logger.LogDebug("OutboxJob started. IntervalMs = {IntervalMs}", options.Value.CheckIntervalMs);
+        logger.LogInformation("OutboxJob started. IntervalMs = {IntervalMs}", options.Value.CheckIntervalMs);
         while (!cancellationToken.IsCancellationRequested)
         {
             using (var scope = sp.CreateScope())
@@ -31,16 +31,12 @@ public sealed class OutboxJob(IServiceProvider sp, IOptions<OutboxOptions> optio
                 }
 
                 var message = await db.OutboxMessages
-                    .Where(m => m.Status == OutboxStatus.ToDo
-                                && (m.RetryUntil > now)
-                                || (m.Status == OutboxStatus.ToRetry
-                                    && m.RetryAt != null
-                                    && m.RetryAt <= now
-                                    && m.RetryUntil > now)
-                                || (m.Status == OutboxStatus.InProgress
-                                    && m.RetryAt != null
-                                    && m.RetryAt <= now
-                                    && m.RetryUntil > now))
+                    .Where(m =>
+                        (m.Status == OutboxStatus.ToDo && m.RetryUntil > now) ||
+                        (m.Status == OutboxStatus.ToRetry && m.RetryAt != null &&
+                         m.RetryAt <= now && m.RetryUntil > now) ||
+                        (m.Status == OutboxStatus.InProgress && m.RetryAt != null &&
+                         m.RetryAt <= now && m.RetryUntil > now))
                     .OrderBy(m => m.Id)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (message is not null)
