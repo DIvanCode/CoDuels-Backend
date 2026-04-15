@@ -1,0 +1,32 @@
+- name: Build and push
+  hosts: Localhost
+  connection: local
+  tasks:
+    - name: Build duely image
+      docker_image:
+        name: divancode74/coduels-duely
+        tag: "{{ version }}"
+        source: build
+        build:
+          path: ../../
+          target: runtime
+    - name: Build duely-migration image
+      docker_image:
+        name: divancode74/coduels-duely-migration
+        tag: "{{ version }}"
+        source: build
+        build:
+          path: ../../
+          target: migration
+    - name: Push duely image
+      docker_image:
+        name: divancode74/coduels-duely
+        tag: "{{ version }}"
+        push: true
+        source: local
+    - name: Push duely-migration image
+      docker_image:
+        name: divancode74/coduels-duely-migration
+        tag: "{{ version }}"
+        push: true
+        source: local

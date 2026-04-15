@@ -1,0 +1,55 @@
+- name: Deploy
+  hosts: Production
+  vars_files:
+    - ../credentials.yml
+  remote_user: root
+  tasks:
+    - name: Ensure network exists
+      docker_network:
+        name: coduels
+        state: present
+    - name: Pull duely-migration image
+      docker_image:
+        name: divancode74/coduels-duely-migration
+        tag: "{{ version }}"
+        source: pull
+        force_source: true
+    - name: Pull duely image
+      docker_image:
+        name: divancode74/coduels-duely
+        tag: "{{ version }}"
+        source: pull
+        force_source: true
+    - name: Run duely-migration container
+      docker_container:
+        name: duely-migration
+        image: "divancode74/coduels-duely-migration:{{ version }}"
+        recreate: yes
+        restart: yes
+        ports:
+          - "5001:5001"
+        env:
+          DbConnection__ConnectionString: "{{ postgres_connection }}"
+        command: |
+          bash -c '/root/.dotnet/tools/dotnet-ef database update \
+          --connection "$$DbConnection__ConnectionString" \
+          --startup-project /app/src/Duely \
+          --project /app/src/Duely.Infrastructure.DataAccess.EntityFramework'
+    - name: Run duely container
+      docker_container:
+        name: duely
+        image: "divancode74/coduels-duely:{{ version }}"
+        recreate: yes
+        restart: yes
+        restart_policy: unless-stopped
+        ports:
+          - "5001:5001"
+        env:
+          ASPNETCORE_ENVIRONMENT: "Production"
+          DbConnection__ConnectionString: "{{ postgres_connection }}"
+          JwtToken__SecretKey: "{{ jwt_secret_key }}"
+          Taski__BaseUrl: http://taski:5252
+          Exesh__BaseUrl: http://coordinator:5253
+          Analyzer__BaseUrl: http://analyzer:8000
+        networks:
+          - name: coduels
