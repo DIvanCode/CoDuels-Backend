@@ -1,0 +1,10 @@
+- name: Build and push
+  hosts: Localhost
+  connection: local
+  tasks:
+    - name: Build analyzer image
+      command: >
+        docker build -t divancode74/coduels-analyzer:{{ version }} ../../
+    - name: Push analyzer image
+      command: >
+        docker push divancode74/coduels-analyzer:{{ version }}

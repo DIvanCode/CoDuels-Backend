@@ -3,30 +3,14 @@
   connection: local
   tasks:
     - name: Build duely image
-      docker_image:
-        name: divancode74/coduels-duely
-        tag: "{{ version }}"
-        source: build
-        build:
-          path: ../../
-          target: runtime
+      command: >
+        docker build --target runtime -t divancode74/coduels-duely:{{ version }} ../../
     - name: Build duely-migration image
-      docker_image:
-        name: divancode74/coduels-duely-migration
-        tag: "{{ version }}"
-        source: build
-        build:
-          path: ../../
-          target: migration
+      command: >
+        docker build --target migration -t divancode74/coduels-duely-migration:{{ version }} ../../
     - name: Push duely image
-      docker_image:
-        name: divancode74/coduels-duely
-        tag: "{{ version }}"
-        push: true
-        source: local
+      command: >
+        docker push divancode74/coduels-duely:{{ version }}
     - name: Push duely-migration image
-      docker_image:
-        name: divancode74/coduels-duely-migration
-        tag: "{{ version }}"
-        push: true
-        source: local
+      command: >
+        docker push divancode74/coduels-duely-migration:{{ version }}

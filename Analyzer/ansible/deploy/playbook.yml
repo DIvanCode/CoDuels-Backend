@@ -1,0 +1,25 @@
+- name: Deploy
+  hosts: Production
+  remote_user: root
+  tasks:
+    - name: Ensure network exists
+      docker_network:
+        name: coduels
+        state: present
+    - name: Pull analyzer image
+      docker_image:
+        name: divancode74/coduels-analyzer
+        tag: "{{ version }}"
+        source: pull
+        force_source: true
+    - name: Run analyzer container
+      docker_container:
+        name: analyzer
+        image: "divancode74/coduels-analyzer:{{ version }}"
+        recreate: yes
+        restart: yes
+        restart_policy: unless-stopped
+        ports:
+          - "8000:8000"
+        networks:
+          - name: coduels
