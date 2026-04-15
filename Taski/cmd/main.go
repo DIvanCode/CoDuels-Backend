@@ -54,7 +54,7 @@ func main() {
 	}
 
 	log.Info(
-		"starting coordinator",
+		"starting taski",
 		slog.String("env", cfg.Env),
 	)
 	log.Debug("debug messages are enabled")
