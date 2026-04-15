@@ -2,6 +2,8 @@ name: Taski
 
 on:
   pull_request:
+    branches:
+      - master
     paths:
       - Taski/**
 
