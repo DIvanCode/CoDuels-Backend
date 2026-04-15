@@ -35,6 +35,7 @@
           --connection "$DbConnection__ConnectionString" \
           --startup-project /app/src/Duely \
           --project /app/src/Duely.Infrastructure.DataAccess.EntityFramework'
+      register: migration_result
     - name: Fail if migration failed
       fail:
         msg: "Migration failed!"
