@@ -25,7 +25,6 @@
         name: duely-migration
         image: "divancode74/coduels-duely-migration:{{ version }}"
         recreate: yes
-        restart: no
         auto_remove: true
         detach: false
         env:
