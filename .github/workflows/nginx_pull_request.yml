@@ -1,0 +1,21 @@
+name: Nginx
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - nginx/**
+
+jobs:
+  validate-config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Validate nginx config
+        run: |
+          docker run --rm \
+            -v "$PWD/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            nginx:1.29.2 \
+            nginx -t

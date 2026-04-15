@@ -1,0 +1,32 @@
+- name: Deploy nginx
+  hosts: Production
+  remote_user: root
+  tasks:
+    - name: Ensure network exists
+      docker_network:
+        name: coduels
+        state: present
+    - name: Ensure nginx config directory exists
+      file:
+        path: /opt/coduels/nginx
+        state: directory
+        mode: "0755"
+    - name: Upload nginx config
+      copy:
+        src: ../../nginx.conf
+        dest: /opt/coduels/nginx/nginx.conf
+        mode: "0644"
+    - name: Run nginx container
+      docker_container:
+        name: nginx
+        image: nginx:1.29.2
+        recreate: yes
+        restart: yes
+        restart_policy: unless-stopped
+        ports:
+          - "80:80"
+          - "443:443"
+        volumes:
+          - /opt/coduels/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        networks:
+          - name: coduels
