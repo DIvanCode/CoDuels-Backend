@@ -4,9 +4,7 @@
   tasks:
     - name: Build exesh image
       command: >
-        docker build
-        -t divancode74/coduels-exesh:{{ version }}
-        ../../
+        docker buildx build -t divancode74/coduels-exesh:{{ version }} ../../
     - name: Push exesh image
       command: >
         docker push divancode74/coduels-exesh:{{ version }}
