@@ -1,4 +1,4 @@
-name: Duely push
+name: Duely
 
 on:
   push:

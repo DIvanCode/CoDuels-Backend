@@ -1,30 +1,18 @@
-name: Taski
+name: Exesh
 
 on:
   pull_request:
     paths:
-      - Taski/**
+      - Exesh/**
 
 jobs:
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: "^1.24.0"
-      - name: Run tests
-        run: |
-          cd Taski
-          go test -v ./...
-  
   build:
-    needs: unit-tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Set up python and ansible
         run: |
           sudo apt update
@@ -34,7 +22,7 @@ jobs:
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
       - name: Run ansible playbook
         run: |
-          cd Taski/ansible/build
+          cd Exesh/ansible/build
           ansible-playbook -i inventory playbook.yml \
             --extra-vars="version=${{ github.sha }}"
   
@@ -55,7 +43,7 @@ jobs:
         run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/vault_pass.txt
       - name: Run ansible playbook
         run: |
-          cd Taski/ansible/deploy
+          cd Exesh/ansible/deploy
           ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
             --extra-vars="version=${{ github.sha }} ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}" \
             --vault-password-file ~/vault_pass.txt

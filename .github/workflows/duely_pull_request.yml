@@ -1,4 +1,4 @@
-name: Duely pull request
+name: Duely
 
 on:
   pull_request:
