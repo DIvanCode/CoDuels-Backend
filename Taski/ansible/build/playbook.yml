@@ -3,17 +3,11 @@
   connection: local
   tasks:
     - name: Build taski image
-      docker_image:
-        name: divancode74/coduels-taski
-        tag: "{{ version }}"
-        source: build
-        build:
-          path: ../../
-        environment:
-          DOCKER_BUILDKIT: "1"
+      command: >
+        docker build
+        -t divancode74/coduels-taski:{{ version }}
+        ../../
+
     - name: Push taski image
-      docker_image:
-        name: divancode74/coduels-taski
-        tag: "{{ version }}"
-        push: true
-        source: local
+      command: >
+        docker push divancode74/coduels-taski:{{ version }}
