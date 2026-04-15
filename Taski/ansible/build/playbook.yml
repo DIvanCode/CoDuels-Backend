@@ -9,11 +9,11 @@
         source: build
         build:
           path: ../../
+        environment:
+          DOCKER_BUILDKIT: "1"
     - name: Push taski image
       docker_image:
         name: divancode74/coduels-taski
         tag: "{{ version }}"
         push: true
         source: local
-        environment:
-          DOCKER_BUILDKIT: "1"
