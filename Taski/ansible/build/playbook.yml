@@ -7,7 +7,6 @@
         docker build
         -t divancode74/coduels-taski:{{ version }}
         ../../
-
     - name: Push taski image
       command: >
         docker push divancode74/coduels-taski:{{ version }}

@@ -34,7 +34,7 @@
           EVENT_CONSUMER_MODE: rest
           MESSAGE_DISPATCHER_KAFKA_ENABLED: "false"
         volumes:
-          - ./file_storage:/app/file_storage
-          - ./config:/config:ro
+          - ./Taski/file_storage:/app/file_storage
+          - ./Taski/config:/config:ro
         networks:
           - name: coduels
