@@ -1,0 +1,17 @@
+- name: Build and push
+  hosts: Localhost
+  connection: local
+  tasks:
+    - name: Build taski image
+      docker_image:
+        name: divancode74/coduels-taski
+        tag: "{{ version }}"
+        source: build
+        build:
+          path: ../../
+    - name: Push taski image
+      docker_image:
+        name: divancode74/coduels-taski
+        tag: "{{ version }}"
+        push: true
+        source: local

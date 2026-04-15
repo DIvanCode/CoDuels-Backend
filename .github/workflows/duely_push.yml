@@ -6,7 +6,6 @@ on:
       - master
     paths:
       - Duely/**
-      - .github/**
 
 jobs:
   build:

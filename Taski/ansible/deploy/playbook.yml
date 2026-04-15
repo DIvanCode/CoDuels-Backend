@@ -1,0 +1,36 @@
+- name: Deploy
+  hosts: Production
+  vars_files:
+    - credentials.yml
+  remote_user: root
+  tasks:
+    - name: Ensure network exists
+      docker_network:
+        name: coduels
+        state: present
+    - name: Pull taski image
+      docker_image:
+        name: divancode74/coduels-taski
+        tag: "{{ version }}"
+        source: pull
+        force_source: true
+    - name: Run taski container
+      docker_container:
+        name: taski
+        image: "divancode74/coduels-taski:{{ version }}"
+        recreate: yes
+        restart: yes
+        restart_policy: unless-stopped
+        ports:
+          - "5252:5252"
+        env:
+          ENV: prod
+          CONFIG_PATH: /config/config.yml
+          HTTP_SERVER_ADDR: 0.0.0.0:5252
+          DB_CONNECTION_STRING: "{{ postgres_connection }}"
+          EXECUTE_ENDPOINT: http://coordinator:5253
+          EXECUTE_DOWNLOAD_TASK_ENDPOINT: http://taski:5252
+          EVENT_CONSUMER_MODE: rest
+          MESSAGE_DISPATCHER_KAFKA_ENABLED: false
+        networks:
+          - name: coduels
