@@ -25,17 +25,20 @@
         name: duely-migration
         image: "divancode74/coduels-duely-migration:{{ version }}"
         recreate: yes
-        restart: yes
+        restart: no
+        auto_remove: true
+        detach: false
         env:
           DbConnection__ConnectionString: "{{ postgres_connection }}"
-        command:
-          - bash
-          - -c
-          - >
-            /root/.dotnet/tools/dotnet-ef database update
-            --connection "$DbConnection__ConnectionString"
-            --startup-project /app/src/Duely
-            --project /app/src/Duely.Infrastructure.DataAccess.EntityFramework
+        command: |
+          bash -c '/root/.dotnet/tools/dotnet-ef database update \
+          --connection "$DbConnection__ConnectionString" \
+          --startup-project /app/src/Duely \
+          --project /app/src/Duely.Infrastructure.DataAccess.EntityFramework'
+    - name: Fail if migration failed
+      fail:
+        msg: "Migration failed!"
+      when: migration_result.container.State.ExitCode != 0
     - name: Run duely container
       docker_container:
         name: duely
