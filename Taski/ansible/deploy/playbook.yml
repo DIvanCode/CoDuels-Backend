@@ -23,6 +23,7 @@
         restart_policy: unless-stopped
         ports:
           - "5252:5252"
+          - "9077:9090"
         env:
           ENV: prod
           CONFIG_PATH: /config/config.yml
@@ -32,5 +33,8 @@
           EXECUTE_DOWNLOAD_TASK_ENDPOINT: http://taski:5252
           EVENT_CONSUMER_MODE: rest
           MESSAGE_DISPATCHER_KAFKA_ENABLED: false
+        volumes:
+          - ./file_storage:/app/file_storage
+          - ./config:/config:ro
         networks:
           - name: coduels
