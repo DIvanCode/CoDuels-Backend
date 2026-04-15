@@ -1,0 +1,90 @@
+- name: Deploy
+  hosts: Production
+  vars_files:
+    - credentials.yml
+  remote_user: root
+  tasks:
+    - name: Ensure network exists
+      docker_network:
+        name: coduels
+        state: present
+    - name: Pull coordinator image
+      docker_image:
+        name: divancode74/coduels-exesh-coordinator
+        tag: "{{ version }}"
+        source: pull
+        force_source: true
+    - name: Pull worker image
+      docker_image:
+        name: divancode74/coduels-exesh-worker
+        tag: "{{ version }}"
+        source: pull
+        force_source: true
+    - name: Run coordinator container
+      docker_container:
+        name: coordinator
+        image: "divancode74/coduels-exesh-coordinator:{{ version }}"
+        recreate: yes
+        restart: yes
+        restart_policy: unless-stopped
+        ports:
+          - "5253:5253"
+          - "9080:9090"
+        command:
+          - /app/bin/coordinator
+        env:
+          EXESH_ENV: prod
+          CONFIG_PATH: /app/config/coordinator.yml
+          EXESH_STORAGE_CONNECTION_STRING: "{{ postgres_connection }}"
+          EXESH_HTTP_SERVER_ADDR: 0.0.0.0:5253
+          EXESH_HTTP_SERVER_METRICS_ADDR: 0.0.0.0:9090
+          EXESH_JOB_FACTORY_FILESTORAGE_ENDPOINT: http://coordinator:5253
+          EXESH_DISPATCHER_KAFKA_ENABLED: false
+        networks:
+          - name: coduels
+    - name: Run worker-1 container
+      docker_container:
+        name: worker-1
+        image: "divancode74/coduels-exesh-worker:{{ version }}"
+        recreate: yes
+        restart: yes
+        restart_policy: unless-stopped
+        ports:
+          - "5254:5254"
+          - "9081:9091"
+        command:
+          - /app/bin/worker
+        env:
+          EXESH_ENV: prod
+          CONFIG_PATH: /app/config/worker.yml
+          EXESH_HTTP_SERVER_ADDR: 0.0.0.0:5254
+          EXESH_HTTP_SERVER_METRICS_ADDR: 0.0.0.0:9091
+          EXESH_FILE_STORAGE_ROOT_DIR: file_storage/worker-1
+          EXESH_WORKER_ID: http://worker-1:5254
+          EXESH_WORKER_FREE_SLOTS: "4"
+          EXESH_WORKER_COORDINATOR_ENDPOINT: http://coordinator:5253
+        networks:
+          - name: coduels
+    - name: Run worker-2 container
+      docker_container:
+        name: worker-2
+        image: "divancode74/coduels-exesh-worker:{{ version }}"
+        recreate: yes
+        restart: yes
+        restart_policy: unless-stopped
+        ports:
+          - "5255:5255"
+          - "9082:9092"
+        command:
+          - /app/bin/worker
+        env:
+          EXESH_ENV: prod
+          CONFIG_PATH: /app/config/worker.yml
+          EXESH_HTTP_SERVER_ADDR: 0.0.0.0:5255
+          EXESH_HTTP_SERVER_METRICS_ADDR: 0.0.0.0:9092
+          EXESH_FILE_STORAGE_ROOT_DIR: file_storage/worker-2
+          EXESH_WORKER_ID: http://worker-2:5255
+          EXESH_WORKER_FREE_SLOTS: "4"
+          EXESH_WORKER_COORDINATOR_ENDPOINT: http://coordinator:5253
+        networks:
+          - name: coduels

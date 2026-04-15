@@ -10,6 +10,7 @@ COPY ./cmd ./cmd
 COPY ./internal ./internal
 COPY ./file_storage ./file_storage
 COPY ./config ./config
+COPY ./config/isolate.conf /usr/local/etc/isolate
 
 RUN --mount=type=cache,target=/gomod-cache --mount=type=cache,target=/go-cache \
   mkdir -p /app/bin && \

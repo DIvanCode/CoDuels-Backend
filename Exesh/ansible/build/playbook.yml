@@ -1,0 +1,12 @@
+- name: Build and push
+  hosts: Localhost
+  connection: local
+  tasks:
+    - name: Build exesh image
+      command: >
+        docker build
+        -t divancode74/coduels-exesh:{{ version }}
+        ../../
+    - name: Push exesh image
+      command: >
+        docker push divancode74/coduels-exesh:{{ version }}
