@@ -119,7 +119,7 @@ jobs:
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
       - name: Create ansible vault password file
         run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/vault_pass.txt
-      - name: Run ansible playbook (deploy duely)
+      - name: Run ansible playbook
         run: |
           cd Duely/ansible/deploy
           ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \

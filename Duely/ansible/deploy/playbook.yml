@@ -26,15 +26,16 @@
         image: "divancode74/coduels-duely-migration:{{ version }}"
         recreate: yes
         restart: yes
-        ports:
-          - "5001:5001"
         env:
           DbConnection__ConnectionString: "{{ postgres_connection }}"
-        command: |
-          bash -c '/root/.dotnet/tools/dotnet-ef database update \
-          --connection "$$DbConnection__ConnectionString" \
-          --startup-project /app/src/Duely \
-          --project /app/src/Duely.Infrastructure.DataAccess.EntityFramework'
+        command:
+          - bash
+          - -c
+          - >
+            /root/.dotnet/tools/dotnet-ef database update
+            --connection "$DbConnection__ConnectionString"
+            --startup-project /app/src/Duely
+            --project /app/src/Duely.Infrastructure.DataAccess.EntityFramework
     - name: Run duely container
       docker_container:
         name: duely
