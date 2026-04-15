@@ -48,6 +48,7 @@
           - "9081:9091"
         command:
           - /app/bin/worker
+        privileged: true
         env:
           EXESH_ENV: prod
           CONFIG_PATH: /app/config/worker.yml
@@ -71,6 +72,7 @@
           - "9082:9092"
         command:
           - /app/bin/worker
+        privileged: true
         env:
           EXESH_ENV: prod
           CONFIG_PATH: /app/config/worker.yml
