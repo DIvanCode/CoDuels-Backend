@@ -54,7 +54,7 @@ func main() {
 	}
 
 	log.Info(
-		"starting coordinator",
+		"starting taski",
 		slog.String("env", cfg.Env),
 	)
 	log.Debug("debug messages are enabled")
@@ -175,6 +175,8 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	case "docker":
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	case "prod":
+		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	default:
 		err = fmt.Errorf("failed setup logger for env %s", env)
 	}

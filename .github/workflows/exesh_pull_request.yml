@@ -1,20 +1,22 @@
-name: Taski
+name: Exesh
+
 on:
   pull_request:
+    branches:
+      - master
     paths:
-      - Taski/**
-defaults:
-  run:
-    shell: bash
-    working-directory: Taski
+      - Exesh/**
+
 jobs:
-  Test:
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: "^1.24.0"
       - name: Run tests
-        run: go test -v ./...
+        run: |
+          cd Exesh
+          go test -v ./...

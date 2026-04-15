@@ -1,0 +1,16 @@
+- name: Build and push
+  hosts: Localhost
+  connection: local
+  tasks:
+    - name: Build duely image
+      command: >
+        docker build --target runtime -t divancode74/coduels-duely:{{ version }} ../../
+    - name: Build duely-migration image
+      command: >
+        docker build --target migration -t divancode74/coduels-duely-migration:{{ version }} ../../
+    - name: Push duely image
+      command: >
+        docker push divancode74/coduels-duely:{{ version }}
+    - name: Push duely-migration image
+      command: >
+        docker push divancode74/coduels-duely-migration:{{ version }}

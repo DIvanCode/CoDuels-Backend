@@ -1,15 +1,19 @@
 name: Duely
+
 on:
   pull_request:
+    branches:
+      - master
     paths:
       - Duely/**
+
 jobs:
-  Test:
+  unit-tests:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup .NET 8.0.x
         uses: actions/setup-dotnet@v4
         with:

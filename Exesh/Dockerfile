@@ -7,6 +7,8 @@ WORKDIR /app
 COPY go.mod go.sum ./
 COPY ./cmd ./cmd
 COPY ./internal ./internal
+COPY ./config ./config
+COPY ./config/isolate.conf /usr/local/etc/isolate
 
 RUN --mount=type=cache,target=/gomod-cache --mount=type=cache,target=/go-cache \
   mkdir -p /app/bin && \

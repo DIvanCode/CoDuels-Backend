@@ -1,0 +1,52 @@
+name: Taski
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - Taski/**
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Log in to docker hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
+      - name: Run ansible playbook
+        run: |
+          cd Taski/ansible/build
+          ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }}"
+  
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Log in to docker hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
+      - name: Create ansible vault password file
+        run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/vault_pass.txt
+      - name: Run ansible playbook
+        run: |
+          cd Taski/ansible/deploy
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }} ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}" \
+            --vault-password-file ~/vault_pass.txt
+      - name: Clean up
+        if: always()
+        run: rm -f ~/vault_pass.txt
