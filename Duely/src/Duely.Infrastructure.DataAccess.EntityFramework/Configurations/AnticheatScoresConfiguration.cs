@@ -7,40 +7,43 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations;
 
 public sealed class AnticheatScoresConfiguration : IEntityTypeConfiguration<AnticheatScore>
 {
+    private const string DuelIdShadowKey = "DuelId";
+    private const string UserIdShadowKey = "UserId";
+
     public void Configure(EntityTypeBuilder<AnticheatScore> builder)
     {
         builder.ToTable("AnticheatScores");
 
-        builder.HasKey(score => new { score.DuelId, score.UserId, score.TaskKey });
+        builder.HasKey(DuelIdShadowKey, UserIdShadowKey, nameof(AnticheatScore.TaskKey));
 
-        builder.Property(score => score.DuelId)
-            .HasColumnName("DuelId")
+        builder.Property<int>(DuelIdShadowKey)
+            .HasColumnName(DuelIdShadowKey)
             .HasColumnType("integer")
             .IsRequired();
 
-        builder.Property(score => score.UserId)
-            .HasColumnName("UserId")
+        builder.Property<int>(UserIdShadowKey)
+            .HasColumnName(UserIdShadowKey)
             .HasColumnType("integer")
             .IsRequired();
 
         builder.Property(score => score.TaskKey)
-            .HasColumnName("TaskKey")
+            .HasColumnName(nameof(AnticheatScore.TaskKey))
             .HasColumnType("varchar(1)")
             .IsRequired();
 
         builder.Property(score => score.Score)
-            .HasColumnName("Score")
+            .HasColumnName(nameof(AnticheatScore.Score))
             .HasColumnType("real")
             .IsRequired(false);
 
-        builder.HasOne<Duel>()
+        builder.HasOne(score => score.Duel)
             .WithMany()
-            .HasForeignKey(score => score.DuelId)
+            .HasForeignKey(DuelIdShadowKey)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne<User>()
+        builder.HasOne(score => score.User)
             .WithMany()
-            .HasForeignKey(score => score.UserId)
+            .HasForeignKey(UserIdShadowKey)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

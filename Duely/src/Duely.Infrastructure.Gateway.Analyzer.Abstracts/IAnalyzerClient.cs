@@ -13,6 +13,9 @@ public sealed class PredictRequest
 {
     [JsonPropertyName("actions")]
     public required IReadOnlyList<UserAction> Actions { get; init; }
+
+    [JsonPropertyName("user_rating")]
+    public required int UserRating { get; init; }
 }
 
 public sealed class PredictResponse

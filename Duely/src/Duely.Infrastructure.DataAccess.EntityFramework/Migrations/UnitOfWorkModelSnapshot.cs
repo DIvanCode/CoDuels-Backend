@@ -942,17 +942,21 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
             modelBuilder.Entity("Duely.Domain.Models.AnticheatScore", b =>
                 {
-                    b.HasOne("Duely.Domain.Models.Duels.Duel", null)
+                    b.HasOne("Duely.Domain.Models.Duels.Duel", "Duel")
                         .WithMany()
                         .HasForeignKey("DuelId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Duely.Domain.Models.User", null)
+                    b.HasOne("Duely.Domain.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Duel");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.CodeRun", b =>
