@@ -24,8 +24,35 @@ public sealed class CheckDuelsForAnticheatHandler(Context context, IAnalyzerClie
             .Take(PendingScoresBatchSize)
             .ToListAsync(cancellationToken);
 
+        var duelIds = pendingScores
+            .Select(score => score.DuelId)
+            .Distinct()
+            .ToList();
+
+        var duelsById = await context.Duels
+            .Include(duel => duel.User1)
+            .Include(duel => duel.User2)
+            .Where(duel => duelIds.Contains(duel.Id))
+            .ToDictionaryAsync(duel => duel.Id, cancellationToken);
+
         foreach (var pendingScore in pendingScores)
         {
+            if (!duelsById.TryGetValue(pendingScore.DuelId, out var duel))
+            {
+                return Result.Fail($"duel {pendingScore.DuelId} not found");
+            }
+
+            var userRating = pendingScore.UserId switch
+            {
+                var id when id == duel.User1.Id => duel.User1InitRating,
+                var id when id == duel.User2.Id => duel.User2InitRating,
+                _ => -1
+            };
+            if (userRating < 0)
+            {
+                return Result.Fail($"user {pendingScore.UserId} is not a duel participant for duel {pendingScore.DuelId}");
+            }
+
             var actions = await context.UserActions
                 .Where(action =>
                     action.DuelId == pendingScore.DuelId &&
@@ -37,7 +64,8 @@ public sealed class CheckDuelsForAnticheatHandler(Context context, IAnalyzerClie
             var predictResult = await analyzerClient.PredictAsync(
                 new PredictRequest
                 {
-                    Actions = actions
+                    Actions = actions,
+                    UserRating = userRating
                 },
                 cancellationToken);
 
