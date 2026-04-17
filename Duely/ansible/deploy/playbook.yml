@@ -56,5 +56,6 @@
           Exesh__BaseUrl: http://coordinator:5253
           Analyzer__BaseUrl: http://analyzer:8000
           Kafka__SaslPassword: "{{ kafka_password }}"
+          Kafka__GroupId: taski.testing-group
         networks:
           - name: coduels

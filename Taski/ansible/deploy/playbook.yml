@@ -33,6 +33,7 @@
           EXECUTE_DOWNLOAD_TASK_ENDPOINT: http://taski:5252
           EVENT_CONSUMER_MODE: kafka
           EVENT_CONSUMER_BROKERS: "192.168.0.6:19092"
+          EVENT_CONSUMER_GROUP_ID: exesh.step-updates-group
           EVENT_CONSUMER_SASL_AUTH: "true"
           EVENT_CONSUMER_SASL_USERNAME: taski
           EVENT_CONSUMER_SASL_PASSWORD: "{{ kafka_password }}"
