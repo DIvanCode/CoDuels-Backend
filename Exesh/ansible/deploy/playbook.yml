@@ -33,7 +33,11 @@
           EXESH_HTTP_SERVER_ADDR: 0.0.0.0:5253
           EXESH_HTTP_SERVER_METRICS_ADDR: 0.0.0.0:9090
           EXESH_JOB_FACTORY_FILESTORAGE_ENDPOINT: http://coordinator:5253
-          EXESH_DISPATCHER_KAFKA_ENABLED: "false"
+          EXESH_DISPATCHER_KAFKA_ENABLED: "true"
+          EXESH_DISPATCHER_BROKERS: "192.168.0.6:19092"
+          EXESH_DISPATCHER_SASL_AUTH: "true"
+          EXESH_DISPATCHER_SASL_USERNAME: coordinator
+          EXESH_DISPATCHER_SASL_PASSWORD: "{{ kafka_password }}"
         networks:
           - name: coduels
     - name: Run worker-1 container
