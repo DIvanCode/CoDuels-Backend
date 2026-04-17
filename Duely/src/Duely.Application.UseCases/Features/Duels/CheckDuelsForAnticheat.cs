@@ -1,4 +1,6 @@
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
+using Duely.Application.Services.Errors;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.Gateway.Analyzer.Abstracts;
 using FluentResults;
@@ -17,32 +19,33 @@ public sealed class CheckDuelsForAnticheatHandler(Context context, IAnalyzerClie
     public async Task<Result> Handle(CheckDuelsForAnticheatCommand request, CancellationToken cancellationToken)
     {
         var pendingScores = await context.AnticheatScores
+            .Include(score => score.Duel)
+            .ThenInclude(duel => duel.User1)
+            .Include(score => score.Duel)
+            .ThenInclude(duel => duel.User2)
+            .Include(score => score.User)
             .Where(score => !score.Score.HasValue)
-            .OrderBy(score => score.DuelId)
-            .ThenBy(score => score.UserId)
+            .OrderBy(score => score.Duel.Id)
+            .ThenBy(score => score.User.Id)
             .ThenBy(score => score.TaskKey)
             .Take(PendingScoresBatchSize)
             .ToListAsync(cancellationToken);
 
-        var duelIds = pendingScores
-            .Select(score => score.DuelId)
-            .Distinct()
-            .ToList();
-
-        var duelsById = await context.Duels
-            .Include(duel => duel.User1)
-            .Include(duel => duel.User2)
-            .Where(duel => duelIds.Contains(duel.Id))
-            .ToDictionaryAsync(duel => duel.Id, cancellationToken);
-
         foreach (var pendingScore in pendingScores)
         {
-            if (!duelsById.TryGetValue(pendingScore.DuelId, out var duel))
+            if (pendingScore.Duel is null)
             {
-                return Result.Fail($"duel {pendingScore.DuelId} not found");
+                return new EntityNotFoundError(nameof(Duel), "anticheat score relation");
+            }
+            if (pendingScore.User is null)
+            {
+                return new EntityNotFoundError(nameof(User), "anticheat score relation");
             }
 
-            var userRating = pendingScore.UserId switch
+            var duel = pendingScore.Duel;
+            var user = pendingScore.User;
+
+            var userRating = user.Id switch
             {
                 var id when id == duel.User1.Id => duel.User1InitRating,
                 var id when id == duel.User2.Id => duel.User2InitRating,
@@ -50,13 +53,15 @@ public sealed class CheckDuelsForAnticheatHandler(Context context, IAnalyzerClie
             };
             if (userRating < 0)
             {
-                return Result.Fail($"user {pendingScore.UserId} is not a duel participant for duel {pendingScore.DuelId}");
+                return new EntityNotFoundError(
+                    nameof(User),
+                    $"Id = {user.Id} in '{nameof(Duel)}' with '{nameof(Duel.Id)}' = '{duel.Id}'");
             }
 
             var actions = await context.UserActions
                 .Where(action =>
-                    action.DuelId == pendingScore.DuelId &&
-                    action.UserId == pendingScore.UserId &&
+                    action.DuelId == duel.Id &&
+                    action.UserId == user.Id &&
                     action.TaskKey == pendingScore.TaskKey)
                 .OrderBy(action => action.SequenceId)
                 .ToListAsync(cancellationToken);

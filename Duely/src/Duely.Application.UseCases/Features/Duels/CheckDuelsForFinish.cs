@@ -140,10 +140,14 @@ public sealed class CheckDuelsForFinishHandler(
             .ToHashSet();
         foreach (var acceptedTask in acceptedTasks)
         {
+            var user = acceptedTask.UserId == duel.User1.Id
+                ? duel.User1
+                : duel.User2;
+
             context.AnticheatScores.Add(new AnticheatScore
             {
-                DuelId = duel.Id,
-                UserId = acceptedTask.UserId,
+                Duel = duel,
+                User = user,
                 TaskKey = acceptedTask.TaskKey,
                 Score = null
             });
