@@ -9,7 +9,7 @@ ML anti-cheat сервис с двумя моделями:
 
 ## CI/CD поток
 
-1. При `push` в `master` запускается `.github/workflows/analyzer_push.yml`.
+1. При `pull_request` в `master` запускается `Backend/.github/workflows/analyzer_push.yml`.
 2. В `build` job:
    - запускается `python3 train.py --data-dir data/train`;
    - в логах job печатаются метрики для baseline и production;

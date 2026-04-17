@@ -1,11 +1,11 @@
 name: Analyzer
 
 on:
-  push:
+  pull_request:
     branches:
       - master
     paths:
-      - Analyzer/**
+      - 'Analyzer/**'
 
 jobs:
   build:
@@ -17,10 +17,17 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y python3-pip
+          cd Analyzer
+          pip3 install -r requirements.txt
           pip3 install ansible docker
+      - name: Train baseline and production models
+        run: |
+          cd Analyzer
+          python3 train.py --data-dir data/train
+          ls -lah artifacts
       - name: Log in to docker hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
-      - name: Run ansible playbook
+      - name: Run ansible build playbook
         run: |
           cd Analyzer/ansible/build
           ansible-playbook -i inventory playbook.yml \
@@ -39,7 +46,7 @@ jobs:
           pip3 install ansible docker
       - name: Log in to docker hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
-      - name: Run ansible playbook
+      - name: Run ansible deploy playbook
         run: |
           cd Analyzer/ansible/deploy
           ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
