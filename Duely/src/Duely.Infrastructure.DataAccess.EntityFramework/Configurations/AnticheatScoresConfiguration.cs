@@ -17,22 +17,22 @@ public sealed class AnticheatScoresConfiguration : IEntityTypeConfiguration<Anti
         builder.HasKey(DuelIdShadowKey, UserIdShadowKey, nameof(AnticheatScore.TaskKey));
 
         builder.Property<int>(DuelIdShadowKey)
-            .HasColumnName("DuelId")
+            .HasColumnName(DuelIdShadowKey)
             .HasColumnType("integer")
             .IsRequired();
 
         builder.Property<int>(UserIdShadowKey)
-            .HasColumnName("UserId")
+            .HasColumnName(UserIdShadowKey)
             .HasColumnType("integer")
             .IsRequired();
 
         builder.Property(score => score.TaskKey)
-            .HasColumnName("TaskKey")
+            .HasColumnName(nameof(AnticheatScore.TaskKey))
             .HasColumnType("varchar(1)")
             .IsRequired();
 
         builder.Property(score => score.Score)
-            .HasColumnName("Score")
+            .HasColumnName(nameof(AnticheatScore.Score))
             .HasColumnType("real")
             .IsRequired(false);
 
