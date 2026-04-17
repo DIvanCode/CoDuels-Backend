@@ -60,29 +60,29 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
             duel,
             new AnticheatScore
             {
-                DuelId = duel.Id,
-                UserId = u1.Id,
+                Duel = duel,
+                User = u1,
                 TaskKey = 'A',
                 Score = null
             },
             new AnticheatScore
             {
-                DuelId = duel.Id,
-                UserId = u1.Id,
+                Duel = duel,
+                User = u1,
                 TaskKey = 'B',
                 Score = null
             },
             new AnticheatScore
             {
-                DuelId = duel.Id,
-                UserId = u2.Id,
+                Duel = duel,
+                User = u2,
                 TaskKey = 'A',
                 Score = null
             },
             new AnticheatScore
             {
-                DuelId = duel.Id,
-                UserId = u2.Id,
+                Duel = duel,
+                User = u2,
                 TaskKey = 'B',
                 Score = null
             },
@@ -124,7 +124,8 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
 
         var scores = await ctx.AnticheatScores
             .AsNoTracking()
-            .Where(score => score.DuelId == duel.Id)
+            .Include(score => score.Duel)
+            .Where(score => score.Duel.Id == duel.Id)
             .ToListAsync();
         var remainingActions = await ctx.UserActions
             .AsNoTracking()
@@ -160,15 +161,15 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
             duel,
             new AnticheatScore
             {
-                DuelId = duel.Id,
-                UserId = u1.Id,
+                Duel = duel,
+                User = u1,
                 TaskKey = 'A',
                 Score = 0.1f
             },
             new AnticheatScore
             {
-                DuelId = duel.Id,
-                UserId = u2.Id,
+                Duel = duel,
+                User = u2,
                 TaskKey = 'A',
                 Score = null
             });
@@ -190,7 +191,9 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
 
         var scores = await ctx.AnticheatScores
             .AsNoTracking()
-            .Where(score => score.DuelId == duel.Id)
+            .Include(score => score.Duel)
+            .Include(score => score.User)
+            .Where(score => score.Duel.Id == duel.Id)
             .ToListAsync();
         var remainingActions = await ctx.UserActions
             .AsNoTracking()
@@ -199,12 +202,12 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
 
         scores.Should().HaveCount(2);
         scores.Should().Contain(score =>
-            score.UserId == u1.Id &&
+            score.User.Id == u1.Id &&
             score.TaskKey == 'A' &&
             score.Score.HasValue &&
             Math.Abs(score.Score.Value - 0.1f) < 0.0001f);
         scores.Should().Contain(score =>
-            score.UserId == u2.Id &&
+            score.User.Id == u2.Id &&
             score.TaskKey == 'A' &&
             score.Score.HasValue &&
             Math.Abs(score.Score.Value - 0.9f) < 0.0001f);
@@ -235,15 +238,15 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
             ctx.AnticheatScores.AddRange(
                 new AnticheatScore
                 {
-                    DuelId = duel.Id,
-                    UserId = u1.Id,
+                    Duel = duel,
+                    User = u1,
                     TaskKey = 'A',
                     Score = 0.2f
                 },
                 new AnticheatScore
                 {
-                    DuelId = duel.Id,
-                    UserId = u2.Id,
+                    Duel = duel,
+                    User = u2,
                     TaskKey = 'A',
                     Score = 0.3f
                 });
@@ -256,15 +259,15 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
             pendingDuel,
             new AnticheatScore
             {
-                DuelId = pendingDuel.Id,
-                UserId = u1.Id,
+                Duel = pendingDuel,
+                User = u1,
                 TaskKey = 'A',
                 Score = null
             },
             new AnticheatScore
             {
-                DuelId = pendingDuel.Id,
-                UserId = u2.Id,
+                Duel = pendingDuel,
+                User = u2,
                 TaskKey = 'A',
                 Score = null
             });
@@ -287,7 +290,8 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
 
         var pendingScores = await ctx.AnticheatScores
             .AsNoTracking()
-            .Where(score => score.DuelId == pendingDuel.Id)
+            .Include(score => score.Duel)
+            .Where(score => score.Duel.Id == pendingDuel.Id)
             .ToListAsync();
         var pendingActions = await ctx.UserActions
             .AsNoTracking()

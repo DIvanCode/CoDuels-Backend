@@ -48,7 +48,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
             .Where(m => m.Type == OutboxType.SendMessage)
             .ToListAsync();
         var anticheatScores = await ctx.AnticheatScores.AsNoTracking()
-            .Where(score => score.DuelId == duel.Id)
+            .Include(score => score.Duel)
+            .Where(score => score.Duel.Id == duel.Id)
             .ToListAsync();
 
         messages.Should().HaveCount(2);
@@ -90,7 +91,8 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
             .Where(m => m.Type == OutboxType.SendMessage)
             .ToListAsync();
         var anticheatScores = await ctx.AnticheatScores.AsNoTracking()
-            .Where(score => score.DuelId == duel.Id)
+            .Include(score => score.Duel)
+            .Where(score => score.Duel.Id == duel.Id)
             .ToListAsync();
 
         messages.Should().HaveCount(2);
@@ -464,7 +466,9 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
             .ToListAsync();
         var scores = await ctx.AnticheatScores
             .AsNoTracking()
-            .Where(score => score.DuelId == duel.Id)
+            .Include(score => score.Duel)
+            .Include(score => score.User)
+            .Where(score => score.Duel.Id == duel.Id)
             .ToListAsync();
 
         actions.Should().HaveCount(1);
@@ -472,6 +476,6 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
         actions.Should().NotContain(action => action.EventId == deleteActionId);
 
         scores.Should().HaveCount(1);
-        scores.Should().Contain(score => score.UserId == u1.Id && score.TaskKey == 'A' && score.Score == null);
+        scores.Should().Contain(score => score.User.Id == u1.Id && score.TaskKey == 'A' && score.Score == null);
     }
 }
