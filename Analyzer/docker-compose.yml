@@ -10,6 +10,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: analyzer
+    environment:
+      ANALYZER_PROD_MODEL_PATH: /app/artifacts/prod_random_forest.pkl
+      ANALYZER_BASELINE_MODEL_PATH: /app/artifacts/baseline_logreg.pkl
     networks:
       - coduels
     ports:

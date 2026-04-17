@@ -1,0 +1,10 @@
+{
+  "actions": [
+    {"id": 1, "event_id": "ccccccc3-cccc-4ccc-8ccc-ccccccccccc1", "sequence_id": 1, "timestamp": "2026-04-02T12:00:00Z", "duel_id": 203, "task_key": "A", "user_id": 2003, "type": "ChooseLanguage", "language": "Golang"},
+    {"id": 2, "event_id": "ccccccc3-cccc-4ccc-8ccc-ccccccccccc2", "sequence_id": 2, "timestamp": "2026-04-02T12:00:02Z", "duel_id": 203, "task_key": "A", "user_id": 2003, "type": "PasteCode", "code_length": 300, "cursor_line": 1, "begin_line": 1, "end_line": 30, "chars_count": 300},
+    {"id": 3, "event_id": "ccccccc3-cccc-4ccc-8ccc-ccccccccccc3", "sequence_id": 3, "timestamp": "2026-04-02T12:00:03Z", "duel_id": 203, "task_key": "A", "user_id": 2003, "type": "PasteCode", "code_length": 520, "cursor_line": 31, "begin_line": 31, "end_line": 58, "chars_count": 220},
+    {"id": 4, "event_id": "ccccccc3-cccc-4ccc-8ccc-ccccccccccc4", "sequence_id": 4, "timestamp": "2026-04-02T12:00:05Z", "duel_id": 203, "task_key": "A", "user_id": 2003, "type": "RunCustomTest"},
+    {"id": 5, "event_id": "ccccccc3-cccc-4ccc-8ccc-ccccccccccc5", "sequence_id": 5, "timestamp": "2026-04-02T12:00:07Z", "duel_id": 203, "task_key": "A", "user_id": 2003, "type": "SubmitSolution"}
+  ],
+  "user_rating": 1330
+}

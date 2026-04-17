@@ -1,0 +1,13 @@
+{
+  "actions": [
+    {"id": 1, "event_id": "11111111-1111-4111-8111-111111111111", "sequence_id": 1, "timestamp": "2026-04-01T10:00:00Z", "duel_id": 101, "task_key": "A", "user_id": 1001, "type": "ChooseLanguage", "language": "Python"},
+    {"id": 2, "event_id": "11111111-1111-4111-8111-111111111112", "sequence_id": 2, "timestamp": "2026-04-01T10:00:03Z", "duel_id": 101, "task_key": "A", "user_id": 1001, "type": "WriteCode", "code_length": 1, "cursor_line": 1},
+    {"id": 3, "event_id": "11111111-1111-4111-8111-111111111113", "sequence_id": 3, "timestamp": "2026-04-01T10:00:05Z", "duel_id": 101, "task_key": "A", "user_id": 1001, "type": "WriteCode", "code_length": 2, "cursor_line": 1},
+    {"id": 4, "event_id": "11111111-1111-4111-8111-111111111114", "sequence_id": 4, "timestamp": "2026-04-01T10:00:08Z", "duel_id": 101, "task_key": "A", "user_id": 1001, "type": "DeleteCode", "code_length": 1, "cursor_line": 1},
+    {"id": 5, "event_id": "11111111-1111-4111-8111-111111111115", "sequence_id": 5, "timestamp": "2026-04-01T10:00:13Z", "duel_id": 101, "task_key": "A", "user_id": 1001, "type": "RunSampleTest"},
+    {"id": 6, "event_id": "11111111-1111-4111-8111-111111111116", "sequence_id": 6, "timestamp": "2026-04-01T10:00:27Z", "duel_id": 101, "task_key": "A", "user_id": 1001, "type": "WriteCode", "code_length": 3, "cursor_line": 2},
+    {"id": 7, "event_id": "11111111-1111-4111-8111-111111111117", "sequence_id": 7, "timestamp": "2026-04-01T10:00:39Z", "duel_id": 101, "task_key": "A", "user_id": 1001, "type": "RunCustomTest"},
+    {"id": 8, "event_id": "11111111-1111-4111-8111-111111111118", "sequence_id": 8, "timestamp": "2026-04-01T10:00:58Z", "duel_id": 101, "task_key": "A", "user_id": 1001, "type": "SubmitSolution"}
+  ],
+  "user_rating": 1520
+}

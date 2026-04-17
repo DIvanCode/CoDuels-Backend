@@ -1,0 +1,13 @@
+{
+  "actions": [
+    {"id": 1, "event_id": "44444444-4444-4444-8444-444444444441", "sequence_id": 1, "timestamp": "2026-04-01T13:00:00Z", "duel_id": 104, "task_key": "A", "user_id": 1004, "type": "ChooseLanguage", "language": "Python"},
+    {"id": 2, "event_id": "44444444-4444-4444-8444-444444444442", "sequence_id": 2, "timestamp": "2026-04-01T13:00:03Z", "duel_id": 104, "task_key": "A", "user_id": 1004, "type": "WriteCode", "code_length": 1, "cursor_line": 1},
+    {"id": 3, "event_id": "44444444-4444-4444-8444-444444444443", "sequence_id": 3, "timestamp": "2026-04-01T13:00:05Z", "duel_id": 104, "task_key": "A", "user_id": 1004, "type": "WriteCode", "code_length": 2, "cursor_line": 1},
+    {"id": 4, "event_id": "44444444-4444-4444-8444-444444444444", "sequence_id": 4, "timestamp": "2026-04-01T13:00:08Z", "duel_id": 104, "task_key": "A", "user_id": 1004, "type": "PasteCode", "code_length": 8, "cursor_line": 2, "begin_line": 2, "end_line": 3, "chars_count": 6},
+    {"id": 5, "event_id": "44444444-4444-4444-8444-444444444445", "sequence_id": 5, "timestamp": "2026-04-01T13:00:12Z", "duel_id": 104, "task_key": "A", "user_id": 1004, "type": "DeleteCode", "code_length": 7, "cursor_line": 2},
+    {"id": 6, "event_id": "44444444-4444-4444-8444-444444444446", "sequence_id": 6, "timestamp": "2026-04-01T13:00:16Z", "duel_id": 104, "task_key": "A", "user_id": 1004, "type": "RunSampleTest"},
+    {"id": 7, "event_id": "44444444-4444-4444-8444-444444444447", "sequence_id": 7, "timestamp": "2026-04-01T13:00:29Z", "duel_id": 104, "task_key": "A", "user_id": 1004, "type": "RunCustomTest"},
+    {"id": 8, "event_id": "44444444-4444-4444-8444-444444444448", "sequence_id": 8, "timestamp": "2026-04-01T13:00:43Z", "duel_id": 104, "task_key": "A", "user_id": 1004, "type": "SubmitSolution"}
+  ],
+  "user_rating": 1635
+}

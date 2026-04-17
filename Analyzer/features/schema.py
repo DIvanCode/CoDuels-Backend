@@ -1,0 +1,25 @@
+from __future__ import annotations
+
+FEATURE_NAMES: tuple[str, ...] = (
+    "typing_speed_avg",
+    "typing_speed_std",
+    "active_intervals_count",
+    "avg_active_interval_duration",
+    "edits_count",
+    "avg_edit_size",
+    "max_edit_size",
+    "edit_size_std",
+    "small_edit_ratio",
+    "paste_count",
+    "avg_paste_size",
+    "max_paste_size",
+    "paste_ratio",
+    "edits_after_paste_ratio",
+    "cursor_jump_count",
+    "typed_chars_ratio",
+    "typed_chars_total",
+    "runs_sample_tests_count",
+    "runs_custom_tests_count",
+    "submit_count",
+    "user_rating",
+)

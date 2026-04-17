@@ -1,9 +1,10 @@
 from pydantic import BaseModel
-from models.user_actions import UserAction
+from domain.user_actions import UserAction
 
 
 class PredictRequest(BaseModel):
     actions: list[UserAction]
+    user_rating: float
 
 
 class PredictResponse(BaseModel):
