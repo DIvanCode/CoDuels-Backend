@@ -89,7 +89,7 @@ public sealed class ExeshSubmissionStatusRestPoller(
                     Type = executionEvent.Event.Type,
                     Status = executionEvent.Event.Status,
                     Output = executionEvent.Event.Output,
-                    Error = executionEvent.Event.Error
+                    Error = executionEvent.Event.Error ?? executionEvent.Event.CompilationError
                 }, cancellationToken);
 
                 if (updateResult.IsFailed)

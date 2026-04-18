@@ -12,6 +12,6 @@ public sealed class CreateCodeRunRequest
     [JsonPropertyName("language"), JsonConverter(typeof(JsonStringEnumConverter)), Required]
     public required Language Language { get; init; }
 
-    [JsonPropertyName("input"), Required]
+    [JsonPropertyName("input"), JsonRequired]
     public required string Input { get; init; }
 }

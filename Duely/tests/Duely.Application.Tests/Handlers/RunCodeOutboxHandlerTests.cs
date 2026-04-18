@@ -59,7 +59,7 @@ public class RunCodeOutboxHandlerTests : ContextBasedTest
         var client = new Mock<IExeshClient>();
         var execResult = new ExecuteResponse("exec-123");
         client
-            .Setup(c => c.ExecuteAsync(It.IsAny<ExeshStep[]>(), It.IsAny<CancellationToken>()))
+            .Setup(c => c.ExecuteAsync(It.IsAny<ExecuteCodeRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Ok(execResult));
 
         var handler = new RunCodeOutboxHandler(client.Object, ctx);
@@ -79,7 +79,7 @@ public class RunCodeOutboxHandlerTests : ContextBasedTest
         var updatedRun = await ctx.CodeRuns.SingleAsync(r => r.Id == 100);
         updatedRun.ExecutionId.Should().Be("exec-123");
         
-        client.Verify(c => c.ExecuteAsync(It.IsAny<ExeshStep[]>(), It.IsAny<CancellationToken>()), Times.Once);
+        client.Verify(c => c.ExecuteAsync(It.IsAny<ExecuteCodeRequest>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public class RunCodeOutboxHandlerTests : ContextBasedTest
 
         var client = new Mock<IExeshClient>();
         client
-            .Setup(c => c.ExecuteAsync(It.IsAny<ExeshStep[]>(), It.IsAny<CancellationToken>()))
+            .Setup(c => c.ExecuteAsync(It.IsAny<ExecuteCodeRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Fail("Execution error"));
 
         var handler = new RunCodeOutboxHandler(client.Object, ctx);

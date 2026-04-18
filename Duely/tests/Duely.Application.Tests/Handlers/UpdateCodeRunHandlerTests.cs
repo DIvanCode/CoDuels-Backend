@@ -223,6 +223,58 @@ public class UpdateCodeRunHandlerTests : ContextBasedTest
     }
 
     [Fact]
+    public async Task Finishes_with_generated_error_when_run_status_not_ok_and_error_missing()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        ctx.Users.Add(u1);
+        var run = MakeUserCodeRun(100, u1, "exec-id-1", UserCodeRunStatus.Running);
+        ctx.CodeRuns.Add(run);
+        await ctx.SaveChangesAsync();
+
+        var handler = new UpdateCodeRunHandler(ctx);
+        var res = await handler.Handle(new UpdateCodeRunCommand
+        {
+            ExecutionId = "exec-id-1",
+            Type = "run",
+            Status = "TL"
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+
+        var r = await ctx.CodeRuns.AsNoTracking().SingleAsync(x => x.Id == 100);
+        r.Status.Should().Be(UserCodeRunStatus.Done);
+        r.Error.Should().Be("Execution failed with status TL.");
+    }
+
+    [Fact]
+    public async Task Finishes_with_generated_error_when_compile_status_not_ok_and_error_missing()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        ctx.Users.Add(u1);
+        var run = MakeUserCodeRun(100, u1, "exec-id-1", UserCodeRunStatus.Running);
+        ctx.CodeRuns.Add(run);
+        await ctx.SaveChangesAsync();
+
+        var handler = new UpdateCodeRunHandler(ctx);
+        var res = await handler.Handle(new UpdateCodeRunCommand
+        {
+            ExecutionId = "exec-id-1",
+            Type = "compile",
+            Status = "CE"
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+
+        var r = await ctx.CodeRuns.AsNoTracking().SingleAsync(x => x.Id == 100);
+        r.Status.Should().Be(UserCodeRunStatus.Done);
+        r.Error.Should().Be("Execution failed with status CE.");
+    }
+
+    [Fact]
     public async Task Finishes_on_finish_type_when_no_error()
     {
         var ctx = Context;
