@@ -83,7 +83,7 @@ public sealed class ExeshSubmissionStatusConsumer : BackgroundService
                     Type = @event.Type,
                     Status = @event.Status,
                     Output = @event.Output,
-                    Error = @event.Error
+                    Error = @event.Error ?? @event.CompilationError
                 };
 
                 await mediator.Send(command, cancellationToken);

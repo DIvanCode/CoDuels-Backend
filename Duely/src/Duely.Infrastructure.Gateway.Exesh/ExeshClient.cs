@@ -8,11 +8,13 @@ namespace Duely.Infrastructure.Gateway.Exesh;
 
 public sealed class ExeshClient(HttpClient http) : IExeshClient
 {
-    public async Task<Result<ExecuteResponse>> ExecuteAsync(ExeshStep[] steps, CancellationToken cancellationToken)
+    public async Task<Result<ExecuteResponse>> ExecuteAsync(
+        ExecuteCodeRequest executeCodeRequest,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var request = new ExecuteRequest(steps);
+            var request = ExecutionFactory.Build(executeCodeRequest);
             using var resp = await http.PostAsJsonAsync("execute", request, cancellationToken);
 
             if (!resp.IsSuccessStatusCode)
@@ -72,10 +74,6 @@ public sealed class ExeshClient(HttpClient http) : IExeshClient
         }
     }
 
-    private sealed record ExecuteRequest(
-        [property: JsonPropertyName("steps")] IReadOnlyCollection<ExeshStep> Steps
-    );
-
     private sealed class ExecuteDto
     {
         [JsonPropertyName("status")]
@@ -96,4 +94,5 @@ public sealed class ExeshClient(HttpClient http) : IExeshClient
         [JsonPropertyName("messages")]
         public IReadOnlyList<ExeshExecutionEvent> Events { get; init; } = [];
     }
+
 }

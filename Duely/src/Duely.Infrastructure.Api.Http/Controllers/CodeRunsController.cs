@@ -1,5 +1,6 @@
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Features.CodeRuns;
+using Duely.Infrastructure.Api.Http.Requests.CodeRuns;
 using Duely.Infrastructure.Api.Http.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -14,7 +15,7 @@ public sealed class RunsController(IMediator mediator, IUserContext userContext)
 {
     [HttpPost]
     public async Task<ActionResult<CodeRunDto>> RunUserCodeAsync(
-        [FromBody] CreateCodeRunCommand request,
+        [FromBody] CreateCodeRunRequest request,
         CancellationToken cancellationToken)
     {
         var command = new CreateCodeRunCommand

@@ -60,8 +60,16 @@ public sealed class UpdateCodeRunHandler(Context context) : IRequestHandler<Upda
             else
             {
                 codeRun.Status = UserCodeRunStatus.Done;
-                codeRun.Error = command.Error;
+                codeRun.Error = BuildError(command.Error, command.Status);
             }
+        }
+
+        if (command.Type == "compile" &&
+            !string.IsNullOrEmpty(command.Status) &&
+            command.Status != "OK")
+        {
+            codeRun.Status = UserCodeRunStatus.Done;
+            codeRun.Error = BuildError(command.Error, command.Status);
         }
 
         if (command.Type == "finish" &&
@@ -89,5 +97,20 @@ public sealed class UpdateCodeRunHandler(Context context) : IRequestHandler<Upda
 
         await context.SaveChangesAsync(cancellationToken);
         return Result.Ok();
+    }
+
+    private static string BuildError(string? error, string? status)
+    {
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            return error;
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            return $"Execution failed with status {status}.";
+        }
+
+        return "Execution failed.";
     }
 }

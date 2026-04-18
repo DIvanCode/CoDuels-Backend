@@ -21,12 +21,12 @@ public sealed class RunCodeOutboxHandler(IExeshClient client, Context context)
             return new EntityNotFoundError(nameof(CodeRun), nameof(CodeRun.Id), payload.RunId);
         }
 
-        var steps = ExeshStepsBuilder.BuildRunSteps(
-            payload.Code,
-            payload.Language,
-            payload.Input);
-
-        var execResult = await client.ExecuteAsync(steps, cancellationToken);
+        var execResult = await client.ExecuteAsync(
+            new ExecuteCodeRequest(
+                Code: payload.Code,
+                Language: payload.Language.ToString(),
+                Input: payload.Input),
+            cancellationToken);
 
         if (execResult.IsFailed)
         {

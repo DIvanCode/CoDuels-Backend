@@ -19,4 +19,7 @@ public sealed class ExeshStatusEvent
 
     [JsonPropertyName("error")]
     public string? Error { get; init; }
+
+    [JsonPropertyName("compilation_error")]
+    public string? CompilationError { get; init; }
 }
