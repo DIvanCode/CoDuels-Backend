@@ -25,9 +25,6 @@ type RunPyJobExecutor struct {
 
 	job jobs.Job
 
-	codeRuntimePath         string
-	runInputRuntimePath     string
-	runOutputRuntimePath    string
 	runtimeResourceRegistry *executor.RuntimeResourceRegistry
 }
 
@@ -94,6 +91,10 @@ func (e *RunPyJobExecutor) Init(ctx context.Context) error {
 		}
 		e.runtime = rt
 	}
+
+	jb := e.job.AsRunPy()
+	e.runtimeResourceRegistry.Set(jb.Code.SourceID, "solution.py")
+	e.runtimeResourceRegistry.Set(jb.RunInput.SourceID, "input.txt")
 	return nil
 }
 
@@ -112,17 +113,21 @@ func (e *RunPyJobExecutor) PrepareInput(ctx context.Context) error {
 	}
 	defer unlock()
 
-	e.codeRuntimePath = "solution.py"
-	e.runInputRuntimePath = "input.txt"
+	codeRuntimePath, err := e.runtimeResourceRegistry.Get(jb.Code.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get code runtime path: %w", err)
+	}
+	runInputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.RunInput.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get run input runtime path: %w", err)
+	}
 
-	if err = e.runtime.CopyToRuntime(ctx, codePath, e.codeRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, codePath, codeRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy code to runtime: %w", err)
 	}
-	e.runtimeResourceRegistry.Set(jb.Code.SourceID, e.codeRuntimePath)
-	if err = e.runtime.CopyToRuntime(ctx, runInputPath, e.runInputRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, runInputPath, runInputRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy run input to runtime: %w", err)
 	}
-	e.runtimeResourceRegistry.Set(jb.RunInput.SourceID, e.runInputRuntimePath)
 
 	return nil
 }
@@ -141,21 +146,19 @@ func (e *RunPyJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	if err != nil {
 		return results.Error(e.job, err)
 	}
-	e.codeRuntimePath = codeRuntimePath
-	e.runInputRuntimePath = runInputRuntimePath
 
-	e.runOutputRuntimePath = "output.txt"
+	runOutputRuntimePath := "output.txt"
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.RunCommand(
 		ctx,
-		[]string{"/usr/bin/python3", e.codeRuntimePath},
+		[]string{"/usr/bin/python3", codeRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(int64(jb.MemoryLimit) * int64(runtime.Megabyte)),
 				Time:   runtime.TimeLimit(int64(jb.TimeLimit) * int64(time.Millisecond)),
 			},
-			StdinFile:  e.runInputRuntimePath,
-			StdoutFile: e.runOutputRuntimePath,
+			StdinFile:  runInputRuntimePath,
+			StdoutFile: runOutputRuntimePath,
 			Stderr:     stderr,
 		},
 	)
@@ -171,7 +174,7 @@ func (e *RunPyJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	}
 
 	e.log.Info("command ok")
-	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), e.runOutputRuntimePath)
+	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), runOutputRuntimePath)
 
 	if !jb.ShowOutput {
 		return results.NewRunResultOK(jb.GetID())
@@ -184,7 +187,7 @@ func (e *RunPyJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	defer func() { _ = os.Remove(tmp.Name()) }()
 	defer func() { _ = tmp.Close() }()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.runOutputRuntimePath, tmp.Name()); err != nil {
+	if err = e.runtime.CopyFromRuntime(ctx, runOutputRuntimePath, tmp.Name()); err != nil {
 		return results.Error(e.job, fmt.Errorf("failed to copy run output from runtime: %w", err))
 	}
 	out, err := os.ReadFile(tmp.Name())
@@ -216,7 +219,11 @@ func (e *RunPyJobExecutor) SaveOutput(ctx context.Context) error {
 		_ = abortOutput()
 	}()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.runOutputRuntimePath, runOutput); err != nil {
+	runOutputRuntimePath, err := executor.GetJobOutputRuntimePath(e.runtimeResourceRegistry, e.job.GetID())
+	if err != nil {
+		return fmt.Errorf("failed to get run_output runtimePath: %w", err)
+	}
+	if err = e.runtime.CopyFromRuntime(ctx, runOutputRuntimePath, runOutput); err != nil {
 		return fmt.Errorf("failed to copy run_output from runtime: %w", err)
 	}
 

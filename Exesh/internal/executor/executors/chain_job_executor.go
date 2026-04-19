@@ -3,6 +3,7 @@ package executors
 import (
 	"context"
 	"errors"
+	"exesh/internal/domain/execution/input"
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result/results"
@@ -110,20 +111,29 @@ func (e *ChainJobExecutor) PrepareInput(ctx context.Context) error {
 		return fmt.Errorf("empty chain")
 	}
 
-	for _, in := range chainJob.GetInputs() {
+	prepareSingleInput := func(in input.Input) error {
 		srcPath, unlock, locateErr := e.sourceProvider.Locate(ctx, in.SourceID)
 		if locateErr != nil {
 			return fmt.Errorf("locate source %s: %w", in.SourceID.String(), locateErr)
 		}
+		defer unlock()
 
-		runtimePath := "chain_inputs/" + in.SourceID.String()
-		copyErr := e.runtime.CopyToRuntime(ctx, srcPath, runtimePath)
-		unlock()
-		if copyErr != nil {
-			return fmt.Errorf("copy source %s to runtime: %w", in.SourceID.String(), copyErr)
+		runtimePath, err := e.runtimeResourceRegistry.Get(in.SourceID)
+		if err != nil {
+			return fmt.Errorf("get runtime path %s: %w", in.SourceID.String(), err)
 		}
 
-		e.runtimeResourceRegistry.Set(in.SourceID, runtimePath)
+		if err := e.runtime.CopyToRuntime(ctx, srcPath, runtimePath); err != nil {
+			return fmt.Errorf("copy source %s to runtime: %w", in.SourceID.String(), err)
+		}
+
+		return nil
+	}
+
+	for _, in := range chainJob.GetInputs() {
+		if err := prepareSingleInput(in); err != nil {
+			return fmt.Errorf("failed to prepare input %s: %w", in.SourceID.String(), err)
+		}
 	}
 
 	return nil

@@ -45,3 +45,15 @@ func RegisterJobOutputRuntimePath(registry *RuntimeResourceRegistry, jobID job.I
 	}
 	registry.Set(sourceID, runtimePath)
 }
+
+func GetJobOutputRuntimePath(registry *RuntimeResourceRegistry, jobID job.ID) (string, error) {
+	if registry == nil {
+		return "", fmt.Errorf("runtime registry is nil")
+	}
+
+	var sourceID source.ID
+	if err := sourceID.FromString(jobID.String()); err != nil {
+		return "", fmt.Errorf("runtime source %s not found", jobID.String())
+	}
+	return registry.Get(sourceID)
+}

@@ -24,11 +24,7 @@ type CheckCppJobExecutor struct {
 
 	job jobs.Job
 
-	compiledCheckerRuntimePath string
-	correctOutputRuntimePath   string
-	suspectOutputRuntimePath   string
-	checkVerdictRuntimePath    string
-	runtimeResourceRegistry    *executor.RuntimeResourceRegistry
+	runtimeResourceRegistry *executor.RuntimeResourceRegistry
 }
 
 type CheckCppExecutorFactory struct {
@@ -94,6 +90,11 @@ func (e *CheckCppJobExecutor) Init(ctx context.Context) error {
 		}
 		e.runtime = rt
 	}
+
+	jb := e.job.AsCheckCpp()
+	e.runtimeResourceRegistry.Set(jb.CompiledChecker.SourceID, "checker")
+	e.runtimeResourceRegistry.Set(jb.CorrectOutput.SourceID, "correct.txt")
+	e.runtimeResourceRegistry.Set(jb.SuspectOutput.SourceID, "suspect.txt")
 	return nil
 }
 
@@ -118,23 +119,30 @@ func (e *CheckCppJobExecutor) PrepareInput(ctx context.Context) error {
 	}
 	defer unlock()
 
-	e.compiledCheckerRuntimePath = "checker"
-	if err = e.runtime.CopyToRuntime(ctx, compiledChecker, e.compiledCheckerRuntimePath); err != nil {
+	compiledCheckerRuntimePath, err := e.runtimeResourceRegistry.Get(jb.CompiledChecker.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get compiled checker runtime path: %w", err)
+	}
+	correctOutputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.CorrectOutput.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get correct output runtime path: %w", err)
+	}
+	suspectOutputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.SuspectOutput.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get suspect output runtime path: %w", err)
+	}
+
+	if err = e.runtime.CopyToRuntime(ctx, compiledChecker, compiledCheckerRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy compiled checker to runtime: %w", err)
 	}
-	e.runtimeResourceRegistry.Set(jb.CompiledChecker.SourceID, e.compiledCheckerRuntimePath)
 
-	e.correctOutputRuntimePath = "correct.txt"
-	if err = e.runtime.CopyToRuntime(ctx, correctOutput, e.correctOutputRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, correctOutput, correctOutputRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy correct output to runtime: %w", err)
 	}
-	e.runtimeResourceRegistry.Set(jb.CorrectOutput.SourceID, e.correctOutputRuntimePath)
 
-	e.suspectOutputRuntimePath = "suspect.txt"
-	if err = e.runtime.CopyToRuntime(ctx, suspectOutput, e.suspectOutputRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, suspectOutput, suspectOutputRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy suspect output to runtime: %w", err)
 	}
-	e.runtimeResourceRegistry.Set(jb.SuspectOutput.SourceID, e.suspectOutputRuntimePath)
 
 	return nil
 }
@@ -157,21 +165,18 @@ func (e *CheckCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result
 	if err != nil {
 		return results.Error(e.job, err)
 	}
-	e.compiledCheckerRuntimePath = checkerRuntimePath
-	e.correctOutputRuntimePath = correctRuntimePath
-	e.suspectOutputRuntimePath = suspectRuntimePath
 
 	stderr := bytes.NewBuffer(nil)
-	e.checkVerdictRuntimePath = "verdict.txt"
+	checkVerdictRuntimePath := "verdict.txt"
 	err = e.runtime.RunCommand(
 		ctx,
-		[]string{"./" + e.compiledCheckerRuntimePath, e.correctOutputRuntimePath, e.suspectOutputRuntimePath},
+		[]string{"./" + checkerRuntimePath, correctRuntimePath, suspectRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
 				Time:   runtime.TimeLimit(2000 * int64(time.Millisecond)),
 			},
-			StdoutFile: e.checkVerdictRuntimePath,
+			StdoutFile: checkVerdictRuntimePath,
 			Stderr:     stderr,
 		},
 	)
@@ -181,7 +186,7 @@ func (e *CheckCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result
 	}
 
 	e.log.Info("command ok")
-	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), e.checkVerdictRuntimePath)
+	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), checkVerdictRuntimePath)
 
 	checkVerdict, err := os.CreateTemp("/tmp", "*")
 	if err != nil {
@@ -190,7 +195,7 @@ func (e *CheckCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result
 	defer func() { _ = os.Remove(checkVerdict.Name()) }()
 	defer func() { _ = checkVerdict.Close() }()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.checkVerdictRuntimePath, checkVerdict.Name()); err != nil {
+	if err = e.runtime.CopyFromRuntime(ctx, checkVerdictRuntimePath, checkVerdict.Name()); err != nil {
 		return results.Error(e.job, fmt.Errorf("failed to copy check verdict from runtime: %w", err))
 	}
 	checkVerdictOutput, err := os.ReadFile(checkVerdict.Name())
