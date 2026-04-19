@@ -7,6 +7,7 @@ import (
 	"exesh/internal/runtime"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +30,17 @@ type Runtime struct {
 	mu  sync.Mutex
 	box *box
 }
+
+const (
+	// Per-file size limit for files created inside sandbox (in KB).
+	maxSandboxFileSizeKB = 32 * 1024
+	// Total sandbox disk quota: blocks,inodes (blocks are 1KB).
+	// Keep enough room for regular execution artifacts, but prevent abuse.
+	maxSandboxQuotaBlocks = 64 * 1024
+	maxSandboxQuotaInodes = 16
+	maxSandboxFiles       = 16
+	maxSandboxBytes       = 64 * 1024 * 1024
+)
 
 type FuncOpt func(r *Runtime) error
 
@@ -115,6 +127,9 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 	metaFile := ".meta"
 
 	runArgs := []string{"-b", strconv.Itoa(b.ID), "--run"}
+	runArgs = append(runArgs, "--processes=1")
+	runArgs = append(runArgs, "--fsize="+strconv.Itoa(maxSandboxFileSizeKB))
+	runArgs = append(runArgs, "--quota="+strconv.Itoa(maxSandboxQuotaBlocks)+","+strconv.Itoa(maxSandboxQuotaInodes))
 	if params.Limits.Time != 0 {
 		secs := time.Duration(params.Limits.Time).Seconds()
 		runArgs = append(runArgs, "--time="+formatSeconds(secs))
@@ -142,7 +157,10 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 
 	runErr := runCmd.Run()
 
-	if err = handleMeta(filepath.Join(b.Root, "box", metaFile)); err != nil {
+	if err = handleMeta(filepath.Join(b.Root, metaFile)); err != nil {
+		return err
+	}
+	if err = enforceSandboxFSLimits(filepath.Join(b.Root, "box")); err != nil {
 		return err
 	}
 
@@ -162,6 +180,43 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 		return fmt.Errorf("isolate run: %w: %s", runErr, strings.TrimSpace(runStderr.String()))
 	}
 
+	return nil
+}
+
+func enforceSandboxFSLimits(boxPath string) error {
+	var fileCount int
+	var totalBytes int64
+
+	err := filepath.WalkDir(boxPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+
+		info, statErr := d.Info()
+		if statErr != nil {
+			return statErr
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+
+		fileCount++
+		totalBytes += info.Size()
+
+		if fileCount > maxSandboxFiles {
+			return fmt.Errorf("sandbox fs limit exceeded: too many files (%d > %d)", fileCount, maxSandboxFiles)
+		}
+		if totalBytes > maxSandboxBytes {
+			return fmt.Errorf("sandbox fs limit exceeded: too much data (%d > %d)", totalBytes, maxSandboxBytes)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -245,20 +300,51 @@ func handleMeta(metaPath string) error {
 		return nil
 	}
 	status := ""
+	message := ""
+	cgOOMKilled := ""
 	for _, line := range strings.Split(string(b), "\n") {
-		if strings.HasPrefix(line, "status:") {
-			status = strings.TrimSpace(strings.TrimPrefix(line, "status:"))
-			break
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		switch key {
+		case "status":
+			status = value
+		case "message":
+			message = value
+		case "cg-oom-killed":
+			cgOOMKilled = value
 		}
 	}
+
 	switch status {
+	case "", "OK":
+		return nil
 	case "TO":
 		return runtime.ErrTimeout
 	case "ML":
 		return runtime.ErrOutOfMemory
+	case "SG":
+		if isOOMMessage(message) || cgOOMKilled == "1" {
+			return runtime.ErrOutOfMemory
+		}
+		return fmt.Errorf("sandbox violation: %s", message)
+	case "RE":
+		return fmt.Errorf("runtime error: %s", message)
+	case "XX":
+		return fmt.Errorf("runtime failure: %s", message)
 	default:
-		return nil
+		return fmt.Errorf("isolate status %q: %s", status, message)
 	}
+}
+
+func isOOMMessage(message string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(message))
+	return strings.Contains(normalized, "memory limit") ||
+		strings.Contains(normalized, "out of memory") ||
+		strings.Contains(normalized, "cannot allocate memory")
 }
 
 func formatSeconds(sec float64) string {

@@ -25,9 +25,6 @@ type RunCppJobExecutor struct {
 
 	job jobs.Job
 
-	compiledCodeRuntimePath string
-	runInputRuntimePath     string
-	runOutputRuntimePath    string
 	runtimeResourceRegistry *executor.RuntimeResourceRegistry
 }
 
@@ -94,6 +91,10 @@ func (e *RunCppJobExecutor) Init(ctx context.Context) error {
 		}
 		e.runtime = rt
 	}
+
+	jb := e.job.AsRunCpp()
+	e.runtimeResourceRegistry.Set(jb.CompiledCode.SourceID, "a.out")
+	e.runtimeResourceRegistry.Set(jb.RunInput.SourceID, "input.txt")
 	return nil
 }
 
@@ -112,17 +113,22 @@ func (e *RunCppJobExecutor) PrepareInput(ctx context.Context) error {
 	}
 	defer unlock()
 
-	e.compiledCodeRuntimePath = "a.out"
-	if err = e.runtime.CopyToRuntime(ctx, compiledCodePath, e.compiledCodeRuntimePath); err != nil {
+	compiledCodeRuntimePath, err := e.runtimeResourceRegistry.Get(jb.CompiledCode.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get compiled code runtime path: %w", err)
+	}
+	runInputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.RunInput.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get run input runtime path: %w", err)
+	}
+
+	if err = e.runtime.CopyToRuntime(ctx, compiledCodePath, compiledCodeRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy compiled code to runtime: %w", err)
 	}
-	e.runtimeResourceRegistry.Set(jb.CompiledCode.SourceID, e.compiledCodeRuntimePath)
 
-	e.runInputRuntimePath = "input.txt"
-	if err = e.runtime.CopyToRuntime(ctx, runInputPath, e.runInputRuntimePath); err != nil {
+	if err = e.runtime.CopyToRuntime(ctx, runInputPath, runInputRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy run input to runtime: %w", err)
 	}
-	e.runtimeResourceRegistry.Set(jb.RunInput.SourceID, e.runInputRuntimePath)
 
 	return nil
 }
@@ -141,21 +147,19 @@ func (e *RunCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	if err != nil {
 		return results.Error(e.job, err)
 	}
-	e.compiledCodeRuntimePath = compiledCodeRuntimePath
-	e.runInputRuntimePath = runInputRuntimePath
 
-	e.runOutputRuntimePath = "output.txt"
+	runOutputRuntimePath := "output.txt"
 	stderr := bytes.NewBuffer(nil)
 	err = e.runtime.RunCommand(
 		ctx,
-		[]string{"./" + e.compiledCodeRuntimePath},
+		[]string{"./" + compiledCodeRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(int64(jb.MemoryLimit) * int64(runtime.Megabyte)),
 				Time:   runtime.TimeLimit(int64(jb.TimeLimit) * int64(time.Millisecond)),
 			},
-			StdinFile:  e.runInputRuntimePath,
-			StdoutFile: e.runOutputRuntimePath,
+			StdinFile:  runInputRuntimePath,
+			StdoutFile: runOutputRuntimePath,
 			Stderr:     stderr,
 		},
 	)
@@ -171,7 +175,7 @@ func (e *RunCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	}
 
 	e.log.Info("command ok")
-	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), e.runOutputRuntimePath)
+	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), runOutputRuntimePath)
 
 	if !jb.ShowOutput {
 		return results.NewRunResultOK(jb.GetID())
@@ -184,7 +188,7 @@ func (e *RunCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	defer func() { _ = os.Remove(tmp.Name()) }()
 	defer func() { _ = tmp.Close() }()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.runOutputRuntimePath, tmp.Name()); err != nil {
+	if err = e.runtime.CopyFromRuntime(ctx, runOutputRuntimePath, tmp.Name()); err != nil {
 		return results.Error(e.job, fmt.Errorf("failed to copy run output from runtime: %w", err))
 	}
 
@@ -218,7 +222,11 @@ func (e *RunCppJobExecutor) SaveOutput(ctx context.Context) error {
 		_ = abortOutput()
 	}()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.runOutputRuntimePath, runOutput); err != nil {
+	runOutputRuntimePath, err := executor.GetJobOutputRuntimePath(e.runtimeResourceRegistry, e.job.GetID())
+	if err != nil {
+		return fmt.Errorf("failed to get run_output runtimePath: %w", err)
+	}
+	if err = e.runtime.CopyFromRuntime(ctx, runOutputRuntimePath, runOutput); err != nil {
 		return fmt.Errorf("failed to copy run_output from runtime: %w", err)
 	}
 

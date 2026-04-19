@@ -120,10 +120,6 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 		if errorsIsTimeout(ctxExec) {
 			return runtime.ErrTimeout
 		}
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
-			return nil
-		}
 		return err
 	}
 

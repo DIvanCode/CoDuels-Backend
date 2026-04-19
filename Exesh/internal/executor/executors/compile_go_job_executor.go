@@ -22,8 +22,6 @@ type CompileGoJobExecutor struct {
 
 	job jobs.Job
 
-	codeRuntimePath         string
-	compiledCodeRuntimePath string
 	runtimeResourceRegistry *executor.RuntimeResourceRegistry
 }
 
@@ -90,6 +88,9 @@ func (e *CompileGoJobExecutor) Init(ctx context.Context) error {
 		}
 		e.runtime = rt
 	}
+
+	jb := e.job.AsCompileGo()
+	e.runtimeResourceRegistry.Set(jb.Code.SourceID, "source.go")
 	return nil
 }
 
@@ -102,11 +103,14 @@ func (e *CompileGoJobExecutor) PrepareInput(ctx context.Context) error {
 	}
 	defer unlock()
 
-	e.codeRuntimePath = "source.go"
-	if err = e.runtime.CopyToRuntime(ctx, codePath, e.codeRuntimePath); err != nil {
+	codeRuntimePath, err := e.runtimeResourceRegistry.Get(jb.Code.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get codeRuntimePath: %w", err)
+	}
+
+	if err = e.runtime.CopyToRuntime(ctx, codePath, codeRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy code to runtime: %w", err)
 	}
-	e.runtimeResourceRegistry.Set(jb.Code.SourceID, e.codeRuntimePath)
 
 	return nil
 }
@@ -121,13 +125,12 @@ func (e *CompileGoJobExecutor) ExecuteCommand(ctx context.Context) results.Resul
 	if err != nil {
 		return results.Error(e.job, err)
 	}
-	e.codeRuntimePath = codeRuntimePath
 
 	stderr := bytes.NewBuffer(nil)
-	e.compiledCodeRuntimePath = "bin"
+	compiledCodeRuntimePath := "bin"
 	err = e.runtime.RunCommand(
 		ctx,
-		[]string{"go", "build", "-o", e.compiledCodeRuntimePath, e.codeRuntimePath},
+		[]string{"/usr/local/go/bin/go", "build", "-o", compiledCodeRuntimePath, codeRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
@@ -142,7 +145,7 @@ func (e *CompileGoJobExecutor) ExecuteCommand(ctx context.Context) results.Resul
 	}
 
 	e.log.Info("command ok")
-	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), e.compiledCodeRuntimePath)
+	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), compiledCodeRuntimePath)
 
 	return results.NewCompileResultOK(jb.GetID())
 }
@@ -166,7 +169,11 @@ func (e *CompileGoJobExecutor) SaveOutput(ctx context.Context) error {
 		_ = abortOutput()
 	}()
 
-	if err = e.runtime.CopyFromRuntime(ctx, e.compiledCodeRuntimePath, compiledCode); err != nil {
+	compiledCodeRuntimePath, err := executor.GetJobOutputRuntimePath(e.runtimeResourceRegistry, e.job.GetID())
+	if err != nil {
+		return fmt.Errorf("failed to get compiled_code runtimePath: %w", err)
+	}
+	if err = e.runtime.CopyFromRuntime(ctx, compiledCodeRuntimePath, compiledCode); err != nil {
 		return fmt.Errorf("failed to copy compiled_code from runtime: %w", err)
 	}
 
