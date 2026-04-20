@@ -57,6 +57,11 @@ const (
 	AcceptedVerdict         string = "Accepted"
 
 	TestingInProgressStatus string = "Testing in progress"
+
+	DefaultCompileTimeLimitMs   int = 5000
+	DefaultCompileMemoryLimitMb int = 256
+	DefaultCheckTimeLimitMs     int = 2000
+	DefaultCheckMemoryLimitMb   int = 256
 )
 
 var (
@@ -169,13 +174,16 @@ func IsSuspectJob(name job.Name) bool {
 	return suspectRegex.MatchString(strings.ToLower(string(name)))
 }
 
-func NewPrepareJob(name job.Name, code inputs.Input, lang task.Language) (*jobs.Job, error) {
+func NewPrepareJob(taskID task.ID, name job.Name, code inputs.Input, lang task.Language) (*jobs.Job, error) {
+
 	switch lang {
 	case task.LanguageCpp:
-		jb := jobs.NewCompileCppJob(name, code)
+		categoryName := makeCategoryName(taskID, name, job.CompileCpp)
+		jb := jobs.NewCompileCppJob(name, categoryName, DefaultCompileTimeLimitMs, DefaultCompileMemoryLimitMb, code)
 		return &jb, nil
 	case task.LanguageGo:
-		jb := jobs.NewCompileGoJob(name, code)
+		categoryName := makeCategoryName(taskID, name, job.CompileGo)
+		jb := jobs.NewCompileGoJob(name, categoryName, DefaultCompileTimeLimitMs, DefaultCompileMemoryLimitMb, code)
 		return &jb, nil
 	case task.LanguagePython:
 		return nil, nil
@@ -184,31 +192,48 @@ func NewPrepareJob(name job.Name, code inputs.Input, lang task.Language) (*jobs.
 	}
 }
 
-func NewRunJob(name job.Name,
+func NewRunJob(taskID task.ID, name job.Name,
 	lang task.Language, code inputs.Input, input inputs.Input,
 	timeLimit int, memoryLimit int, showOutput bool,
 ) (jobs.Job, error) {
 	switch lang {
 	case task.LanguageCpp:
-		return jobs.NewRunCppJob(name, code, input, timeLimit, memoryLimit, showOutput), nil
+		categoryName := makeCategoryName(taskID, name, job.RunCpp)
+		return jobs.NewRunCppJob(name, categoryName, code, input, timeLimit, memoryLimit, showOutput), nil
 	case task.LanguageGo:
-		return jobs.NewRunGoJob(name, code, input, timeLimit, memoryLimit, showOutput), nil
+		categoryName := makeCategoryName(taskID, name, job.RunGo)
+		return jobs.NewRunGoJob(name, categoryName, code, input, timeLimit, memoryLimit, showOutput), nil
 	case task.LanguagePython:
-		return jobs.NewRunPyJob(name, code, input, timeLimit, memoryLimit, showOutput), nil
+		categoryName := makeCategoryName(taskID, name, job.RunPy)
+		return jobs.NewRunPyJob(name, categoryName, code, input, timeLimit, memoryLimit, showOutput), nil
 	default:
 		return jobs.Job{}, fmt.Errorf("unsupported language: %s", lang)
 	}
 }
 
-func NewCheckJob(name job.Name,
+func NewCheckJob(taskID task.ID, name job.Name,
 	successStatus job.Status,
 	lang task.Language, checker inputs.Input,
 	correctOutput inputs.Input, suspectOutput inputs.Input,
 ) (jobs.Job, error) {
 	switch lang {
 	case task.LanguageCpp:
-		return jobs.NewCheckCppJob(name, successStatus, checker, correctOutput, suspectOutput), nil
+		categoryName := makeCategoryName(taskID, name, job.CheckCpp)
+		return jobs.NewCheckCppJob(
+			name,
+			successStatus,
+			categoryName,
+			DefaultCheckTimeLimitMs,
+			DefaultCheckMemoryLimitMb,
+			checker,
+			correctOutput,
+			suspectOutput,
+		), nil
 	default:
 		return jobs.Job{}, fmt.Errorf("unsupported language: %s", lang)
 	}
+}
+
+func makeCategoryName(taskID task.ID, name job.Name, jobType job.Type) string {
+	return fmt.Sprintf("%s: %s(%s)", taskID.String(), name, jobType)
 }
