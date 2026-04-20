@@ -16,4 +16,10 @@ public sealed class RunCodePayload : OutboxPayload
 
     [JsonPropertyName("input")]
     public required string Input { get; init; }
+
+    [JsonPropertyName("time_limit")]
+    public required int TimeLimit { get; init; }
+
+    [JsonPropertyName("memory_limit")]
+    public required int MemoryLimit { get; init; }
 }

@@ -12,6 +12,14 @@ public interface IExeshClient
         CancellationToken ct);
 }
 
-public sealed record ExecuteCodeRequest(string Code, string Language, string Input);
+public sealed record ExecuteCodeRequest(
+    string Code,
+    string Language,
+    string Input,
+    int DuelId,
+    int UserId,
+    string TaskKey,
+    int TimeLimit,
+    int MemoryLimit);
 
 public sealed record ExecuteResponse(string ExecutionId);

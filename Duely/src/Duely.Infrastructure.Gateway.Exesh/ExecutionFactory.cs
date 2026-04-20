@@ -11,8 +11,8 @@ internal static class ExecutionFactory
     private const string RunJobName = "run code";
     private const string StageName = "run";
     private const string OkStatus = "OK";
-    private const int DefaultTimeLimitMs = 2000;
-    private const int DefaultMemoryLimitMb = 256;
+    private const int CompileTimeLimitMs = 5000;
+    private const int CompileMemoryLimitMb = 256;
 
     public static ExeshExecuteRequest Build(ExecuteCodeRequest request)
     {
@@ -25,7 +25,7 @@ internal static class ExecutionFactory
             new("inline", InputSourceName, inputContent)
         };
 
-        var jobs = BuildJobs(request.Language);
+        var jobs = BuildJobs(request);
         var stages = new List<ExeshStageDefinition>
         {
             new(StageName, [], jobs)
@@ -34,9 +34,9 @@ internal static class ExecutionFactory
         return new ExeshExecuteRequest(sources, stages);
     }
 
-    private static IReadOnlyCollection<ExeshJobDefinition> BuildJobs(string language)
+    private static IReadOnlyCollection<ExeshJobDefinition> BuildJobs(ExecuteCodeRequest request)
     {
-        return NormalizeLanguage(language) switch
+        return NormalizeLanguage(request.Language) switch
         {
             "python" =>
             [
@@ -44,10 +44,11 @@ internal static class ExecutionFactory
                     Type: "run_py",
                     Name: RunJobName,
                     SuccessStatus: OkStatus,
+                    CategoryName: BuildCategoryName(request, "run_py"),
                     Code: new InlineInputDefinition("inline", CodeSourceName),
                     Input: new InlineInputDefinition("inline", InputSourceName),
-                    TimeLimit: DefaultTimeLimitMs,
-                    MemoryLimit: DefaultMemoryLimitMb,
+                    TimeLimit: request.TimeLimit,
+                    MemoryLimit: request.MemoryLimit,
                     ShowOutput: true)
             ],
 
@@ -57,15 +58,19 @@ internal static class ExecutionFactory
                     Type: "compile_go",
                     Name: CompileJobName,
                     SuccessStatus: OkStatus,
-                    Code: new InlineInputDefinition("inline", CodeSourceName)),
+                    CategoryName: BuildCategoryName(request, "compile_go"),
+                    Code: new InlineInputDefinition("inline", CodeSourceName),
+                    TimeLimit: CompileTimeLimitMs,
+                    MemoryLimit: CompileMemoryLimitMb),
                 new ExeshJobDefinition(
                     Type: "run_go",
                     Name: RunJobName,
                     SuccessStatus: OkStatus,
+                    CategoryName: BuildCategoryName(request, "run_go"),
                     CompiledCode: new ArtifactInputDefinition("artifact", CompileJobName),
                     Input: new InlineInputDefinition("inline", InputSourceName),
-                    TimeLimit: DefaultTimeLimitMs,
-                    MemoryLimit: DefaultMemoryLimitMb,
+                    TimeLimit: request.TimeLimit,
+                    MemoryLimit: request.MemoryLimit,
                     ShowOutput: true)
             ],
 
@@ -75,21 +80,28 @@ internal static class ExecutionFactory
                     Type: "compile_cpp",
                     Name: CompileJobName,
                     SuccessStatus: OkStatus,
-                    Code: new InlineInputDefinition("inline", CodeSourceName)),
+                    CategoryName: BuildCategoryName(request, "compile_cpp"),
+                    Code: new InlineInputDefinition("inline", CodeSourceName),
+                    TimeLimit: CompileTimeLimitMs,
+                    MemoryLimit: CompileMemoryLimitMb),
                 new ExeshJobDefinition(
                     Type: "run_cpp",
                     Name: RunJobName,
                     SuccessStatus: OkStatus,
+                    CategoryName: BuildCategoryName(request, "run_cpp"),
                     CompiledCode: new ArtifactInputDefinition("artifact", CompileJobName),
                     Input: new InlineInputDefinition("inline", InputSourceName),
-                    TimeLimit: DefaultTimeLimitMs,
-                    MemoryLimit: DefaultMemoryLimitMb,
+                    TimeLimit: request.TimeLimit,
+                    MemoryLimit: request.MemoryLimit,
                     ShowOutput: true)
             ],
 
-            _ => throw new NotSupportedException($"Language '{language}' is not supported for runs.")
+            _ => throw new NotSupportedException($"Language '{request.Language}' is not supported for runs.")
         };
     }
+
+    private static string BuildCategoryName(ExecuteCodeRequest request, string jobType)
+        => $"{request.DuelId}, {request.UserId}, {request.TaskKey}, {jobType}";
 
     private static string NormalizeLanguage(string language)
         => language.Trim().ToLowerInvariant();
@@ -116,6 +128,7 @@ internal sealed record ExeshJobDefinition(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("success_status")] string SuccessStatus,
+    [property: JsonPropertyName("category_name")] string CategoryName,
     [property: JsonPropertyName("code"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     InlineInputDefinition? Code = null,
     [property: JsonPropertyName("input"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
