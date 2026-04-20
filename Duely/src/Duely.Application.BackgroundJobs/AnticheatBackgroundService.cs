@@ -16,15 +16,18 @@ public sealed class AnticheatBackgroundService(
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation(
-            "AnticheatBackgroundService started. IntervalMs = {IntervalMs}",
-            options.Value.CheckIntervalMs);
+            "AnticheatBackgroundService started. IntervalMs = {IntervalMs}, ShouldCleanupUserActions = {ShouldCleanupUserActions}",
+            options.Value.CheckIntervalMs,
+            options.Value.ShouldCleanupUserActions);
 
         while (!cancellationToken.IsCancellationRequested)
         {
             using (var scope = serviceProvider.CreateScope())
             {
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                var result = await mediator.Send(new CheckDuelsForAnticheatCommand(), cancellationToken);
+                var result = await mediator.Send(
+                    new CheckDuelsForAnticheatCommand(options.Value.ShouldCleanupUserActions),
+                    cancellationToken);
                 if (result.IsFailed)
                 {
                     logger.LogWarning(

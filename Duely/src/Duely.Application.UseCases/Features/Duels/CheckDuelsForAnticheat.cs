@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
-public sealed class CheckDuelsForAnticheatCommand : IRequest<Result>;
+public sealed record CheckDuelsForAnticheatCommand(bool ShouldCleanupUserActions) : IRequest<Result>;
 
 public sealed class CheckDuelsForAnticheatHandler(Context context, IAnalyzerClient analyzerClient)
     : IRequestHandler<CheckDuelsForAnticheatCommand, Result>
@@ -33,15 +33,6 @@ public sealed class CheckDuelsForAnticheatHandler(Context context, IAnalyzerClie
 
         foreach (var pendingScore in pendingScores)
         {
-            if (pendingScore.Duel is null)
-            {
-                return new EntityNotFoundError(nameof(Duel), "anticheat score relation");
-            }
-            if (pendingScore.User is null)
-            {
-                return new EntityNotFoundError(nameof(User), "anticheat score relation");
-            }
-
             var duel = pendingScore.Duel;
             var user = pendingScore.User;
 
@@ -80,7 +71,10 @@ public sealed class CheckDuelsForAnticheatHandler(Context context, IAnalyzerClie
             }
 
             pendingScore.Score = predictResult.Value.Score;
-            context.UserActions.RemoveRange(actions);
+            if (request.ShouldCleanupUserActions)
+            {
+                context.UserActions.RemoveRange(actions);
+            }
         }
         
         await context.SaveChangesAsync(cancellationToken);
