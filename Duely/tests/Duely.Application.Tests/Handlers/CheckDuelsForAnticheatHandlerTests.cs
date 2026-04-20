@@ -118,7 +118,7 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
 
         var handler = new CheckDuelsForAnticheatHandler(ctx, analyzerClient.Object);
 
-        var result = await handler.Handle(new CheckDuelsForAnticheatCommand(), CancellationToken.None);
+        var result = await handler.Handle(new CheckDuelsForAnticheatCommand(true), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
 
@@ -185,7 +185,7 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
 
         var handler = new CheckDuelsForAnticheatHandler(ctx, analyzerClient.Object);
 
-        var result = await handler.Handle(new CheckDuelsForAnticheatCommand(), CancellationToken.None);
+        var result = await handler.Handle(new CheckDuelsForAnticheatCommand(true), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
 
@@ -284,7 +284,7 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
 
         var handler = new CheckDuelsForAnticheatHandler(ctx, analyzerClient.Object);
 
-        var result = await handler.Handle(new CheckDuelsForAnticheatCommand(), CancellationToken.None);
+        var result = await handler.Handle(new CheckDuelsForAnticheatCommand(true), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
 
@@ -307,5 +307,71 @@ public class CheckDuelsForAnticheatHandlerTests : ContextBasedTest
         analyzerClient.Verify(
             client => client.PredictAsync(It.IsAny<PredictRequest>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task Does_not_delete_actions_when_cleanup_disabled()
+    {
+        var ctx = Context;
+        var now = DateTime.UtcNow;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var duel = EntityFactory.MakeDuel(777, u1, u2, "TASK-1", now.AddMinutes(-30), now.AddMinutes(-1));
+        duel.Status = DuelStatus.Finished;
+        duel.EndTime = now;
+
+        var action = new WriteCodeUserAction
+        {
+            EventId = Guid.NewGuid(),
+            SequenceId = 1,
+            Timestamp = now.AddMinutes(-20),
+            DuelId = duel.Id,
+            TaskKey = 'A',
+            UserId = u1.Id,
+            CodeLength = 42,
+            CursorLine = 4
+        };
+
+        ctx.AddRange(
+            u1,
+            u2,
+            duel,
+            action,
+            new AnticheatScore
+            {
+                Duel = duel,
+                User = u1,
+                TaskKey = 'A',
+                Score = null
+            });
+        await ctx.SaveChangesAsync();
+
+        var analyzerClient = new Mock<IAnalyzerClient>();
+        analyzerClient
+            .Setup(client => client.PredictAsync(It.IsAny<PredictRequest>(), It.IsAny<CancellationToken>()))
+            .Returns(() => Task.FromResult(Result.Ok(new PredictResponse
+            {
+                Score = 0.5f
+            })));
+
+        var handler = new CheckDuelsForAnticheatHandler(ctx, analyzerClient.Object);
+
+        var result = await handler.Handle(new CheckDuelsForAnticheatCommand(false), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        var score = await ctx.AnticheatScores
+            .AsNoTracking()
+            .Include(s => s.Duel)
+            .Include(s => s.User)
+            .SingleAsync(s => s.Duel.Id == duel.Id && s.User.Id == u1.Id && s.TaskKey == 'A');
+        var remainingActions = await ctx.UserActions
+            .AsNoTracking()
+            .Where(a => a.DuelId == duel.Id && a.UserId == u1.Id && a.TaskKey == 'A')
+            .ToListAsync();
+
+        score.Score.Should().NotBeNull();
+        remainingActions.Should().ContainSingle(a => a.EventId == action.EventId);
     }
 }
