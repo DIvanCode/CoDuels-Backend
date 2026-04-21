@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 {
     [DbContext(typeof(Context))]
-    [Migration("20260420162807_RunCodeJobCategoryAndLimits")]
+    [Migration("20260421213721_RunCodeJobCategoryAndLimits")]
     partial class RunCodeJobCategoryAndLimits
     {
         /// <inheritdoc />
