@@ -14,6 +14,7 @@ type (
 		log              *slog.Logger
 		unitOfWork       unitOfWork
 		executionStorage executionStorage
+		calc             calculator
 	}
 
 	unitOfWork interface {
@@ -23,17 +24,24 @@ type (
 	executionStorage interface {
 		CreateExecution(context.Context, execution.Definition) error
 	}
+
+	calculator interface {
+		LoadCategoryStats(context.Context, execution.StageDefinitions) (execution.CategoryStats, error)
+		CalculateWeight(execution.StageDefinitions, execution.CategoryStats) int64
+	}
 )
 
 func NewUseCase(
 	log *slog.Logger,
 	unitOfWork unitOfWork,
 	executionStorage executionStorage,
+	calc calculator,
 ) *UseCase {
 	return &UseCase{
 		log:              log,
 		unitOfWork:       unitOfWork,
 		executionStorage: executionStorage,
+		calc:             calc,
 	}
 }
 
@@ -67,7 +75,13 @@ func (uc *UseCase) Execute(ctx context.Context, command Command) (result Result,
 	}
 
 	err = uc.unitOfWork.Do(ctx, func(ctx context.Context) error {
-		e := execution.NewExecutionDefinition(command.Stages, command.Sources)
+		stats, err := uc.calc.LoadCategoryStats(ctx, command.Stages)
+		if err != nil {
+			return fmt.Errorf("failed to load category stats: %w", err)
+		}
+		weight := uc.calc.CalculateWeight(command.Stages, stats)
+
+		e := execution.NewExecutionDefinition(command.Stages, command.Sources, weight)
 		if err = uc.executionStorage.CreateExecution(ctx, e); err != nil {
 			return fmt.Errorf("failed to create execution in storage: %w", err)
 		}

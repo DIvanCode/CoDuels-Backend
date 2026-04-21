@@ -6,6 +6,7 @@ import (
 	executeAPI "exesh/internal/api/execute"
 	heartbeatAPI "exesh/internal/api/heartbeat"
 	messagesAPI "exesh/internal/api/messages"
+	"exesh/internal/calculator"
 	"exesh/internal/config"
 	"exesh/internal/dispatcher"
 	"exesh/internal/factory"
@@ -70,11 +71,8 @@ func main() {
 	artifactRegistry := registry.NewArtifactRegistry(log, cfg.ArtifactRegistry, workerPool)
 
 	filestorageAdapter := adapter.NewFilestorageAdapter(fs)
-	executionFactory := factory.NewExecutionFactory(
-		cfg.JobFactory,
-		filestorageAdapter,
-		categoryHistogramStorage,
-	)
+	calc := calculator.NewCalculator(categoryHistogramStorage)
+	executionFactory := factory.NewExecutionFactory(cfg.JobFactory, filestorageAdapter, calc)
 
 	messageFactory := factory.NewMessageFactory()
 	messageDispatcher := dispatcher.NewMessageDispatcher(log, cfg.Dispatcher, unitOfWork, outboxStorage, messageStorage)
@@ -99,7 +97,7 @@ func main() {
 
 	executionScheduler.Start(ctx)
 
-	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage)
+	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage, calc)
 	executeAPI.NewHandler(log, executeUseCase).Register(mux)
 
 	heartbeatUseCase := heartbeatUC.NewUseCase(log, workerPool, jobScheduler, artifactRegistry)

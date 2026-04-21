@@ -39,9 +39,9 @@ type (
 		messageFactory    messageFactory
 		messageDispatcher messageDispatcher
 
-		nowExecutions atomic.Int64
+		nowWeight atomic.Int64
 
-		nowExecutionsGauge prometheus.Collector
+		nowWeightGauge prometheus.Collector
 	}
 
 	unitOfWork interface {
@@ -110,14 +110,14 @@ func NewExecutionScheduler(
 		messageFactory:    messageFactory,
 		messageDispatcher: messageDispatcher,
 
-		nowExecutions: atomic.Int64{},
+		nowWeight: atomic.Int64{},
 	}
 
-	s.nowExecutionsGauge = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
-		Name: "now_executions",
-		Help: "Count of currently running executions",
+	s.nowWeightGauge = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "now_weight",
+		Help: "Current total weight of running executions",
 	}, func() float64 {
-		return float64(s.getNowExecutions())
+		return float64(s.getNowWeight())
 	})
 
 	return s
@@ -125,7 +125,7 @@ func NewExecutionScheduler(
 
 func (s *ExecutionScheduler) RegisterMetrics(r prometheus.Registerer) error {
 	return errors.Join(
-		r.Register(s.nowExecutionsGauge),
+		r.Register(s.nowWeightGauge),
 	)
 }
 
@@ -145,24 +145,37 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 			break
 		}
 
-		if s.getNowExecutions() == s.cfg.MaxConcurrency {
-			s.log.Debug("skip execution scheduler loop (max concurrency reached)")
+		remainingCapacity := s.cfg.Capacity - s.getNowWeight()
+		if remainingCapacity <= 0 {
+			s.log.Debug("skip execution scheduler loop (capacity reached)")
 			continue
 		}
 
-		nowExecutions := s.getNowExecutions()
-		if nowExecutions > 0 {
-			s.log.Debug("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
+		nowWeight := s.getNowWeight()
+		if nowWeight > 0 {
+			s.log.Debug(
+				"begin execution scheduler loop",
+				slog.Int64("now_weight", nowWeight),
+				slog.Int64("remaining_capacity", remainingCapacity),
+			)
 		}
 
-		s.changeNowExecutions(+1)
+		weight := int64(0)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
 			def, err := s.executionStorage.GetExecutionForSchedule(ctx, time.Now().Add(-s.cfg.ExecutionRetryAfter))
 			if err != nil {
 				return fmt.Errorf("failed to get execution for schedule from storage: %w", err)
 			}
 			if def == nil {
-				s.changeNowExecutions(-1)
+				return nil
+			}
+			if def.Weight > remainingCapacity {
+				s.log.Debug(
+					"skip picked execution due to capacity",
+					slog.String("execution_id", def.ID.String()),
+					slog.Int64("weight", def.Weight),
+					slog.Int64("remaining_capacity", remainingCapacity),
+				)
 				return nil
 			}
 
@@ -172,6 +185,8 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 			}
 
 			ex.SetScheduled(time.Now())
+			s.changeNowWeight(+ex.Definition.Weight)
+			weight = ex.Definition.Weight
 
 			if err = s.scheduleExecution(ctx, ex); err != nil {
 				return fmt.Errorf("failed to schedule execution: %w", err)
@@ -183,7 +198,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 
 			return nil
 		}); err != nil {
-			s.changeNowExecutions(-1)
+			s.changeNowWeight(-weight)
 			s.log.Error("failed to schedule execution", slog.Any("error", err))
 		}
 	}
@@ -400,7 +415,7 @@ func (s *ExecutionScheduler) finishExecution(
 			slog.Any("error", exError))
 	}
 
-	defer s.changeNowExecutions(-1)
+	defer s.changeNowWeight(-ex.Definition.Weight)
 
 	ex.ForceFail()
 
@@ -428,10 +443,10 @@ func (s *ExecutionScheduler) finishExecution(
 	}
 }
 
-func (s *ExecutionScheduler) getNowExecutions() int {
-	return int(s.nowExecutions.Load())
+func (s *ExecutionScheduler) getNowWeight() int64 {
+	return s.nowWeight.Load()
 }
 
-func (s *ExecutionScheduler) changeNowExecutions(delta int) {
-	s.nowExecutions.Add(int64(delta))
+func (s *ExecutionScheduler) changeNowWeight(delta int64) {
+	s.nowWeight.Add(delta)
 }

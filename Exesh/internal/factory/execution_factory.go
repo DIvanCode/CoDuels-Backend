@@ -21,7 +21,7 @@ type (
 	ExecutionFactory struct {
 		cfg         config.JobFactoryConfig
 		filestorage filestorage
-		stats       categoryStatsStorage
+		calc        calculator
 	}
 
 	filestorage interface {
@@ -29,27 +29,28 @@ type (
 		DownloadFile(context.Context, bucket.ID, string, time.Duration, string) error
 	}
 
-	categoryStatsStorage interface {
-		GetExpectedByCategories(context.Context, []string) (execution.CategoryStats, error)
+	calculator interface {
+		LoadCategoryStats(context.Context, execution.StageDefinitions) (execution.CategoryStats, error)
+		EstimateForJob(jobs.Definition, execution.CategoryStats) (int, int)
 	}
 )
 
 func NewExecutionFactory(
 	cfg config.JobFactoryConfig,
 	filestorage filestorage,
-	stats categoryStatsStorage,
+	calc calculator,
 ) *ExecutionFactory {
 	return &ExecutionFactory{
 		cfg:         cfg,
 		filestorage: filestorage,
-		stats:       stats,
+		calc:        calc,
 	}
 }
 
 func (f *ExecutionFactory) Create(ctx context.Context, def execution.Definition) (*execution.Execution, error) {
 	ex := execution.NewExecution(def)
 
-	categoryStats, err := f.loadExpectedByCategory(ctx, def.Stages)
+	categoryStats, err := f.calc.LoadCategoryStats(ctx, def.Stages)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load expected values by category: %w", err)
 	}
@@ -147,19 +148,7 @@ func (f *ExecutionFactory) createJob(
 	successStatus := def.GetSuccessStatus()
 	timeLimit := def.GetTimeLimit()
 	memoryLimit := def.GetMemoryLimit()
-	categoryName := def.GetCategoryName()
-	expectedTime := estimateExpectedTime(
-		categoryStats.TimeSamplesByCategory[categoryName],
-		categoryStats.MedianTimeByCategory[categoryName],
-		categoryStats.MaxTimeByCategory[categoryName],
-		timeLimit,
-	)
-	expectedMemory := estimateExpectedMemory(
-		categoryStats.MemorySamplesByCategory[categoryName],
-		categoryStats.MedianMemoryByCategory[categoryName],
-		categoryStats.MaxMemoryByCategory[categoryName],
-		memoryLimit,
-	)
+	expectedTime, expectedMemory := f.calc.EstimateForJob(def, categoryStats)
 
 	switch def.GetType() {
 	case job.CompileCpp:
@@ -344,54 +333,6 @@ func (f *ExecutionFactory) createInput(ex *execution.Execution, def inputs.Defin
 	}
 
 	return in, nil
-}
-
-func (f *ExecutionFactory) loadExpectedByCategory(
-	ctx context.Context,
-	stageDefs []execution.StageDefinition,
-) (execution.CategoryStats, error) {
-	categories := make([]string, 0)
-	for _, stageDef := range stageDefs {
-		for _, jobDef := range stageDef.Jobs {
-			categories = append(categories, jobDef.GetCategoryName())
-		}
-	}
-
-	return f.stats.GetExpectedByCategories(ctx, categories)
-}
-
-func estimateExpectedTime(
-	timeSamples int,
-	median int,
-	max int,
-	timeLimit int,
-) int {
-	if timeSamples == 0 {
-		return timeLimit
-	}
-	value := (3*max + 7*median) / 10
-	return clamp(value, 100, timeLimit)
-}
-
-func estimateExpectedMemory(memorySamples int, median int, max int, memoryLimit int) int {
-	if memorySamples == 0 {
-		return memoryLimit
-	}
-	value := (3*max + 7*median) / 10
-	return clamp(value, 16, memoryLimit)
-}
-
-func clamp(value int, minValue int, maxValue int) int {
-	if maxValue < minValue {
-		maxValue = minValue
-	}
-	if value < minValue {
-		return minValue
-	}
-	if value > maxValue {
-		return maxValue
-	}
-	return value
 }
 
 func (f *ExecutionFactory) calculateSourceID(vars ...string) (source.ID, error) {
