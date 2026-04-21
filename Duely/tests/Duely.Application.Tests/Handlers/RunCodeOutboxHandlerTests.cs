@@ -26,7 +26,9 @@ public class RunCodeOutboxHandlerTests : ContextBasedTest
             RunId = 999,
             Code = "print(1)",
             Language = Language.Python,
-            Input = "test"
+            Input = "test",
+            TimeLimit = 1000,
+            MemoryLimit = 256
         };
 
         var result = await handler.HandleAsync(payload, CancellationToken.None);
@@ -47,6 +49,8 @@ public class RunCodeOutboxHandlerTests : ContextBasedTest
         {
             Id = 100,
             User = u1,
+            DuelId = 1,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = Language.Python,
             Input = "test",
@@ -69,7 +73,9 @@ public class RunCodeOutboxHandlerTests : ContextBasedTest
             RunId = 100,
             Code = "print(1)",
             Language = Language.Python,
-            Input = "test"
+            Input = "test",
+            TimeLimit = 1000,
+            MemoryLimit = 256
         };
 
         var result = await handler.HandleAsync(payload, CancellationToken.None);
@@ -93,6 +99,8 @@ public class RunCodeOutboxHandlerTests : ContextBasedTest
         {
             Id = 100,
             User = u1,
+            DuelId = 1,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = Language.Python,
             Input = "test",
@@ -114,7 +122,9 @@ public class RunCodeOutboxHandlerTests : ContextBasedTest
             RunId = 100,
             Code = "print(1)",
             Language = Language.Python,
-            Input = "test"
+            Input = "test",
+            TimeLimit = 1000,
+            MemoryLimit = 256
         };
 
         var result = await handler.HandleAsync(payload, CancellationToken.None);

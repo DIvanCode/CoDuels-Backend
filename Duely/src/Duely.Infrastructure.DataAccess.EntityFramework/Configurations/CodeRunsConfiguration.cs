@@ -27,6 +27,16 @@ public sealed class CodeRunsConfiguration : IEntityTypeConfiguration<CodeRun>
             .HasColumnType("text")
             .IsRequired();
 
+        builder.Property(r => r.DuelId)
+            .HasColumnName("DuelId")
+            .HasColumnType("integer")
+            .IsRequired();
+
+        builder.Property(r => r.TaskKey)
+            .HasColumnName("TaskKey")
+            .HasColumnType("varchar(1)")
+            .IsRequired();
+
         builder.Property(r => r.Language)
             .HasColumnName("Language")
             .HasColumnType("text")
@@ -70,5 +80,6 @@ public sealed class CodeRunsConfiguration : IEntityTypeConfiguration<CodeRun>
             .HasColumnType("timestamp")
             .IsRequired();
 
+        builder.HasIndex(r => new { r.DuelId, r.TaskKey });
     }
 }

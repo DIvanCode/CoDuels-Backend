@@ -30,6 +30,10 @@ public class CreateCodeRunHandlerTests : ContextBasedTest
         var res = await handler.Handle(new CreateCodeRunCommand
         {
             UserId = 999,
+            DuelId = 1,
+            TaskKey = 'A',
+            TimeLimit = 1000,
+            MemoryLimit = 256,
             Code = "print(1)",
             Language = Language.Python,
             Input = "test"
@@ -55,6 +59,10 @@ public class CreateCodeRunHandlerTests : ContextBasedTest
         var res = await handler.Handle(new CreateCodeRunCommand
         {
             UserId = 1,
+            DuelId = 1,
+            TaskKey = 'A',
+            TimeLimit = 1000,
+            MemoryLimit = 256,
             Code = "print(1)",
             Language = Language.Python,
             Input = "test"
@@ -80,6 +88,10 @@ public class CreateCodeRunHandlerTests : ContextBasedTest
         var res = await handler.Handle(new CreateCodeRunCommand
         {
             UserId = 1,
+            DuelId = 1,
+            TaskKey = 'A',
+            TimeLimit = 1000,
+            MemoryLimit = 256,
             Code = "print(1)",
             Language = Language.Python,
             Input = "test input"

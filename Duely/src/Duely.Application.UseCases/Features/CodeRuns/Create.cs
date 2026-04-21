@@ -16,6 +16,10 @@ namespace Duely.Application.UseCases.Features.CodeRuns;
 public sealed class CreateCodeRunCommand : IRequest<Result<CodeRunDto>>
 {
     public required int UserId { get; init; }
+    public required int DuelId { get; init; }
+    public required char TaskKey { get; init; }
+    public required int TimeLimit { get; init; }
+    public required int MemoryLimit { get; init; }
     public required string Code { get; init; }
     public required Language Language { get; init; }
     public required string Input { get; init; }
@@ -42,6 +46,8 @@ public sealed class CreateCodeRunHandler(Context context, IRunUserCodeLimiter ru
         var codeRun = new CodeRun
         {
             User = user,
+            DuelId = command.DuelId,
+            TaskKey = command.TaskKey,
             Code = command.Code,
             Language = command.Language,
             Input = command.Input,
@@ -61,7 +67,9 @@ public sealed class CreateCodeRunHandler(Context context, IRunUserCodeLimiter ru
                 RunId = codeRun.Id,
                 Code = codeRun.Code,
                 Language = codeRun.Language,
-                Input = codeRun.Input
+                Input = codeRun.Input,
+                TimeLimit = command.TimeLimit,
+                MemoryLimit = command.MemoryLimit
             },
             RetryUntil = DateTime.UtcNow.AddMinutes(5)
         };
@@ -88,6 +96,10 @@ public class CreateCodeRunCommandValidator : AbstractValidator<CreateCodeRunComm
 {
     public CreateCodeRunCommandValidator()
     {
+        RuleFor(x => x.DuelId).GreaterThan(0).WithMessage("DuelId must be positive.");
+        RuleFor(x => x.TaskKey).Must(char.IsLetterOrDigit).WithMessage("Task key is invalid.");
+        RuleFor(x => x.TimeLimit).GreaterThan(0).WithMessage("Time limit must be positive.");
+        RuleFor(x => x.MemoryLimit).GreaterThan(0).WithMessage("Memory limit must be positive.");
         RuleFor(x => x.Code).NotEmpty().WithMessage("Code is required.");
         RuleFor(x => x.Language).IsInEnum().WithMessage("Language not recognized.");
         RuleFor(x => x.Input).MaximumLength(10000).WithMessage("Input is too long.");

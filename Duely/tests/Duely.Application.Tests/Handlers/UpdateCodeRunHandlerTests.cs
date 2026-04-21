@@ -330,6 +330,8 @@ public class UpdateCodeRunHandlerTests : ContextBasedTest
         {
             Id = id,
             User = user,
+            DuelId = 1,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = Language.Python,
             Input = "test",

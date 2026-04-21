@@ -108,6 +108,8 @@ public class GetCodeRunHandlerTests : ContextBasedTest
         {
             Id = id,
             User = user,
+            DuelId = 1,
+            TaskKey = 'A',
             Code = code,
             Language = language,
             Input = input,

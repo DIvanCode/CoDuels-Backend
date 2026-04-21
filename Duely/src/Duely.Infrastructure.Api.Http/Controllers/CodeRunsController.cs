@@ -21,6 +21,10 @@ public sealed class RunsController(IMediator mediator, IUserContext userContext)
         var command = new CreateCodeRunCommand
         {
             UserId = userContext.UserId,
+            DuelId = request.DuelId,
+            TaskKey = request.TaskKey,
+            TimeLimit = request.TimeLimit,
+            MemoryLimit = request.MemoryLimit,
             Code = request.Code,
             Language = request.Language,
             Input = request.Input

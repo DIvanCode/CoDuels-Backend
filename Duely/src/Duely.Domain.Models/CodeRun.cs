@@ -6,6 +6,8 @@ public sealed class CodeRun
 {
     public int Id { get; init; }
     public required User User { get; init; }
+    public required int DuelId { get; init; }
+    public required char TaskKey { get; init; }
     public required string Code { get; init; }
     public required Language Language { get; init; }
     public required string Input { get; init; }

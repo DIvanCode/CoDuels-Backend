@@ -65,6 +65,10 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("timestamp")
                         .HasColumnName("CreatedAt");
 
+                    b.Property<int>("DuelId")
+                        .HasColumnType("integer")
+                        .HasColumnName("DuelId");
+
                     b.Property<string>("Error")
                         .HasColumnType("text")
                         .HasColumnName("Error");
@@ -98,12 +102,19 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("Status");
 
+                    b.Property<string>("TaskKey")
+                        .IsRequired()
+                        .HasColumnType("varchar(1)")
+                        .HasColumnName("TaskKey");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("DuelId", "TaskKey");
 
                     b.ToTable("CodeRuns", (string)null);
                 });
