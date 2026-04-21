@@ -10,12 +10,15 @@ type CompileGoJob struct {
 	Code inputs.Input `json:"code"`
 }
 
-func NewCompileGoJob(name job.Name, code inputs.Input) Job {
+func NewCompileGoJob(name job.Name, categoryName string, timeLimit int, memoryLimit int, code inputs.Input) Job {
 	return Job{IJob: &CompileGoJob{
 		Details: job.Details{
 			Type:          job.CompileGo,
 			Name:          name,
 			SuccessStatus: job.StatusOK,
+			CategoryName:  categoryName,
+			TimeLimit:     timeLimit,
+			MemoryLimit:   memoryLimit,
 		},
 		Code: code,
 	}}

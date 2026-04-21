@@ -10,12 +10,15 @@ type CompileCppJob struct {
 	Code inputs.Input `json:"code"`
 }
 
-func NewCompileCppJob(name job.Name, code inputs.Input) Job {
+func NewCompileCppJob(name job.Name, categoryName string, timeLimit int, memoryLimit int, code inputs.Input) Job {
 	return Job{IJob: &CompileCppJob{
 		Details: job.Details{
 			Type:          job.CompileCpp,
 			Name:          name,
 			SuccessStatus: job.StatusOK,
+			CategoryName:  categoryName,
+			TimeLimit:     timeLimit,
+			MemoryLimit:   memoryLimit,
 		},
 		Code: code,
 	}}

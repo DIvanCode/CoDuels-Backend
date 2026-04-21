@@ -68,7 +68,7 @@ func NewWriteCodeTaskTestingStrategy(
 	checkerDef := typedTask.Checker
 	checker := inputs.NewFilestorageBucketInput(taskSource.GetName(), checkerDef.Path)
 	prepareCheckerJobName := strategy.FormatJobName(strategy.PrepareJobFormat, strategy.CheckerCode)
-	prepareCheckerJob, err := strategy.NewPrepareJob(prepareCheckerJobName, checker, checkerDef.Lang)
+	prepareCheckerJob, err := strategy.NewPrepareJob(t.GetID(), prepareCheckerJobName, checker, checkerDef.Lang)
 	if err != nil {
 		return ts, fmt.Errorf("failed to prepare checker: %w", err)
 	}
@@ -79,7 +79,7 @@ func NewWriteCodeTaskTestingStrategy(
 
 	suspectCode := inputs.NewInlineInput(suspectCodeSource.GetName())
 	prepareSuspectCodeJobName := strategy.FormatJobName(strategy.PrepareJobFormat, strategy.SuspectCode)
-	prepareSuspectCodeJob, err := strategy.NewPrepareJob(prepareSuspectCodeJobName, suspectCode, lang)
+	prepareSuspectCodeJob, err := strategy.NewPrepareJob(t.GetID(), prepareSuspectCodeJobName, suspectCode, lang)
 	if err != nil {
 		return ts, fmt.Errorf("failed to prepare suspect code: %w", err)
 	}
@@ -118,7 +118,7 @@ func NewWriteCodeTaskTestingStrategy(
 
 			testInput := inputs.NewFilestorageBucketInput(taskSource.GetName(), test.Input)
 			runSuspectJobName := strategy.FormatJobName(runOnTestJobFormat, strategy.SuspectCode, test.ID)
-			runSuspectJob, err := strategy.NewRunJob(runSuspectJobName,
+			runSuspectJob, err := strategy.NewRunJob(t.GetID(), runSuspectJobName,
 				lang, suspectCode, testInput,
 				typedTask.TimeLimit, typedTask.MemoryLimit, false)
 			if err != nil {
@@ -129,7 +129,7 @@ func NewWriteCodeTaskTestingStrategy(
 
 			correctOutput := inputs.NewFilestorageBucketInput(taskSource.GetName(), test.Output)
 			checkJobName := strategy.FormatJobName(checkOnTestJobFormat, test.ID)
-			checkJob, err := strategy.NewCheckJob(checkJobName,
+			checkJob, err := strategy.NewCheckJob(t.GetID(), checkJobName,
 				job.StatusOK,
 				checkerDef.Lang, checker,
 				suspectOutput, correctOutput)

@@ -41,7 +41,7 @@ func NewFindTestTaskTestingStrategy(
 	checkerDef := typedTask.Checker
 	checker := inputs.NewFilestorageBucketInput(taskSource.GetName(), checkerDef.Path)
 	prepareCheckerJobName := strategy.FormatJobName(strategy.PrepareJobFormat, strategy.CheckerCode)
-	prepareCheckerJob, err := strategy.NewPrepareJob(prepareCheckerJobName, checker, checkerDef.Lang)
+	prepareCheckerJob, err := strategy.NewPrepareJob(t.GetID(), prepareCheckerJobName, checker, checkerDef.Lang)
 	if err != nil {
 		return ts, fmt.Errorf("failed to prepare checker: %w", err)
 	}
@@ -53,7 +53,7 @@ func NewFindTestTaskTestingStrategy(
 	sourceCodeDef := typedTask.Code
 	sourceCode := inputs.NewFilestorageBucketInput(taskSource.GetName(), sourceCodeDef.Path)
 	prepareSourceCodeJobName := strategy.FormatJobName(strategy.PrepareJobFormat, strategy.SourceCode)
-	prepareSourceCodeJob, err := strategy.NewPrepareJob(prepareSourceCodeJobName, sourceCode, sourceCodeDef.Lang)
+	prepareSourceCodeJob, err := strategy.NewPrepareJob(t.GetID(), prepareSourceCodeJobName, sourceCode, sourceCodeDef.Lang)
 	if err != nil {
 		return ts, fmt.Errorf("failed to prepare source code: %w", err)
 	}
@@ -65,7 +65,7 @@ func NewFindTestTaskTestingStrategy(
 	solutionCodeDef := typedTask.Solution
 	solutionCode := inputs.NewFilestorageBucketInput(taskSource.GetName(), solutionCodeDef.Path)
 	prepareSolutionCodeJobName := strategy.FormatJobName(strategy.PrepareJobFormat, strategy.SolutionCode)
-	prepareSolutionCodeJob, err := strategy.NewPrepareJob(prepareSolutionCodeJobName, solutionCode, solutionCodeDef.Lang)
+	prepareSolutionCodeJob, err := strategy.NewPrepareJob(t.GetID(), prepareSolutionCodeJobName, solutionCode, solutionCodeDef.Lang)
 	if err != nil {
 		return ts, fmt.Errorf("failed to prepare solution code: %w", err)
 	}
@@ -77,7 +77,7 @@ func NewFindTestTaskTestingStrategy(
 	input := inputs.NewInlineInput(suspectSolutionSource.GetName())
 
 	runSourceCodeJobName := strategy.FormatJobName(strategy.RunJobFormat, strategy.SourceCode)
-	runSourceCodeJob, err := strategy.NewRunJob(runSourceCodeJobName,
+	runSourceCodeJob, err := strategy.NewRunJob(t.GetID(), runSourceCodeJobName,
 		sourceCodeDef.Lang, sourceCode, input,
 		typedTask.TimeLimit, typedTask.MemoryLimit, false)
 	if err != nil {
@@ -86,7 +86,7 @@ func NewFindTestTaskTestingStrategy(
 	sourceCodeOutput := inputs.NewArtifactInput(runSourceCodeJob.GetName())
 
 	runSolutionCodeJobName := strategy.FormatJobName(strategy.RunJobFormat, strategy.SolutionCode)
-	runSolutionCodeJob, err := strategy.NewRunJob(runSolutionCodeJobName,
+	runSolutionCodeJob, err := strategy.NewRunJob(t.GetID(), runSolutionCodeJobName,
 		solutionCodeDef.Lang, solutionCode, input,
 		typedTask.TimeLimit, typedTask.MemoryLimit, false)
 	if err != nil {
@@ -95,7 +95,7 @@ func NewFindTestTaskTestingStrategy(
 	solutionCodeOutput := inputs.NewArtifactInput(runSolutionCodeJob.GetName())
 
 	checkJobName := strategy.FormatJobName(strategy.CheckJobFormat)
-	checkJob, err := strategy.NewCheckJob(checkJobName,
+	checkJob, err := strategy.NewCheckJob(t.GetID(), checkJobName,
 		job.StatusWA,
 		checkerDef.Lang, checker,
 		sourceCodeOutput, solutionCodeOutput)

@@ -41,7 +41,7 @@ func NewPredictOutputTaskTestingStrategy(
 	checkerDef := typedTask.Checker
 	checker := inputs.NewFilestorageBucketInput(taskSource.GetName(), checkerDef.Path)
 	prepareCheckerJobName := strategy.FormatJobName(strategy.PrepareJobFormat, strategy.CheckerCode)
-	prepareCheckerJob, err := strategy.NewPrepareJob(prepareCheckerJobName, checker, checkerDef.Lang)
+	prepareCheckerJob, err := strategy.NewPrepareJob(t.GetID(), prepareCheckerJobName, checker, checkerDef.Lang)
 	if err != nil {
 		return ts, fmt.Errorf("failed to prepare checker: %w", err)
 	}
@@ -53,7 +53,7 @@ func NewPredictOutputTaskTestingStrategy(
 	suspectOutput := inputs.NewInlineInput(suspectSolutionSource.GetName())
 	correctOutput := inputs.NewFilestorageBucketInput(taskSource.GetName(), typedTask.Test.Output)
 	checkJobName := strategy.FormatJobName(strategy.CheckJobFormat)
-	checkJob, err := strategy.NewCheckJob(checkJobName,
+	checkJob, err := strategy.NewCheckJob(t.GetID(), checkJobName,
 		job.StatusOK,
 		checkerDef.Lang, checker,
 		suspectOutput, correctOutput)

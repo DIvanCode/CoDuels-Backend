@@ -5,12 +5,18 @@ type (
 		GetType() Type
 		GetName() Name
 		GetSuccessStatus() Status
+		GetCategoryName() string
+		GetTimeLimit() int
+		GetMemoryLimit() int
 	}
 
 	Details struct {
 		Type          Type   `json:"type"`
 		Name          Name   `json:"name"`
 		SuccessStatus Status `json:"success_status"`
+		CategoryName  string `json:"category_name"`
+		TimeLimit     int    `json:"time_limit"`
+		MemoryLimit   int    `json:"memory_limit"`
 	}
 
 	Type   string
@@ -44,4 +50,16 @@ func (jb *Details) GetName() Name {
 
 func (jb *Details) GetSuccessStatus() Status {
 	return jb.SuccessStatus
+}
+
+func (jb *Details) GetCategoryName() string {
+	return jb.CategoryName
+}
+
+func (jb *Details) GetTimeLimit() int {
+	return jb.TimeLimit
+}
+
+func (jb *Details) GetMemoryLimit() int {
+	return jb.MemoryLimit
 }
