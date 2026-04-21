@@ -32,6 +32,7 @@ type (
 
 		executionFactory executionFactory
 		artifactRegistry artifactRegistry
+		categoryStats    categoryStats
 
 		jobScheduler jobScheduler
 
@@ -61,6 +62,10 @@ type (
 		GetWorker(job.ID) (workerID string, err error)
 	}
 
+	categoryStats interface {
+		UpdateCategoryHistogram(context.Context, string, int, int) error
+	}
+
 	jobScheduler interface {
 		Schedule(context.Context, jobs.Job, []sources.Source, jobCallback)
 	}
@@ -84,6 +89,7 @@ func NewExecutionScheduler(
 	executionStorage executionStorage,
 	executionFactory executionFactory,
 	artifactRegistry artifactRegistry,
+	categoryStats categoryStats,
 	jobScheduler jobScheduler,
 	messageFactory messageFactory,
 	messageDispatcher messageDispatcher,
@@ -97,6 +103,7 @@ func NewExecutionScheduler(
 
 		executionFactory: executionFactory,
 		artifactRegistry: artifactRegistry,
+		categoryStats:    categoryStats,
 
 		jobScheduler: jobScheduler,
 
@@ -323,6 +330,17 @@ func (s *ExecutionScheduler) doneJob(
 			if !ok {
 				jobResID := jobRes.GetJobID()
 				return fmt.Errorf("failed to find job definition by id: %s", jobResID.String())
+			}
+
+			if s.categoryStats != nil {
+				if err = s.categoryStats.UpdateCategoryHistogram(
+					ctx,
+					jobDef.GetCategoryName(),
+					jobRes.GetElapsedTime(),
+					jobRes.GetUsedMemory(),
+				); err != nil {
+					return fmt.Errorf("failed to update category histogram: %w", err)
+				}
 			}
 
 			msg, msgErr := s.messageFactory.CreateForJob(ex.ID, jobDef.GetName(), jobRes)

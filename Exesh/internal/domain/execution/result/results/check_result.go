@@ -10,40 +10,46 @@ type CheckResult struct {
 	result.Details
 }
 
-func NewCheckResultOK(jobID job.ID) Result {
+func NewCheckResultOK(jobID job.ID, elapsedTime int, usedMemory int) Result {
 	return Result{
 		&CheckResult{
 			Details: result.Details{
-				Type:   result.Check,
-				JobID:  jobID,
-				Status: job.StatusOK,
-				DoneAt: time.Now(),
+				Type:        result.Check,
+				JobID:       jobID,
+				Status:      job.StatusOK,
+				DoneAt:      time.Now(),
+				ElapsedTime: elapsedTime,
+				UsedMemory:  usedMemory,
 			},
 		},
 	}
 }
 
-func NewCheckResultWA(jobID job.ID) Result {
+func NewCheckResultWA(jobID job.ID, elapsedTime int, usedMemory int) Result {
 	return Result{
 		&CheckResult{
 			Details: result.Details{
-				Type:   result.Check,
-				JobID:  jobID,
-				Status: job.StatusWA,
-				DoneAt: time.Now(),
+				Type:        result.Check,
+				JobID:       jobID,
+				Status:      job.StatusWA,
+				DoneAt:      time.Now(),
+				ElapsedTime: elapsedTime,
+				UsedMemory:  usedMemory,
 			},
 		},
 	}
 }
 
-func NewCheckResultErr(jobID job.ID, err string) Result {
+func NewCheckResultErr(jobID job.ID, err string, elapsedTime int, usedMemory int) Result {
 	return Result{
 		&CheckResult{
 			Details: result.Details{
-				Type:   result.Check,
-				JobID:  jobID,
-				DoneAt: time.Now(),
-				Error:  err,
+				Type:        result.Check,
+				JobID:       jobID,
+				DoneAt:      time.Now(),
+				ElapsedTime: elapsedTime,
+				UsedMemory:  usedMemory,
+				Error:       err,
 			},
 		},
 	}

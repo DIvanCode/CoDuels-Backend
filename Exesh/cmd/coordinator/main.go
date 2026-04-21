@@ -51,7 +51,7 @@ func main() {
 
 	mux := chi.NewRouter()
 
-	unitOfWork, executionStorage, outboxStorage, messageStorage, err := setupStorage(log, cfg.Storage)
+	unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, err := setupStorage(log, cfg.Storage)
 	if err != nil {
 		log.Error("failed to setup storage", slog.String("error", err.Error()))
 		return
@@ -70,7 +70,11 @@ func main() {
 	artifactRegistry := registry.NewArtifactRegistry(log, cfg.ArtifactRegistry, workerPool)
 
 	filestorageAdapter := adapter.NewFilestorageAdapter(fs)
-	executionFactory := factory.NewExecutionFactory(cfg.JobFactory, filestorageAdapter)
+	executionFactory := factory.NewExecutionFactory(
+		cfg.JobFactory,
+		filestorageAdapter,
+		categoryHistogramStorage,
+	)
 
 	messageFactory := factory.NewMessageFactory()
 	messageDispatcher := dispatcher.NewMessageDispatcher(log, cfg.Dispatcher, unitOfWork, outboxStorage, messageStorage)
@@ -85,7 +89,7 @@ func main() {
 
 	jobScheduler := schedule.NewJobScheduler(log)
 	executionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
-		executionFactory, artifactRegistry, jobScheduler, messageFactory, messageDispatcher)
+		executionFactory, artifactRegistry, categoryHistogramStorage, jobScheduler, messageFactory, messageDispatcher)
 
 	err = executionScheduler.RegisterMetrics(promCoordinatorRegistry)
 	if err != nil {
@@ -162,6 +166,7 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	executionStorage *postgres.ExecutionStorage,
 	outboxStorage *postgres.OutboxStorage,
 	messageStorage *postgres.MessageStorage,
+	categoryHistogramStorage *postgres.CategoryHistogramStorage,
 	err error,
 ) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.InitTimeout)
@@ -170,7 +175,7 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	unitOfWork, err = postgres.NewUnitOfWork(cfg)
 	if err != nil {
 		err = fmt.Errorf("failed to create unit of work: %w", err)
-		return unitOfWork, executionStorage, outboxStorage, messageStorage, err
+		return unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, err
 	}
 
 	err = unitOfWork.Do(ctx, func(ctx context.Context) error {
@@ -183,8 +188,11 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 		if messageStorage, err = postgres.NewMessageStorage(ctx, log); err != nil {
 			return fmt.Errorf("failed to create message storage: %w", err)
 		}
+		if categoryHistogramStorage, err = postgres.NewCategoryHistogramStorage(ctx, log); err != nil {
+			return fmt.Errorf("failed to create category histogram storage: %w", err)
+		}
 		return nil
 	})
 
-	return unitOfWork, executionStorage, outboxStorage, messageStorage, err
+	return unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, err
 }

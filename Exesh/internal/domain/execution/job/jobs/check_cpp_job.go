@@ -16,6 +16,10 @@ type CheckCppJob struct {
 func NewCheckCppJob(
 	id job.ID,
 	successStatus job.Status,
+	timeLimit int,
+	memoryLimit int,
+	expectedTime int,
+	expectedMemory int,
 	compiledChecker input.Input,
 	correctOutput input.Input,
 	suspectOutput input.Input,
@@ -23,9 +27,13 @@ func NewCheckCppJob(
 	return Job{
 		&CheckCppJob{
 			Details: job.Details{
-				ID:            id,
-				Type:          job.CheckCpp,
-				SuccessStatus: successStatus,
+				ID:             id,
+				Type:           job.CheckCpp,
+				SuccessStatus:  successStatus,
+				TimeLimit:      timeLimit,
+				MemoryLimit:    memoryLimit,
+				ExpectedTime:   expectedTime,
+				ExpectedMemory: expectedMemory,
 			},
 			CompiledChecker: compiledChecker,
 			CorrectOutput:   correctOutput,

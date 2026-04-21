@@ -17,13 +17,32 @@ func NewChainJob(jobs []Job) Job {
 		panic("empty chain jobs")
 	}
 
+	expectedTime := 0
+	expectedMemory := 0
+	timeLimit := 0
+	memoryLimit := 0
+	for _, innerJob := range jobs {
+		expectedTime += innerJob.GetExpectedTime()
+		if innerJob.GetExpectedMemory() > expectedMemory {
+			expectedMemory = innerJob.GetExpectedMemory()
+		}
+		timeLimit += innerJob.GetTimeLimit()
+		if innerJob.GetMemoryLimit() > memoryLimit {
+			memoryLimit = innerJob.GetMemoryLimit()
+		}
+	}
+
 	lastJob := jobs[len(jobs)-1]
 	return Job{
 		&ChainJob{
 			Details: job.Details{
-				ID:            lastJob.GetID(),
-				Type:          job.Chain,
-				SuccessStatus: lastJob.GetSuccessStatus(),
+				ID:             lastJob.GetID(),
+				Type:           job.Chain,
+				SuccessStatus:  lastJob.GetSuccessStatus(),
+				TimeLimit:      timeLimit,
+				MemoryLimit:    memoryLimit,
+				ExpectedTime:   expectedTime,
+				ExpectedMemory: expectedMemory,
 			},
 			Jobs: jobs,
 		},

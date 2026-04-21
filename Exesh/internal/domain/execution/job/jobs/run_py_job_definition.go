@@ -7,9 +7,7 @@ import (
 
 type RunPyJobDefinition struct {
 	job.DefinitionDetails
-	Code        inputs.Definition `json:"code"`
-	RunInput    inputs.Definition `json:"input"`
-	TimeLimit   int               `json:"time_limit"`
-	MemoryLimit int               `json:"memory_limit"`
-	ShowOutput  bool              `json:"show_output"`
+	Code       inputs.Definition `json:"code"`
+	RunInput   inputs.Definition `json:"input"`
+	ShowOutput bool              `json:"show_output"`
 }

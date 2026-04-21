@@ -15,15 +15,23 @@ type CompileCppJob struct {
 func NewCompileCppJob(
 	id job.ID,
 	successStatus job.Status,
+	timeLimit int,
+	memoryLimit int,
+	expectedTime int,
+	expectedMemory int,
 	code input.Input,
 	compiledCode output.Output,
 ) Job {
 	return Job{
 		&CompileCppJob{
 			Details: job.Details{
-				ID:            id,
-				Type:          job.CompileCpp,
-				SuccessStatus: successStatus,
+				ID:             id,
+				Type:           job.CompileCpp,
+				SuccessStatus:  successStatus,
+				TimeLimit:      timeLimit,
+				MemoryLimit:    memoryLimit,
+				ExpectedTime:   expectedTime,
+				ExpectedMemory: expectedMemory,
 			},
 			Code:         code,
 			CompiledCode: compiledCode,

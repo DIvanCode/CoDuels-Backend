@@ -15,11 +15,11 @@ type Result struct {
 func Error(jb jobs.Job, err error) Result {
 	switch jb.GetType() {
 	case job.CompileCpp, job.CompileGo:
-		return NewCompileResultErr(jb.GetID(), err.Error())
+		return NewCompileResultErr(jb.GetID(), err.Error(), 0, 0)
 	case job.CheckCpp:
-		return NewCheckResultErr(jb.GetID(), err.Error())
+		return NewCheckResultErr(jb.GetID(), err.Error(), 0, 0)
 	case job.RunCpp, job.RunGo, job.RunPy:
-		return NewRunResultErr(jb.GetID(), err.Error())
+		return NewRunResultErr(jb.GetID(), err.Error(), 0, 0)
 	case job.Chain:
 		return NewChainResultErr(jb.GetID(), err.Error(), nil)
 	default:

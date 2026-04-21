@@ -12,19 +12,22 @@ type (
 		GetJobID() job.ID
 		GetStatus() job.Status
 		GetDoneAt() time.Time
+		GetElapsedTime() int
+		GetUsedMemory() int
 		GetError() error
 	}
 
 	Details struct {
-		Type   Type       `json:"type"`
-		JobID  job.ID     `json:"job_id"`
-		Status job.Status `json:"status"`
-		DoneAt time.Time  `json:"done_at"`
-		Error  string     `json:"error,omitempty"`
+		Type        Type       `json:"type"`
+		JobID       job.ID     `json:"job_id"`
+		Status      job.Status `json:"status"`
+		DoneAt      time.Time  `json:"done_at"`
+		ElapsedTime int        `json:"elapsed_time"`
+		UsedMemory  int        `json:"used_memory"`
+		Error       string     `json:"error,omitempty"`
 	}
 
-	Type   string
-	Result = IResult
+	Type string
 )
 
 const (
@@ -49,6 +52,14 @@ func (res *Details) GetStatus() job.Status {
 
 func (res *Details) GetDoneAt() time.Time {
 	return res.DoneAt
+}
+
+func (res *Details) GetElapsedTime() int {
+	return res.ElapsedTime
+}
+
+func (res *Details) GetUsedMemory() int {
+	return res.UsedMemory
 }
 
 func (res *Details) GetError() error {

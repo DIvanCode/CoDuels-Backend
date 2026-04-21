@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -114,13 +115,13 @@ func (rt *Runtime) CopyFromRuntime(_ context.Context, src, dst string) error {
 	return nil
 }
 
-func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) error {
+func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) (runtime.Usage, error) {
 	b, err := rt.getBox()
 	if err != nil {
-		return err
+		return runtime.Usage{}, err
 	}
 	if len(cmd) == 0 {
-		return fmt.Errorf("empty command")
+		return runtime.Usage{}, fmt.Errorf("empty command")
 	}
 
 	stderrFile := ".stderr"
@@ -157,30 +158,32 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 
 	runErr := runCmd.Run()
 
-	if err = handleMeta(filepath.Join(b.Root, metaFile)); err != nil {
-		return err
+	usage, metaErr := handleMeta(filepath.Join(b.Root, metaFile))
+	if metaErr != nil {
+		return usage, metaErr
 	}
+
 	if err = enforceSandboxFSLimits(filepath.Join(b.Root, "box")); err != nil {
-		return err
+		return usage, err
 	}
 
 	if params.Stderr != nil {
 		if err = copyFileToWriter(filepath.Join(b.Root, "box", stderrFile), params.Stderr); err != nil {
-			return fmt.Errorf("copy stderr: %w", err)
+			return usage, fmt.Errorf("copy stderr: %w", err)
 		}
 	}
 
 	if runErr != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return runtime.ErrTimeout
+			return usage, runtime.ErrTimeout
 		}
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return usage, ctx.Err()
 		}
-		return fmt.Errorf("isolate run: %w: %s", runErr, strings.TrimSpace(runStderr.String()))
+		return usage, fmt.Errorf("isolate run: %w: %s", runErr, strings.TrimSpace(runStderr.String()))
 	}
 
-	return nil
+	return usage, nil
 }
 
 func enforceSandboxFSLimits(boxPath string) error {
@@ -294,14 +297,19 @@ func (rt *Runtime) cleanupBox(ctx context.Context, id int) {
 	_ = cmd.Run()
 }
 
-func handleMeta(metaPath string) error {
+func handleMeta(metaPath string) (runtime.Usage, error) {
+	usage := runtime.Usage{}
+
 	b, err := os.ReadFile(metaPath)
 	if err != nil {
-		return nil
+		return usage, nil
 	}
 	status := ""
 	message := ""
 	cgOOMKilled := ""
+	timeSec := ""
+	timeWallSec := ""
+	maxRSSKB := ""
 	for _, line := range strings.Split(string(b), "\n") {
 		key, value, ok := strings.Cut(line, ":")
 		if !ok {
@@ -316,28 +324,66 @@ func handleMeta(metaPath string) error {
 			message = value
 		case "cg-oom-killed":
 			cgOOMKilled = value
+		case "time":
+			timeSec = value
+		case "time-wall":
+			timeWallSec = value
+		case "max-rss":
+			maxRSSKB = value
 		}
 	}
 
+	usage.ElapsedTime = parseElapsedMs(timeWallSec, timeSec)
+	usage.UsedMemory = parseMemoryMb(maxRSSKB)
+
 	switch status {
 	case "", "OK":
-		return nil
+		return usage, nil
 	case "TO":
-		return runtime.ErrTimeout
+		return usage, runtime.ErrTimeout
 	case "ML":
-		return runtime.ErrOutOfMemory
+		return usage, runtime.ErrOutOfMemory
 	case "SG":
 		if isOOMMessage(message) || cgOOMKilled == "1" {
-			return runtime.ErrOutOfMemory
+			return usage, runtime.ErrOutOfMemory
 		}
-		return fmt.Errorf("sandbox violation: %s", message)
+		return usage, fmt.Errorf("sandbox violation: %s", message)
 	case "RE":
-		return fmt.Errorf("runtime error: %s", message)
+		return usage, fmt.Errorf("runtime error: %s", message)
 	case "XX":
-		return fmt.Errorf("runtime failure: %s", message)
+		return usage, fmt.Errorf("runtime failure: %s", message)
 	default:
-		return fmt.Errorf("isolate status %q: %s", status, message)
+		return usage, fmt.Errorf("isolate status %q: %s", status, message)
 	}
+}
+
+func parseElapsedMs(timeWallSec string, timeSec string) int {
+	// ElapsedTime in our domain should reflect CPU time consumed by the process.
+	raw := strings.TrimSpace(timeSec)
+	if raw == "" {
+		// Keep fallback for robustness when isolate meta omits cpu time.
+		raw = strings.TrimSpace(timeWallSec)
+	}
+	if raw == "" {
+		return 0
+	}
+	sec, err := strconv.ParseFloat(raw, 64)
+	if err != nil || sec < 0 {
+		return 0
+	}
+	return int(math.Ceil(sec * 1000))
+}
+
+func parseMemoryMb(maxRSSKB string) int {
+	raw := strings.TrimSpace(maxRSSKB)
+	if raw == "" {
+		return 0
+	}
+	kb, err := strconv.ParseFloat(raw, 64)
+	if err != nil || kb < 0 {
+		return 0
+	}
+	return int(math.Ceil(kb / 1000))
 }
 
 func isOOMMessage(message string) bool {

@@ -136,20 +136,32 @@ func (e *RunGoJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	if e.runtimeResourceRegistry == nil {
 		return results.Error(e.job, fmt.Errorf("runtime resource registry is not set"))
 	}
-
 	jb := e.job.AsRunGo()
+	jobID := jb.GetID()
+
+	e.log.Info("execute job", slog.String("job_id", jobID.String()))
+
+	var (
+		elapsedTime = 0
+		usedMemory  = 0
+
+		errorResult = func(err error) results.Result {
+			return results.NewRunResultErr(jobID, err.Error(), elapsedTime, usedMemory)
+		}
+	)
+
 	compiledCodeRuntimePath, err := e.runtimeResourceRegistry.Get(jb.CompiledCode.SourceID)
 	if err != nil {
-		return results.Error(e.job, err)
+		return errorResult(fmt.Errorf("failed to get compiled code runtime path: %w", err))
 	}
 	runInputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.RunInput.SourceID)
 	if err != nil {
-		return results.Error(e.job, err)
+		return errorResult(fmt.Errorf("failed to get run input runtime path: %w", err))
 	}
 
 	runOutputRuntimePath := "output.txt"
 	stderr := bytes.NewBuffer(nil)
-	err = e.runtime.RunCommand(
+	usage, err := e.runtime.RunCommand(
 		ctx,
 		[]string{"./" + compiledCodeRuntimePath},
 		runtime.RunParams{
@@ -165,36 +177,39 @@ func (e *RunGoJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	if err != nil {
 		e.log.Error("execute binary in runtime error", slog.Any("err", err))
 		if errors.Is(err, runtime.ErrTimeout) {
-			return results.NewRunResultTL(jb.GetID())
+			return results.NewRunResultTL(jobID, usage.ElapsedTime, usage.UsedMemory)
 		}
 		if errors.Is(err, runtime.ErrOutOfMemory) {
-			return results.NewRunResultML(jb.GetID())
+			return results.NewRunResultML(jobID, usage.ElapsedTime, usage.UsedMemory)
 		}
-		return results.NewRunResultRE(jb.GetID())
+		return results.NewRunResultRE(jobID, usage.ElapsedTime, usage.UsedMemory)
 	}
 
+	elapsedTime = usage.ElapsedTime
+	usedMemory = usage.UsedMemory
+
 	e.log.Info("command ok")
-	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), runOutputRuntimePath)
+	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jobID, runOutputRuntimePath)
 
 	if !jb.ShowOutput {
-		return results.NewRunResultOK(jb.GetID())
+		return results.NewRunResultOK(jobID, elapsedTime, usedMemory)
 	}
 
 	tmp, err := os.CreateTemp("/tmp", "*")
 	if err != nil {
-		return results.Error(e.job, fmt.Errorf("failed to create temporary run output file: %w", err))
+		return errorResult(fmt.Errorf("failed to create temporary run output file: %w", err))
 	}
 	defer func() { _ = os.Remove(tmp.Name()) }()
 	defer func() { _ = tmp.Close() }()
 
 	if err = e.runtime.CopyFromRuntime(ctx, runOutputRuntimePath, tmp.Name()); err != nil {
-		return results.Error(e.job, fmt.Errorf("failed to copy run output from runtime: %w", err))
+		return errorResult(fmt.Errorf("failed to copy run output from runtime: %w", err))
 	}
 	out, err := os.ReadFile(tmp.Name())
 	if err != nil {
-		return results.Error(e.job, fmt.Errorf("failed to read run output: %w", err))
+		return errorResult(fmt.Errorf("failed to read run output: %w", err))
 	}
-	return results.NewRunResultWithOutput(jb.GetID(), string(out))
+	return results.NewRunResultWithOutput(jobID, string(out), elapsedTime, usedMemory)
 }
 
 func (e *RunGoJobExecutor) SaveOutput(ctx context.Context) error {

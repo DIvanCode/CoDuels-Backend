@@ -6,10 +6,13 @@ import (
 	"exesh/internal/runtime"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	stdruntime "runtime"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -67,14 +70,15 @@ func (rt *Runtime) CopyFromRuntime(_ context.Context, src, dst string) error {
 	return nil
 }
 
-func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) error {
+func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) (runtime.Usage, error) {
 	workDir, err := rt.getWorkDir()
 	if err != nil {
-		return err
+		return runtime.Usage{}, err
 	}
 	if len(cmd) == 0 {
-		return fmt.Errorf("empty command")
+		return runtime.Usage{}, fmt.Errorf("empty command")
 	}
+	startedAt := time.Now()
 
 	ctxExec := ctx
 	var cancel context.CancelFunc
@@ -90,11 +94,11 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 	if params.StdinFile != "" {
 		stdinPath, err := rt.runtimePath(params.StdinFile)
 		if err != nil {
-			return err
+			return runtime.Usage{}, err
 		}
 		stdin, err := os.OpenFile(stdinPath, os.O_RDONLY, 0)
 		if err != nil {
-			return fmt.Errorf("open runtime stdin %s: %w", params.StdinFile, err)
+			return runtime.Usage{}, fmt.Errorf("open runtime stdin %s: %w", params.StdinFile, err)
 		}
 		defer func() { _ = stdin.Close() }()
 		execCmd.Stdin = stdin
@@ -103,27 +107,34 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 	if params.StdoutFile != "" {
 		stdoutPath, err := rt.runtimePath(params.StdoutFile)
 		if err != nil {
-			return err
+			return runtime.Usage{}, err
 		}
 		if err := os.MkdirAll(filepath.Dir(stdoutPath), 0o755); err != nil {
-			return fmt.Errorf("create dir for %s: %w", stdoutPath, err)
+			return runtime.Usage{}, fmt.Errorf("create dir for %s: %w", stdoutPath, err)
 		}
 		stdout, err := os.OpenFile(stdoutPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 		if err != nil {
-			return fmt.Errorf("open runtime stdout %s: %w", params.StdoutFile, err)
+			return runtime.Usage{}, fmt.Errorf("open runtime stdout %s: %w", params.StdoutFile, err)
 		}
 		defer func() { _ = stdout.Close() }()
 		execCmd.Stdout = stdout
 	}
 
 	if err := execCmd.Run(); err != nil {
-		if errorsIsTimeout(ctxExec) {
-			return runtime.ErrTimeout
+		usage := runtime.Usage{
+			ElapsedTime: int(time.Since(startedAt).Milliseconds()),
+			UsedMemory:  processUsedMemory(execCmd.ProcessState),
 		}
-		return err
+		if errorsIsTimeout(ctxExec) {
+			return usage, runtime.ErrTimeout
+		}
+		return usage, err
 	}
 
-	return nil
+	return runtime.Usage{
+		ElapsedTime: int(time.Since(startedAt).Milliseconds()),
+		UsedMemory:  processUsedMemory(execCmd.ProcessState),
+	}, nil
 }
 
 func (rt *Runtime) Stop(_ context.Context) error {
@@ -152,6 +163,32 @@ func (rt *Runtime) getWorkDir() (string, error) {
 	}
 
 	return workDir, nil
+}
+
+func processUsedMemory(state *os.ProcessState) int {
+	if state == nil {
+		return 0
+	}
+
+	sysUsage := state.SysUsage()
+	rusage, ok := sysUsage.(*syscall.Rusage)
+	if !ok || rusage == nil {
+		return 0
+	}
+
+	maxRSS := float64(rusage.Maxrss)
+	if maxRSS <= 0 {
+		return 0
+	}
+
+	switch stdruntime.GOOS {
+	case "darwin":
+		// macOS reports ru_maxrss in bytes.
+		return int(math.Ceil(maxRSS / (1024.0 * 1024.0)))
+	default:
+		// Linux reports ru_maxrss in KiB.
+		return int(math.Ceil(maxRSS / 1024.0))
+	}
 }
 
 func (rt *Runtime) runtimePath(path string) (string, error) {

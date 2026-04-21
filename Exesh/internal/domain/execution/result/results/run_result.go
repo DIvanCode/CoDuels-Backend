@@ -12,28 +12,32 @@ type RunResult struct {
 	Output    string `json:"output,omitempty"`
 }
 
-func NewRunResultOK(jobID job.ID) Result {
+func NewRunResultOK(jobID job.ID, elapsedTime int, usedMemory int) Result {
 	return Result{
 		&RunResult{
 			Details: result.Details{
-				Type:   result.Run,
-				JobID:  jobID,
-				Status: job.StatusOK,
-				DoneAt: time.Now(),
+				Type:        result.Run,
+				JobID:       jobID,
+				Status:      job.StatusOK,
+				DoneAt:      time.Now(),
+				ElapsedTime: elapsedTime,
+				UsedMemory:  usedMemory,
 			},
 			HasOutput: false,
 		},
 	}
 }
 
-func NewRunResultWithOutput(jobID job.ID, out string) Result {
+func NewRunResultWithOutput(jobID job.ID, out string, elapsedTime int, usedMemory int) Result {
 	return Result{
 		&RunResult{
 			Details: result.Details{
-				Type:   result.Run,
-				JobID:  jobID,
-				Status: job.StatusOK,
-				DoneAt: time.Now(),
+				Type:        result.Run,
+				JobID:       jobID,
+				Status:      job.StatusOK,
+				DoneAt:      time.Now(),
+				ElapsedTime: elapsedTime,
+				UsedMemory:  usedMemory,
 			},
 			HasOutput: true,
 			Output:    out,
@@ -41,56 +45,64 @@ func NewRunResultWithOutput(jobID job.ID, out string) Result {
 	}
 }
 
-func NewRunResultTL(jobID job.ID) Result {
+func NewRunResultTL(jobID job.ID, elapsedTime int, usedMemory int) Result {
 	return Result{
 		&RunResult{
 			Details: result.Details{
-				Type:   result.Run,
-				JobID:  jobID,
-				Status: job.StatusTL,
-				DoneAt: time.Now(),
+				Type:        result.Run,
+				JobID:       jobID,
+				Status:      job.StatusTL,
+				DoneAt:      time.Now(),
+				ElapsedTime: elapsedTime,
+				UsedMemory:  usedMemory,
 			},
 			HasOutput: false,
 		},
 	}
 }
 
-func NewRunResultML(jobID job.ID) Result {
+func NewRunResultML(jobID job.ID, elapsedTime int, usedMemory int) Result {
 	return Result{
 		&RunResult{
 			Details: result.Details{
-				Type:   result.Run,
-				JobID:  jobID,
-				Status: job.StatusML,
-				DoneAt: time.Now(),
+				Type:        result.Run,
+				JobID:       jobID,
+				Status:      job.StatusML,
+				DoneAt:      time.Now(),
+				ElapsedTime: elapsedTime,
+				UsedMemory:  usedMemory,
 			},
 			HasOutput: false,
 		},
 	}
 }
 
-func NewRunResultRE(jobID job.ID) Result {
+func NewRunResultRE(jobID job.ID, elapsedTime int, usedMemory int) Result {
 	return Result{
 		&RunResult{
 			Details: result.Details{
-				Type:   result.Run,
-				JobID:  jobID,
-				Status: job.StatusRE,
-				DoneAt: time.Now(),
+				Type:        result.Run,
+				JobID:       jobID,
+				Status:      job.StatusRE,
+				DoneAt:      time.Now(),
+				ElapsedTime: elapsedTime,
+				UsedMemory:  usedMemory,
 			},
 			HasOutput: false,
 		},
 	}
 }
 
-func NewRunResultErr(jobID job.ID, err string) Result {
+func NewRunResultErr(jobID job.ID, err string, elapsedTime int, usedMemory int) Result {
 	return Result{
 		&RunResult{
 			Details: result.Details{
-				Type:   result.Run,
-				JobID:  jobID,
-				DoneAt: time.Now(),
-				Error:  err,
+				Type:        result.Run,
+				JobID:       jobID,
+				DoneAt:      time.Now(),
+				ElapsedTime: elapsedTime,
+				UsedMemory:  usedMemory,
+				Error:       err,
 			},
 			HasOutput: false,
 		},
