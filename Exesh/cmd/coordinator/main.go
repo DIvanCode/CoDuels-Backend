@@ -6,6 +6,7 @@ import (
 	executeAPI "exesh/internal/api/execute"
 	heartbeatAPI "exesh/internal/api/heartbeat"
 	messagesAPI "exesh/internal/api/messages"
+	"exesh/internal/calculator"
 	"exesh/internal/config"
 	"exesh/internal/dispatcher"
 	"exesh/internal/factory"
@@ -51,7 +52,7 @@ func main() {
 
 	mux := chi.NewRouter()
 
-	unitOfWork, executionStorage, outboxStorage, messageStorage, err := setupStorage(log, cfg.Storage)
+	unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, err := setupStorage(log, cfg.Storage)
 	if err != nil {
 		log.Error("failed to setup storage", slog.String("error", err.Error()))
 		return
@@ -70,7 +71,8 @@ func main() {
 	artifactRegistry := registry.NewArtifactRegistry(log, cfg.ArtifactRegistry, workerPool)
 
 	filestorageAdapter := adapter.NewFilestorageAdapter(fs)
-	executionFactory := factory.NewExecutionFactory(cfg.JobFactory, filestorageAdapter)
+	calc := calculator.NewCalculator(categoryHistogramStorage)
+	executionFactory := factory.NewExecutionFactory(cfg.JobFactory, filestorageAdapter, calc)
 
 	messageFactory := factory.NewMessageFactory()
 	messageDispatcher := dispatcher.NewMessageDispatcher(log, cfg.Dispatcher, unitOfWork, outboxStorage, messageStorage)
@@ -83,9 +85,9 @@ func main() {
 	)
 	promCoordinatorRegistry := prometheus.WrapRegistererWithPrefix("coduels_exesh_coordinator_", promRegistry)
 
-	jobScheduler := schedule.NewJobScheduler(log)
 	executionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
-		executionFactory, artifactRegistry, jobScheduler, messageFactory, messageDispatcher)
+		executionFactory, artifactRegistry, categoryHistogramStorage, messageFactory, messageDispatcher)
+	jobScheduler := schedule.NewJobScheduler(log, executionScheduler)
 
 	err = executionScheduler.RegisterMetrics(promCoordinatorRegistry)
 	if err != nil {
@@ -95,7 +97,7 @@ func main() {
 
 	executionScheduler.Start(ctx)
 
-	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage)
+	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage, calc)
 	executeAPI.NewHandler(log, executeUseCase).Register(mux)
 
 	heartbeatUseCase := heartbeatUC.NewUseCase(log, workerPool, jobScheduler, artifactRegistry)
@@ -162,6 +164,7 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	executionStorage *postgres.ExecutionStorage,
 	outboxStorage *postgres.OutboxStorage,
 	messageStorage *postgres.MessageStorage,
+	categoryHistogramStorage *postgres.CategoryHistogramStorage,
 	err error,
 ) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.InitTimeout)
@@ -170,7 +173,7 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 	unitOfWork, err = postgres.NewUnitOfWork(cfg)
 	if err != nil {
 		err = fmt.Errorf("failed to create unit of work: %w", err)
-		return unitOfWork, executionStorage, outboxStorage, messageStorage, err
+		return unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, err
 	}
 
 	err = unitOfWork.Do(ctx, func(ctx context.Context) error {
@@ -183,8 +186,11 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 		if messageStorage, err = postgres.NewMessageStorage(ctx, log); err != nil {
 			return fmt.Errorf("failed to create message storage: %w", err)
 		}
+		if categoryHistogramStorage, err = postgres.NewCategoryHistogramStorage(ctx, log); err != nil {
+			return fmt.Errorf("failed to create category histogram storage: %w", err)
+		}
 		return nil
 	})
 
-	return unitOfWork, executionStorage, outboxStorage, messageStorage, err
+	return unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, err
 }

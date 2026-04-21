@@ -21,26 +21,39 @@ type (
 	ExecutionFactory struct {
 		cfg         config.JobFactoryConfig
 		filestorage filestorage
+		calc        calculator
 	}
 
 	filestorage interface {
 		DownloadBucket(context.Context, bucket.ID, time.Duration, string) error
 		DownloadFile(context.Context, bucket.ID, string, time.Duration, string) error
 	}
+
+	calculator interface {
+		LoadCategoryStats(context.Context, execution.StageDefinitions) (execution.CategoryStats, error)
+		EstimateForJob(jobs.Definition, execution.CategoryStats) (int, int)
+	}
 )
 
 func NewExecutionFactory(
 	cfg config.JobFactoryConfig,
 	filestorage filestorage,
+	calc calculator,
 ) *ExecutionFactory {
 	return &ExecutionFactory{
 		cfg:         cfg,
 		filestorage: filestorage,
+		calc:        calc,
 	}
 }
 
 func (f *ExecutionFactory) Create(ctx context.Context, def execution.Definition) (*execution.Execution, error) {
 	ex := execution.NewExecution(def)
+
+	categoryStats, err := f.calc.LoadCategoryStats(ctx, def.Stages)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load expected values by category: %w", err)
+	}
 
 	for _, srcDef := range def.Sources {
 		if err := f.saveSource(ctx, ex, srcDef); err != nil {
@@ -49,7 +62,7 @@ func (f *ExecutionFactory) Create(ctx context.Context, def execution.Definition)
 	}
 
 	for _, stageDef := range def.Stages {
-		stage, err := f.createStage(ex, stageDef)
+		stage, err := f.createStage(ex, stageDef, categoryStats)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create stage '%s': %w", stageDef.Name, err)
 		}
@@ -96,7 +109,11 @@ func (f *ExecutionFactory) saveSource(ctx context.Context, ex *execution.Executi
 	return nil
 }
 
-func (f *ExecutionFactory) createStage(ex *execution.Execution, def execution.StageDefinition) (*execution.Stage, error) {
+func (f *ExecutionFactory) createStage(
+	ex *execution.Execution,
+	def execution.StageDefinition,
+	categoryStats execution.CategoryStats,
+) (*execution.Stage, error) {
 	stage := execution.Stage{
 		Name: def.Name,
 		Deps: def.Deps,
@@ -104,7 +121,7 @@ func (f *ExecutionFactory) createStage(ex *execution.Execution, def execution.St
 	}
 
 	for _, jobDef := range def.Jobs {
-		jb, err := f.createJob(ex, jobDef)
+		jb, err := f.createJob(ex, jobDef, categoryStats)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create job '%s': %w", jobDef.GetName(), err)
 		}
@@ -116,7 +133,11 @@ func (f *ExecutionFactory) createStage(ex *execution.Execution, def execution.St
 	return &stage, nil
 }
 
-func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definition) (jobs.Job, error) {
+func (f *ExecutionFactory) createJob(
+	ex *execution.Execution,
+	def jobs.Definition,
+	categoryStats execution.CategoryStats,
+) (jobs.Job, error) {
 	var jb jobs.Job
 
 	id, err := f.calculateJobID(ex.ID.String(), string(def.GetName()))
@@ -125,6 +146,9 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 	}
 
 	successStatus := def.GetSuccessStatus()
+	timeLimit := def.GetTimeLimit()
+	memoryLimit := def.GetMemoryLimit()
+	expectedTime, expectedMemory := f.calc.EstimateForJob(def, categoryStats)
 
 	switch def.GetType() {
 	case job.CompileCpp:
@@ -136,7 +160,7 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 		}
 		compiledCode := output.NewOutput(f.cfg.Output.CompiledBinary)
 
-		jb = jobs.NewCompileCppJob(id, successStatus, code, compiledCode)
+		jb = jobs.NewCompileCppJob(id, successStatus, timeLimit, memoryLimit, expectedTime, expectedMemory, code, compiledCode)
 	case job.CompileGo:
 		typedDef := def.AsCompileGo()
 
@@ -146,7 +170,7 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 		}
 		compiledCode := output.NewOutput(f.cfg.Output.CompiledBinary)
 
-		jb = jobs.NewCompileGoJob(id, successStatus, code, compiledCode)
+		jb = jobs.NewCompileGoJob(id, successStatus, timeLimit, memoryLimit, expectedTime, expectedMemory, code, compiledCode)
 	case job.RunCpp:
 		typedDef := def.AsRunCpp()
 
@@ -159,11 +183,9 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 			return jb, fmt.Errorf("failed to create run_input source: %w", err)
 		}
 		runOutput := output.NewOutput(f.cfg.Output.RunOutput)
-		timeLimit := typedDef.TimeLimit
-		memoryLimit := typedDef.MemoryLimit
 		showOutput := typedDef.ShowOutput
 
-		jb = jobs.NewRunCppJob(id, successStatus, compiledCode, runInput, runOutput, timeLimit, memoryLimit, showOutput)
+		jb = jobs.NewRunCppJob(id, successStatus, timeLimit, memoryLimit, expectedTime, expectedMemory, compiledCode, runInput, runOutput, showOutput)
 	case job.RunGo:
 		typedDef := def.AsRunGo()
 
@@ -176,11 +198,9 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 			return jb, fmt.Errorf("failed to create run_input source: %w", err)
 		}
 		runOutput := output.NewOutput(f.cfg.Output.RunOutput)
-		timeLimit := typedDef.TimeLimit
-		memoryLimit := typedDef.MemoryLimit
 		showOutput := typedDef.ShowOutput
 
-		jb = jobs.NewRunGoJob(id, successStatus, compiledCode, runInput, runOutput, timeLimit, memoryLimit, showOutput)
+		jb = jobs.NewRunGoJob(id, successStatus, timeLimit, memoryLimit, expectedTime, expectedMemory, compiledCode, runInput, runOutput, showOutput)
 	case job.RunPy:
 		typedDef := def.AsRunPy()
 
@@ -193,11 +213,9 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 			return jb, fmt.Errorf("failed to create run_input source: %w", err)
 		}
 		runOutput := output.NewOutput(f.cfg.Output.RunOutput)
-		timeLimit := typedDef.TimeLimit
-		memoryLimit := typedDef.MemoryLimit
 		showOutput := typedDef.ShowOutput
 
-		jb = jobs.NewRunPyJob(id, successStatus, code, runInput, runOutput, timeLimit, memoryLimit, showOutput)
+		jb = jobs.NewRunPyJob(id, successStatus, timeLimit, memoryLimit, expectedTime, expectedMemory, code, runInput, runOutput, showOutput)
 	case job.CheckCpp:
 		typedDef := def.AsCheckCpp()
 
@@ -214,7 +232,7 @@ func (f *ExecutionFactory) createJob(ex *execution.Execution, def jobs.Definitio
 			return jb, fmt.Errorf("failed to create suspect_output source: %w", err)
 		}
 
-		jb = jobs.NewCheckCppJob(id, successStatus, compiledChecker, correctOutput, suspectOutput)
+		jb = jobs.NewCheckCppJob(id, successStatus, timeLimit, memoryLimit, expectedTime, expectedMemory, compiledChecker, correctOutput, suspectOutput)
 	default:
 		return jb, fmt.Errorf("unknown job type %s", def.GetType())
 	}

@@ -20,6 +20,8 @@ const (
 			id varchar(36) PRIMARY KEY,
 			stages jsonb,
 		    sources jsonb,
+			weight bigint NOT NULL DEFAULT 0,
+			tries integer NOT NULL DEFAULT 0,
 			status varchar(32),
 			created_at timestamp,
 			scheduled_at timestamp NULL,
@@ -27,19 +29,29 @@ const (
 		);
 	`
 
+	addWeightToExecutionTableQuery = `
+		ALTER TABLE Executions
+		ADD COLUMN IF NOT EXISTS weight bigint NOT NULL DEFAULT 0;
+	`
+
+	addTriesToExecutionTableQuery = `
+		ALTER TABLE Executions
+		ADD COLUMN IF NOT EXISTS tries integer NOT NULL DEFAULT 0;
+	`
+
 	insertExecutionQuery = `
-		INSERT INTO Executions(id, stages, sources, status, created_at, scheduled_at, finished_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7);
+		INSERT INTO Executions(id, stages, sources, weight, tries, status, created_at, scheduled_at, finished_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 	`
 
 	selectExecutionForUpdateQuery = `
-		SELECT id, stages, sources, status, created_at, scheduled_at, finished_at FROM Executions
+		SELECT id, stages, sources, weight, tries, status, created_at, scheduled_at, finished_at FROM Executions
 		WHERE id = $1
 		FOR UPDATE
 	`
 
 	selectExecutionForScheduleQuery = `
-		SELECT id, stages, sources, status, created_at, scheduled_at, finished_at FROM Executions
+		SELECT id, stages, sources, weight, tries, status, created_at, scheduled_at, finished_at FROM Executions
 		WHERE status = $1 OR (status = $2 AND scheduled_at < $3)
 		ORDER BY created_at
 		LIMIT 1
@@ -47,7 +59,7 @@ const (
 	`
 
 	updateExecutionQuery = `
-		UPDATE Executions SET stages=$2, sources=$3, status=$4, created_at=$5, scheduled_at=$6, finished_at=$7
+		UPDATE Executions SET stages=$2, sources=$3, weight=$4, tries=$5, status=$6, created_at=$7, scheduled_at=$8, finished_at=$9
 		WHERE id=$1;
 	`
 )
@@ -58,6 +70,12 @@ func NewExecutionStorage(ctx context.Context, log *slog.Logger) (*ExecutionStora
 	if _, err := tx.ExecContext(ctx, createExecutionTableQuery); err != nil {
 		return nil, fmt.Errorf("failed to create execution table: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, addWeightToExecutionTableQuery); err != nil {
+		return nil, fmt.Errorf("failed to add weight to execution table: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, addTriesToExecutionTableQuery); err != nil {
+		return nil, fmt.Errorf("failed to add tries to execution table: %w", err)
+	}
 
 	return &ExecutionStorage{log: log}, nil
 }
@@ -66,7 +84,7 @@ func (s *ExecutionStorage) CreateExecution(ctx context.Context, ex execution.Def
 	tx := extractTx(ctx)
 
 	if _, err := tx.ExecContext(ctx, insertExecutionQuery,
-		ex.ID, ex.Stages, ex.Sources, ex.Status, ex.CreatedAt, ex.ScheduledAt, ex.FinishedAt); err != nil {
+		ex.ID, ex.Stages, ex.Sources, ex.Weight, ex.Tries, ex.Status, ex.CreatedAt, ex.ScheduledAt, ex.FinishedAt); err != nil {
 		return fmt.Errorf("failed to do insert execution query: %w", err)
 	}
 
@@ -78,7 +96,7 @@ func (s *ExecutionStorage) GetExecutionForUpdate(ctx context.Context, id executi
 
 	ex := execution.Definition{}
 	if err := tx.QueryRowContext(ctx, selectExecutionForUpdateQuery, id).
-		Scan(&ex.ID, &ex.Stages, &ex.Sources, &ex.Status, &ex.CreatedAt, &ex.ScheduledAt, &ex.FinishedAt); err != nil {
+		Scan(&ex.ID, &ex.Stages, &ex.Sources, &ex.Weight, &ex.Tries, &ex.Status, &ex.CreatedAt, &ex.ScheduledAt, &ex.FinishedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -97,7 +115,7 @@ func (s *ExecutionStorage) GetExecutionForSchedule(
 	ex := execution.Definition{}
 	if err := tx.QueryRowContext(ctx, selectExecutionForScheduleQuery,
 		execution.StatusNew, execution.StatusScheduled, retryBefore).
-		Scan(&ex.ID, &ex.Stages, &ex.Sources, &ex.Status, &ex.CreatedAt, &ex.ScheduledAt, &ex.FinishedAt); err != nil {
+		Scan(&ex.ID, &ex.Stages, &ex.Sources, &ex.Weight, &ex.Tries, &ex.Status, &ex.CreatedAt, &ex.ScheduledAt, &ex.FinishedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -111,7 +129,7 @@ func (s *ExecutionStorage) SaveExecution(ctx context.Context, ex execution.Defin
 	tx := extractTx(ctx)
 
 	if _, err := tx.ExecContext(ctx, updateExecutionQuery,
-		ex.ID, ex.Stages, ex.Sources, ex.Status, ex.CreatedAt, ex.ScheduledAt, ex.FinishedAt); err != nil {
+		ex.ID, ex.Stages, ex.Sources, ex.Weight, ex.Tries, ex.Status, ex.CreatedAt, ex.ScheduledAt, ex.FinishedAt); err != nil {
 		return fmt.Errorf("failed to do update execution query: %w", err)
 	}
 

@@ -29,6 +29,11 @@ type RunParams struct {
 	Stderr     io.Writer // stderr should be written to this writer
 }
 
+type Usage struct {
+	ElapsedTime int
+	UsedMemory  int
+}
+
 type LimitError error
 
 var (
@@ -43,6 +48,6 @@ type Runtime interface {
 	Init(context.Context) error
 	CopyToRuntime(context.Context, string, string) error
 	CopyFromRuntime(context.Context, string, string) error
-	RunCommand(context.Context, []string, RunParams) error
+	RunCommand(context.Context, []string, RunParams) (Usage, error)
 	Stop(context.Context) error
 }

@@ -10,6 +10,8 @@ type (
 		ID          ID
 		Stages      StageDefinitions
 		Sources     sources.Definitions
+		Weight      int64
+		Tries       int
 		Status      Status
 		CreatedAt   time.Time
 		ScheduledAt *time.Time
@@ -25,11 +27,13 @@ const (
 	StatusFinished  Status = "finished"
 )
 
-func NewExecutionDefinition(stages StageDefinitions, sources sources.Definitions) Definition {
+func NewExecutionDefinition(stages StageDefinitions, sources sources.Definitions, weight int64) Definition {
 	return Definition{
 		ID:          newID(),
 		Stages:      stages,
 		Sources:     sources,
+		Weight:      weight,
+		Tries:       0,
 		Status:      StatusNew,
 		CreatedAt:   time.Now(),
 		ScheduledAt: nil,
@@ -42,6 +46,7 @@ func (def *Definition) SetScheduled(scheduledAt time.Time) {
 		return
 	}
 
+	def.Tries++
 	def.Status = StatusScheduled
 	def.ScheduledAt = &scheduledAt
 }

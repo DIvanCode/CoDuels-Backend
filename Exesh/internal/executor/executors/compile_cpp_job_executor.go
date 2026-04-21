@@ -119,37 +119,51 @@ func (e *CompileCppJobExecutor) ExecuteCommand(ctx context.Context) results.Resu
 	if e.runtimeResourceRegistry == nil {
 		return results.Error(e.job, fmt.Errorf("runtime resource registry is not set"))
 	}
-
 	jb := e.job.AsCompileCpp()
+	jobID := jb.GetID()
+
+	e.log.Info("execute job", slog.String("job_id", jobID.String()))
+
+	var (
+		elapsedTime = 0
+		usedMemory  = 0
+
+		errorResult = func(err error) results.Result {
+			return results.NewCompileResultErr(jobID, err.Error(), elapsedTime, usedMemory)
+		}
+	)
 
 	codeRuntimePath, err := e.runtimeResourceRegistry.Get(jb.Code.SourceID)
 	if err != nil {
-		return results.Error(e.job, err)
+		return errorResult(fmt.Errorf("failed to get code runtime path: %w", err))
 	}
 
 	compiledCodeRuntimePath := "a.out"
 
 	stderr := bytes.NewBuffer(nil)
-	err = e.runtime.RunCommand(
+	usage, err := e.runtime.RunCommand(
 		ctx,
 		[]string{"g++", "-x", "c++", codeRuntimePath, "-o", compiledCodeRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
-				Memory: runtime.MemoryLimit(1024 * int64(runtime.Megabyte)),
-				Time:   runtime.TimeLimit(15000 * int64(time.Millisecond)),
+				Memory: runtime.MemoryLimit(int64(jb.MemoryLimit) * int64(runtime.Megabyte)),
+				Time:   runtime.TimeLimit(int64(jb.TimeLimit) * int64(time.Millisecond)),
 			},
 			Stderr: stderr,
 		},
 	)
 	if err != nil {
 		e.log.Error("execute g++ in runtime error", slog.Any("err", err))
-		return results.NewCompileResultCE(jb.GetID(), stderr.String())
+		return results.NewCompileResultCE(jobID, stderr.String(), usage.ElapsedTime, usage.UsedMemory)
 	}
 
-	e.log.Info("command ok")
-	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), compiledCodeRuntimePath)
+	elapsedTime = usage.ElapsedTime
+	usedMemory = usage.UsedMemory
 
-	return results.NewCompileResultOK(jb.GetID())
+	e.log.Info("command ok")
+	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jobID, compiledCodeRuntimePath)
+
+	return results.NewCompileResultOK(jobID, elapsedTime, usedMemory)
 }
 
 func (e *CompileCppJobExecutor) SaveOutput(ctx context.Context) error {

@@ -10,15 +10,23 @@ type (
 		GetType() Type
 		GetID() ID
 		GetSuccessStatus() Status
+		GetTimeLimit() int
+		GetMemoryLimit() int
+		GetExpectedTime() int
+		GetExpectedMemory() int
 		GetInputs() []input.Input
 		GetOutput() *output.Output
 		GetDependencies() []ID
 	}
 
 	Details struct {
-		Type          Type   `json:"type"`
-		ID            ID     `json:"id"`
-		SuccessStatus Status `json:"success_status"`
+		Type           Type   `json:"type"`
+		ID             ID     `json:"id"`
+		SuccessStatus  Status `json:"success_status"`
+		TimeLimit      int    `json:"time_limit"`
+		MemoryLimit    int    `json:"memory_limit"`
+		ExpectedTime   int    `json:"expected_time"`
+		ExpectedMemory int    `json:"expected_memory"`
 	}
 
 	Type   string
@@ -52,4 +60,20 @@ func (jb *Details) GetID() ID {
 
 func (jb *Details) GetSuccessStatus() Status {
 	return jb.SuccessStatus
+}
+
+func (jb *Details) GetTimeLimit() int {
+	return jb.TimeLimit
+}
+
+func (jb *Details) GetMemoryLimit() int {
+	return jb.MemoryLimit
+}
+
+func (jb *Details) GetExpectedTime() int {
+	return jb.ExpectedTime
+}
+
+func (jb *Details) GetExpectedMemory() int {
+	return jb.ExpectedMemory
 }

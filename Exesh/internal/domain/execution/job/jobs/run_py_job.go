@@ -8,37 +8,39 @@ import (
 
 type RunPyJob struct {
 	job.Details
-	Code        input.Input   `json:"code"`
-	RunInput    input.Input   `json:"run_input"`
-	RunOutput   output.Output `json:"run_output"`
-	TimeLimit   int           `json:"time_limit"`
-	MemoryLimit int           `json:"memory_limit"`
-	ShowOutput  bool          `json:"show_output"`
+	Code       input.Input   `json:"code"`
+	RunInput   input.Input   `json:"run_input"`
+	RunOutput  output.Output `json:"run_output"`
+	ShowOutput bool          `json:"show_output"`
 }
 
 func NewRunPyJob(
 	id job.ID,
 	successStatus job.Status,
+	timeLimit int,
+	memoryLimit int,
+	expectedTime int,
+	expectedMemory int,
 	code input.Input,
 	runInput input.Input,
 	runOutput output.Output,
-	timeLimit int,
-	memoryLimit int,
 	showOutput bool,
 ) Job {
 	return Job{
 		&RunPyJob{
 			Details: job.Details{
-				ID:            id,
-				Type:          job.RunPy,
-				SuccessStatus: successStatus,
+				ID:             id,
+				Type:           job.RunPy,
+				SuccessStatus:  successStatus,
+				TimeLimit:      timeLimit,
+				MemoryLimit:    memoryLimit,
+				ExpectedTime:   expectedTime,
+				ExpectedMemory: expectedMemory,
 			},
-			Code:        code,
-			RunInput:    runInput,
-			RunOutput:   runOutput,
-			TimeLimit:   timeLimit,
-			MemoryLimit: memoryLimit,
-			ShowOutput:  showOutput,
+			Code:       code,
+			RunInput:   runInput,
+			RunOutput:  runOutput,
+			ShowOutput: showOutput,
 		},
 	}
 }

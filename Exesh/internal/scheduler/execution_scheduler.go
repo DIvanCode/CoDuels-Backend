@@ -14,6 +14,8 @@ import (
 	"exesh/internal/domain/execution/source/sources"
 	"fmt"
 	"log/slog"
+	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -32,15 +34,16 @@ type (
 
 		executionFactory executionFactory
 		artifactRegistry artifactRegistry
-
-		jobScheduler jobScheduler
+		categoryStats    categoryStats
 
 		messageFactory    messageFactory
 		messageDispatcher messageDispatcher
 
-		nowExecutions atomic.Int64
+		nowWeight      atomic.Int64
+		nowWeightGauge prometheus.Collector
 
-		nowExecutionsGauge prometheus.Collector
+		mu         sync.Mutex
+		executions map[execution.ID]*Execution
 	}
 
 	unitOfWork interface {
@@ -61,8 +64,8 @@ type (
 		GetWorker(job.ID) (workerID string, err error)
 	}
 
-	jobScheduler interface {
-		Schedule(context.Context, jobs.Job, []sources.Source, jobCallback)
+	categoryStats interface {
+		UpdateCategoryHistogram(context.Context, string, int, int) error
 	}
 
 	messageFactory interface {
@@ -84,7 +87,7 @@ func NewExecutionScheduler(
 	executionStorage executionStorage,
 	executionFactory executionFactory,
 	artifactRegistry artifactRegistry,
-	jobScheduler jobScheduler,
+	categoryStats categoryStats,
 	messageFactory messageFactory,
 	messageDispatcher messageDispatcher,
 ) *ExecutionScheduler {
@@ -97,20 +100,22 @@ func NewExecutionScheduler(
 
 		executionFactory: executionFactory,
 		artifactRegistry: artifactRegistry,
-
-		jobScheduler: jobScheduler,
+		categoryStats:    categoryStats,
 
 		messageFactory:    messageFactory,
 		messageDispatcher: messageDispatcher,
 
-		nowExecutions: atomic.Int64{},
+		nowWeight: atomic.Int64{},
+
+		mu:         sync.Mutex{},
+		executions: make(map[execution.ID]*Execution),
 	}
 
-	s.nowExecutionsGauge = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
-		Name: "now_executions",
-		Help: "Count of currently running executions",
+	s.nowWeightGauge = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "now_weight",
+		Help: "Current total weight of running executions",
 	}, func() float64 {
-		return float64(s.getNowExecutions())
+		return float64(s.getNowWeight())
 	})
 
 	return s
@@ -118,7 +123,7 @@ func NewExecutionScheduler(
 
 func (s *ExecutionScheduler) RegisterMetrics(r prometheus.Registerer) error {
 	return errors.Join(
-		r.Register(s.nowExecutionsGauge),
+		r.Register(s.nowWeightGauge),
 	)
 }
 
@@ -138,33 +143,55 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 			break
 		}
 
-		if s.getNowExecutions() == s.cfg.MaxConcurrency {
-			s.log.Debug("skip execution scheduler loop (max concurrency reached)")
+		remainingCapacity := s.cfg.Capacity - s.getNowWeight()
+		if remainingCapacity <= 0 {
+			s.log.Debug("skip execution scheduler loop (capacity reached)")
 			continue
 		}
 
-		nowExecutions := s.getNowExecutions()
-		if nowExecutions > 0 {
-			s.log.Debug("begin execution scheduler loop", slog.Int("now_executions", s.getNowExecutions()))
+		nowWeight := s.getNowWeight()
+		if nowWeight > 0 {
+			s.log.Debug(
+				"begin execution scheduler loop",
+				slog.Int64("now_weight", nowWeight),
+				slog.Int64("remaining_capacity", remainingCapacity),
+			)
 		}
 
-		s.changeNowExecutions(+1)
+		weight := int64(0)
 		if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
 			def, err := s.executionStorage.GetExecutionForSchedule(ctx, time.Now().Add(-s.cfg.ExecutionRetryAfter))
 			if err != nil {
 				return fmt.Errorf("failed to get execution for schedule from storage: %w", err)
 			}
 			if def == nil {
-				s.changeNowExecutions(-1)
+				return nil
+			}
+			if def.Weight > remainingCapacity {
+				s.log.Debug(
+					"skip picked execution due to capacity",
+					slog.String("execution_id", def.ID.String()),
+					slog.Int64("weight", def.Weight),
+					slog.Int64("remaining_capacity", remainingCapacity),
+				)
 				return nil
 			}
 
-			ex, err := s.executionFactory.Create(ctx, *def)
+			innerEx, err := s.executionFactory.Create(ctx, *def)
 			if err != nil {
 				return fmt.Errorf("failed to create execution: %w", err)
 			}
 
+			ex := NewExecution(innerEx)
+			func() {
+				s.mu.Lock()
+				defer s.mu.Unlock()
+				s.executions[ex.ID] = ex
+			}()
+
 			ex.SetScheduled(time.Now())
+			s.changeNowWeight(+ex.Definition.Weight)
+			weight = ex.Definition.Weight
 
 			if err = s.scheduleExecution(ctx, ex); err != nil {
 				return fmt.Errorf("failed to schedule execution: %w", err)
@@ -176,13 +203,13 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 
 			return nil
 		}); err != nil {
-			s.changeNowExecutions(-1)
+			s.changeNowWeight(-weight)
 			s.log.Error("failed to schedule execution", slog.Any("error", err))
 		}
 	}
 }
 
-func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *execution.Execution) error {
+func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *Execution) error {
 	s.log.Info("schedule execution", slog.String("execution_id", ex.ID.String()))
 
 	msg := s.messageFactory.CreateExecutionStarted(ex.ID)
@@ -201,7 +228,7 @@ func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *executio
 
 func (s *ExecutionScheduler) scheduleJob(
 	ctx context.Context,
-	ex *execution.Execution,
+	ex *Execution,
 	jb jobs.Job,
 ) error {
 	if ex.IsDone() {
@@ -257,26 +284,68 @@ func (s *ExecutionScheduler) scheduleJob(
 		srcs = append(srcs, src)
 	}
 
-	s.jobScheduler.Schedule(ctx, jb, srcs, func(ctx context.Context, res results.Result) {
+	exJob := NewJob(jb, srcs)
+	exJob.OnSchedule = func(ctx context.Context) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		ex.DequeueJob(exJob)
+	}
+	exJob.OnDone = func(ctx context.Context, res results.Result) {
 		if res.GetError() != nil {
 			s.failJob(ctx, ex, jb, res)
 		} else {
 			s.doneJob(ctx, ex, jb, res)
 		}
-	})
+	}
+	ex.EnqueueJob(exJob)
 
 	return nil
 }
 
+func (s *ExecutionScheduler) pickJobs() []*Job {
+	executions := func() []*Execution {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		exs := make([]*Execution, 0, len(s.executions))
+		for _, ex := range s.executions {
+			exs = append(exs, ex)
+		}
+
+		return exs
+	}()
+
+	now := time.Now()
+	priorities := make(map[execution.ID]float64, len(executions))
+	for i := range executions {
+		priorities[executions[i].ID] = executions[i].GetPriority(now)
+	}
+	sort.Slice(executions, func(i, j int) bool {
+		return priorities[executions[i].ID] > priorities[executions[j].ID]
+	})
+
+	jbs := make([]*Job, 0)
+	for i := range executions {
+		jb := executions[i].GetPeekJob()
+		if jb != nil {
+			jbs = append(jbs, jb)
+		}
+	}
+
+	return jbs
+}
+
 func (s *ExecutionScheduler) failJob(
 	ctx context.Context,
-	ex *execution.Execution,
+	ex *Execution,
 	jb jobs.Job,
 	res results.Result,
 ) {
 	if ex.IsDone() {
 		return
 	}
+
+	ex.TotalDoneJobsExpectedTime += int64(jb.GetExpectedTime())
 
 	jobID := jb.GetID()
 	s.log.Info("fail job",
@@ -290,13 +359,15 @@ func (s *ExecutionScheduler) failJob(
 
 func (s *ExecutionScheduler) doneJob(
 	ctx context.Context,
-	ex *execution.Execution,
+	ex *Execution,
 	jb jobs.Job,
 	res results.Result,
 ) {
 	if ex.IsDone() {
 		return
 	}
+
+	ex.TotalDoneJobsExpectedTime += int64(jb.GetExpectedTime())
 
 	jobID := jb.GetID()
 	s.log.Info("done job",
@@ -323,6 +394,17 @@ func (s *ExecutionScheduler) doneJob(
 			if !ok {
 				jobResID := jobRes.GetJobID()
 				return fmt.Errorf("failed to find job definition by id: %s", jobResID.String())
+			}
+
+			if s.categoryStats != nil {
+				if err = s.categoryStats.UpdateCategoryHistogram(
+					ctx,
+					jobDef.GetCategoryName(),
+					jobRes.GetElapsedTime(),
+					jobRes.GetUsedMemory(),
+				); err != nil {
+					return fmt.Errorf("failed to update category histogram: %w", err)
+				}
 			}
 
 			msg, msgErr := s.messageFactory.CreateForJob(ex.ID, jobDef.GetName(), jobRes)
@@ -367,7 +449,7 @@ func (s *ExecutionScheduler) doneJob(
 
 func (s *ExecutionScheduler) finishExecution(
 	ctx context.Context,
-	ex *execution.Execution,
+	ex *Execution,
 	exError error,
 ) {
 	if ex.IsForceFailed() {
@@ -382,7 +464,7 @@ func (s *ExecutionScheduler) finishExecution(
 			slog.Any("error", exError))
 	}
 
-	defer s.changeNowExecutions(-1)
+	defer s.changeNowWeight(-ex.Definition.Weight)
 
 	ex.ForceFail()
 
@@ -410,10 +492,10 @@ func (s *ExecutionScheduler) finishExecution(
 	}
 }
 
-func (s *ExecutionScheduler) getNowExecutions() int {
-	return int(s.nowExecutions.Load())
+func (s *ExecutionScheduler) getNowWeight() int64 {
+	return s.nowWeight.Load()
 }
 
-func (s *ExecutionScheduler) changeNowExecutions(delta int) {
-	s.nowExecutions.Add(int64(delta))
+func (s *ExecutionScheduler) changeNowWeight(delta int64) {
+	s.nowWeight.Add(delta)
 }

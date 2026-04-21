@@ -28,7 +28,7 @@ type (
 
 	ExecutionSchedulerConfig struct {
 		ExecutionsInterval  time.Duration `yaml:"executions_interval" env:"EXECUTIONS_INTERVAL"`
-		MaxConcurrency      int           `yaml:"max_concurrency" env:"MAX_CONCURRENCY"`
+		Capacity            int64         `yaml:"capacity" env:"CAPACITY"`
 		ExecutionRetryAfter time.Duration `yaml:"execution_retry_after" env:"EXECUTION_RETRY_AFTER"`
 	}
 
