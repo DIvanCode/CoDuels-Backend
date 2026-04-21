@@ -14,6 +14,8 @@ import (
 	"exesh/internal/domain/execution/source/sources"
 	"fmt"
 	"log/slog"
+	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -34,14 +36,14 @@ type (
 		artifactRegistry artifactRegistry
 		categoryStats    categoryStats
 
-		jobScheduler jobScheduler
-
 		messageFactory    messageFactory
 		messageDispatcher messageDispatcher
 
-		nowWeight atomic.Int64
-
+		nowWeight      atomic.Int64
 		nowWeightGauge prometheus.Collector
+
+		mu         sync.Mutex
+		executions map[execution.ID]*Execution
 	}
 
 	unitOfWork interface {
@@ -66,10 +68,6 @@ type (
 		UpdateCategoryHistogram(context.Context, string, int, int) error
 	}
 
-	jobScheduler interface {
-		Schedule(context.Context, jobs.Job, []sources.Source, jobCallback)
-	}
-
 	messageFactory interface {
 		CreateExecutionStarted(execution.ID) messages.Message
 		CreateForJob(execution.ID, job.DefinitionName, results.Result) (messages.Message, error)
@@ -90,7 +88,6 @@ func NewExecutionScheduler(
 	executionFactory executionFactory,
 	artifactRegistry artifactRegistry,
 	categoryStats categoryStats,
-	jobScheduler jobScheduler,
 	messageFactory messageFactory,
 	messageDispatcher messageDispatcher,
 ) *ExecutionScheduler {
@@ -105,12 +102,13 @@ func NewExecutionScheduler(
 		artifactRegistry: artifactRegistry,
 		categoryStats:    categoryStats,
 
-		jobScheduler: jobScheduler,
-
 		messageFactory:    messageFactory,
 		messageDispatcher: messageDispatcher,
 
 		nowWeight: atomic.Int64{},
+
+		mu:         sync.Mutex{},
+		executions: make(map[execution.ID]*Execution),
 	}
 
 	s.nowWeightGauge = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
@@ -179,10 +177,17 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 				return nil
 			}
 
-			ex, err := s.executionFactory.Create(ctx, *def)
+			innerEx, err := s.executionFactory.Create(ctx, *def)
 			if err != nil {
 				return fmt.Errorf("failed to create execution: %w", err)
 			}
+
+			ex := NewExecution(innerEx)
+			func() {
+				s.mu.Lock()
+				defer s.mu.Unlock()
+				s.executions[ex.ID] = ex
+			}()
 
 			ex.SetScheduled(time.Now())
 			s.changeNowWeight(+ex.Definition.Weight)
@@ -204,7 +209,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 	}
 }
 
-func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *execution.Execution) error {
+func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *Execution) error {
 	s.log.Info("schedule execution", slog.String("execution_id", ex.ID.String()))
 
 	msg := s.messageFactory.CreateExecutionStarted(ex.ID)
@@ -223,7 +228,7 @@ func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *executio
 
 func (s *ExecutionScheduler) scheduleJob(
 	ctx context.Context,
-	ex *execution.Execution,
+	ex *Execution,
 	jb jobs.Job,
 ) error {
 	if ex.IsDone() {
@@ -279,20 +284,60 @@ func (s *ExecutionScheduler) scheduleJob(
 		srcs = append(srcs, src)
 	}
 
-	s.jobScheduler.Schedule(ctx, jb, srcs, func(ctx context.Context, res results.Result) {
+	exJob := NewJob(jb, srcs)
+	exJob.OnSchedule = func(ctx context.Context) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		ex.DequeueJob(exJob)
+	}
+	exJob.OnDone = func(ctx context.Context, res results.Result) {
 		if res.GetError() != nil {
 			s.failJob(ctx, ex, jb, res)
 		} else {
 			s.doneJob(ctx, ex, jb, res)
 		}
-	})
+	}
+	ex.EnqueueJob(exJob)
 
 	return nil
 }
 
+func (s *ExecutionScheduler) pickJobs() []*Job {
+	executions := func() []*Execution {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		exs := make([]*Execution, 0, len(s.executions))
+		for _, ex := range s.executions {
+			exs = append(exs, ex)
+		}
+
+		return exs
+	}()
+
+	now := time.Now()
+	priorities := make(map[execution.ID]float64, len(executions))
+	for i := range executions {
+		priorities[executions[i].ID] = executions[i].GetPriority(now)
+	}
+	sort.Slice(executions, func(i, j int) bool {
+		return priorities[executions[i].ID] > priorities[executions[j].ID]
+	})
+
+	jbs := make([]*Job, 0)
+	for i := range executions {
+		jb := executions[i].GetPeekJob()
+		if jb != nil {
+			jbs = append(jbs, jb)
+		}
+	}
+
+	return jbs
+}
+
 func (s *ExecutionScheduler) failJob(
 	ctx context.Context,
-	ex *execution.Execution,
+	ex *Execution,
 	jb jobs.Job,
 	res results.Result,
 ) {
@@ -312,7 +357,7 @@ func (s *ExecutionScheduler) failJob(
 
 func (s *ExecutionScheduler) doneJob(
 	ctx context.Context,
-	ex *execution.Execution,
+	ex *Execution,
 	jb jobs.Job,
 	res results.Result,
 ) {
@@ -400,7 +445,7 @@ func (s *ExecutionScheduler) doneJob(
 
 func (s *ExecutionScheduler) finishExecution(
 	ctx context.Context,
-	ex *execution.Execution,
+	ex *Execution,
 	exError error,
 ) {
 	if ex.IsForceFailed() {

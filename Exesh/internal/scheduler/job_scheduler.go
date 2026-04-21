@@ -6,7 +6,6 @@ import (
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/domain/execution/source/sources"
-	"exesh/internal/lib/queue"
 	"log/slog"
 	"sync"
 )
@@ -15,70 +14,59 @@ type (
 	JobScheduler struct {
 		log *slog.Logger
 
-		mu sync.Mutex
+		executionScheduler *ExecutionScheduler
 
-		scheduledJobs queue.Queue[jobs.Job]
-		jobSources    map[job.ID][]sources.Source
-		jobCallback   map[job.ID]jobCallback
+		mu            sync.Mutex
+		scheduledJobs map[job.ID]*Job
 	}
-
-	jobCallback func(context.Context, results.Result)
 )
 
-func NewJobScheduler(log *slog.Logger) *JobScheduler {
+func NewJobScheduler(log *slog.Logger, executionScheduler *ExecutionScheduler) *JobScheduler {
 	return &JobScheduler{
 		log: log,
 
-		mu: sync.Mutex{},
+		executionScheduler: executionScheduler,
 
-		scheduledJobs: *queue.NewQueue[jobs.Job](),
-		jobSources:    make(map[job.ID][]sources.Source),
-		jobCallback:   make(map[job.ID]jobCallback),
+		mu:            sync.Mutex{},
+		scheduledJobs: make(map[job.ID]*Job),
 	}
-}
-
-func (s *JobScheduler) Schedule(ctx context.Context, jb jobs.Job, srcs []sources.Source, onJobDone jobCallback) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.scheduledJobs.Enqueue(jb)
-	s.jobSources[jb.GetID()] = srcs
-	s.jobCallback[jb.GetID()] = onJobDone
 }
 
 func (s *JobScheduler) PickJob(ctx context.Context, workerID string) (*jobs.Job, []sources.Source) {
+	jbs := s.executionScheduler.pickJobs()
+	if len(jbs) == 0 {
+		return nil, nil
+	}
+
+	jb := jbs[0]
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	jb := s.scheduledJobs.Dequeue()
-	if jb == nil {
-		return jb, nil
-	}
+	s.scheduledJobs[jb.GetID()] = jb
+	jb.OnSchedule(ctx)
 
-	srcs := s.jobSources[jb.GetID()]
-	return jb, srcs
+	return &jb.Job, jb.Sources
 }
 
 func (s *JobScheduler) DoneJob(ctx context.Context, workerID string, res results.Result) {
-	prepareCallback := func() jobCallback {
+	prepareCallback := func() doneCallback {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
 		jobID := res.GetJobID()
-
-		if _, ok := s.jobSources[jobID]; ok {
-			delete(s.jobSources, jobID)
-		}
-		if callback, ok := s.jobCallback[jobID]; ok {
-			delete(s.jobCallback, jobID)
-			return callback
+		jb, ok := s.scheduledJobs[jobID]
+		if !ok {
+			return nil
 		}
 
-		return nil
+		delete(s.scheduledJobs, jobID)
+
+		return jb.OnDone
 	}
 
-	callback := prepareCallback()
-	if callback != nil {
-		callback(ctx, res)
+	cb := prepareCallback()
+	if cb != nil {
+		cb(ctx, res)
 	}
 }

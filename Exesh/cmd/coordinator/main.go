@@ -85,9 +85,9 @@ func main() {
 	)
 	promCoordinatorRegistry := prometheus.WrapRegistererWithPrefix("coduels_exesh_coordinator_", promRegistry)
 
-	jobScheduler := schedule.NewJobScheduler(log)
 	executionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
-		executionFactory, artifactRegistry, categoryHistogramStorage, jobScheduler, messageFactory, messageDispatcher)
+		executionFactory, artifactRegistry, categoryHistogramStorage, messageFactory, messageDispatcher)
+	jobScheduler := schedule.NewJobScheduler(log, executionScheduler)
 
 	err = executionScheduler.RegisterMetrics(promCoordinatorRegistry)
 	if err != nil {
