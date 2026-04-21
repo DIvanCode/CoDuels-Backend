@@ -345,6 +345,8 @@ func (s *ExecutionScheduler) failJob(
 		return
 	}
 
+	ex.TotalDoneJobsExpectedTime += int64(jb.GetExpectedTime())
+
 	jobID := jb.GetID()
 	s.log.Info("fail job",
 		slog.String("job", jobID.String()),
@@ -364,6 +366,8 @@ func (s *ExecutionScheduler) doneJob(
 	if ex.IsDone() {
 		return
 	}
+
+	ex.TotalDoneJobsExpectedTime += int64(jb.GetExpectedTime())
 
 	jobID := jb.GetID()
 	s.log.Info("done job",

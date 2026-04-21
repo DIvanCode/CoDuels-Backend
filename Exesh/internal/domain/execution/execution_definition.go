@@ -11,6 +11,7 @@ type (
 		Stages      StageDefinitions
 		Sources     sources.Definitions
 		Weight      int64
+		Tries       int
 		Status      Status
 		CreatedAt   time.Time
 		ScheduledAt *time.Time
@@ -32,6 +33,7 @@ func NewExecutionDefinition(stages StageDefinitions, sources sources.Definitions
 		Stages:      stages,
 		Sources:     sources,
 		Weight:      weight,
+		Tries:       0,
 		Status:      StatusNew,
 		CreatedAt:   time.Now(),
 		ScheduledAt: nil,
@@ -44,6 +46,7 @@ func (def *Definition) SetScheduled(scheduledAt time.Time) {
 		return
 	}
 
+	def.Tries++
 	def.Status = StatusScheduled
 	def.ScheduledAt = &scheduledAt
 }
