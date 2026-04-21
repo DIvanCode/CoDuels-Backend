@@ -24,6 +24,8 @@ public class RunUserCodeRateLimiterTests : ContextBasedTest
             {
                 Id = i,
                 User = u1,
+                DuelId = 1,
+                TaskKey = 'A',
                 Code = "print(1)",
                 Language = Language.Python,
                 Input = "test",
@@ -57,6 +59,8 @@ public class RunUserCodeRateLimiterTests : ContextBasedTest
             {
                 Id = i,
                 User = u1,
+                DuelId = 1,
+                TaskKey = 'A',
                 Code = "print(1)",
                 Language = Language.Python,
                 Input = "test",
@@ -88,6 +92,8 @@ public class RunUserCodeRateLimiterTests : ContextBasedTest
         {
             Id = 1,
             User = u1,
+            DuelId = 1,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = Language.Python,
             Input = "test",
@@ -101,6 +107,8 @@ public class RunUserCodeRateLimiterTests : ContextBasedTest
             {
                 Id = i,
                 User = u1,
+                DuelId = 1,
+                TaskKey = 'A',
                 Code = "print(1)",
                 Language = Language.Python,
                 Input = "test",
@@ -136,6 +144,8 @@ public class RunUserCodeRateLimiterTests : ContextBasedTest
             {
                 Id = i,
                 User = u2,
+                DuelId = 1,
+                TaskKey = 'A',
                 Code = "print(1)",
                 Language = Language.Python,
                 Input = "test",
@@ -149,6 +159,8 @@ public class RunUserCodeRateLimiterTests : ContextBasedTest
         {
             Id = 11,
             User = u1,
+            DuelId = 1,
+            TaskKey = 'A',
             Code = "print(1)",
             Language = Language.Python,
             Input = "test",

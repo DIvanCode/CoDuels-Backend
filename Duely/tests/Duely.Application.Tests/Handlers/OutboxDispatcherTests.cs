@@ -66,7 +66,9 @@ public class OutboxDispatcherTests
             RunId = 200,
             Code = "print(1)",
             Language = Language.Python,
-            Input = "test"
+            Input = "test",
+            TimeLimit = 1000,
+            MemoryLimit = 256
         };
 
         var message = new OutboxMessage
