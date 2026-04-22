@@ -223,6 +223,10 @@ func (f *ExecutionFactory) createJob(
 		if err != nil {
 			return jb, fmt.Errorf("failed to create compiled_checker source: %w", err)
 		}
+		testInput, err := f.createInput(ex, typedDef.TestInput)
+		if err != nil {
+			return jb, fmt.Errorf("failed to create test_input source: %w", err)
+		}
 		correctOutput, err := f.createInput(ex, typedDef.CorrectOutput)
 		if err != nil {
 			return jb, fmt.Errorf("failed to create correct_output source: %w", err)
@@ -232,7 +236,7 @@ func (f *ExecutionFactory) createJob(
 			return jb, fmt.Errorf("failed to create suspect_output source: %w", err)
 		}
 
-		jb = jobs.NewCheckCppJob(id, successStatus, timeLimit, memoryLimit, expectedTime, expectedMemory, compiledChecker, correctOutput, suspectOutput)
+		jb = jobs.NewCheckCppJob(id, successStatus, timeLimit, memoryLimit, expectedTime, expectedMemory, compiledChecker, testInput, correctOutput, suspectOutput)
 	default:
 		return jb, fmt.Errorf("unknown job type %s", def.GetType())
 	}

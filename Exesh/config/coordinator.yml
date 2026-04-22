@@ -20,7 +20,7 @@ job_factory:
   filestorage_endpoint: http://coordinator:5253
 execution_scheduler:
   executions_interval: 3s
-  capacity: 7680000 # 10 seconds * 512 megabytes * 300 tests * 5 executions
+  capacity: 7680000000 # 10000 milliseconds * 512 megabytes * 300 tests * 5 executions
   execution_retry_after: 30s
 worker_pool:
   worker_die_after: 10s

@@ -10,7 +10,6 @@ import (
 	"exesh/internal/runtime"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 )
@@ -93,6 +92,7 @@ func (e *CheckCppJobExecutor) Init(ctx context.Context) error {
 
 	jb := e.job.AsCheckCpp()
 	e.runtimeResourceRegistry.Set(jb.CompiledChecker.SourceID, "checker")
+	e.runtimeResourceRegistry.Set(jb.TestInput.SourceID, "input.txt")
 	e.runtimeResourceRegistry.Set(jb.CorrectOutput.SourceID, "correct.txt")
 	e.runtimeResourceRegistry.Set(jb.SuspectOutput.SourceID, "suspect.txt")
 	return nil
@@ -104,6 +104,12 @@ func (e *CheckCppJobExecutor) PrepareInput(ctx context.Context) error {
 	compiledChecker, unlock, err := e.sourceProvider.Locate(ctx, jb.CompiledChecker.SourceID)
 	if err != nil {
 		return fmt.Errorf("failed to get compiled checker: %w", err)
+	}
+	defer unlock()
+
+	testInput, unlock, err := e.sourceProvider.Locate(ctx, jb.TestInput.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get test input: %w", err)
 	}
 	defer unlock()
 
@@ -123,6 +129,10 @@ func (e *CheckCppJobExecutor) PrepareInput(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get compiled checker runtime path: %w", err)
 	}
+	testInputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.TestInput.SourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get test input runtime path: %w", err)
+	}
 	correctOutputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.CorrectOutput.SourceID)
 	if err != nil {
 		return fmt.Errorf("failed to get correct output runtime path: %w", err)
@@ -134,6 +144,10 @@ func (e *CheckCppJobExecutor) PrepareInput(ctx context.Context) error {
 
 	if err = e.runtime.CopyToRuntime(ctx, compiledChecker, compiledCheckerRuntimePath); err != nil {
 		return fmt.Errorf("failed to copy compiled checker to runtime: %w", err)
+	}
+
+	if err = e.runtime.CopyToRuntime(ctx, testInput, testInputRuntimePath); err != nil {
+		return fmt.Errorf("failed to copy test input to runtime: %w", err)
 	}
 
 	if err = e.runtime.CopyToRuntime(ctx, correctOutput, correctOutputRuntimePath); err != nil {
@@ -169,6 +183,10 @@ func (e *CheckCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to get checker runtime path"))
 	}
+	testInputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.TestInput.SourceID)
+	if err != nil {
+		return errorResult(fmt.Errorf("failed to get test input runtime path"))
+	}
 	correctRuntimePath, err := e.runtimeResourceRegistry.Get(jb.CorrectOutput.SourceID)
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to get correct output runtime path"))
@@ -179,54 +197,42 @@ func (e *CheckCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result
 	}
 
 	stderr := bytes.NewBuffer(nil)
-	checkVerdictRuntimePath := "verdict.txt"
 	usage, err := e.runtime.RunCommand(
 		ctx,
-		[]string{"./" + checkerRuntimePath, correctRuntimePath, suspectRuntimePath},
+		[]string{"./" + checkerRuntimePath, testInputRuntimePath, suspectRuntimePath, correctRuntimePath},
 		runtime.RunParams{
 			Limits: runtime.Limits{
 				Memory: runtime.MemoryLimit(int64(jb.MemoryLimit) * int64(runtime.Megabyte)),
 				Time:   runtime.TimeLimit(int64(jb.TimeLimit) * int64(time.Millisecond)),
 			},
-			StdoutFile: checkVerdictRuntimePath,
-			Stderr:     stderr,
+			Stderr: stderr,
 		},
 	)
-	if err != nil {
+
+	if usage == nil {
 		e.log.Error("execute checker in runtime error", slog.Any("err", err))
 		return errorResult(fmt.Errorf("failed to execute checker: %v", err))
 	}
 
 	elapsedTime = usage.ElapsedTime
 	usedMemory = usage.UsedMemory
+	verdict := strings.TrimSpace(stderr.String())
 
-	e.log.Info("command ok")
-
-	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jb.GetID(), checkVerdictRuntimePath)
-
-	checkVerdict, err := os.CreateTemp("/tmp", "*")
-	if err != nil {
-		return errorResult(fmt.Errorf("failed to create check verdict temp file: %v", err))
-	}
-	defer func() { _ = os.Remove(checkVerdict.Name()) }()
-	defer func() { _ = checkVerdict.Close() }()
-
-	if err = e.runtime.CopyFromRuntime(ctx, checkVerdictRuntimePath, checkVerdict.Name()); err != nil {
-		return errorResult(fmt.Errorf("failed to copy check verdict from runtime: %v", err))
-	}
-	checkVerdictOutput, err := os.ReadFile(checkVerdict.Name())
-	if err != nil {
-		return errorResult(fmt.Errorf("failed to read check verdict: %v", err))
-	}
-
-	verdict := strings.TrimSpace(string(checkVerdictOutput))
-	if verdict == string(job.StatusOK) {
+	if strings.HasPrefix(verdict, "ok") {
+		e.log.Info("command ok")
 		return results.NewCheckResultOK(jb.GetID(), usage.ElapsedTime, usage.UsedMemory)
 	}
-	if verdict == string(job.StatusWA) {
+	if strings.HasPrefix(verdict, "wrong") {
+		e.log.Info("command ok")
 		return results.NewCheckResultWA(jb.GetID(), usage.ElapsedTime, usage.UsedMemory)
 	}
-	return errorResult(fmt.Errorf("failed to parse check verdict: %s", verdict))
+	if err == nil {
+		e.log.Info("failed to parse check verdict")
+		return errorResult(fmt.Errorf("failed to parse check verdict: %s", verdict))
+	}
+
+	e.log.Error("execute checker in runtime error", slog.Any("err", err))
+	return errorResult(fmt.Errorf("failed to execute checker: %v", err))
 }
 
 func (e *CheckCppJobExecutor) SaveOutput(_ context.Context) error {
