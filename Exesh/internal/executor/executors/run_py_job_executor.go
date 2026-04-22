@@ -174,8 +174,18 @@ func (e *RunPyJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 			Stderr:     stderr,
 		},
 	)
+
+	if usage == nil {
+		e.log.Error("execute python in runtime error", slog.Any("err", err))
+		return errorResult(fmt.Errorf("execute binary in runtime error: %w", err))
+	}
+
+	elapsedTime = usage.ElapsedTime
+	usedMemory = usage.UsedMemory
+
+	e.log.Info("command ok")
+
 	if err != nil {
-		e.log.Error("execute binary in runtime error", slog.Any("err", err))
 		if errors.Is(err, runtime.ErrTimeout) {
 			return results.NewRunResultTL(jobID, usage.ElapsedTime, usage.UsedMemory)
 		}
@@ -185,10 +195,6 @@ func (e *RunPyJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 		return results.NewRunResultRE(jobID, usage.ElapsedTime, usage.UsedMemory)
 	}
 
-	elapsedTime = usage.ElapsedTime
-	usedMemory = usage.UsedMemory
-
-	e.log.Info("command ok")
 	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jobID, runOutputRuntimePath)
 
 	if !jb.ShowOutput {

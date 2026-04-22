@@ -115,13 +115,13 @@ func (rt *Runtime) CopyFromRuntime(_ context.Context, src, dst string) error {
 	return nil
 }
 
-func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) (runtime.Usage, error) {
+func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) (*runtime.Usage, error) {
 	b, err := rt.getBox()
 	if err != nil {
-		return runtime.Usage{}, err
+		return nil, err
 	}
 	if len(cmd) == 0 {
-		return runtime.Usage{}, fmt.Errorf("empty command")
+		return nil, fmt.Errorf("empty command")
 	}
 
 	stderrFile := ".stderr"
@@ -159,31 +159,32 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 	runErr := runCmd.Run()
 
 	usage, metaErr := handleMeta(filepath.Join(b.Root, metaFile))
-	if metaErr != nil {
-		return usage, metaErr
-	}
 
 	if err = enforceSandboxFSLimits(filepath.Join(b.Root, "box")); err != nil {
-		return usage, err
+		return &usage, err
 	}
 
 	if params.Stderr != nil {
 		if err = copyFileToWriter(filepath.Join(b.Root, "box", stderrFile), params.Stderr); err != nil {
-			return usage, fmt.Errorf("copy stderr: %w", err)
+			return &usage, fmt.Errorf("copy stderr: %w", err)
 		}
+	}
+
+	if metaErr != nil {
+		return &usage, metaErr
 	}
 
 	if runErr != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return usage, runtime.ErrTimeout
+			return &usage, runtime.ErrTimeout
 		}
 		if ctx.Err() != nil {
-			return usage, ctx.Err()
+			return &usage, ctx.Err()
 		}
-		return usage, fmt.Errorf("isolate run: %w: %s", runErr, strings.TrimSpace(runStderr.String()))
+		return &usage, fmt.Errorf("isolate run: %w: %s", runErr, strings.TrimSpace(runStderr.String()))
 	}
 
-	return usage, nil
+	return &usage, nil
 }
 
 func enforceSandboxFSLimits(boxPath string) error {

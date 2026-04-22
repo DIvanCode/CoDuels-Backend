@@ -48,6 +48,6 @@ type Runtime interface {
 	Init(context.Context) error
 	CopyToRuntime(context.Context, string, string) error
 	CopyFromRuntime(context.Context, string, string) error
-	RunCommand(context.Context, []string, RunParams) (Usage, error)
+	RunCommand(context.Context, []string, RunParams) (*Usage, error)
 	Stop(context.Context) error
 }

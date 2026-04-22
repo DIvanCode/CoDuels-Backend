@@ -70,13 +70,13 @@ func (rt *Runtime) CopyFromRuntime(_ context.Context, src, dst string) error {
 	return nil
 }
 
-func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) (runtime.Usage, error) {
+func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.RunParams) (*runtime.Usage, error) {
 	workDir, err := rt.getWorkDir()
 	if err != nil {
-		return runtime.Usage{}, err
+		return nil, err
 	}
 	if len(cmd) == 0 {
-		return runtime.Usage{}, fmt.Errorf("empty command")
+		return nil, fmt.Errorf("empty command")
 	}
 	startedAt := time.Now()
 
@@ -94,11 +94,11 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 	if params.StdinFile != "" {
 		stdinPath, err := rt.runtimePath(params.StdinFile)
 		if err != nil {
-			return runtime.Usage{}, err
+			return nil, err
 		}
 		stdin, err := os.OpenFile(stdinPath, os.O_RDONLY, 0)
 		if err != nil {
-			return runtime.Usage{}, fmt.Errorf("open runtime stdin %s: %w", params.StdinFile, err)
+			return nil, fmt.Errorf("open runtime stdin %s: %w", params.StdinFile, err)
 		}
 		defer func() { _ = stdin.Close() }()
 		execCmd.Stdin = stdin
@@ -107,14 +107,14 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 	if params.StdoutFile != "" {
 		stdoutPath, err := rt.runtimePath(params.StdoutFile)
 		if err != nil {
-			return runtime.Usage{}, err
+			return nil, err
 		}
 		if err := os.MkdirAll(filepath.Dir(stdoutPath), 0o755); err != nil {
-			return runtime.Usage{}, fmt.Errorf("create dir for %s: %w", stdoutPath, err)
+			return nil, fmt.Errorf("create dir for %s: %w", stdoutPath, err)
 		}
 		stdout, err := os.OpenFile(stdoutPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 		if err != nil {
-			return runtime.Usage{}, fmt.Errorf("open runtime stdout %s: %w", params.StdoutFile, err)
+			return nil, fmt.Errorf("open runtime stdout %s: %w", params.StdoutFile, err)
 		}
 		defer func() { _ = stdout.Close() }()
 		execCmd.Stdout = stdout
@@ -126,12 +126,12 @@ func (rt *Runtime) RunCommand(ctx context.Context, cmd []string, params runtime.
 			UsedMemory:  processUsedMemory(execCmd.ProcessState),
 		}
 		if errorsIsTimeout(ctxExec) {
-			return usage, runtime.ErrTimeout
+			return &usage, runtime.ErrTimeout
 		}
-		return usage, err
+		return &usage, err
 	}
 
-	return runtime.Usage{
+	return &runtime.Usage{
 		ElapsedTime: int(time.Since(startedAt).Milliseconds()),
 		UsedMemory:  processUsedMemory(execCmd.ProcessState),
 	}, nil

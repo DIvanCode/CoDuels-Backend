@@ -9,6 +9,7 @@ COPY ./cmd ./cmd
 COPY ./internal ./internal
 COPY ./config ./config
 COPY ./config/isolate.conf /usr/local/etc/isolate
+COPY testlib/testlib.h /usr/local/include/testlib.h
 
 RUN --mount=type=cache,target=/gomod-cache --mount=type=cache,target=/go-cache \
   mkdir -p /app/bin && \
