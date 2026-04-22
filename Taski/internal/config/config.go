@@ -71,9 +71,17 @@ type (
 )
 
 func MustLoad() (cfg *Config) {
+	return MustLoadWithDefault("config/taski.yml")
+}
+
+func MustLoadUploader() (cfg *Config) {
+	return MustLoadWithDefault("config/uploader.yml")
+}
+
+func MustLoadWithDefault(defaultPath string) (cfg *Config) {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
-		configPath = "config/config.yml"
+		configPath = defaultPath
 	}
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {

@@ -36,7 +36,7 @@ services:
       - "5252:5252"
       - "9077:9090"
     environment:
-      CONFIG_PATH: /config/config.yml
+      CONFIG_PATH: /config/taski.yml
       ENV: docker
       HTTP_SERVER_ADDR: 0.0.0.0:5252
       EXECUTE_ENDPOINT: http://coordinator:5253

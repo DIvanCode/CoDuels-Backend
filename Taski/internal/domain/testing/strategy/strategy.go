@@ -214,7 +214,7 @@ func NewRunJob(taskID task.ID, name job.Name,
 func NewCheckJob(taskID task.ID, name job.Name,
 	successStatus job.Status,
 	lang task.Language, checker inputs.Input,
-	correctOutput inputs.Input, suspectOutput inputs.Input,
+	testInput inputs.Input, correctOutput inputs.Input, suspectOutput inputs.Input,
 ) (jobs.Job, error) {
 	switch lang {
 	case task.LanguageCpp:
@@ -226,6 +226,7 @@ func NewCheckJob(taskID task.ID, name job.Name,
 			DefaultCheckTimeLimitMs,
 			DefaultCheckMemoryLimitMb,
 			checker,
+			testInput,
 			correctOutput,
 			suspectOutput,
 		), nil

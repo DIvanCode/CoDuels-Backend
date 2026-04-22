@@ -8,6 +8,7 @@ import (
 type CheckCppJob struct {
 	job.Details
 	CompiledChecker inputs.Input `json:"compiled_checker"`
+	TestInput       inputs.Input `json:"test_input"`
 	CorrectOutput   inputs.Input `json:"correct_output"`
 	SuspectOutput   inputs.Input `json:"suspect_output"`
 }
@@ -19,6 +20,7 @@ func NewCheckCppJob(
 	timeLimit int,
 	memoryLimit int,
 	compiledChecker inputs.Input,
+	testInput inputs.Input,
 	correctOutput inputs.Input,
 	suspectOutput inputs.Input,
 ) Job {
@@ -32,6 +34,7 @@ func NewCheckCppJob(
 			MemoryLimit:   memoryLimit,
 		},
 		CompiledChecker: compiledChecker,
+		TestInput:       testInput,
 		CorrectOutput:   correctOutput,
 		SuspectOutput:   suspectOutput,
 	}}

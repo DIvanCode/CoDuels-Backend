@@ -1,0 +1,122 @@
+{
+    "id": "8dedebf10e8b832aedb0a972b6491aa30ea34717",
+    "title": "Минимум на отрезке",
+    "type": "write_code",
+    "level": 3,
+    "topics": [],
+    "statement": "statement.md",
+    "tl": 500,
+    "ml": 256,
+    "checker": {
+        "path": "checker.cpp",
+        "lang": "Cpp"
+    },
+    "solution": {
+        "path": "solution.cpp",
+        "lang": "Cpp"
+    },
+    "tests": [
+        {
+            "id": 1,
+            "input": "tests/01.in",
+            "output": "tests/01.out",
+            "visible": true
+        },
+        {
+            "id": 2,
+            "input": "tests/02.in",
+            "output": "tests/02.out",
+            "visible": false
+        },
+        {
+            "id": 3,
+            "input": "tests/03.in",
+            "output": "tests/03.out",
+            "visible": false
+        },
+        {
+            "id": 4,
+            "input": "tests/04.in",
+            "output": "tests/04.out",
+            "visible": false
+        },
+        {
+            "id": 5,
+            "input": "tests/05.in",
+            "output": "tests/05.out",
+            "visible": false
+        },
+        {
+            "id": 6,
+            "input": "tests/06.in",
+            "output": "tests/06.out",
+            "visible": false
+        },
+        {
+            "id": 7,
+            "input": "tests/07.in",
+            "output": "tests/07.out",
+            "visible": false
+        },
+        {
+            "id": 8,
+            "input": "tests/08.in",
+            "output": "tests/08.out",
+            "visible": false
+        },
+        {
+            "id": 9,
+            "input": "tests/09.in",
+            "output": "tests/09.out",
+            "visible": false
+        },
+        {
+            "id": 10,
+            "input": "tests/10.in",
+            "output": "tests/10.out",
+            "visible": false
+        },
+        {
+            "id": 11,
+            "input": "tests/11.in",
+            "output": "tests/11.out",
+            "visible": false
+        },
+        {
+            "id": 12,
+            "input": "tests/12.in",
+            "output": "tests/12.out",
+            "visible": false
+        },
+        {
+            "id": 13,
+            "input": "tests/13.in",
+            "output": "tests/13.out",
+            "visible": false
+        },
+        {
+            "id": 14,
+            "input": "tests/14.in",
+            "output": "tests/14.out",
+            "visible": false
+        },
+        {
+            "id": 15,
+            "input": "tests/15.in",
+            "output": "tests/15.out",
+            "visible": false
+        },
+        {
+            "id": 16,
+            "input": "tests/16.in",
+            "output": "tests/16.out",
+            "visible": false
+        },
+        {
+            "id": 17,
+            "input": "tests/17.in",
+            "output": "tests/17.out",
+            "visible": false
+        }
+    ]
+}

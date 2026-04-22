@@ -26,7 +26,7 @@
           - "9077:9090"
         env:
           ENV: prod
-          CONFIG_PATH: /app/config/config.yml
+          CONFIG_PATH: /app/config/taski.yml
           HTTP_SERVER_ADDR: 0.0.0.0:5252
           DB_CONNECTION_STRING: "{{ postgres_connection }}"
           EXECUTE_ENDPOINT: http://coordinator:5253
