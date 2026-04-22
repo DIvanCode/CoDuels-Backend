@@ -13,7 +13,7 @@ COPY ./config ./config
 
 RUN --mount=type=cache,target=/gomod-cache --mount=type=cache,target=/go-cache \
   mkdir -p /app/bin && \
-  go build -o /app/bin/taski /app/cmd/...
+  go build -o /app/bin/taski /app/cmd/taski/...
 
 EXPOSE 5252
 

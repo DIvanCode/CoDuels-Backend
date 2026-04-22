@@ -132,7 +132,7 @@ func NewWriteCodeTaskTestingStrategy(
 			checkJob, err := strategy.NewCheckJob(t.GetID(), checkJobName,
 				job.StatusOK,
 				checkerDef.Lang, checker,
-				suspectOutput, correctOutput)
+				testInput, suspectOutput, correctOutput)
 			if err != nil {
 				return ts, fmt.Errorf("failed to run checker: %w", err)
 			}

@@ -52,11 +52,12 @@ func NewPredictOutputTaskTestingStrategy(
 
 	suspectOutput := inputs.NewInlineInput(suspectSolutionSource.GetName())
 	correctOutput := inputs.NewFilestorageBucketInput(taskSource.GetName(), typedTask.Test.Output)
+	testInput := inputs.NewFilestorageBucketInput(taskSource.GetName(), typedTask.Test.Input)
 	checkJobName := strategy.FormatJobName(strategy.CheckJobFormat)
 	checkJob, err := strategy.NewCheckJob(t.GetID(), checkJobName,
 		job.StatusOK,
 		checkerDef.Lang, checker,
-		suspectOutput, correctOutput)
+		testInput, suspectOutput, correctOutput)
 	if err != nil {
 		return ts, fmt.Errorf("failed to run checker: %w", err)
 	}

@@ -1,0 +1,6 @@
+env: dev
+filestorage:
+  root_dir: ../file_storage
+  trasher:
+    workers: 0
+    collector_iterations_delay: 6000
