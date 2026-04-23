@@ -55,10 +55,14 @@ func (uc *UseCase) Heartbeat(ctx context.Context, command Command) ([]jobs.Job, 
 	for _, jobResult := range command.DoneJobs {
 		if jobResult.GetType() == result.Chain {
 			for _, innerJobResult := range jobResult.AsChain().Results {
-				uc.artifactRegistry.PutArtifact(command.WorkerID, innerJobResult.GetJobID())
+				if jobResult.GetHasOutput() {
+					uc.artifactRegistry.PutArtifact(command.WorkerID, innerJobResult.GetJobID())
+				}
 			}
 		} else {
-			uc.artifactRegistry.PutArtifact(command.WorkerID, jobResult.GetJobID())
+			if jobResult.GetHasOutput() {
+				uc.artifactRegistry.PutArtifact(command.WorkerID, jobResult.GetJobID())
+			}
 		}
 		uc.jobScheduler.DoneJob(ctx, command.WorkerID, jobResult)
 	}

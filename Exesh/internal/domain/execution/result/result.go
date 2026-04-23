@@ -11,6 +11,7 @@ type (
 		GetType() Type
 		GetJobID() job.ID
 		GetStatus() job.Status
+		GetHasOutput() bool
 		GetDoneAt() time.Time
 		GetElapsedTime() int
 		GetUsedMemory() int
@@ -21,6 +22,7 @@ type (
 		Type        Type       `json:"type"`
 		JobID       job.ID     `json:"job_id"`
 		Status      job.Status `json:"status"`
+		HasOutput   bool       `json:"has_output"`
 		DoneAt      time.Time  `json:"done_at"`
 		ElapsedTime int        `json:"elapsed_time"`
 		UsedMemory  int        `json:"used_memory"`
@@ -48,6 +50,10 @@ func (res *Details) GetJobID() job.ID {
 
 func (res *Details) GetStatus() job.Status {
 	return res.Status
+}
+
+func (res *Details) GetHasOutput() bool {
+	return res.HasOutput
 }
 
 func (res *Details) GetDoneAt() time.Time {

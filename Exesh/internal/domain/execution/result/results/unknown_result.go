@@ -14,10 +14,11 @@ func NewUnknownResultErr(jobID job.ID, err string) Result {
 	return Result{
 		&UnknownResult{
 			Details: result.Details{
-				Type:   result.Unknown,
-				JobID:  jobID,
-				DoneAt: time.Now(),
-				Error:  err,
+				Type:      result.Unknown,
+				JobID:     jobID,
+				HasOutput: false,
+				DoneAt:    time.Now(),
+				Error:     err,
 			},
 		},
 	}

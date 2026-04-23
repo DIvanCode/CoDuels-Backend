@@ -11,14 +11,15 @@ type ChainResult struct {
 	Results []Result `json:"results"`
 }
 
-func NewChainResult(jobID job.ID, status job.Status, results []Result) Result {
+func NewChainResult(jobID job.ID, status job.Status, hasOutput bool, results []Result) Result {
 	return Result{
 		&ChainResult{
 			Details: result.Details{
-				Type:   result.Chain,
-				JobID:  jobID,
-				Status: status,
-				DoneAt: time.Now(),
+				Type:      result.Chain,
+				JobID:     jobID,
+				Status:    status,
+				HasOutput: hasOutput,
+				DoneAt:    time.Now(),
 			},
 			Results: results,
 		},
@@ -29,10 +30,11 @@ func NewChainResultErr(jobID job.ID, err string, results []Result) Result {
 	return Result{
 		&ChainResult{
 			Details: result.Details{
-				Type:   result.Chain,
-				JobID:  jobID,
-				DoneAt: time.Now(),
-				Error:  err,
+				Type:      result.Chain,
+				JobID:     jobID,
+				HasOutput: false,
+				DoneAt:    time.Now(),
+				Error:     err,
 			},
 			Results: results,
 		},

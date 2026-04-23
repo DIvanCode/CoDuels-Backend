@@ -195,6 +195,11 @@ func (w *Worker) executeJob(ctx context.Context, jb jobs.Job) results.Result {
 		return results.Error(jb, fmt.Errorf("prepare input: %w", err))
 	}
 	result := exec.ExecuteCommand(ctx)
+
+	if !result.GetHasOutput() {
+		return result
+	}
+
 	err = exec.SaveOutput(ctx)
 	if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
 		w.log.Error("failed to save output", slog.Any("err", err))

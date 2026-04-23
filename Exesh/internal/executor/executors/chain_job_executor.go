@@ -159,12 +159,18 @@ func (e *ChainJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 		if innerResult.GetError() != nil {
 			return results.NewChainResultErr(chainJob.GetID(), innerResult.GetError().Error(), innerResults)
 		}
-		if innerResult.GetStatus() != innerJob.GetSuccessStatus() {
-			return results.NewChainResult(chainJob.GetID(), innerResult.GetStatus(), innerResults)
+
+		if i < len(chainJob.Jobs)-1 && innerResult.GetStatus() != innerJob.GetSuccessStatus() {
+			return results.NewChainResult(chainJob.GetID(), innerResult.GetStatus(), false, innerResults)
 		}
 	}
 
-	return results.NewChainResult(chainJob.GetID(), innerResults[len(innerResults)-1].GetStatus(), innerResults)
+	return results.NewChainResult(
+		chainJob.GetID(),
+		innerResults[len(innerResults)-1].GetStatus(),
+		innerResults[len(innerResults)-1].GetHasOutput(),
+		innerResults,
+	)
 }
 
 func (e *ChainJobExecutor) SaveOutput(ctx context.Context) error {
