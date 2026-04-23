@@ -1,28 +1,16 @@
-#include<bits/stdc++.h>
+#include "testlib.h"
 
-using namespace std;
+int main(int argc, char* argv[]) {
+    setName("single integer checker");
+    registerTestlibCmd(argc, argv);
 
-int main(int argv, char **argc) {
-    if (argv != 3) {
-        return -1;
+    int expected = ans.readInt();
+    int found = ouf.readInt();
+
+    if (expected != found) {
+        quitf(_wa, "expected %d, found %d", expected, found);
     }
 
-    string correct_output_file = argc[1];
-    string suspect_output_file = argc[2];
-
-    ifstream correct(correct_output_file);
-    ifstream suspect(suspect_output_file);
-
-    int correct_output;
-    correct >> correct_output;
-    int suspect_output;
-    suspect >> suspect_output;
-
-    if (correct_output == suspect_output) {
-        cout << "OK";
-    } else {
-        cout << "WA";
-    }
-
-    return 0;
+    ouf.readEof();
+    quitf(_ok, "answer is %d", expected);
 }

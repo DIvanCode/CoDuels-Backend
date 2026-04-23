@@ -1,36 +1,32 @@
-#include<bits/stdc++.h>
+#include "testlib.h"
 
-using namespace std;
+int main(int argc, char* argv[]) {
+    setName("token-by-token checker");
+    registerTestlibCmd(argc, argv);
 
-int main(int argv, char **argc) {
-    if (argv != 3) {
-        return -1;
-    }
-
-    string correct_output_file = argc[1];
-    string suspect_output_file = argc[2];
-
-    ifstream correct(correct_output_file);
-    ifstream suspect(suspect_output_file);
-
-    while (true) {
-        string correct_output;
-        bool correct_eol = !(correct >> correct_output);
-        string suspect_output;
-        bool suspect_eol = !(suspect >> suspect_output);
-        if (correct_eol != suspect_eol) {
-            cout << "WA";
-            return 0;
-        }
-        if (correct_eol) {
-            break;
-        }
-        if (correct_output != suspect_output) {
-            cout << "WA";
-            return 0;
+    int n = 0;
+    while (!ans.seekEof() && !ouf.seekEof()) {
+        n++;
+        std::string expected = ans.readWord();
+        std::string found = ouf.readWord();
+        if (expected != found) {
+            quitf(
+                _wa,
+                "%d%s tokens differ - expected: '%s', found: '%s'",
+                n,
+                englishEnding(n).c_str(),
+                compress(expected).c_str(),
+                compress(found).c_str()
+            );
         }
     }
 
-    cout << "OK";
-    return 0;
+    if (!ans.seekEof()) {
+        quitf(_wa, "Answer contains extra tokens");
+    }
+    if (!ouf.seekEof()) {
+        quitf(_wa, "Output contains extra tokens");
+    }
+
+    quitf(_ok, "%d token(s)", n);
 }
