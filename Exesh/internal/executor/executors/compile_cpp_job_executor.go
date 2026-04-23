@@ -154,7 +154,7 @@ func (e *CompileCppJobExecutor) ExecuteCommand(ctx context.Context) results.Resu
 	)
 	if err != nil {
 		e.log.Error("execute g++ in runtime error", slog.Any("err", err))
-		return results.NewCompileResultCE(jobID, stderr.String(), usage.ElapsedTime, usage.UsedMemory)
+		return results.NewCompileResultCE(jobID, false, stderr.String(), usage.ElapsedTime, usage.UsedMemory)
 	}
 
 	elapsedTime = usage.ElapsedTime
@@ -163,7 +163,7 @@ func (e *CompileCppJobExecutor) ExecuteCommand(ctx context.Context) results.Resu
 	e.log.Info("command ok")
 	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jobID, compiledCodeRuntimePath)
 
-	return results.NewCompileResultOK(jobID, elapsedTime, usedMemory)
+	return results.NewCompileResultOK(jobID, true, elapsedTime, usedMemory)
 }
 
 func (e *CompileCppJobExecutor) SaveOutput(ctx context.Context) error {

@@ -220,11 +220,11 @@ func (e *CheckCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result
 
 	if strings.HasPrefix(verdict, "ok") {
 		e.log.Info("command ok")
-		return results.NewCheckResultOK(jb.GetID(), usage.ElapsedTime, usage.UsedMemory)
+		return results.NewCheckResultOK(jb.GetID(), false, usage.ElapsedTime, usage.UsedMemory)
 	}
 	if strings.HasPrefix(verdict, "wrong") {
 		e.log.Info("command ok")
-		return results.NewCheckResultWA(jb.GetID(), usage.ElapsedTime, usage.UsedMemory)
+		return results.NewCheckResultWA(jb.GetID(), false, usage.ElapsedTime, usage.UsedMemory)
 	}
 	if err == nil {
 		e.log.Info("failed to parse check verdict")

@@ -187,18 +187,18 @@ func (e *RunGoJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 
 	if err != nil {
 		if errors.Is(err, runtime.ErrTimeout) {
-			return results.NewRunResultTL(jobID, usage.ElapsedTime, usage.UsedMemory)
+			return results.NewRunResultTL(jobID, false, usage.ElapsedTime, usage.UsedMemory)
 		}
 		if errors.Is(err, runtime.ErrOutOfMemory) {
-			return results.NewRunResultML(jobID, usage.ElapsedTime, usage.UsedMemory)
+			return results.NewRunResultML(jobID, false, usage.ElapsedTime, usage.UsedMemory)
 		}
-		return results.NewRunResultRE(jobID, usage.ElapsedTime, usage.UsedMemory)
+		return results.NewRunResultRE(jobID, false, usage.ElapsedTime, usage.UsedMemory)
 	}
 
 	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jobID, runOutputRuntimePath)
 
 	if !jb.ShowOutput {
-		return results.NewRunResultOK(jobID, elapsedTime, usedMemory)
+		return results.NewRunResultOK(jobID, true, elapsedTime, usedMemory)
 	}
 
 	tmp, err := os.CreateTemp("/tmp", "*")
@@ -215,7 +215,7 @@ func (e *RunGoJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	if err != nil {
 		return errorResult(fmt.Errorf("failed to read run output: %w", err))
 	}
-	return results.NewRunResultWithOutput(jobID, string(out), elapsedTime, usedMemory)
+	return results.NewRunResultWithOutput(jobID, true, string(out), elapsedTime, usedMemory)
 }
 
 func (e *RunGoJobExecutor) SaveOutput(ctx context.Context) error {
