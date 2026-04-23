@@ -58,10 +58,11 @@ const (
 
 	TestingInProgressStatus string = "Testing in progress"
 
-	DefaultCompileTimeLimitMs   int = 5000
-	DefaultCompileMemoryLimitMb int = 256
-	DefaultCheckTimeLimitMs     int = 2000
-	DefaultCheckMemoryLimitMb   int = 256
+	DefaultCompileTimeLimitMs        int = 5000
+	DefaultCheckerCompileTimeLimitMs int = 10000
+	DefaultCompileMemoryLimitMb      int = 256
+	DefaultCheckTimeLimitMs          int = 2000
+	DefaultCheckMemoryLimitMb        int = 256
 )
 
 var (
@@ -175,15 +176,19 @@ func IsSuspectJob(name job.Name) bool {
 }
 
 func NewPrepareJob(taskID task.ID, name job.Name, code inputs.Input, lang task.Language) (*jobs.Job, error) {
+	compileTimeLimitMs := DefaultCompileTimeLimitMs
+	if name == FormatJobName(PrepareJobFormat, CheckerCode) {
+		compileTimeLimitMs = DefaultCheckerCompileTimeLimitMs
+	}
 
 	switch lang {
 	case task.LanguageCpp:
 		categoryName := makeCategoryName(taskID, name, job.CompileCpp)
-		jb := jobs.NewCompileCppJob(name, categoryName, DefaultCompileTimeLimitMs, DefaultCompileMemoryLimitMb, code)
+		jb := jobs.NewCompileCppJob(name, categoryName, compileTimeLimitMs, DefaultCompileMemoryLimitMb, code)
 		return &jb, nil
 	case task.LanguageGo:
 		categoryName := makeCategoryName(taskID, name, job.CompileGo)
-		jb := jobs.NewCompileGoJob(name, categoryName, DefaultCompileTimeLimitMs, DefaultCompileMemoryLimitMb, code)
+		jb := jobs.NewCompileGoJob(name, categoryName, compileTimeLimitMs, DefaultCompileMemoryLimitMb, code)
 		return &jb, nil
 	case task.LanguagePython:
 		return nil, nil

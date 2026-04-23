@@ -98,7 +98,7 @@ func NewFindTestTaskTestingStrategy(
 	checkJob, err := strategy.NewCheckJob(t.GetID(), checkJobName,
 		job.StatusWA,
 		checkerDef.Lang, checker,
-		input, sourceCodeOutput, solutionCodeOutput)
+		input, solutionCodeOutput, sourceCodeOutput)
 	if err != nil {
 		return ts, fmt.Errorf("failed to run checker: %w", err)
 	}

@@ -57,7 +57,7 @@ func NewPredictOutputTaskTestingStrategy(
 	checkJob, err := strategy.NewCheckJob(t.GetID(), checkJobName,
 		job.StatusOK,
 		checkerDef.Lang, checker,
-		testInput, suspectOutput, correctOutput)
+		testInput, correctOutput, suspectOutput)
 	if err != nil {
 		return ts, fmt.Errorf("failed to run checker: %w", err)
 	}
