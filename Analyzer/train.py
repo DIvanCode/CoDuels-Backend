@@ -13,7 +13,7 @@ from ml.training import train_and_save
 from ml.trainers import TrainingConfig
 
 
-def _print_result(name: str, result, model_path: str, metrics_path: str) -> None:
+def print_result(name: str, result, model_path: str, metrics_path: str) -> None:
     print(f"==== {name} ====")
     print(f"model_type={result.model_type}")
     print(f"trained_on={result.train_size}")
@@ -79,8 +79,8 @@ def main() -> None:
         cheater_subdir=args.cheater_subdir,
     )
 
-    _print_result("baseline", baseline_result, args.baseline_out, args.baseline_metrics_out)
-    _print_result("production", prod_result, args.prod_out, args.prod_metrics_out)
+    print_result("baseline", baseline_result, args.baseline_out, args.baseline_metrics_out)
+    print_result("production", prod_result, args.prod_out, args.prod_metrics_out)
 
 
 if __name__ == "__main__":

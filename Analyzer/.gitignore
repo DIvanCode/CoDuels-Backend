@@ -20,3 +20,4 @@ htmlcov/
 .env.*
 
 artifacts/*
+.ipynb_checkpoints

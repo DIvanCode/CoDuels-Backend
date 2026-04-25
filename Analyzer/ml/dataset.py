@@ -31,8 +31,8 @@ def load_event_dataset(
     rows: list[dict[str, float]] = []
     labels: list[float] = []
 
-    _append_samples_from_dir(rows, labels, normal_dir, label=0.0)
-    _append_samples_from_dir(rows, labels, cheater_dir, label=1.0)
+    append_samples_from_dir(rows, labels, normal_dir, label=0.0)
+    append_samples_from_dir(rows, labels, cheater_dir, label=1.0)
 
     if not rows:
         raise DatasetError(f"Dataset is empty in {base_dir}")
@@ -42,14 +42,12 @@ def load_event_dataset(
 
     unique_labels = np.unique(y)
     if unique_labels.size < 2:
-        raise DatasetError(
-            "Dataset must contain both classes: normal(0) and cheater(1)."
-        )
+        raise DatasetError("Dataset must contain both classes: normal(0) and cheater(1).")
 
     return x, y
 
 
-def _append_samples_from_dir(
+def append_samples_from_dir(
     rows: list[dict[str, float]],
     labels: list[float],
     directory: Path,

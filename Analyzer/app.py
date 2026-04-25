@@ -14,23 +14,17 @@ from ml.model_store import load_pickle_model
 
 app = FastAPI()
 
-LEGACY_MODEL_ENV = os.getenv("ANALYZER_MODEL_PATH")
 PRODUCTION_MODEL_ENV = os.getenv("ANALYZER_PROD_MODEL_PATH")
 BASELINE_MODEL_ENV = os.getenv("ANALYZER_BASELINE_MODEL_PATH")
 
-legacy_model_file = Path(LEGACY_MODEL_ENV) if LEGACY_MODEL_ENV else None
 production_model_file = Path(PRODUCTION_MODEL_ENV or str(PRODUCTION_MODEL_PATH))
 baseline_model_file = Path(BASELINE_MODEL_ENV or str(BASELINE_MODEL_PATH))
 
-candidate_models: list[tuple[str, Path]] = []
-if legacy_model_file is not None:
-    candidate_models.append(("legacy_override", legacy_model_file))
-candidate_models.append(("production", production_model_file))
-candidate_models.append(("baseline_fallback", baseline_model_file))
+models: list[tuple[str, Path]] = [("production", production_model_file), ("baseline", baseline_model_file)]
 
 selected_model_path: Path | None = None
 loaded_model_role = ""
-for role, path in candidate_models:
+for role, path in models:
     if path.exists():
         inference_model = load_pickle_model(path)
         loaded_model_role = role
