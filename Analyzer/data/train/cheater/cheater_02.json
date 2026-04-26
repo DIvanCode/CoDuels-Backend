@@ -1,0 +1,10 @@
+{
+  "actions": [
+    {"id": 1, "event_id": "bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb1", "sequence_id": 1, "timestamp": "2026-04-02T11:00:00Z", "duel_id": 202, "task_key": "A", "user_id": 2002, "type": "ChooseLanguage", "language": "Cpp"},
+    {"id": 2, "event_id": "bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb2", "sequence_id": 2, "timestamp": "2026-04-02T11:00:01Z", "duel_id": 202, "task_key": "A", "user_id": 2002, "type": "PasteCode", "code_length": 360, "cursor_line": 1, "begin_line": 1, "end_line": 38, "chars_count": 360},
+    {"id": 3, "event_id": "bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb3", "sequence_id": 3, "timestamp": "2026-04-02T11:00:02Z", "duel_id": 202, "task_key": "A", "user_id": 2002, "type": "MoveCursor", "code_length": 360, "cursor_line": 38, "previous_cursor_line": 1},
+    {"id": 4, "event_id": "bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb4", "sequence_id": 4, "timestamp": "2026-04-02T11:00:04Z", "duel_id": 202, "task_key": "A", "user_id": 2002, "type": "RunSampleTest"},
+    {"id": 5, "event_id": "bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb5", "sequence_id": 5, "timestamp": "2026-04-02T11:00:07Z", "duel_id": 202, "task_key": "A", "user_id": 2002, "type": "SubmitSolution"}
+  ],
+  "user_rating": 1280
+}

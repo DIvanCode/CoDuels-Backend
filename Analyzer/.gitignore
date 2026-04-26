@@ -18,3 +18,6 @@ htmlcov/
 *.log
 .env
 .env.*
+
+artifacts/*
+.ipynb_checkpoints
