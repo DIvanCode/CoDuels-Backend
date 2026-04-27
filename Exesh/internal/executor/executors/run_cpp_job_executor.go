@@ -221,26 +221,30 @@ func (e *RunCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	return results.NewRunResultWithOutput(jobID, true, string(out), elapsedTime, usedMemory)
 }
 
-func (e *RunCppJobExecutor) SaveOutput(ctx context.Context) error {
+func (e *RunCppJobExecutor) SaveOutput(ctx context.Context, res *results.Result) error {
 	jb := e.job.AsRunCpp()
 
 	runOutput, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, jb.GetID(), jb.RunOutput.File)
 	if err != nil {
+		trashTime, _ := abortOutput()
+		res.SetArtifactTrashTime(trashTime)
 		if errors.Is(err, errs.ErrFileAlreadyExists) {
 			return nil
 		}
 		return fmt.Errorf("failed to reserve run_output output: %w", err)
 	}
 	commit := func() error {
-		if err = commitOutput(); err != nil {
-			_ = abortOutput()
+		trashTime, commitErr := commitOutput()
+		if commitErr != nil {
+			_, _ = abortOutput()
 			return fmt.Errorf("failed to commit run_output output: %w", err)
 		}
-		abortOutput = func() error { return nil }
+		res.SetArtifactTrashTime(trashTime)
+		abortOutput = func() (*time.Time, error) { return nil, nil }
 		return nil
 	}
 	defer func() {
-		_ = abortOutput()
+		_, _ = abortOutput()
 	}()
 
 	runOutputRuntimePath, err := executor.GetJobOutputRuntimePath(e.runtimeResourceRegistry, e.job.GetID())

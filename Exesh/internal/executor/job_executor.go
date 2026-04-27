@@ -18,7 +18,7 @@ type (
 		Init(context.Context) error
 		PrepareInput(context.Context) error
 		ExecuteCommand(context.Context) results.Result
-		SaveOutput(context.Context) error
+		SaveOutput(context.Context, *results.Result) error
 		Stop(context.Context) error
 	}
 

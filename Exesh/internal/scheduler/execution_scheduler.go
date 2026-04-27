@@ -31,10 +31,10 @@ type (
 
 		unitOfWork       unitOfWork
 		executionStorage executionStorage
+		categoryStats    categoryStats
 
 		executionFactory executionFactory
-		artifactRegistry artifactRegistry
-		categoryStats    categoryStats
+		workerPool       *WorkerPool
 
 		messageFactory    messageFactory
 		messageDispatcher messageDispatcher
@@ -56,16 +56,12 @@ type (
 		SaveExecution(context.Context, execution.Definition) error
 	}
 
-	executionFactory interface {
-		Create(context.Context, execution.Definition) (*execution.Execution, error)
-	}
-
-	artifactRegistry interface {
-		GetWorker(job.ID) (workerID string, err error)
-	}
-
 	categoryStats interface {
 		UpdateCategoryHistogram(context.Context, string, int, int) error
+	}
+
+	executionFactory interface {
+		Create(context.Context, execution.Definition) (*execution.Execution, error)
 	}
 
 	messageFactory interface {
@@ -85,9 +81,9 @@ func NewExecutionScheduler(
 	cfg config.ExecutionSchedulerConfig,
 	unitOfWork unitOfWork,
 	executionStorage executionStorage,
-	executionFactory executionFactory,
-	artifactRegistry artifactRegistry,
 	categoryStats categoryStats,
+	executionFactory executionFactory,
+	workerPool *WorkerPool,
 	messageFactory messageFactory,
 	messageDispatcher messageDispatcher,
 ) *ExecutionScheduler {
@@ -97,10 +93,10 @@ func NewExecutionScheduler(
 
 		unitOfWork:       unitOfWork,
 		executionStorage: executionStorage,
+		categoryStats:    categoryStats,
 
 		executionFactory: executionFactory,
-		artifactRegistry: artifactRegistry,
-		categoryStats:    categoryStats,
+		workerPool:       workerPool,
 
 		messageFactory:    messageFactory,
 		messageDispatcher: messageDispatcher,
@@ -115,7 +111,7 @@ func NewExecutionScheduler(
 		Name: "now_weight",
 		Help: "Current total weight of running executions",
 	}, func() float64 {
-		return float64(s.getNowWeight())
+		return float64(s.nowWeight.Load())
 	})
 
 	return s
@@ -143,13 +139,13 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 			break
 		}
 
-		remainingCapacity := s.cfg.Capacity - s.getNowWeight()
+		remainingCapacity := s.cfg.Capacity - s.nowWeight.Load()
 		if remainingCapacity <= 0 {
 			s.log.Debug("skip execution scheduler loop (capacity reached)")
 			continue
 		}
 
-		nowWeight := s.getNowWeight()
+		nowWeight := s.nowWeight.Load()
 		if nowWeight > 0 {
 			s.log.Debug(
 				"begin execution scheduler loop",
@@ -190,7 +186,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 			}()
 
 			ex.SetScheduled(time.Now())
-			s.changeNowWeight(+ex.Definition.Weight)
+			s.nowWeight.Add(+ex.Definition.Weight)
 			weight = ex.Definition.Weight
 
 			if err = s.scheduleExecution(ctx, ex); err != nil {
@@ -203,7 +199,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 
 			return nil
 		}); err != nil {
-			s.changeNowWeight(-weight)
+			s.nowWeight.Add(-weight)
 			s.log.Error("failed to schedule execution", slog.Any("error", err))
 		}
 	}
@@ -218,7 +214,7 @@ func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *Executio
 	}
 
 	for _, jb := range ex.PickJobs() {
-		if err := s.scheduleJob(ctx, ex, jb); err != nil {
+		if err := s.scheduleJob(ex, jb); err != nil {
 			return err
 		}
 	}
@@ -226,11 +222,7 @@ func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *Executio
 	return nil
 }
 
-func (s *ExecutionScheduler) scheduleJob(
-	ctx context.Context,
-	ex *Execution,
-	jb jobs.Job,
-) error {
+func (s *ExecutionScheduler) scheduleJob(ex *Execution, jb jobs.Job) error {
 	if ex.IsDone() {
 		return nil
 	}
@@ -245,59 +237,62 @@ func (s *ExecutionScheduler) scheduleJob(
 	}
 	s.log.Info("schedule job", logArgs...)
 
-	srcs := make([]sources.Source, 0)
-	for _, in := range jb.GetInputs() {
-		if in.Type == input.Artifact {
-			var inputJobID job.ID
-			if err := inputJobID.FromString(in.SourceID.String()); err != nil {
-				return fmt.Errorf("failed to convert artifact source name to job id: %w", err)
+	scheduledJob := &Job{Job: jb}
+	scheduledJob.Sources = func(ctx context.Context) ([]sources.Source, error) {
+		srcs := make([]sources.Source, 0)
+		for _, in := range jb.GetInputs() {
+			if in.Type == input.Artifact {
+				var inputJobID job.ID
+				if err := inputJobID.FromString(in.SourceID.String()); err != nil {
+					return nil, fmt.Errorf("failed to convert artifact source name to job id: %w", err)
+				}
+				var bucketID bucket.ID
+				if err := bucketID.FromString(inputJobID.String()); err != nil {
+					return nil, fmt.Errorf("failed to convert artifact id to bucket id: %w", err)
+				}
+				workerID, err := s.workerPool.getWorkerWithArtifact(inputJobID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get worker for job %s: %w", inputJobID.String(), err)
+				}
+				out, ok := ex.OutputByJob[inputJobID]
+				if !ok {
+					return nil, fmt.Errorf("failed to find output for job %s", inputJobID.String())
+				}
+				file := out.File
+
+				src := sources.NewFilestorageBucketFileSource(in.SourceID, bucketID, workerID, file)
+				srcs = append(srcs, src)
+				continue
 			}
-			var bucketID bucket.ID
-			if err := bucketID.FromString(inputJobID.String()); err != nil {
-				return fmt.Errorf("failed to convert artifact id to bucket id: %w", err)
-			}
-			workerID, err := s.artifactRegistry.GetWorker(inputJobID)
-			if err != nil {
-				return fmt.Errorf("failed to get worker for job %s: %w", inputJobID.String(), err)
-			}
-			out, ok := ex.OutputByJob[inputJobID]
+
+			src, ok := ex.SourceByID[in.SourceID]
 			if !ok {
-				return fmt.Errorf("failed to find output for job %s", inputJobID.String())
+				inputJobID := jb.GetID()
+				s.log.Error("failed to find source for job",
+					slog.String("source", in.SourceID.String()),
+					slog.String("job", inputJobID.String()),
+					slog.String("execution", ex.ID.String()))
+				return nil, fmt.Errorf("failed to find source for job")
 			}
-			file := out.File
 
-			src := sources.NewFilestorageBucketFileSource(in.SourceID, bucketID, workerID, file)
 			srcs = append(srcs, src)
-			continue
 		}
-
-		src, ok := ex.SourceByID[in.SourceID]
-		if !ok {
-			inputJobID := jb.GetID()
-			s.log.Error("failed to find source for job",
-				slog.String("source", in.SourceID.String()),
-				slog.String("job", inputJobID.String()),
-				slog.String("execution", ex.ID.String()))
-			return fmt.Errorf("failed to find source for job")
-		}
-
-		srcs = append(srcs, src)
+		return srcs, nil
 	}
-
-	exJob := NewJob(jb, srcs)
-	exJob.OnSchedule = func(ctx context.Context) {
+	scheduledJob.OnStart = func(ctx context.Context) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		ex.DequeueJob(exJob)
+		ex.DequeueJob(scheduledJob)
 	}
-	exJob.OnDone = func(ctx context.Context, res results.Result) {
+	scheduledJob.OnDone = func(ctx context.Context, res results.Result) {
 		if res.GetError() != nil {
 			s.failJob(ctx, ex, jb, res)
 		} else {
 			s.doneJob(ctx, ex, jb, res)
 		}
 	}
-	ex.EnqueueJob(exJob)
+
+	ex.EnqueueJob(scheduledJob)
 
 	return nil
 }
@@ -357,12 +352,7 @@ func (s *ExecutionScheduler) failJob(
 	s.finishExecution(ctx, ex, res.GetError())
 }
 
-func (s *ExecutionScheduler) doneJob(
-	ctx context.Context,
-	ex *Execution,
-	jb jobs.Job,
-	res results.Result,
-) {
+func (s *ExecutionScheduler) doneJob(ctx context.Context, ex *Execution, jb jobs.Job, res results.Result) {
 	if ex.IsDone() {
 		return
 	}
@@ -433,7 +423,7 @@ func (s *ExecutionScheduler) doneJob(
 	}
 
 	for _, pickedJob := range ex.PickJobs() {
-		if err := s.scheduleJob(ctx, ex, pickedJob); err != nil {
+		if err := s.scheduleJob(ex, pickedJob); err != nil {
 			pickedJobID := pickedJob.GetID()
 			s.log.Error("failed to schedule job",
 				slog.String("job", pickedJobID.String()),
@@ -447,11 +437,7 @@ func (s *ExecutionScheduler) doneJob(
 	}
 }
 
-func (s *ExecutionScheduler) finishExecution(
-	ctx context.Context,
-	ex *Execution,
-	exError error,
-) {
+func (s *ExecutionScheduler) finishExecution(ctx context.Context, ex *Execution, exError error) {
 	if ex.IsForceFailed() {
 		return
 	}
@@ -464,7 +450,7 @@ func (s *ExecutionScheduler) finishExecution(
 			slog.Any("error", exError))
 	}
 
-	defer s.changeNowWeight(-ex.Definition.Weight)
+	defer s.nowWeight.Add(-ex.Definition.Weight)
 
 	ex.ForceFail()
 
@@ -490,12 +476,4 @@ func (s *ExecutionScheduler) finishExecution(
 		s.log.Error("failed to finish execution in storage", slog.Any("error", err))
 		return
 	}
-}
-
-func (s *ExecutionScheduler) getNowWeight() int64 {
-	return s.nowWeight.Load()
-}
-
-func (s *ExecutionScheduler) changeNowWeight(delta int64) {
-	s.nowWeight.Add(delta)
 }

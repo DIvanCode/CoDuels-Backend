@@ -22,10 +22,10 @@ execution_scheduler:
   executions_interval: 500ms
   capacity: 7680000000 # 10000 milliseconds * 512 megabytes * 300 tests * 5 executions
   execution_retry_after: 30s
+job_scheduler:
+  promised_jobs_limit: 5
 worker_pool:
-  worker_die_after: 10s
-artifact_registry:
-  artifact_ttl: 3m
+  worker_die_after: 1s
 dispatcher:
   kafka_enabled: true
   brokers:

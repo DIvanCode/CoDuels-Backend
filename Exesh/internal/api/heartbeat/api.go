@@ -9,9 +9,10 @@ import (
 
 type (
 	Request struct {
-		WorkerID  string           `json:"worker_id"`
-		DoneJobs  []results.Result `json:"done_jobs"`
-		FreeSlots int              `json:"free_slots"`
+		WorkerID        string           `json:"worker_id"`
+		DoneJobs        []results.Result `json:"done_jobs"`
+		FreeSlots       int              `json:"free_slots"`
+		AvailableMemory int              `json:"available_memory_mb"`
 	}
 
 	Response struct {

@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/gomod-cache --mount=type=cache,target=/go-cache \
 WORKDIR /
 COPY ./isolate ./isolate
 RUN apt update && \
-    apt install make libcap-dev libsystemd-dev -y && \
+    apt install make libcap-dev libsystemd-dev libseccomp-dev -y && \
     cd isolate && \
     make isolate && \
     cp isolate /usr/local/bin/isolate

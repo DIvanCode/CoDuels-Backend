@@ -5,6 +5,7 @@ import (
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/source"
 	"io"
+	"time"
 )
 
 type (
@@ -13,7 +14,7 @@ type (
 	}
 
 	outputProvider interface {
-		Reserve(context.Context, job.ID, string) (path string, commit, abort func() error, err error)
+		Reserve(context.Context, job.ID, string) (path string, commit, abort func() (*time.Time, error), err error)
 		Read(context.Context, job.ID, string) (r io.Reader, unlock func(), err error)
 	}
 )

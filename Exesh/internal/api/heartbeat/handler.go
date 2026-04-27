@@ -38,14 +38,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	command := buildCommand(req)
-	jbs, srcs, err := h.uc.Heartbeat(r.Context(), command)
-	if err != nil {
-		h.log.Error("failed to process heartbeat",
-			slog.Any("command", command),
-			slog.Any("err", err))
-		render.JSON(w, r, errorResponse("failed to process heartbeat"))
-		return
-	}
+	jbs, srcs := h.uc.Heartbeat(r.Context(), command)
 
 	render.JSON(w, r, okResponse(jbs, srcs))
 	return
@@ -53,9 +46,10 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 
 func buildCommand(req Request) heartbeat.Command {
 	return heartbeat.Command{
-		WorkerID:  req.WorkerID,
-		DoneJobs:  req.DoneJobs,
-		FreeSlots: req.FreeSlots,
+		WorkerID:        req.WorkerID,
+		DoneJobs:        req.DoneJobs,
+		FreeSlots:       req.FreeSlots,
+		AvailableMemory: req.AvailableMemory,
 	}
 }
 
