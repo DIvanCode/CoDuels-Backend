@@ -271,7 +271,7 @@ func (s *SolutionStorage) GetAll(ctx context.Context) (solutions []testing.Solut
 			return
 		}
 		if err = json.Unmarshal(testingStrategy, &sol.TestingStrategy); err != nil {
-			err = fmt.Errorf("failed to unmarshal testing strategy: %w", err)
+			err = fmt.Errorf("failed to unmarshal testing strategy for solution '%d': %w", sol.ID, err)
 			return
 		}
 		solutions = append(solutions, sol)
