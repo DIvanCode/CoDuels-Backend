@@ -1,7 +1,7 @@
 github.com/BurntSushi/toml v1.2.1 h1:9F2/+DoOYIOksmaJFPw1tGFy1eDnIJXg+UHjuD8lTak=
 github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
-github.com/DIvanCode/filestorage v1.5.0 h1:1254tNPgDVHIn8n/NmfamfpP2lansAHSvhJ5Rxaiuww=
-github.com/DIvanCode/filestorage v1.5.0/go.mod h1:Vmhj19y+JR4bBI7VmF28S/70SKpkBCBp4YdhOB2PHTs=
+github.com/DIvanCode/filestorage v1.6.0 h1:Ffq0y/CP0J7tqhB6xL2ROgASbu7xHCn6L1G+95Z9OXM=
+github.com/DIvanCode/filestorage v1.6.0/go.mod h1:Vmhj19y+JR4bBI7VmF28S/70SKpkBCBp4YdhOB2PHTs=
 github.com/ajg/form v1.5.1 h1:t9c7v8JUKu/XxOGBU0yjNpaMloxGEJhUkqFRq0ibGeU=
 github.com/ajg/form v1.5.1/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
