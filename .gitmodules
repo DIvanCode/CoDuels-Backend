@@ -7,3 +7,6 @@
 [submodule "testlib"]
 	path = Exesh/testlib
 	url = https://github.com/MikeMirzayanov/testlib
+[submodule "Taski/tasks"]
+	path = Taski/tasks
+	url = https://github.com/DIvanCode/CoDuels-Tasks

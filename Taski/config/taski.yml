@@ -33,10 +33,6 @@ message_dispatcher:
   sasl_auth: false
 metrics_collector:
   collect_interval: 5s
-tasks:
-  - 7d971f50363cf0aebbd87d971f50363cf0aebbd8
-  - 0c5fe950363fc0aeb7d80c5fe950363fc0aeb7d8
-  - 8dedebf10e8b832aedb0a972b6491aa30ea34717
 task_topics:
   - структуры данных
   - дерево отрезков

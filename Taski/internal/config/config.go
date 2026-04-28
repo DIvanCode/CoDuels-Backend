@@ -19,7 +19,6 @@ type (
 		EventConsumer     EventConsumerConfig     `yaml:"event_consumer" env-prefix:"EVENT_CONSUMER_"`
 		MessageDispatcher MessageDispatcherConfig `yaml:"message_dispatcher" env-prefix:"MESSAGE_DISPATCHER_"`
 		MetricsCollector  MetricsCollectorConfig  `yaml:"metrics_collector" env-prefix:"METRICS_COLLECTOR_"`
-		Tasks             TasksList               `yaml:"tasks" env:"TASKS" env-separator:","`
 		TaskTopics        TaskTopicsList          `yaml:"task_topics" env:"TASK_TOPICS" env-separator:","`
 	}
 
@@ -64,8 +63,6 @@ type (
 	MetricsCollectorConfig struct {
 		CollectInterval time.Duration `yaml:"collect_interval" env:"COLLECT_INTERVAL"`
 	}
-
-	TasksList []string
 
 	TaskTopicsList []string
 )

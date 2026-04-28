@@ -49,5 +49,5 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./file_storage:/app/file_storage
+      - ./tasks/storage:/app/file_storage/storage
       - ./config:/config:ro

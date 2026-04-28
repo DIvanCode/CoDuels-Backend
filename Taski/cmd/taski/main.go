@@ -85,7 +85,7 @@ func main() {
 
 	executeClient := execute.NewExecuteClient(log, cfg.Execute.Endpoint)
 
-	taskStorage := filestorage.NewTaskStorage(fileStorage, cfg.Tasks)
+	taskStorage := filestorage.NewTaskStorage(fileStorage)
 
 	getTaskUseCase := getUC.NewUseCase(log, taskStorage)
 	getAPI.NewHandler(log, getTaskUseCase).Register(mux)
@@ -96,7 +96,7 @@ func main() {
 	taskTopicsUseCase := taskTopicsUC.NewUseCase(log, cfg.TaskTopics)
 	taskTopicsAPI.NewHandler(log, taskTopicsUseCase).Register(mux)
 
-	randomTaskUseCase := randomTaskUC.NewUseCase(log, cfg.Tasks)
+	randomTaskUseCase := randomTaskUC.NewUseCase(log, taskStorage)
 	randomTaskAPI.NewHandler(log, randomTaskUseCase).Register(mux)
 
 	getTaskFileUseCase := getFileUC.NewUseCase(log, taskStorage)

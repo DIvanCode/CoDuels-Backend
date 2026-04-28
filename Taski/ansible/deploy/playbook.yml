@@ -2,12 +2,19 @@
   hosts: Production
   vars_files:
     - credentials.yml
+  vars:
+    tasks_dir: "{{ ansible_env.HOME }}/tasks"
   remote_user: root
   tasks:
     - name: Ensure network exists
       docker_network:
         name: coduels
         state: present
+    - name: Ensure tasks directory exists
+      file:
+        path: "{{ tasks_dir }}/storage"
+        state: directory
+        mode: "0755"
     - name: Pull taski image
       docker_image:
         name: divancode74/coduels-taski
@@ -42,5 +49,7 @@
           MESSAGE_DISPATCHER_SASL_AUTH: "true"
           MESSAGE_DISPATCHER_SASL_USERNAME: taski
           MESSAGE_DISPATCHER_SASL_PASSWORD: "{{ kafka_password }}"
+        volumes:
+          - "{{ tasks_dir }}/storage:/app/file_storage/storage"
         networks:
           - name: coduels
