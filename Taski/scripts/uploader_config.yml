@@ -1,6 +1,5 @@
 env: dev
 filestorage:
-  root_dir: ../tasks
   trasher:
     workers: 0
     collector_iterations_delay: 6000

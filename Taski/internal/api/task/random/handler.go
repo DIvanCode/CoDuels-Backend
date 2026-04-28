@@ -37,7 +37,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	)
 
 	query := random.Query{}
-	taskID, err := h.uc.Random(query)
+	taskID, err := h.uc.Random(r.Context(), query)
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse(err.Error()))

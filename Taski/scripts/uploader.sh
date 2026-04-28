@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 if [[ $# -ne 3 ]]; then
   echo "usage: $0 <format> <task_path> <level>" >&2
   exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
 FORMAT="$1"
 TASK_PATH="$2"
 LEVEL="$3"
@@ -26,8 +27,8 @@ if ! [[ "$LEVEL" =~ ^[0-9]+$ ]] || (( LEVEL < 1 || LEVEL > 10 )); then
   exit 1
 fi
 
-CONFIG_PATH="$SCRIPT_DIR/uploader_config.yml" \
-  go run "$SCRIPT_DIR/../cmd/uploader" \
-  -format "$FORMAT" \
-  -src "$TASK_PATH" \
-  -level "$LEVEL"
+CONFIG_PATH="$SCRIPT_DIR/uploader_config.yml" FILESTORAGE_ROOT_DIR="$SCRIPT_DIR/../tasks" \
+  go -C "$SCRIPT_DIR/.." run ./cmd/uploader \
+    -format "$FORMAT" \
+    -src "$TASK_PATH" \
+    -level "$LEVEL"

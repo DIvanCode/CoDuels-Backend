@@ -29,6 +29,10 @@ func (s syncWriter) Write(p []byte) (int, error) {
 }
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -39,7 +43,7 @@ func main() {
 	fileStorage, err := fs.New(log, cfg.FileStorage, mux)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to create filestorage:", err)
-		os.Exit(1)
+		return 1
 	}
 	defer fileStorage.Shutdown()
 
@@ -54,8 +58,9 @@ func main() {
 	taskID, err := uc.Upload(ctx, command)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "uploader error:", err)
-		os.Exit(1)
+		return 1
 	}
 
 	fmt.Printf("Task ID: %s\n", taskID.String())
+	return 0
 }

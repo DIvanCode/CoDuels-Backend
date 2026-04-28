@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"taski/internal/config"
 	"taski/internal/domain/task"
 	"taski/internal/domain/task/tasks"
 	"time"
@@ -18,20 +17,19 @@ import (
 
 type (
 	TaskStorage struct {
-		fs        fileStorage
-		tasksList config.TasksList
+		fs fileStorage
 	}
 
 	fileStorage interface {
+		ListBuckets(ctx context.Context) ([]bucket.ID, error)
 		GetBucket(ctx context.Context, id bucket.ID, extendTTL *time.Duration) (path string, unlock func(), err error)
 		GetFile(ctx context.Context, bucketID bucket.ID, file string, extendTTL *time.Duration) (path string, unlock func(), err error)
 	}
 )
 
-func NewTaskStorage(fs fileStorage, tasksList config.TasksList) *TaskStorage {
+func NewTaskStorage(fs fileStorage) *TaskStorage {
 	return &TaskStorage{
-		fs:        fs,
-		tasksList: tasksList,
+		fs: fs,
 	}
 }
 
@@ -66,6 +64,11 @@ func (ts *TaskStorage) Get(ctx context.Context, id task.ID) (t task.Task, unlock
 		err = fmt.Errorf("failed to get bucket: %w", err)
 		return
 	}
+	defer func() {
+		if err != nil {
+			unlock()
+		}
+	}()
 
 	f, err := os.OpenFile(filepath.Join(path, "task.json"), os.O_RDONLY, 0666)
 	if err != nil {
@@ -115,6 +118,11 @@ func (ts *TaskStorage) GetFile(ctx context.Context, taskID task.ID, file string)
 		err = fmt.Errorf("failed to get file from bucket: %w", err)
 		return
 	}
+	defer func() {
+		if err != nil {
+			unlock()
+		}
+	}()
 
 	r, err = os.OpenFile(filepath.Join(path, file), os.O_RDONLY, 0666)
 	if err != nil {
@@ -126,16 +134,16 @@ func (ts *TaskStorage) GetFile(ctx context.Context, taskID task.ID, file string)
 }
 
 func (ts *TaskStorage) GetList(ctx context.Context) ([]task.Task, error) {
-	list := make([]task.Task, len(ts.tasksList))
-	for i := range ts.tasksList {
-		var taskID task.ID
-		if err := taskID.FromString(ts.tasksList[i]); err != nil {
-			return nil, fmt.Errorf("failed to parse task id")
-		}
+	taskIDs, err := ts.GetTaskIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task ids: %w", err)
+	}
 
+	list := make([]task.Task, len(taskIDs))
+	for i, taskID := range taskIDs {
 		t, unlock, err := ts.Get(ctx, taskID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get task from storage")
+			return nil, fmt.Errorf("failed to get task from storage: %w", err)
 		}
 		unlock()
 
@@ -143,4 +151,20 @@ func (ts *TaskStorage) GetList(ctx context.Context) ([]task.Task, error) {
 	}
 
 	return list, nil
+}
+
+func (ts *TaskStorage) GetTaskIDs(ctx context.Context) ([]task.ID, error) {
+	bucketIDs, err := ts.fs.ListBuckets(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list buckets: %w", err)
+	}
+
+	taskIDs := make([]task.ID, len(bucketIDs))
+	for i, bucketID := range bucketIDs {
+		if err := taskIDs[i].FromString(bucketID.String()); err != nil {
+			return nil, fmt.Errorf("failed to convert bucket id to task id: %w", err)
+		}
+	}
+
+	return taskIDs, nil
 }
