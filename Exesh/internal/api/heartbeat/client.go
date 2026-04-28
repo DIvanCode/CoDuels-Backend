@@ -28,8 +28,9 @@ func (c *Client) Heartbeat(
 	workerID string,
 	doneJobs []results.Result,
 	freeSlots int,
+	availableMemory int,
 ) ([]jobs.Job, []sources.Source, error) {
-	req := Request{workerID, doneJobs, freeSlots}
+	req := Request{workerID, doneJobs, freeSlots, availableMemory}
 	jsonReq, err := json.Marshal(req)
 	if err != nil {
 		return nil, nil, err

@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"errors"
 	"exesh/internal/api/heartbeat"
 	"exesh/internal/config"
 	"exesh/internal/domain/execution/job/jobs"
@@ -11,7 +10,6 @@ import (
 	"exesh/internal/executor"
 	"exesh/internal/lib/queue"
 	"fmt"
-	errs "github.com/DIvanCode/filestorage/pkg/errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -25,17 +23,19 @@ type (
 		heartbeatClient heartbeatClient
 		executorFactory *executor.ExecutorFactory
 
-		jobs queue.Queue[jobs.Job]
+		jobs                    queue.Queue[jobs.Job]
+		jobsExpectedTotalMemory int
 
 		sourceProvider sourceProvider
 
-		mu        sync.Mutex
-		doneJobs  []results.Result
-		freeSlots int
+		mu              sync.Mutex
+		doneJobs        []results.Result
+		freeSlots       int
+		availableMemory int
 	}
 
 	heartbeatClient interface {
-		Heartbeat(context.Context, string, []results.Result, int) ([]jobs.Job, []sources.Source, error)
+		Heartbeat(context.Context, string, []results.Result, int, int) ([]jobs.Job, []sources.Source, error)
 	}
 
 	sourceProvider interface {
@@ -56,13 +56,15 @@ func NewWorker(
 		heartbeatClient: heartbeat.NewHeartbeatClient(cfg.CoordinatorEndpoint),
 		executorFactory: executorFactory,
 
-		jobs: *queue.NewQueue[jobs.Job](),
+		jobs:                    *queue.NewQueue[jobs.Job](),
+		jobsExpectedTotalMemory: 0,
 
 		sourceProvider: sourceProvider,
 
-		mu:        sync.Mutex{},
-		doneJobs:  make([]results.Result, 0),
-		freeSlots: cfg.FreeSlots,
+		mu:              sync.Mutex{},
+		doneJobs:        make([]results.Result, 0),
+		freeSlots:       cfg.FreeSlots,
+		availableMemory: cfg.AvailableMemory,
 	}
 }
 
@@ -86,10 +88,6 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 			break
 		}
 
-		if w.getFreeSlots() == 0 {
-			continue
-		}
-
 		w.mu.Lock()
 
 		doneJobs := make([]results.Result, len(w.doneJobs))
@@ -97,10 +95,11 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 		w.doneJobs = make([]results.Result, 0)
 
 		freeSlots := w.freeSlots - w.jobs.Size()
+		availableMemory := w.availableMemory - w.jobsExpectedTotalMemory
 
 		w.mu.Unlock()
 
-		jbs, srcs, err := w.heartbeatClient.Heartbeat(ctx, w.cfg.WorkerID, doneJobs, freeSlots)
+		jbs, srcs, err := w.heartbeatClient.Heartbeat(ctx, w.cfg.WorkerID, doneJobs, freeSlots, availableMemory)
 		if err != nil {
 			w.log.Error("failed to do heartbeat request", slog.Any("err", err))
 
@@ -118,7 +117,10 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 		}
 
 		for _, jb := range jbs {
+			w.mu.Lock()
 			w.jobs.Enqueue(jb)
+			w.jobsExpectedTotalMemory += jb.GetExpectedMemory()
+			w.mu.Unlock()
 		}
 	}
 }
@@ -136,13 +138,19 @@ func (w *Worker) runWorker(ctx context.Context) {
 			break
 		}
 
-		w.changeFreeSlots(-1)
+		w.mu.Lock()
 
 		job := w.jobs.Dequeue()
 		if job == nil {
-			w.changeFreeSlots(+1)
+			w.mu.Unlock()
 			continue
 		}
+
+		w.freeSlots -= 1
+		w.jobsExpectedTotalMemory -= job.GetExpectedMemory()
+		w.availableMemory -= job.GetExpectedMemory()
+
+		w.mu.Unlock()
 
 		jobID := job.GetID()
 		w.log.Debug("picked job", slog.String("job", jobID.String()))
@@ -150,18 +158,15 @@ func (w *Worker) runWorker(ctx context.Context) {
 		result := w.executeJob(ctx, *job)
 
 		w.mu.Lock()
+
 		w.doneJobs = append(w.doneJobs, result)
+		w.freeSlots += 1
+		w.availableMemory += job.GetExpectedMemory()
+
 		w.mu.Unlock()
 
 		w.log.Debug("done job", slog.String("job", jobID.String()))
-		w.changeFreeSlots(+1)
 	}
-}
-
-func (w *Worker) getFreeSlots() int {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.freeSlots
 }
 
 func (w *Worker) changeFreeSlots(delta int) {
@@ -200,8 +205,8 @@ func (w *Worker) executeJob(ctx context.Context, jb jobs.Job) results.Result {
 		return result
 	}
 
-	err = exec.SaveOutput(ctx)
-	if err != nil && !errors.Is(err, errs.ErrFileAlreadyExists) {
+	err = exec.SaveOutput(ctx, &result)
+	if err != nil {
 		w.log.Error("failed to save output", slog.Any("err", err))
 	}
 

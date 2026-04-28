@@ -10,13 +10,13 @@ import (
 
 type (
 	WorkerConfig struct {
-		Env            string               `yaml:"env" env:"EXESH_ENV"`
-		Runtime        string               `yaml:"runtime" env:"EXESH_RUNTIME"`
-		HttpServer     HttpServerConfig     `yaml:"http_server" env-prefix:"EXESH_HTTP_SERVER_"`
-		FileStorage    FileStorageConfig    `yaml:"filestorage" env-prefix:"EXESH_FILE_STORAGE_"`
-		SourceProvider SourceProviderConfig `yaml:"source_provider" env-prefix:"EXESH_SOURCE_PROVIDER_"`
-		OutputProvider OutputProviderConfig `yaml:"output_provider" env-prefix:"EXESH_OUTPUT_PROVIDER_"`
-		Worker         WorkConfig           `yaml:"worker" env-prefix:"EXESH_WORKER_"`
+		Env            string               `yaml:"env" env:"ENV"`
+		Runtime        string               `yaml:"runtime" env:"RUNTIME"`
+		HttpServer     HttpServerConfig     `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
+		FileStorage    FileStorageConfig    `yaml:"filestorage" env-prefix:"FILE_STORAGE_"`
+		SourceProvider SourceProviderConfig `yaml:"source_provider" env-prefix:"SOURCE_PROVIDER_"`
+		OutputProvider OutputProviderConfig `yaml:"output_provider" env-prefix:"OUTPUT_PROVIDER_"`
+		Worker         WorkConfig           `yaml:"worker" env-prefix:"WORKER_"`
 	}
 
 	SourceProviderConfig struct {
@@ -31,6 +31,7 @@ type (
 	WorkConfig struct {
 		WorkerID            string        `yaml:"id" env:"ID"`
 		FreeSlots           int           `yaml:"free_slots" env:"FREE_SLOTS"`
+		AvailableMemory     int           `yaml:"available_memory_mb" env:"AVAILABLE_MEMORY_MB"`
 		CoordinatorEndpoint string        `yaml:"coordinator_endpoint" env:"COORDINATOR_ENDPOINT"`
 		HeartbeatDelay      time.Duration `yaml:"heartbeat_delay" env:"HEARTBEAT_DELAY"`
 		WorkerDelay         time.Duration `yaml:"worker_delay" env:"WORKER_DELAY"`

@@ -151,16 +151,20 @@ func (e *ChainJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	innerResults := make([]results.Result, 0, len(chainJob.Jobs))
 
 	for i, innerJob := range chainJob.Jobs {
+		isLastJob := i == len(chainJob.Jobs)-1
 		innerExec := e.innerExecutors[i]
 
 		innerResult := innerExec.ExecuteCommand(ctx)
+		if !isLastJob {
+			innerResult.SetHasOutput(false)
+		}
 		innerResults = append(innerResults, innerResult)
 
 		if innerResult.GetError() != nil {
 			return results.NewChainResultErr(chainJob.GetID(), innerResult.GetError().Error(), innerResults)
 		}
 
-		if i < len(chainJob.Jobs)-1 && innerResult.GetStatus() != innerJob.GetSuccessStatus() {
+		if !isLastJob && innerResult.GetStatus() != innerJob.GetSuccessStatus() {
 			return results.NewChainResult(chainJob.GetID(), innerResult.GetStatus(), false, innerResults)
 		}
 	}
@@ -173,14 +177,14 @@ func (e *ChainJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 	)
 }
 
-func (e *ChainJobExecutor) SaveOutput(ctx context.Context) error {
+func (e *ChainJobExecutor) SaveOutput(ctx context.Context, res *results.Result) error {
 	chainJob := e.job.AsChain()
 	if len(chainJob.Jobs) == 0 || len(e.innerExecutors) == 0 {
 		return nil
 	}
 
 	lastIdx := len(e.innerExecutors) - 1
-	if err := e.innerExecutors[lastIdx].SaveOutput(ctx); err != nil {
+	if err := e.innerExecutors[lastIdx].SaveOutput(ctx, res); err != nil {
 		if errors.Is(err, errs.ErrFileAlreadyExists) {
 			return nil
 		}

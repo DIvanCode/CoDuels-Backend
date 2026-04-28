@@ -3,12 +3,14 @@ package executors
 import (
 	"bytes"
 	"context"
+	"errors"
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/executor"
 	"exesh/internal/runtime"
 	"fmt"
+	errs "github.com/DIvanCode/filestorage/pkg/errors"
 	"log/slog"
 	"time"
 )
@@ -166,23 +168,30 @@ func (e *CompileCppJobExecutor) ExecuteCommand(ctx context.Context) results.Resu
 	return results.NewCompileResultOK(jobID, true, elapsedTime, usedMemory)
 }
 
-func (e *CompileCppJobExecutor) SaveOutput(ctx context.Context) error {
+func (e *CompileCppJobExecutor) SaveOutput(ctx context.Context, res *results.Result) error {
 	jb := e.job.AsCompileCpp()
 
 	compiledCode, commitOutput, abortOutput, err := e.outputProvider.Reserve(ctx, jb.GetID(), jb.CompiledCode.File)
 	if err != nil {
+		trashTime, _ := abortOutput()
+		res.SetArtifactTrashTime(trashTime)
+		if errors.Is(err, errs.ErrFileAlreadyExists) {
+			return nil
+		}
 		return fmt.Errorf("failed to reserve compiled_code output: %w", err)
 	}
 	commit := func() error {
-		if err = commitOutput(); err != nil {
-			_ = abortOutput()
+		trashTime, commitErr := commitOutput()
+		if commitErr != nil {
+			_, _ = abortOutput()
 			return fmt.Errorf("failed to commit compiled_code output: %w", err)
 		}
-		abortOutput = func() error { return nil }
+		res.SetArtifactTrashTime(trashTime)
+		abortOutput = func() (*time.Time, error) { return nil, nil }
 		return nil
 	}
 	defer func() {
-		_ = abortOutput()
+		_, _ = abortOutput()
 	}()
 
 	compiledCodeRuntimePath, err := executor.GetJobOutputRuntimePath(e.runtimeResourceRegistry, e.job.GetID())

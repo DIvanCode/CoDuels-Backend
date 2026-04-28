@@ -50,6 +50,7 @@ func (uc *UseCase) Execute(ctx context.Context, command Command) (result Result,
 	for _, src := range command.Sources {
 		if _, exists := srcs[src.GetName()]; exists {
 			err = fmt.Errorf("two or more sources have the same name `%s`", src.GetName())
+			uc.log.Warn("invalid execution command", slog.Any("error", err))
 			return
 		}
 		srcs[src.GetName()] = src
@@ -59,6 +60,7 @@ func (uc *UseCase) Execute(ctx context.Context, command Command) (result Result,
 	for _, stage := range command.Stages {
 		if _, exists := stages[stage.Name]; exists {
 			err = fmt.Errorf("two or more stages have the same name '%s'", stage.Name)
+			uc.log.Warn("invalid execution command", slog.Any("error", err))
 			return
 		}
 		stages[stage.Name] = struct{}{}
@@ -68,18 +70,20 @@ func (uc *UseCase) Execute(ctx context.Context, command Command) (result Result,
 			jobName := jb.GetName()
 			if _, exists := jbs[jobName]; exists {
 				err = fmt.Errorf("two or more jobs in stage '%s' have the same name '%s'", stage.Name, jobName)
+				uc.log.Warn("invalid execution command", slog.Any("error", err))
 				return
 			}
 			jbs[jobName] = struct{}{}
 		}
 	}
 
+	var weight int64
 	err = uc.unitOfWork.Do(ctx, func(ctx context.Context) error {
 		stats, err := uc.calc.LoadCategoryStats(ctx, command.Stages)
 		if err != nil {
 			return fmt.Errorf("failed to load category stats: %w", err)
 		}
-		weight := uc.calc.CalculateWeight(command.Stages, stats)
+		weight = uc.calc.CalculateWeight(command.Stages, stats)
 
 		e := execution.NewExecutionDefinition(command.Stages, command.Sources, weight)
 		if err = uc.executionStorage.CreateExecution(ctx, e); err != nil {
@@ -90,7 +94,15 @@ func (uc *UseCase) Execute(ctx context.Context, command Command) (result Result,
 		return nil
 	})
 
-	uc.log.Info("created execution", slog.String("execution", result.ExecutionID.String()))
+	if err != nil {
+		uc.log.Error("failed to create execution", slog.Any("error", err))
+		return
+	}
+
+	uc.log.Info("created execution",
+		slog.String("execution", result.ExecutionID.String()),
+		slog.Int64("weight", weight),
+	)
 
 	return
 }

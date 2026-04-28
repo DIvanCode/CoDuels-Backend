@@ -10,19 +10,13 @@ import (
 type (
 	Job struct {
 		jobs.Job
-		Sources []sources.Source
 
-		OnSchedule scheduleCallback
-		OnDone     doneCallback
+		Sources sourcesCallback
+		OnStart startCallback
+		OnDone  doneCallback
 	}
 
-	scheduleCallback func(context.Context)
-	doneCallback     func(context.Context, results.Result)
+	sourcesCallback func(context.Context) ([]sources.Source, error)
+	startCallback   func(context.Context)
+	doneCallback    func(context.Context, results.Result)
 )
-
-func NewJob(jb jobs.Job, sources []sources.Source) *Job {
-	return &Job{
-		Job:     jb,
-		Sources: sources,
-	}
-}

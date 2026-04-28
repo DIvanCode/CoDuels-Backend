@@ -10,9 +10,7 @@ import (
 	"exesh/internal/config"
 	"exesh/internal/dispatcher"
 	"exesh/internal/factory"
-	"exesh/internal/pool"
 	"exesh/internal/provider/adapter"
-	"exesh/internal/registry"
 	schedule "exesh/internal/scheduler"
 	"exesh/internal/storage/postgres"
 	executeUC "exesh/internal/usecase/execute"
@@ -65,10 +63,8 @@ func main() {
 	}
 	defer fs.Shutdown()
 
-	workerPool := pool.NewWorkerPool(log, cfg.WorkerPool)
-	defer workerPool.StopObservers()
-
-	artifactRegistry := registry.NewArtifactRegistry(log, cfg.ArtifactRegistry, workerPool)
+	workerPool := schedule.NewWorkerPool(log, cfg.WorkerPool)
+	workerPool.StartObserver(ctx)
 
 	filestorageAdapter := adapter.NewFilestorageAdapter(fs)
 	calc := calculator.NewCalculator(categoryHistogramStorage)
@@ -85,9 +81,10 @@ func main() {
 	)
 	promCoordinatorRegistry := prometheus.WrapRegistererWithPrefix("coduels_exesh_coordinator_", promRegistry)
 
-	executionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler, unitOfWork, executionStorage,
-		executionFactory, artifactRegistry, categoryHistogramStorage, messageFactory, messageDispatcher)
-	jobScheduler := schedule.NewJobScheduler(log, executionScheduler)
+	executionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler,
+		unitOfWork, executionStorage, categoryHistogramStorage,
+		executionFactory, workerPool, messageFactory, messageDispatcher)
+	jobScheduler := schedule.NewJobScheduler(log, cfg.JobScheduler, workerPool, executionScheduler)
 
 	err = executionScheduler.RegisterMetrics(promCoordinatorRegistry)
 	if err != nil {
@@ -100,7 +97,7 @@ func main() {
 	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage, calc)
 	executeAPI.NewHandler(log, executeUseCase).Register(mux)
 
-	heartbeatUseCase := heartbeatUC.NewUseCase(log, workerPool, jobScheduler, artifactRegistry)
+	heartbeatUseCase := heartbeatUC.NewUseCase(log, workerPool, jobScheduler)
 	heartbeatAPI.NewHandler(log, heartbeatUseCase).Register(mux)
 
 	messagesUseCase := messagesUC.NewUseCase(log, unitOfWork, messageStorage)

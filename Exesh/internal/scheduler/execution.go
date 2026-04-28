@@ -19,7 +19,8 @@ type Execution struct {
 
 	mu sync.Mutex
 
-	jobs                      queue.Queue[*Job]
+	scheduledJobs queue.Queue[*Job]
+
 	TotalExpectedTime         int64
 	TotalDoneJobsExpectedTime int64
 }
@@ -35,7 +36,8 @@ func NewExecution(ex *execution.Execution) *Execution {
 
 		mu: sync.Mutex{},
 
-		jobs:                      *queue.NewQueue[*Job](),
+		scheduledJobs: *queue.NewQueue[*Job](),
+
 		TotalExpectedTime:         totalExpectedTime,
 		TotalDoneJobsExpectedTime: 0,
 	}
@@ -45,14 +47,14 @@ func (ex *Execution) EnqueueJob(jb *Job) {
 	ex.mu.Lock()
 	defer ex.mu.Unlock()
 
-	ex.jobs.Enqueue(jb)
+	ex.scheduledJobs.Enqueue(jb)
 }
 
 func (ex *Execution) GetPeekJob() *Job {
 	ex.mu.Lock()
 	defer ex.mu.Unlock()
 
-	jb := ex.jobs.Peek()
+	jb := ex.scheduledJobs.Peek()
 	if jb == nil {
 		return nil
 	}
@@ -63,12 +65,12 @@ func (ex *Execution) DequeueJob(jb *Job) {
 	ex.mu.Lock()
 	defer ex.mu.Unlock()
 
-	peekJob := ex.jobs.Peek()
+	peekJob := ex.scheduledJobs.Peek()
 	if peekJob == nil || (*peekJob).GetID() != jb.GetID() {
 		return
 	}
 
-	ex.jobs.Dequeue()
+	ex.scheduledJobs.Dequeue()
 }
 
 func (ex *Execution) GetPriority(now time.Time) float64 {

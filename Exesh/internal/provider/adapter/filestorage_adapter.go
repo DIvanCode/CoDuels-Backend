@@ -24,6 +24,7 @@ type (
 		DownloadBucket(context.Context, string, bucket.ID, *time.Duration) error
 		DownloadFile(context.Context, string, bucket.ID, string) error
 		GetFile(context.Context, bucket.ID, string, *time.Duration) (path string, unlock func(), err error)
+		GetBucketTrashTime(ctx context.Context, bucketID bucket.ID) (*time.Time, error)
 	}
 )
 
@@ -31,6 +32,10 @@ func NewFilestorageAdapter(filestorage filestorage) *FilestorageAdapter {
 	return &FilestorageAdapter{
 		filestorage: filestorage,
 	}
+}
+
+func (a *FilestorageAdapter) GetBucketTrashTime(ctx context.Context, bucketID bucket.ID) (*time.Time, error) {
+	return a.filestorage.GetBucketTrashTime(ctx, bucketID)
 }
 
 // DownloadBucket

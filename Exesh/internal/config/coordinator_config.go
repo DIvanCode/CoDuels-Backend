@@ -10,15 +10,15 @@ import (
 
 type (
 	CoordinatorConfig struct {
-		Env                string                   `yaml:"env" env:"EXESH_ENV"`
-		HttpServer         HttpServerConfig         `yaml:"http_server" env-prefix:"EXESH_HTTP_SERVER_"`
-		Storage            StorageConfig            `yaml:"storage" env-prefix:"EXESH_STORAGE_"`
-		FileStorage        FileStorageConfig        `yaml:"filestorage" env-prefix:"EXESH_FILE_STORAGE_"`
-		JobFactory         JobFactoryConfig         `yaml:"job_factory" env-prefix:"EXESH_JOB_FACTORY_"`
-		ExecutionScheduler ExecutionSchedulerConfig `yaml:"execution_scheduler" env-prefix:"EXESH_EXECUTION_SCHEDULER_"`
-		WorkerPool         WorkerPoolConfig         `yaml:"worker_pool" env-prefix:"EXESH_WORKER_POOL_"`
-		ArtifactRegistry   ArtifactRegistryConfig   `yaml:"artifact_registry" env-prefix:"EXESH_ARTIFACT_REGISTRY_"`
-		Dispatcher         DispatcherConfig         `yaml:"dispatcher" env-prefix:"EXESH_DISPATCHER_"`
+		Env                string                   `yaml:"env" env:"ENV"`
+		HttpServer         HttpServerConfig         `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
+		Storage            StorageConfig            `yaml:"storage" env-prefix:"STORAGE_"`
+		FileStorage        FileStorageConfig        `yaml:"filestorage" env-prefix:"FILE_STORAGE_"`
+		JobFactory         JobFactoryConfig         `yaml:"job_factory" env-prefix:"JOB_FACTORY_"`
+		ExecutionScheduler ExecutionSchedulerConfig `yaml:"execution_scheduler" env-prefix:"EXECUTION_SCHEDULER_"`
+		JobScheduler       JobSchedulerConfig       `yaml:"job_scheduler" env-prefix:"JOB_SCHEDULER_"`
+		WorkerPool         WorkerPoolConfig         `yaml:"worker_pool" env-prefix:"WORKER_POOL_"`
+		Dispatcher         DispatcherConfig         `yaml:"dispatcher" env-prefix:"DISPATCHER_"`
 	}
 
 	StorageConfig struct {
@@ -30,6 +30,11 @@ type (
 		ExecutionsInterval  time.Duration `yaml:"executions_interval" env:"EXECUTIONS_INTERVAL"`
 		Capacity            int64         `yaml:"capacity" env:"CAPACITY"`
 		ExecutionRetryAfter time.Duration `yaml:"execution_retry_after" env:"EXECUTION_RETRY_AFTER"`
+	}
+
+	JobSchedulerConfig struct {
+		PromisedJobsLimit         int           `yaml:"promised_jobs_limit" env:"PROMISED_JOBS_LIMIT"`
+		PromiseRescheduleInterval time.Duration `yaml:"promise_reschedule_interval" env:"PROMISE_RESCHEDULE_INTERVAL"`
 	}
 
 	JobFactoryConfig struct {
@@ -45,10 +50,6 @@ type (
 
 	WorkerPoolConfig struct {
 		WorkerDieAfter time.Duration `yaml:"worker_die_after" env:"WORKER_DIE_AFTER"`
-	}
-
-	ArtifactRegistryConfig struct {
-		ArtifactTTL time.Duration `yaml:"artifact_ttl" env:"ARTIFACT_TTL"`
 	}
 
 	DispatcherConfig struct {

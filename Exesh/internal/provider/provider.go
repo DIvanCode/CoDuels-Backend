@@ -14,4 +14,5 @@ type filestorage interface {
 	ReserveFile(context.Context, bucket.ID, string, time.Duration) (string, func() error, func() error, error)
 	ReadFile(context.Context, bucket.ID, string, time.Duration) (io.Reader, func(), error)
 	LocateFile(context.Context, bucket.ID, string, time.Duration) (string, func(), error)
+	GetBucketTrashTime(ctx context.Context, bucketID bucket.ID) (*time.Time, error)
 }

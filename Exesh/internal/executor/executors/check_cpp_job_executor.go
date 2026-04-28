@@ -235,7 +235,7 @@ func (e *CheckCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result
 	return errorResult(fmt.Errorf("failed to execute checker: %v", err))
 }
 
-func (e *CheckCppJobExecutor) SaveOutput(_ context.Context) error {
+func (e *CheckCppJobExecutor) SaveOutput(_ context.Context, _ *results.Result) error {
 	return nil
 }
 

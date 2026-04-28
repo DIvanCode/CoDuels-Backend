@@ -17,6 +17,7 @@ output_provider:
 worker:
   id: http://worker:5254
   free_slots: 2
+  available_memory_mb: 1024
   coordinator_endpoint: http://coordinator:5253
   heartbeat_delay: 100ms
   worker_delay: 10ms
