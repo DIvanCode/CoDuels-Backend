@@ -8,7 +8,6 @@ WORKDIR /app
 COPY go.mod go.sum ./
 COPY ./cmd ./cmd
 COPY ./internal ./internal
-COPY ./file_storage ./file_storage
 COPY ./config ./config
 
 RUN --mount=type=cache,target=/gomod-cache --mount=type=cache,target=/go-cache \

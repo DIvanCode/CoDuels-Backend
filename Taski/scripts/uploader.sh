@@ -6,6 +6,7 @@ if [[ $# -ne 3 ]]; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
 FORMAT="$1"
 TASK_PATH="$2"
 LEVEL="$3"
@@ -25,8 +26,8 @@ if ! [[ "$LEVEL" =~ ^[0-9]+$ ]] || (( LEVEL < 1 || LEVEL > 10 )); then
   exit 1
 fi
 
-CONFIG_PATH="uploader_config.yml" \
-  go run ../cmd/uploader \
+CONFIG_PATH="$SCRIPT_DIR/uploader_config.yml" \
+  go run "$SCRIPT_DIR/../cmd/uploader" \
   -format "$FORMAT" \
   -src "$TASK_PATH" \
   -level "$LEVEL"
