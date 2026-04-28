@@ -26,6 +26,8 @@ type (
 		mu           sync.Mutex
 		promisedJobs []promisedJob
 		startedJobs  map[job.ID]*Job
+
+		lastPromiseRescheduleAt time.Time
 	}
 
 	promisedJob struct {
@@ -111,12 +113,13 @@ func (s *JobScheduler) pickJob(ctx context.Context, workerID string, memory int)
 
 	workers := s.workerPool.getWorkersState()
 
-	promisedJobs := make([]promisedJob, 0, len(s.promisedJobs))
+	promisedJobs := make([]promisedJob, len(s.promisedJobs))
 	copy(promisedJobs, s.promisedJobs)
 	s.promisedJobs = make([]promisedJob, 0)
 
 	var pickedJob *Job = nil
 	now := time.Now()
+	shouldReschedulePromises := s.shouldReschedulePromises(now)
 	for _, jb := range promisedJobs {
 		if pickedJob == nil && s.canStartNowOnWorker(workerID, jb.Job, now, workers, s.promisedJobs) {
 			pickedJob = jb.Job
@@ -130,7 +133,9 @@ func (s *JobScheduler) pickJob(ctx context.Context, workerID string, memory int)
 			continue
 		}
 
-		jb.PromisedWorkerID, jb.PromisedStartAt = s.getBestPromise(jb.Job, now, workers, s.promisedJobs)
+		if shouldReschedulePromises {
+			jb.PromisedWorkerID, jb.PromisedStartAt = s.getBestPromise(jb.Job, now, workers, s.promisedJobs)
+		}
 		s.promisedJobs = append(s.promisedJobs, jb)
 	}
 
@@ -139,6 +144,7 @@ func (s *JobScheduler) pickJob(ctx context.Context, workerID string, memory int)
 		for _, jb := range jbs {
 			if s.canStartNowOnWorker(workerID, jb, now, workers, s.promisedJobs) {
 				pickedJob = jb
+				pickedJob.OnStart(ctx)
 				s.startedJobs[pickedJob.GetID()] = pickedJob
 				s.workerPool.placeJob(workerID, jb.GetID(), runningJob{
 					expectedTime:   jb.GetExpectedTime(),
@@ -150,6 +156,7 @@ func (s *JobScheduler) pickJob(ctx context.Context, workerID string, memory int)
 
 			if len(s.promisedJobs) < s.cfg.PromisedJobsLimit {
 				promisedWorkerID, promisedStartAt := s.getBestPromise(jb, now, workers, s.promisedJobs)
+				jb.OnStart(ctx)
 				s.promisedJobs = append(s.promisedJobs, promisedJob{
 					Job:              jb,
 					PromisedWorkerID: promisedWorkerID,
@@ -164,8 +171,6 @@ func (s *JobScheduler) pickJob(ctx context.Context, workerID string, memory int)
 	if pickedJob == nil {
 		return nil, nil
 	}
-
-	pickedJob.OnStart(ctx)
 
 	srcs, err := pickedJob.Sources(ctx)
 	if err != nil {
@@ -201,7 +206,7 @@ func (s *JobScheduler) canStartNowOnWorker(
 	}()
 
 	newPromisedJobsState := make([]promisedJob, 0, len(promisedJobsState))
-	for _, promisedJb := range s.promisedJobs {
+	for _, promisedJb := range promisedJobsState {
 		promisedWorkerID, promisedStartAt := s.getBestPromise(promisedJb.Job, now, workers, newPromisedJobsState)
 		if promisedStartAt.After(promisedJb.PromisedStartAt) {
 			return false
@@ -327,6 +332,15 @@ func (s *JobScheduler) getBestPromise(
 	}
 
 	return bestWorker, *bestStartedAt
+}
+
+func (s *JobScheduler) shouldReschedulePromises(now time.Time) bool {
+	if s.lastPromiseRescheduleAt.IsZero() ||
+		now.Sub(s.lastPromiseRescheduleAt) >= s.cfg.PromiseRescheduleInterval {
+		s.lastPromiseRescheduleAt = now
+		return true
+	}
+	return false
 }
 
 func cloneWorkerState(w workerState) workerState {

@@ -33,7 +33,8 @@ type (
 	}
 
 	JobSchedulerConfig struct {
-		PromisedJobsLimit int `yaml:"promised_jobs_limit" env:"PROMISED_JOBS_LIMIT"`
+		PromisedJobsLimit         int           `yaml:"promised_jobs_limit" env:"PROMISED_JOBS_LIMIT"`
+		PromiseRescheduleInterval time.Duration `yaml:"promise_reschedule_interval" env:"PROMISE_RESCHEDULE_INTERVAL"`
 	}
 
 	JobFactoryConfig struct {

@@ -126,11 +126,26 @@ func (p *WorkerPool) getWorkersState() map[string]workerState {
 }
 
 func (p *WorkerPool) placeJob(workerID string, jobID job.ID, jb runningJob) {
-	p.workers[workerID].RunningJobs[jobID] = jb
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	w := p.workers[workerID]
+	if exJb, ok := w.RunningJobs[jobID]; ok {
+		w.RunningJobsTotalExpectedMemory -= exJb.expectedMemory
+	}
+	w.RunningJobs[jobID] = jb
+	w.RunningJobsTotalExpectedMemory += jb.expectedMemory
 }
 
 func (p *WorkerPool) removeJob(workerID string, jobID job.ID) {
-	delete(p.workers[workerID].RunningJobs, jobID)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	w := p.workers[workerID]
+	if jb, ok := w.RunningJobs[jobID]; ok {
+		w.RunningJobsTotalExpectedMemory -= jb.expectedMemory
+		delete(w.RunningJobs, jobID)
+	}
 }
 
 func (p *WorkerPool) getWorkerWithArtifact(jobID job.ID) (workerID string, err error) {

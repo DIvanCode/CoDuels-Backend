@@ -24,6 +24,7 @@ execution_scheduler:
   execution_retry_after: 30s
 job_scheduler:
   promised_jobs_limit: 5
+  promise_reschedule_interval: 100ms
 worker_pool:
   worker_die_after: 1s
 dispatcher:
