@@ -58,7 +58,9 @@ func (uc *UseCase) Heartbeat(ctx context.Context, command Command) ([]jobs.Job, 
 		)
 	}
 
-	uc.workerPool.Heartbeat(command.WorkerID, command.TotalSlots, command.TotalMemory)
+	totalSlots := max(command.TotalSlots, command.FreeSlots)
+	totalMemory := max(command.TotalMemory, command.AvailableMemory)
+	uc.workerPool.Heartbeat(command.WorkerID, totalSlots, totalMemory)
 
 	for _, jobResult := range command.DoneJobs {
 		if jobResult.GetType() == result.Chain {
