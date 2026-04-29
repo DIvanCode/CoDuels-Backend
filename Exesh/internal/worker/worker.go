@@ -20,7 +20,7 @@ type (
 		log *slog.Logger
 		cfg config.WorkConfig
 
-		heartbeatClient heartbeatClient
+	heartbeatClient heartbeatClient
 		executorFactory *executor.ExecutorFactory
 
 		jobs                    queue.Queue[jobs.Job]
@@ -35,7 +35,7 @@ type (
 	}
 
 	heartbeatClient interface {
-		Heartbeat(context.Context, string, []results.Result, int, int) ([]jobs.Job, []sources.Source, error)
+		Heartbeat(context.Context, string, []results.Result, int, int, int, int) ([]jobs.Job, []sources.Source, error)
 	}
 
 	sourceProvider interface {
@@ -99,7 +99,15 @@ func (w *Worker) runHeartbeat(ctx context.Context) {
 
 		w.mu.Unlock()
 
-		jbs, srcs, err := w.heartbeatClient.Heartbeat(ctx, w.cfg.WorkerID, doneJobs, freeSlots, availableMemory)
+		jbs, srcs, err := w.heartbeatClient.Heartbeat(
+			ctx,
+			w.cfg.WorkerID,
+			doneJobs,
+			w.cfg.FreeSlots,
+			w.cfg.AvailableMemory,
+			freeSlots,
+			availableMemory,
+		)
 		if err != nil {
 			w.log.Error("failed to do heartbeat request", slog.Any("err", err))
 

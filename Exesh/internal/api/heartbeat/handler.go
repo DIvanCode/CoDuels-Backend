@@ -48,6 +48,8 @@ func buildCommand(req Request) heartbeat.Command {
 	return heartbeat.Command{
 		WorkerID:        req.WorkerID,
 		DoneJobs:        req.DoneJobs,
+		TotalSlots:      req.TotalSlots,
+		TotalMemory:     req.TotalMemory,
 		FreeSlots:       req.FreeSlots,
 		AvailableMemory: req.AvailableMemory,
 	}
