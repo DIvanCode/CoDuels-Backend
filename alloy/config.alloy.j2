@@ -1,0 +1,108 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = "{{ grafana_prometheus_remote_write_url }}"
+
+    basic_auth {
+      username = "{{ grafana_prometheus_username }}"
+      password = "{{ grafana_api_key }}"
+    }
+  }
+}
+
+prometheus.scrape "production_apps" {
+  targets = [
+    {
+      "__address__"      = "duely:5001",
+      "__metrics_path__" = "/metrics",
+      "env"              = "prod",
+      "service"          = "duely",
+    },
+    {
+      "__address__"      = "taski:9090",
+      "__metrics_path__" = "/",
+      "env"              = "prod",
+      "service"          = "taski",
+    },
+    {
+      "__address__"      = "coordinator:9090",
+      "__metrics_path__" = "/",
+      "env"              = "prod",
+      "service"          = "exesh-coordinator",
+    },
+    {
+      "__address__"      = "worker-1:9091",
+      "__metrics_path__" = "/",
+      "env"              = "prod",
+      "service"          = "exesh-worker",
+      "instance"         = "worker-1",
+    },
+    {
+      "__address__"      = "worker-2:9092",
+      "__metrics_path__" = "/",
+      "env"              = "prod",
+      "service"          = "exesh-worker",
+      "instance"         = "worker-2",
+    },
+  ]
+
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker_logs" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_network_name"]
+    regex         = "coduels"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "service_name"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_id"]
+    target_label  = "container_id"
+  }
+}
+
+loki.source.docker "docker" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  labels        = {
+    "env"      = "prod",
+    "platform" = "docker",
+  }
+  relabel_rules = discovery.relabel.docker_logs.rules
+  forward_to    = [loki.write.grafana_cloud.receiver]
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = "{{ grafana_loki_push_url }}"
+
+    basic_auth {
+      username = "{{ grafana_loki_username }}"
+      password = "{{ grafana_api_key }}"
+    }
+  }
+}
