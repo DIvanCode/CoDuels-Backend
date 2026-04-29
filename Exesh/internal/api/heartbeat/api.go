@@ -11,6 +11,8 @@ type (
 	Request struct {
 		WorkerID        string           `json:"worker_id"`
 		DoneJobs        []results.Result `json:"done_jobs"`
+		TotalSlots      int              `json:"total_slots"`
+		TotalMemory     int              `json:"total_memory_mb"`
 		FreeSlots       int              `json:"free_slots"`
 		AvailableMemory int              `json:"available_memory_mb"`
 	}
