@@ -1,0 +1,56 @@
+- name: Deploy Grafana Alloy
+  hosts: Production
+  vars_files:
+    - credentials.yml
+  vars:
+    grafana_prometheus_remote_write_url: https://prometheus-prod-56-prod-us-east-2.grafana.net/api/prom/push
+    grafana_loki_push_url: https://logs-prod-036.grafana.net/loki/api/v1/push
+  remote_user: root
+  tasks:
+    - name: Ensure network exists
+      docker_network:
+        name: coduels
+        state: present
+
+    - name: Ensure Alloy config directory exists
+      file:
+        path: /opt/coduels/alloy
+        state: directory
+        mode: "0755"
+
+    - name: Ensure Alloy storage directory exists
+      file:
+        path: /var/lib/coduels/alloy
+        state: directory
+        mode: "0755"
+
+    - name: Upload Alloy config
+      template:
+        src: ../../config.alloy.j2
+        dest: /opt/coduels/alloy/config.alloy
+        mode: "0600"
+      no_log: true
+
+    - name: Pull Alloy image
+      docker_image:
+        name: grafana/alloy
+        tag: latest
+        source: pull
+        force_source: true
+
+    - name: Run Alloy container
+      docker_container:
+        name: alloy
+        image: grafana/alloy:latest
+        recreate: yes
+        restart: yes
+        restart_policy: unless-stopped
+        command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+        ports:
+          - "12345:12345"
+        volumes:
+          - "/opt/coduels/alloy/config.alloy:/etc/alloy/config.alloy:ro"
+          - "/var/lib/coduels/alloy:/var/lib/alloy/data"
+          - "/var/run/docker.sock:/var/run/docker.sock"
+        networks:
+          - name: coduels
