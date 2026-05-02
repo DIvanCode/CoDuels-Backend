@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - Exesh/**
+  workflow_dispatch:
 
 jobs:
   build:
