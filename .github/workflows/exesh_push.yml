@@ -1,12 +1,11 @@
 name: Exesh
 
 on:
-  push:
+  pull_request:
     branches:
       - master
     paths:
       - Exesh/**
-  workflow_dispatch:
 
 jobs:
   build:
