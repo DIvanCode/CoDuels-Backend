@@ -41,6 +41,7 @@ type (
 
 		nowWeight      atomic.Int64
 		nowWeightGauge prometheus.Collector
+		metrics        *executionAggregateMetrics
 
 		mu         sync.Mutex
 		executions map[execution.ID]*Execution
@@ -102,6 +103,7 @@ func NewExecutionScheduler(
 		messageDispatcher: messageDispatcher,
 
 		nowWeight: atomic.Int64{},
+		metrics:   newExecutionAggregateMetrics(),
 
 		mu:         sync.Mutex{},
 		executions: make(map[execution.ID]*Execution),
@@ -121,6 +123,7 @@ func (s *ExecutionScheduler) RegisterMetrics(r prometheus.Registerer) error {
 	return errors.Join(
 		r.Register(s.nowWeightGauge),
 		r.Register(newExecutionSchedulerCollector(s)),
+		s.metrics.Register(r),
 	)
 }
 
@@ -208,6 +211,7 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 
 func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *Execution) error {
 	s.log.Info("schedule execution", slog.String("execution_id", ex.ID.String()))
+	s.metrics.executionStarted()
 
 	msg := s.messageFactory.CreateExecutionStarted(ex.ID)
 	if err := s.messageDispatcher.Send(ctx, msg); err != nil {
@@ -324,6 +328,7 @@ func (s *ExecutionScheduler) pickJobs() []*Job {
 	for i := range executions {
 		jb := executions[i].GetPeekJob()
 		if jb != nil {
+			s.metrics.executionPick(priorities[executions[i].ID], executions[i].GetProgressRatio())
 			jbs = append(jbs, jb)
 		}
 	}
@@ -450,6 +455,11 @@ func (s *ExecutionScheduler) finishExecution(ctx context.Context, ex *Execution,
 			slog.String("execution", ex.ID.String()),
 			slog.Any("error", exError))
 	}
+	finishStatus := "ok"
+	if exError != nil {
+		finishStatus = "error"
+	}
+	s.metrics.executionFinished(finishStatus, ex.GetDuration(time.Now()), ex.GetProgressRatio())
 
 	defer s.nowWeight.Add(-ex.Definition.Weight)
 
