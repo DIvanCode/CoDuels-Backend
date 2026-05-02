@@ -2,9 +2,19 @@ package worker
 
 import (
 	"errors"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
+
+type workerRuntimeMetrics struct {
+	workerID string
+
+	jobStartedTotal          *prometheus.CounterVec
+	jobFinishedTotal         *prometheus.CounterVec
+	slotOccupiedSecondsTotal prometheus.Counter
+	memoryOccupiedMBSeconds  prometheus.Counter
+}
 
 type workerMetricsSnapshot struct {
 	totalSlots          int
@@ -16,9 +26,43 @@ type workerMetricsSnapshot struct {
 	doneJobsPendingSend int
 }
 
+func newWorkerRuntimeMetrics(workerID string) *workerRuntimeMetrics {
+	labels := prometheus.Labels{"worker_id": workerID}
+	m := &workerRuntimeMetrics{
+		workerID: workerID,
+		jobStartedTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "worker_job_started_total",
+			Help: "Total number of jobs started by this worker.",
+		}, []string{"worker_id"}),
+		jobFinishedTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "worker_job_finished_total",
+			Help: "Total number of jobs finished by this worker, labeled by result status.",
+		}, []string{"worker_id", "status"}),
+		slotOccupiedSecondsTotal: prometheus.NewCounter(prometheus.CounterOpts{
+			Name:        "worker_slot_occupied_seconds_total",
+			Help:        "Total slot-seconds occupied by jobs on this worker.",
+			ConstLabels: labels,
+		}),
+		memoryOccupiedMBSeconds: prometheus.NewCounter(prometheus.CounterOpts{
+			Name:        "worker_memory_occupied_mb_seconds_total",
+			Help:        "Total MiB-seconds occupied by jobs on this worker, based on expected job memory.",
+			ConstLabels: labels,
+		}),
+	}
+	m.jobStartedTotal.WithLabelValues(workerID)
+	for _, status := range []string{"OK", "CE", "RE", "TL", "ML", "WA"} {
+		m.jobFinishedTotal.WithLabelValues(workerID, status)
+	}
+	return m
+}
+
 func (w *Worker) RegisterMetrics(r prometheus.Registerer) error {
 	labels := prometheus.Labels{"worker_id": w.cfg.WorkerID}
 	return errors.Join(
+		r.Register(w.metrics.jobStartedTotal),
+		r.Register(w.metrics.jobFinishedTotal),
+		r.Register(w.metrics.slotOccupiedSecondsTotal),
+		r.Register(w.metrics.memoryOccupiedMBSeconds),
 		r.Register(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
 			Name:        "total_slots",
 			Help:        "Total worker slots from worker config.",
@@ -69,6 +113,17 @@ func (w *Worker) RegisterMetrics(r prometheus.Registerer) error {
 			return float64(w.snapshotMetrics().doneJobsPendingSend)
 		})),
 	)
+}
+
+func (m *workerRuntimeMetrics) jobStarted() {
+	m.jobStartedTotal.WithLabelValues(m.workerID).Inc()
+}
+
+func (m *workerRuntimeMetrics) jobFinished(status string, duration time.Duration, expectedMemoryMB int) {
+	seconds := duration.Seconds()
+	m.jobFinishedTotal.WithLabelValues(m.workerID, status).Inc()
+	m.slotOccupiedSecondsTotal.Add(seconds)
+	m.memoryOccupiedMBSeconds.Add(seconds * float64(expectedMemoryMB))
 }
 
 func (w *Worker) snapshotMetrics() workerMetricsSnapshot {
