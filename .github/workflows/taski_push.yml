@@ -6,7 +6,7 @@ on:
       - master
     paths:
       - Taski/**
-      - !Taski/tasks
+      - "!Taski/tasks"
 
 jobs:
   build:
