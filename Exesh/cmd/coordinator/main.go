@@ -86,9 +86,16 @@ func main() {
 		executionFactory, workerPool, messageFactory, messageDispatcher)
 	jobScheduler := schedule.NewJobScheduler(log, cfg.JobScheduler, workerPool, executionScheduler)
 
-	err = executionScheduler.RegisterMetrics(promCoordinatorRegistry)
-	if err != nil {
+	if err = executionScheduler.RegisterMetrics(promCoordinatorRegistry); err != nil {
 		log.Error("could not register metrics from execution scheduler", slog.Any("err", err))
+		return
+	}
+	if err = jobScheduler.RegisterMetrics(promCoordinatorRegistry); err != nil {
+		log.Error("could not register metrics from job scheduler", slog.Any("err", err))
+		return
+	}
+	if err = workerPool.RegisterMetrics(promCoordinatorRegistry); err != nil {
+		log.Error("could not register metrics from worker pool", slog.Any("err", err))
 		return
 	}
 

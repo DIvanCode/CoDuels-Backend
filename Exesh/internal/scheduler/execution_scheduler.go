@@ -120,6 +120,7 @@ func NewExecutionScheduler(
 func (s *ExecutionScheduler) RegisterMetrics(r prometheus.Registerer) error {
 	return errors.Join(
 		r.Register(s.nowWeightGauge),
+		r.Register(newExecutionSchedulerCollector(s)),
 	)
 }
 
@@ -237,7 +238,7 @@ func (s *ExecutionScheduler) scheduleJob(ex *Execution, jb jobs.Job) error {
 	}
 	s.log.Info("schedule job", logArgs...)
 
-	scheduledJob := &Job{Job: jb}
+	scheduledJob := &Job{Job: jb, ExecutionID: ex.ID}
 	scheduledJob.Sources = func(ctx context.Context) ([]sources.Source, error) {
 		srcs := make([]sources.Source, 0)
 		for _, in := range jb.GetInputs() {
@@ -453,6 +454,11 @@ func (s *ExecutionScheduler) finishExecution(ctx context.Context, ex *Execution,
 	defer s.nowWeight.Add(-ex.Definition.Weight)
 
 	ex.ForceFail()
+	func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		delete(s.executions, ex.ID)
+	}()
 
 	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
 		var msg messages.Message

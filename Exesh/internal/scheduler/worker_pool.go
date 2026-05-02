@@ -33,6 +33,7 @@ type (
 	runningJob struct {
 		expectedTime   int
 		expectedMemory int
+		memoryOffset   int
 		startedAt      time.Time
 	}
 )
@@ -125,7 +126,7 @@ func (p *WorkerPool) getWorkersState() map[string]workerState {
 	return workers
 }
 
-func (p *WorkerPool) placeJob(workerID string, jobID job.ID, jb runningJob) {
+func (p *WorkerPool) placeJob(workerID string, jobID job.ID, jb runningJob) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -133,8 +134,10 @@ func (p *WorkerPool) placeJob(workerID string, jobID job.ID, jb runningJob) {
 	if exJb, ok := w.RunningJobs[jobID]; ok {
 		w.RunningJobsTotalExpectedMemory -= exJb.expectedMemory
 	}
+	jb.memoryOffset = firstFreeMemoryOffset(w.RunningJobs, jb.expectedMemory, w.Memory)
 	w.RunningJobs[jobID] = jb
 	w.RunningJobsTotalExpectedMemory += jb.expectedMemory
+	return jb.memoryOffset
 }
 
 func (p *WorkerPool) removeJob(workerID string, jobID job.ID) {
@@ -146,6 +149,37 @@ func (p *WorkerPool) removeJob(workerID string, jobID job.ID) {
 		w.RunningJobsTotalExpectedMemory -= jb.expectedMemory
 		delete(w.RunningJobs, jobID)
 	}
+}
+
+func firstFreeMemoryOffset(runningJobs map[job.ID]runningJob, memory int, totalMemory int) int {
+	type interval struct {
+		from int
+		to   int
+	}
+
+	intervals := make([]interval, 0, len(runningJobs))
+	for _, jb := range runningJobs {
+		intervals = append(intervals, interval{
+			from: jb.memoryOffset,
+			to:   jb.memoryOffset + jb.expectedMemory,
+		})
+	}
+
+	for offset := 0; offset+memory <= totalMemory; offset++ {
+		ok := true
+		for _, in := range intervals {
+			if offset < in.to && offset+memory > in.from {
+				ok = false
+				offset = in.to - 1
+				break
+			}
+		}
+		if ok {
+			return offset
+		}
+	}
+
+	return 0
 }
 
 func (p *WorkerPool) getWorkerWithArtifact(jobID job.ID) (workerID string, err error) {
