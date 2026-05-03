@@ -6,6 +6,8 @@ on:
       - master
     paths:
       - Exesh/**
+      - nginx/**
+      - .github/workflows/exesh_pull_request.yml
 
 jobs:
   unit-tests:
@@ -20,3 +22,8 @@ jobs:
         run: |
           cd Exesh
           go test -v ./...
+      - name: Check dashboard
+        run: |
+          cd Exesh/dashboard
+          python -m pip install -r requirements.txt
+          python manage.py check

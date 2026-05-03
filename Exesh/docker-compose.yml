@@ -102,3 +102,22 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/config:ro
       - ./config/isolate.conf:/usr/local/etc/isolate:ro
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: exesh-dashboard
+    networks:
+      - coduels
+    ports:
+      - "9000:9000"
+    environment:
+      EXESH_DASHBOARD_DB_HOST: exesh_postgres
+      EXESH_DASHBOARD_DB_PORT: "5432"
+      EXESH_DASHBOARD_DB_NAME: exesh
+      EXESH_DASHBOARD_DB_USER: coordinator
+      EXESH_DASHBOARD_DB_PASSWORD: secret
+    depends_on:
+      postgres:
+        condition: service_healthy

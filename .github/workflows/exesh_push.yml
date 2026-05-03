@@ -1,11 +1,12 @@
 name: Exesh
 
 on:
-  pull_request:
+  push:
     branches:
       - master
     paths:
       - Exesh/**
+      - .github/workflows/exesh_push.yml
 
 jobs:
   build:

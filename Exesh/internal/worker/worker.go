@@ -20,10 +20,8 @@ type (
 		log *slog.Logger
 		cfg config.WorkConfig
 
-		heartbeatClient heartbeatClient
+	heartbeatClient heartbeatClient
 		executorFactory *executor.ExecutorFactory
-
-		metrics *workerRuntimeMetrics
 
 		jobs                    queue.Queue[jobs.Job]
 		jobsExpectedTotalMemory int
@@ -57,7 +55,6 @@ func NewWorker(
 
 		heartbeatClient: heartbeat.NewHeartbeatClient(cfg.CoordinatorEndpoint),
 		executorFactory: executorFactory,
-		metrics:         newWorkerRuntimeMetrics(cfg.WorkerID),
 
 		jobs:                    *queue.NewQueue[jobs.Job](),
 		jobsExpectedTotalMemory: 0,
@@ -166,10 +163,7 @@ func (w *Worker) runWorker(ctx context.Context) {
 		jobID := job.GetID()
 		w.log.Debug("picked job", slog.String("job", jobID.String()))
 
-		startedAt := time.Now()
-		w.metrics.jobStarted()
 		result := w.executeJob(ctx, *job)
-		w.metrics.jobFinished(string(result.GetStatus()), time.Since(startedAt), job.GetExpectedMemory())
 
 		w.mu.Lock()
 

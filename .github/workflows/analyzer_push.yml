@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - Analyzer/**
+      - .github/workflows/analyzer_push.yml
 
 jobs:
   build:
