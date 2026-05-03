@@ -57,10 +57,11 @@ h2 {
   margin-top: 4px;
 }
 
-.controls {
+.time-range {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 input,
@@ -73,7 +74,7 @@ button {
 }
 
 input {
-  width: 90px;
+  width: 190px;
 }
 
 button {

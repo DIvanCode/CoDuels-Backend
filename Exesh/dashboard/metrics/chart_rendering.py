@@ -16,9 +16,9 @@ COLORS = {
 PALETTE = ["#58b9d7", "#46c278", "#e0b64b", "#e56767", "#7297ff", "#ba7cff"]
 
 
-def rendered_dashboard(minutes=30):
+def rendered_dashboard(start, end):
     started = perf_counter()
-    history = event_dashboard_history(minutes=minutes)
+    history = event_dashboard_history(start=start, end=end)
     execution = history["execution"]
     latest_point = execution[-1] if execution else {}
     rendered = {
