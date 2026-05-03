@@ -150,6 +150,11 @@ def line_chart(series, forced_max=None):
         parts.append(f'<line class="grid" x1="{pad["left"]}" x2="{width - pad["right"]}" y1="{gy}" y2="{gy}"/>')
         parts.append(f'<text x="6" y="{gy + 4}">{escape(label)}</text>')
 
+    for tick in time_ticks(min_ts, max_ts, max_labels=max(2, plot_width // 120)):
+        tx = x(tick)
+        parts.append(f'<line class="grid" x1="{tx:.2f}" x2="{tx:.2f}" y1="{pad["top"]}" y2="{height - pad["bottom"]}"/>')
+        parts.append(f'<text text-anchor="middle" x="{tx:.2f}" y="{height - 16}">{escape(format_time(tick))}</text>')
+
     for line in series:
         points = line["points"]
         if not points:
@@ -207,6 +212,12 @@ def rectangles_svg(jobs):
         parts.append(f'<line class="axis" x1="{plot_left}" x2="{width - 20}" y1="{y0}" y2="{y0}"/>')
         parts.append(f'<text x="96" y="{y(index, max_memory) + 4}">{fmt(max_memory)} MB</text>')
         parts.append(f'<text x="110" y="{y(index, 0) + 4}">0 MB</text>')
+
+    axis_y = height - 16
+    for tick in time_ticks(min_start, max_finish, max_labels=max(2, plot_width // 140)):
+        tx = x(tick)
+        parts.append(f'<line class="axis" x1="{tx:.2f}" x2="{tx:.2f}" y1="{plot_top}" y2="{height - 36}"/>')
+        parts.append(f'<text text-anchor="middle" x="{tx:.2f}" y="{axis_y}">{escape(format_time(tick))}</text>')
 
     for index, job in enumerate(jobs):
         worker_index = max(0, workers.index(job.get("worker_id") or "unknown"))
@@ -298,6 +309,31 @@ def short_execution(execution_id):
 
 def format_time(timestamp):
     return datetime.fromtimestamp(timestamp).strftime("%H:%M:%S")
+
+
+def time_ticks(start, end, max_labels):
+    if end <= start:
+        return [start]
+    max_labels = max(2, int(max_labels))
+    step = nice_time_step((end - start) / (max_labels - 1))
+    first = (int(start) // step) * step
+    if first < start:
+        first += step
+    ticks = []
+    current = first
+    while current <= end and len(ticks) < max_labels:
+        ticks.append(current)
+        current += step
+    if not ticks:
+        return [start, end]
+    return ticks
+
+
+def nice_time_step(raw_step):
+    for step in [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400]:
+        if raw_step <= step:
+            return step
+    return 28800
 
 
 def fmt(value):
