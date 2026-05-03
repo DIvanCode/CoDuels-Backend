@@ -1,10 +1,16 @@
 const kpiIds = ["startedRate", "finishedRate", "pickRate", "durationP95", "priorityP95", "workerCount"];
 
+initializeTimeRangeInputs();
 tick();
 
 async function tick() {
+  const url = apiHistoryUrl();
+  if (!url) {
+    document.getElementById("status").textContent = "Select start and end time.";
+    return;
+  }
   try {
-    const response = await fetch("api/history/?minutes=30", { cache: "no-store" });
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`request failed: ${response.status}`);
     }
@@ -12,6 +18,20 @@ async function tick() {
   } catch (error) {
     document.getElementById("status").innerHTML = `<span class="bad">${escapeHtml(error.message)}</span>`;
   }
+}
+
+function apiHistoryUrl() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.get("start") || !params.get("end")) {
+    return "";
+  }
+  return `api/history/?${params.toString()}`;
+}
+
+function initializeTimeRangeInputs() {
+  const params = new URLSearchParams(window.location.search);
+  document.getElementById("startInput").value = params.get("start") || "";
+  document.getElementById("endInput").value = params.get("end") || "";
 }
 
 function render(payload) {
