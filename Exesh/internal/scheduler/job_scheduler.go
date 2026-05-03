@@ -26,7 +26,7 @@ type (
 		mu           sync.Mutex
 		promisedJobs []promisedJob
 		startedJobs  map[job.ID]startedJob
-		metrics      *jobSchedulerMetrics
+		events       EventRecorder
 
 		lastPromiseRescheduleAt time.Time
 	}
@@ -62,8 +62,11 @@ func NewJobScheduler(
 	log *slog.Logger,
 	cfg config.JobSchedulerConfig,
 	workerPool *WorkerPool,
-	executionScheduler *ExecutionScheduler) *JobScheduler {
-	metrics := newJobSchedulerMetrics(cfg.MetricsRetention, cfg.MetricsMaxFinishedJobs)
+	executionScheduler *ExecutionScheduler,
+	events EventRecorder) *JobScheduler {
+	if events == nil {
+		events = NoopEventRecorder{}
+	}
 	s := &JobScheduler{
 		log: log,
 		cfg: cfg,
@@ -74,9 +77,8 @@ func NewJobScheduler(
 		mu:           sync.Mutex{},
 		promisedJobs: make([]promisedJob, 0),
 		startedJobs:  make(map[job.ID]startedJob),
-		metrics:      metrics,
+		events:       events,
 	}
-	metrics.scheduler = s
 	return s
 }
 
@@ -110,7 +112,25 @@ func (s *JobScheduler) DoneJob(ctx context.Context, workerID string, res results
 
 		delete(s.startedJobs, jobID)
 		s.workerPool.removeJob(workerID, jobID)
-		s.metrics.observeFinished(buildJobMetricRecord(started.workerID, started.Job, string(res.GetStatus()), started.startedAt, time.Now(), started.memoryOffset))
+		finishedAt := time.Now()
+		expectedFinishedAt := started.startedAt.Add(time.Millisecond * time.Duration(started.GetExpectedTime()))
+		s.events.RecordJobEvent(ctx, JobEvent{
+			Type:                   "finished",
+			JobID:                  started.GetID(),
+			ExecutionID:            started.ExecutionID,
+			WorkerID:               started.workerID,
+			JobType:                string(started.GetType()),
+			Status:                 string(res.GetStatus()),
+			ExpectedMemoryMB:       started.GetExpectedMemory(),
+			ExpectedDurationMillis: started.GetExpectedTime(),
+			MemoryStartMB:          started.memoryOffset,
+			MemoryEndMB:            started.memoryOffset + started.GetExpectedMemory(),
+			StartedAt:              &started.startedAt,
+			FinishedAt:             &finishedAt,
+			ExpectedFinishedAt:     &expectedFinishedAt,
+			ActualDurationSeconds:  finishedAt.Sub(started.startedAt).Seconds(),
+			At:                     finishedAt,
+		})
 
 		return started.OnDone
 	}
@@ -146,6 +166,7 @@ func (s *JobScheduler) pickJob(ctx context.Context, workerID string, memory int)
 				started.memoryOffset = memoryOffset
 				s.startedJobs[pickedJob.GetID()] = started
 			}
+			s.recordJobStarted(ctx, pickedJob, workerID, now, memoryOffset, "promised_started")
 			workers = s.workerPool.getWorkersState()
 			continue
 		}
@@ -172,12 +193,25 @@ func (s *JobScheduler) pickJob(ctx context.Context, workerID string, memory int)
 					started.memoryOffset = memoryOffset
 					s.startedJobs[pickedJob.GetID()] = started
 				}
+				s.recordJobStarted(ctx, pickedJob, workerID, now, memoryOffset, "started")
 				break
 			}
 
 			if len(s.promisedJobs) < s.cfg.PromisedJobsLimit {
 				promisedWorkerID, promisedStartAt := s.getBestPromise(jb, now, workers, s.promisedJobs)
 				jb.OnStart(ctx)
+				s.events.RecordJobEvent(ctx, JobEvent{
+					Type:                    "promised",
+					JobID:                   jb.GetID(),
+					ExecutionID:             jb.ExecutionID,
+					WorkerID:                promisedWorkerID,
+					JobType:                 string(jb.GetType()),
+					ExpectedMemoryMB:        jb.GetExpectedMemory(),
+					ExpectedDurationMillis:  jb.GetExpectedTime(),
+					PromisedStartAt:         &promisedStartAt,
+					SchedulerLatencySeconds: promisedStartAt.Sub(now).Seconds(),
+					At:                      now,
+				})
 				s.promisedJobs = append(s.promisedJobs, promisedJob{
 					Job:              jb,
 					PromisedWorkerID: promisedWorkerID,
@@ -201,6 +235,24 @@ func (s *JobScheduler) pickJob(ctx context.Context, workerID string, memory int)
 	}
 
 	return &pickedJob.Job, srcs
+}
+
+func (s *JobScheduler) recordJobStarted(ctx context.Context, jb *Job, workerID string, startedAt time.Time, memoryOffset int, eventType string) {
+	expectedFinishedAt := startedAt.Add(time.Millisecond * time.Duration(jb.GetExpectedTime()))
+	s.events.RecordJobEvent(ctx, JobEvent{
+		Type:                   eventType,
+		JobID:                  jb.GetID(),
+		ExecutionID:            jb.ExecutionID,
+		WorkerID:               workerID,
+		JobType:                string(jb.GetType()),
+		ExpectedMemoryMB:       jb.GetExpectedMemory(),
+		ExpectedDurationMillis: jb.GetExpectedTime(),
+		MemoryStartMB:          memoryOffset,
+		MemoryEndMB:            memoryOffset + jb.GetExpectedMemory(),
+		StartedAt:              &startedAt,
+		ExpectedFinishedAt:     &expectedFinishedAt,
+		At:                     startedAt,
+	})
 }
 
 func (s *JobScheduler) canStartNowOnWorker(

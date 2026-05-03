@@ -59,18 +59,15 @@ func main() {
 	sourceProvider := provider.NewSourceProvider(cfg.SourceProvider, filestorageAdapter)
 	outputProvider := provider.NewOutputProvider(cfg.OutputProvider, filestorageAdapter)
 
+	executorFactory := setupExecutorFactory(log, sourceProvider, outputProvider)
+
+	worker.NewWorker(log, cfg.Worker, sourceProvider, executorFactory).Start(ctx)
+
 	promRegistry := prometheus.NewRegistry()
 	promRegistry.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
-	executorFactory := setupExecutorFactory(log, sourceProvider, outputProvider)
-	w := worker.NewWorker(log, cfg.Worker, sourceProvider, executorFactory)
-	if err = w.RegisterMetrics(promRegistry); err != nil {
-		log.Error("could not register worker metrics", slog.Any("err", err))
-		return
-	}
-	w.Start(ctx)
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 
