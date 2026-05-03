@@ -22,16 +22,31 @@ async function tick() {
 
 function apiHistoryUrl() {
   const params = new URLSearchParams(window.location.search);
-  if (!params.get("start") || !params.get("end")) {
+  const start = params.get("start") || document.getElementById("startInput").value;
+  const end = params.get("end") || document.getElementById("endInput").value;
+  if (!start || !end) {
     return "";
   }
+  params.set("start", start);
+  params.set("end", end);
   return `api/history/?${params.toString()}`;
 }
 
 function initializeTimeRangeInputs() {
   const params = new URLSearchParams(window.location.search);
-  document.getElementById("startInput").value = params.get("start") || "";
-  document.getElementById("endInput").value = params.get("end") || "";
+  const end = new Date();
+  const start = new Date(end.getTime() - 30 * 60 * 1000);
+  document.getElementById("startInput").value = params.get("start") || formatDatetimeLocal(start);
+  document.getElementById("endInput").value = params.get("end") || formatDatetimeLocal(end);
+}
+
+function formatDatetimeLocal(date) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-") + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function render(payload) {
