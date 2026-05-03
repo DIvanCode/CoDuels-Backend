@@ -13,10 +13,6 @@
       <h1>Exesh Load Dashboard</h1>
       <p id="status">Waiting for metrics...</p>
     </div>
-    <div class="controls">
-      <button id="refreshButton">Refresh</button>
-      <button id="clearButton">Clear</button>
-    </div>
   </header>
 
   <main>
@@ -32,33 +28,33 @@
     <section class="grid two">
       <article class="panel">
         <h2>Execution Throughput</h2>
-        <canvas id="throughputChart"></canvas>
+        <div id="throughputChart" class="chart"></div>
       </article>
       <article class="panel">
         <h2>Execution Fairness</h2>
-        <canvas id="fairnessChart"></canvas>
+        <div id="fairnessChart" class="chart"></div>
       </article>
     </section>
 
     <section class="grid two">
       <article class="panel">
         <h2>Execution Priority By Execution</h2>
-        <canvas id="executionPriorityChart"></canvas>
+        <div id="executionPriorityChart" class="chart"></div>
       </article>
       <article class="panel">
         <h2>Execution Progress By Execution</h2>
-        <canvas id="executionProgressChart"></canvas>
+        <div id="executionProgressChart" class="chart"></div>
       </article>
     </section>
 
     <section class="grid two">
       <article class="panel">
         <h2>Worker Slot Utilization</h2>
-        <canvas id="slotChart"></canvas>
+        <div id="slotChart" class="chart"></div>
       </article>
       <article class="panel">
         <h2>Worker Memory Utilization</h2>
-        <canvas id="memoryChart"></canvas>
+        <div id="memoryChart" class="chart"></div>
       </article>
     </section>
 
