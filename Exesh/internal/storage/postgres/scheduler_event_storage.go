@@ -29,6 +29,8 @@ const createSchedulerEventTablesQuery = `
 	);
 	CREATE INDEX IF NOT EXISTS exesh_execution_events_happened_at_idx ON exesh_execution_events(happened_at);
 	CREATE INDEX IF NOT EXISTS exesh_execution_events_execution_id_idx ON exesh_execution_events(execution_id);
+	CREATE INDEX IF NOT EXISTS exesh_execution_events_happened_type_idx ON exesh_execution_events(happened_at, event_type);
+	CREATE INDEX IF NOT EXISTS exesh_execution_events_execution_happened_idx ON exesh_execution_events(execution_id, happened_at);
 
 	CREATE TABLE IF NOT EXISTS exesh_job_events(
 		id bigserial PRIMARY KEY,
@@ -54,6 +56,8 @@ const createSchedulerEventTablesQuery = `
 	CREATE INDEX IF NOT EXISTS exesh_job_events_job_id_idx ON exesh_job_events(job_id);
 	CREATE INDEX IF NOT EXISTS exesh_job_events_execution_id_idx ON exesh_job_events(execution_id);
 	CREATE INDEX IF NOT EXISTS exesh_job_events_worker_id_idx ON exesh_job_events(worker_id);
+	CREATE INDEX IF NOT EXISTS exesh_job_events_job_happened_idx ON exesh_job_events(job_id, happened_at);
+	CREATE INDEX IF NOT EXISTS exesh_job_events_happened_type_idx ON exesh_job_events(happened_at, event_type);
 
 	CREATE TABLE IF NOT EXISTS exesh_worker_events(
 		id bigserial PRIMARY KEY,
@@ -69,6 +73,7 @@ const createSchedulerEventTablesQuery = `
 	);
 	CREATE INDEX IF NOT EXISTS exesh_worker_events_happened_at_idx ON exesh_worker_events(happened_at);
 	CREATE INDEX IF NOT EXISTS exesh_worker_events_worker_id_idx ON exesh_worker_events(worker_id);
+	CREATE INDEX IF NOT EXISTS exesh_worker_events_worker_happened_idx ON exesh_worker_events(worker_id, happened_at DESC);
 `
 
 func NewSchedulerEventStorage(ctx context.Context, log *slog.Logger, db *sql.DB) (*SchedulerEventStorage, error) {

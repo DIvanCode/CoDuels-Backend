@@ -1,12 +1,11 @@
 const state = {
-  paused: false,
-  timer: null,
   history: [],
   executions: [],
   workers: {},
   jobs: [],
   latestWorkers: [],
   latestWorkerPool: { registered_workers: 0, workers: [] },
+  meta: {},
 };
 
 const colors = {
@@ -19,35 +18,27 @@ const colors = {
   memory: "#46c278",
 };
 
-document.getElementById("pauseButton").addEventListener("click", () => {
-  state.paused = !state.paused;
-  document.getElementById("pauseButton").textContent = state.paused ? "Resume" : "Pause";
-});
+document.getElementById("refreshButton").addEventListener("click", tick);
 
 document.getElementById("clearButton").addEventListener("click", () => {
   state.history = [];
   state.executions = [];
   state.workers = {};
   state.jobs = [];
+  state.latestWorkers = [];
+  state.latestWorkerPool = { registered_workers: 0, workers: [] };
+  state.meta = {};
+  renderStatus();
+  renderKpis(null);
+  renderCharts();
+  renderRectangles({ jobs: [], timestamp: Date.now() / 1000 });
+  renderWorkerPool(state.latestWorkerPool);
+  renderWorkers(state.latestWorkers);
 });
 
-document.getElementById("refreshMs").addEventListener("change", schedule);
-
-schedule();
-
-function schedule() {
-  if (state.timer) {
-    clearInterval(state.timer);
-  }
-  const refreshMs = Math.max(250, Number(document.getElementById("refreshMs").value) || 1000);
-  state.timer = setInterval(tick, refreshMs);
-  tick();
-}
+tick();
 
 async function tick() {
-  if (state.paused) {
-    return;
-  }
   try {
     const response = await fetch("api/history/?minutes=30", { cache: "no-store" });
     const history = await response.json();
@@ -64,6 +55,7 @@ function consume(history) {
   state.jobs = history.jobs || [];
   state.latestWorkers = history.latest_workers || [];
   state.latestWorkerPool = history.latest_worker_pool || { registered_workers: 0, workers: [] };
+  state.meta = history.meta || {};
 
   renderStatus();
   renderKpis(state.history[state.history.length - 1]);
@@ -76,7 +68,9 @@ function consume(history) {
 function renderStatus() {
   const last = state.history[state.history.length - 1];
   const text = last ? new Date(last.timestamp * 1000).toLocaleTimeString() : "no events";
-  document.getElementById("status").innerHTML = `<span class="ok">${state.history.length} execution points</span> · ${text}`;
+  const events = (state.meta.execution_events || 0) + (state.meta.worker_events || 0) + (state.meta.job_events || 0);
+  document.getElementById("status").innerHTML =
+    `<span class="ok">${state.history.length} execution points</span> | ${events} events | ${fmt(state.meta.elapsed_ms || 0)} ms | ${text}`;
 }
 
 function renderKpis(point) {
