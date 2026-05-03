@@ -1,6 +1,7 @@
 from datetime import timedelta
 from time import perf_counter
 
+from django.db import connection
 from django.utils import timezone
 
 from .models import ExeshExecutionEvent, ExeshJobEvent, ExeshWorkerEvent
@@ -9,49 +10,119 @@ from .models import ExeshExecutionEvent, ExeshJobEvent, ExeshWorkerEvent
 def event_dashboard_history(minutes=30):
     started = perf_counter()
     since = timezone.now() - timedelta(minutes=minutes)
-    execution_events = execution_event_rows(since)
-    worker_events = worker_event_rows(since)
+    execution_buckets = execution_bucket_rows(since)
+    execution_pick_buckets = execution_pick_bucket_rows(since)
+    worker_buckets = worker_bucket_rows(since)
     job_events = job_event_rows(since)
     latest_worker_rows = latest_worker_events()
+    counts = event_counts(since)
     return {
-        "execution": execution_series(execution_events),
-        "executions": executions_series(execution_events),
-        "workers": worker_series(worker_events),
+        "execution": execution_buckets,
+        "executions": executions_series(execution_pick_buckets),
+        "workers": worker_series(worker_buckets),
         "jobs": job_rectangles(job_events),
         "latest_workers": latest_workers(latest_worker_rows),
         "latest_worker_pool": latest_worker_pool(latest_worker_rows),
         "meta": {
-            "execution_events": len(execution_events),
-            "worker_events": len(worker_events),
+            "execution_events": counts["execution_events"],
+            "worker_events": counts["worker_events"],
             "job_events": len(job_events),
+            "execution_points": len(execution_buckets),
+            "execution_pick_points": len(execution_pick_buckets),
+            "worker_points": len(worker_buckets),
             "elapsed_ms": round((perf_counter() - started) * 1000, 2),
         },
     }
 
 
-def execution_event_rows(since):
-    return list(
-        ExeshExecutionEvent.objects.filter(happened_at__gte=since)
-        .order_by("happened_at")
-        .values("happened_at", "event_type", "execution_id", "priority", "progress_ratio", "duration_seconds", "status")
+def execution_bucket_rows(since):
+    return query_rows(
+        """
+        SELECT
+            EXTRACT(EPOCH FROM date_trunc('second', happened_at))::bigint AS timestamp,
+            COUNT(*) FILTER (WHERE event_type = 'started')::bigint AS started_rate,
+            COUNT(*) FILTER (WHERE event_type = 'finished')::bigint AS finished_rate,
+            COUNT(*) FILTER (WHERE event_type = 'picked_candidate')::bigint AS scheduler_pick_rate,
+            0::bigint AS active_executions,
+            COALESCE(
+                percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_seconds)
+                    FILTER (WHERE event_type = 'finished'),
+                0
+            )::float AS duration_p50,
+            COALESCE(
+                percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_seconds)
+                    FILTER (WHERE event_type = 'finished'),
+                0
+            )::float AS duration_p95,
+            COALESCE(
+                percentile_cont(0.5) WITHIN GROUP (ORDER BY priority)
+                    FILTER (WHERE event_type = 'picked_candidate'),
+                0
+            )::float AS priority_p50,
+            COALESCE(
+                percentile_cont(0.95) WITHIN GROUP (ORDER BY priority)
+                    FILTER (WHERE event_type = 'picked_candidate'),
+                0
+            )::float AS priority_p95,
+            COALESCE(
+                percentile_cont(0.1) WITHIN GROUP (ORDER BY progress_ratio)
+                    FILTER (WHERE event_type = 'picked_candidate'),
+                0
+            )::float AS progress_pick_p10,
+            COALESCE(
+                percentile_cont(0.5) WITHIN GROUP (ORDER BY progress_ratio)
+                    FILTER (WHERE event_type = 'picked_candidate'),
+                0
+            )::float AS progress_pick_p50,
+            COALESCE(
+                percentile_cont(0.9) WITHIN GROUP (ORDER BY progress_ratio)
+                    FILTER (WHERE event_type = 'picked_candidate'),
+                0
+            )::float AS progress_pick_p90
+        FROM exesh_execution_events
+        WHERE happened_at >= %s
+        GROUP BY date_trunc('second', happened_at)
+        ORDER BY timestamp
+        """,
+        [since],
     )
 
 
-def worker_event_rows(since):
-    return list(
-        ExeshWorkerEvent.objects.filter(happened_at__gte=since)
-        .order_by("happened_at")
-        .values(
-            "happened_at",
-            "event_type",
-            "worker_id",
-            "total_slots",
-            "total_memory_mb",
-            "free_slots",
-            "available_memory_mb",
-            "running_jobs",
-            "used_memory_mb",
-        )
+def execution_pick_bucket_rows(since):
+    return query_rows(
+        """
+        SELECT
+            execution_id,
+            EXTRACT(EPOCH FROM date_trunc('second', happened_at))::bigint AS timestamp,
+            AVG(priority)::float AS priority,
+            AVG(progress_ratio)::float AS progress_ratio
+        FROM exesh_execution_events
+        WHERE happened_at >= %s AND event_type = 'picked_candidate'
+        GROUP BY execution_id, date_trunc('second', happened_at)
+        ORDER BY execution_id, timestamp
+        """,
+        [since],
+    )
+
+
+def worker_bucket_rows(since):
+    return query_rows(
+        """
+        SELECT
+            worker_id,
+            EXTRACT(EPOCH FROM date_trunc('second', happened_at))::bigint AS timestamp,
+            AVG(100.0 * running_jobs / GREATEST(total_slots, 1))::float AS slot_utilization_percent,
+            AVG(100.0 * used_memory_mb / GREATEST(total_memory_mb, 1))::float AS memory_utilization_percent,
+            AVG(free_slots)::float AS free_slots,
+            AVG(available_memory_mb)::float AS available_memory_mb,
+            AVG(running_jobs)::float AS running_jobs,
+            AVG(used_memory_mb)::float AS used_memory_mb
+        FROM exesh_worker_events
+        WHERE happened_at >= %s
+        GROUP BY worker_id, date_trunc('second', happened_at)
+        ORDER BY worker_id, timestamp
+        """,
+        [since],
     )
 
 
@@ -79,52 +150,13 @@ def job_event_rows(since):
     )
 
 
-def execution_series(events):
-    buckets = {}
-    priorities = {}
-    durations = {}
-    progresses = {}
-    active = set()
-    for event in events:
-        ts = bucket_ts(event["happened_at"])
-        item = buckets.setdefault(ts, {"timestamp": ts, "started_rate": 0, "finished_rate": 0, "scheduler_pick_rate": 0})
-        if event["event_type"] == "started":
-            item["started_rate"] += 1
-            active.add(event["execution_id"])
-        elif event["event_type"] == "finished":
-            item["finished_rate"] += 1
-            durations.setdefault(ts, []).append(event["duration_seconds"])
-            active.discard(event["execution_id"])
-        elif event["event_type"] == "picked_candidate":
-            item["scheduler_pick_rate"] += 1
-            priorities.setdefault(ts, []).append(event["priority"])
-            progresses.setdefault(ts, []).append(event["progress_ratio"])
-        item["active_executions"] = len(active)
-
-    result = []
-    previous_active = 0
-    for ts in sorted(buckets):
-        item = buckets[ts]
-        item["active_executions"] = item.get("active_executions", previous_active)
-        previous_active = item["active_executions"]
-        item["duration_p50"] = percentile(durations.get(ts, []), 0.5)
-        item["duration_p95"] = percentile(durations.get(ts, []), 0.95)
-        item["priority_p50"] = percentile(priorities.get(ts, []), 0.5)
-        item["priority_p95"] = percentile(priorities.get(ts, []), 0.95)
-        item["progress_pick_p10"] = percentile(progresses.get(ts, []), 0.1)
-        item["progress_pick_p50"] = percentile(progresses.get(ts, []), 0.5)
-        item["progress_pick_p90"] = percentile(progresses.get(ts, []), 0.9)
-        result.append(item)
-    return result
-
-
-def executions_series(events):
+def executions_series(rows):
     result = {}
-    for event in events:
+    for row in rows:
         record = result.setdefault(
-            event["execution_id"],
+            row["execution_id"],
             {
-                "execution_id": event["execution_id"],
+                "execution_id": row["execution_id"],
                 "status": "",
                 "started_at": 0,
                 "finished_at": 0,
@@ -132,37 +164,28 @@ def executions_series(events):
                 "points": [],
             },
         )
-        if event["event_type"] == "started":
-            record["started_at"] = event["happened_at"].timestamp()
-        elif event["event_type"] == "finished":
-            record["finished_at"] = event["happened_at"].timestamp()
-            record["duration_seconds"] = event["duration_seconds"]
-            record["status"] = event["status"]
-        elif event["event_type"] == "picked_candidate":
-            record["points"].append(
-                {
-                    "timestamp": event["happened_at"].timestamp(),
-                    "priority": event["priority"],
-                    "progress_ratio": event["progress_ratio"],
-                }
-            )
+        record["points"].append(
+            {
+                "timestamp": row["timestamp"],
+                "priority": row["priority"],
+                "progress_ratio": row["progress_ratio"],
+            }
+        )
     return sorted(result.values(), key=lambda row: row.get("started_at") or row["points"][0]["timestamp"] if row["points"] else 0)
 
 
-def worker_series(events):
+def worker_series(rows):
     result = {}
-    for event in events:
-        total_slots = max(1, event["total_slots"])
-        total_memory = max(1, event["total_memory_mb"])
-        result.setdefault(event["worker_id"], []).append(
+    for row in rows:
+        result.setdefault(row["worker_id"], []).append(
             {
-                "timestamp": event["happened_at"].timestamp(),
-                "slot_utilization_percent": 100 * event["running_jobs"] / total_slots,
-                "memory_utilization_percent": 100 * event["used_memory_mb"] / total_memory,
-                "free_slots": event["free_slots"],
-                "available_memory_mb": event["available_memory_mb"],
-                "running_jobs": event["running_jobs"],
-                "used_memory_mb": event["used_memory_mb"],
+                "timestamp": row["timestamp"],
+                "slot_utilization_percent": row["slot_utilization_percent"],
+                "memory_utilization_percent": row["memory_utilization_percent"],
+                "free_slots": row["free_slots"],
+                "available_memory_mb": row["available_memory_mb"],
+                "running_jobs": row["running_jobs"],
+                "used_memory_mb": row["used_memory_mb"],
             }
         )
     return result
@@ -257,13 +280,15 @@ def latest_worker_events():
     )
 
 
-def bucket_ts(dt):
-    return int(dt.timestamp())
+def event_counts(since):
+    return {
+        "execution_events": ExeshExecutionEvent.objects.filter(happened_at__gte=since).count(),
+        "worker_events": ExeshWorkerEvent.objects.filter(happened_at__gte=since).count(),
+    }
 
 
-def percentile(values, q):
-    if not values:
-        return 0
-    values = sorted(values)
-    index = min(len(values) - 1, max(0, round((len(values) - 1) * q)))
-    return values[index]
+def query_rows(sql, params):
+    with connection.cursor() as cursor:
+        cursor.execute(sql, params)
+        columns = [column[0] for column in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
