@@ -60,12 +60,13 @@ def rendered_dashboard(minutes=30):
 
 def status_html(history, latest_point):
     meta = history["meta"]
-    events = meta["execution_events"] + meta["worker_events"] + meta["job_events"]
+    raw_events = meta["execution_events"] + meta["worker_events"] + meta["job_events"]
+    chart_points = meta["execution_points"] + meta["execution_pick_points"] + meta["worker_points"] + meta["job_events"]
     timestamp = latest_point.get("timestamp")
     text = "no events" if not timestamp else format_time(timestamp)
     return (
         f'<span class="ok">{len(history["execution"])} execution points</span>'
-        f" | {events} events | {fmt(meta['elapsed_ms'])} ms db | {text}"
+        f" | {chart_points} rendered points | {raw_events} raw events | {fmt(meta['elapsed_ms'])} ms db | {text}"
     )
 
 
