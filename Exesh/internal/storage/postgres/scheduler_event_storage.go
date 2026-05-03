@@ -34,7 +34,7 @@ const createSchedulerEventTablesQuery = `
 		id bigserial PRIMARY KEY,
 		happened_at timestamptz NOT NULL,
 		event_type text NOT NULL,
-		job_id varchar(36) NOT NULL,
+		job_id varchar(40) NOT NULL,
 		execution_id varchar(36) NOT NULL,
 		worker_id text NOT NULL DEFAULT '',
 		job_type text NOT NULL DEFAULT '',

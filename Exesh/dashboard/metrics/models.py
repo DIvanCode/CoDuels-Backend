@@ -18,7 +18,7 @@ class ExeshExecutionEvent(models.Model):
 class ExeshJobEvent(models.Model):
     happened_at = models.DateTimeField()
     event_type = models.TextField()
-    job_id = models.CharField(max_length=36)
+    job_id = models.CharField(max_length=40)
     execution_id = models.CharField(max_length=36)
     worker_id = models.TextField()
     job_type = models.TextField()
