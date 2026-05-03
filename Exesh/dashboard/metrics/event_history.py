@@ -9,6 +9,7 @@ def event_dashboard_history(minutes=30):
     since = timezone.now() - timedelta(minutes=minutes)
     return {
         "execution": execution_series(since),
+        "executions": executions_series(since),
         "workers": worker_series(since),
         "jobs": job_rectangles(since),
         "latest_workers": latest_workers(),
@@ -54,6 +55,37 @@ def execution_series(since):
         item["progress_pick_p90"] = percentile(progresses.get(ts, []), 0.9)
         result.append(item)
     return result
+
+
+def executions_series(since):
+    result = {}
+    for event in ExeshExecutionEvent.objects.filter(happened_at__gte=since).order_by("happened_at"):
+        record = result.setdefault(
+            event.execution_id,
+            {
+                "execution_id": event.execution_id,
+                "status": "",
+                "started_at": 0,
+                "finished_at": 0,
+                "duration_seconds": 0,
+                "points": [],
+            },
+        )
+        if event.event_type == "started":
+            record["started_at"] = event.happened_at.timestamp()
+        elif event.event_type == "finished":
+            record["finished_at"] = event.happened_at.timestamp()
+            record["duration_seconds"] = event.duration_seconds
+            record["status"] = event.status
+        elif event.event_type == "picked_candidate":
+            record["points"].append(
+                {
+                    "timestamp": event.happened_at.timestamp(),
+                    "priority": event.priority,
+                    "progress_ratio": event.progress_ratio,
+                }
+            )
+    return sorted(result.values(), key=lambda row: row.get("started_at") or row["points"][0]["timestamp"] if row["points"] else 0)
 
 
 def worker_series(since):
