@@ -2,6 +2,7 @@ const state = {
   paused: false,
   timer: null,
   history: [],
+  executions: [],
   workers: {},
   jobs: [],
   latestWorkers: [],
@@ -25,6 +26,7 @@ document.getElementById("pauseButton").addEventListener("click", () => {
 
 document.getElementById("clearButton").addEventListener("click", () => {
   state.history = [];
+  state.executions = [];
   state.workers = {};
   state.jobs = [];
 });
@@ -57,6 +59,7 @@ async function tick() {
 
 function consume(history) {
   state.history = history.execution || [];
+  state.executions = history.executions || [];
   state.workers = history.workers || {};
   state.jobs = history.jobs || [];
   state.latestWorkers = history.latest_workers || [];
@@ -101,6 +104,21 @@ function renderCharts() {
 
   drawLines("slotChart", workerSeries("slot_utilization_percent"));
   drawLines("memoryChart", workerSeries("memory_utilization_percent"));
+  drawTimedLines("executionPriorityChart", executionSeries("priority"));
+  drawTimedLines("executionProgressChart", executionSeries("progress_ratio"), { max: 1 });
+}
+
+function executionSeries(field) {
+  return state.executions
+    .filter((execution) => (execution.points || []).length)
+    .map((execution, index) => ({
+      name: shortExecution(execution.execution_id),
+      color: palette(index),
+      points: execution.points.map((point) => ({
+        timestamp: point.timestamp,
+        value: point[field] || 0,
+      })),
+    }));
 }
 
 function workerSeries(field) {
@@ -112,6 +130,20 @@ function workerSeries(field) {
 }
 
 function drawLines(canvasId, series) {
+  drawChart(canvasId, series.map((line) => ({
+    ...line,
+    points: line.values.map((value, index) => ({
+      timestamp: index,
+      value,
+    })),
+  })));
+}
+
+function drawTimedLines(canvasId, series, options = {}) {
+  drawChart(canvasId, series, options);
+}
+
+function drawChart(canvasId, series, options = {}) {
   const canvas = document.getElementById(canvasId);
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
@@ -127,9 +159,12 @@ function drawLines(canvasId, series) {
   ctx.fillStyle = "#9299a8";
   ctx.font = "12px system-ui";
 
-  const values = series.flatMap((line) => line.values).filter((value) => Number.isFinite(value));
-  const max = Math.max(1, ...values) * 1.12;
+  const values = series.flatMap((line) => line.points.map((point) => point.value)).filter((value) => Number.isFinite(value));
+  const timestamps = series.flatMap((line) => line.points.map((point) => point.timestamp)).filter((value) => Number.isFinite(value));
+  const max = options.max ?? Math.max(1, ...values) * 1.12;
   const min = 0;
+  const minTs = timestamps.length ? Math.min(...timestamps) : 0;
+  const maxTs = timestamps.length ? Math.max(...timestamps) : 1;
 
   for (let i = 0; i <= 4; i++) {
     const y = pad.top + ((height - pad.top - pad.bottom) * i) / 4;
@@ -141,14 +176,16 @@ function drawLines(canvasId, series) {
     ctx.fillText(label, 6, y + 4);
   }
 
-  const n = Math.max(2, state.history.length);
   for (const line of series) {
+    if (!line.points.length) {
+      continue;
+    }
     ctx.strokeStyle = line.color;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    line.values.forEach((value, i) => {
-      const x = pad.left + ((width - pad.left - pad.right) * i) / (n - 1);
-      const y = height - pad.bottom - ((height - pad.top - pad.bottom) * (value - min)) / (max - min);
+    line.points.forEach((point, i) => {
+      const x = pad.left + ((width - pad.left - pad.right) * (point.timestamp - minTs)) / Math.max(0.001, maxTs - minTs);
+      const y = height - pad.bottom - ((height - pad.top - pad.bottom) * (point.value - min)) / Math.max(0.001, max - min);
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -160,12 +197,17 @@ function drawLines(canvasId, series) {
 
   let x = pad.left;
   const legendY = height - 12;
-  for (const line of series) {
+  const legendSeries = series.slice(0, 24);
+  for (const line of legendSeries) {
     ctx.fillStyle = line.color;
     ctx.fillRect(x, legendY - 8, 10, 10);
     ctx.fillStyle = "#edf0f5";
     ctx.fillText(line.name, x + 14, legendY + 1);
     x += ctx.measureText(line.name).width + 34;
+  }
+  if (series.length > legendSeries.length) {
+    ctx.fillStyle = "#9299a8";
+    ctx.fillText(`+${series.length - legendSeries.length}`, x, legendY + 1);
   }
 }
 
@@ -275,6 +317,11 @@ function fmt(value) {
 
 function shortWorker(workerId) {
   return String(workerId || "").replace("http://", "");
+}
+
+function shortExecution(executionId) {
+  const value = String(executionId || "");
+  return value.length > 10 ? value.slice(0, 8) : value;
 }
 
 function palette(index) {
