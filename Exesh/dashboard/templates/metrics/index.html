@@ -1,0 +1,87 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Exesh Load Dashboard</title>
+  <link rel="stylesheet" href="{% static 'metrics/dashboard.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Exesh Load Dashboard</h1>
+      <p id="status">Waiting for metrics...</p>
+    </div>
+    <form id="timeRangeForm" class="time-range" method="get">
+      <label>Start <input id="startInput" type="datetime-local" step="1"></label>
+      <label>End <input id="endInput" type="datetime-local" step="1"></label>
+      <input id="startHidden" name="start" type="hidden">
+      <input id="endHidden" name="end" type="hidden">
+      <button type="submit">Apply</button>
+    </form>
+  </header>
+
+  <main>
+    <section class="kpis">
+      <div><span>Started/s</span><strong id="startedRate">0</strong></div>
+      <div><span>Finished/s</span><strong id="finishedRate">0</strong></div>
+      <div><span>Pick/s</span><strong id="pickRate">0</strong></div>
+      <div><span>Duration p95</span><strong id="durationP95">0s</strong></div>
+      <div><span>Priority p95</span><strong id="priorityP95">0</strong></div>
+      <div><span>Workers</span><strong id="workerCount">0</strong></div>
+    </section>
+
+    <section class="grid charts">
+      <article class="panel">
+        <h2>Execution Throughput</h2>
+        <div id="throughputChart" class="chart"></div>
+      </article>
+      <article class="panel">
+        <h2>Execution Fairness</h2>
+        <div id="fairnessChart" class="chart"></div>
+      </article>
+    </section>
+
+    <section class="grid charts">
+      <article class="panel">
+        <h2>Execution Priority By Execution</h2>
+        <div id="executionPriorityChart" class="chart"></div>
+      </article>
+      <article class="panel">
+        <h2>Execution Progress By Execution</h2>
+        <div id="executionProgressChart" class="chart"></div>
+      </article>
+    </section>
+
+    <section class="grid charts">
+      <article class="panel">
+        <h2>Worker Slot Utilization</h2>
+        <div id="slotChart" class="chart"></div>
+      </article>
+      <article class="panel">
+        <h2>Worker Memory Utilization</h2>
+        <div id="memoryChart" class="chart"></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>JobScheduler Time x Memory Rectangles</h2>
+      <div id="rectangles" class="rectangles"></div>
+    </section>
+
+    <section class="grid two">
+      <article class="panel">
+        <h2>Worker Pool</h2>
+        <div id="workerPool" class="table"></div>
+      </article>
+      <article class="panel">
+        <h2>Workers Runtime</h2>
+        <div id="workers" class="table"></div>
+      </article>
+    </section>
+  </main>
+
+  <script src="{% static 'metrics/dashboard.js' %}"></script>
+</body>
+</html>

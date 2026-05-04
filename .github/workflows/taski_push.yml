@@ -6,7 +6,8 @@ on:
       - master
     paths:
       - Taski/**
-      - !Taski/tasks
+      - "!Taski/tasks"
+      - .github/workflows/taski_push.yml
 
 jobs:
   build:

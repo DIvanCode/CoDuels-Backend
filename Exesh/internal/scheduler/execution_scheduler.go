@@ -41,6 +41,7 @@ type (
 
 		nowWeight      atomic.Int64
 		nowWeightGauge prometheus.Collector
+		events         EventRecorder
 
 		mu         sync.Mutex
 		executions map[execution.ID]*Execution
@@ -86,7 +87,11 @@ func NewExecutionScheduler(
 	workerPool *WorkerPool,
 	messageFactory messageFactory,
 	messageDispatcher messageDispatcher,
+	events EventRecorder,
 ) *ExecutionScheduler {
+	if events == nil {
+		events = NoopEventRecorder{}
+	}
 	s := &ExecutionScheduler{
 		log: log,
 		cfg: cfg,
@@ -102,6 +107,7 @@ func NewExecutionScheduler(
 		messageDispatcher: messageDispatcher,
 
 		nowWeight: atomic.Int64{},
+		events:    events,
 
 		mu:         sync.Mutex{},
 		executions: make(map[execution.ID]*Execution),
@@ -207,6 +213,12 @@ func (s *ExecutionScheduler) runExecutionScheduler(ctx context.Context) {
 
 func (s *ExecutionScheduler) scheduleExecution(ctx context.Context, ex *Execution) error {
 	s.log.Info("schedule execution", slog.String("execution_id", ex.ID.String()))
+	s.events.RecordExecutionEvent(ctx, ExecutionEvent{
+		Type:          "started",
+		ExecutionID:   ex.ID,
+		ProgressRatio: ex.GetProgressRatio(),
+		At:            time.Now(),
+	})
 
 	msg := s.messageFactory.CreateExecutionStarted(ex.ID)
 	if err := s.messageDispatcher.Send(ctx, msg); err != nil {
@@ -237,7 +249,7 @@ func (s *ExecutionScheduler) scheduleJob(ex *Execution, jb jobs.Job) error {
 	}
 	s.log.Info("schedule job", logArgs...)
 
-	scheduledJob := &Job{Job: jb}
+	scheduledJob := &Job{Job: jb, ExecutionID: ex.ID}
 	scheduledJob.Sources = func(ctx context.Context) ([]sources.Source, error) {
 		srcs := make([]sources.Source, 0)
 		for _, in := range jb.GetInputs() {
@@ -323,6 +335,15 @@ func (s *ExecutionScheduler) pickJobs() []*Job {
 	for i := range executions {
 		jb := executions[i].GetPeekJob()
 		if jb != nil {
+			priority := priorities[executions[i].ID]
+			progressRatio := executions[i].GetProgressRatio()
+			s.events.RecordExecutionEvent(context.Background(), ExecutionEvent{
+				Type:          "picked_candidate",
+				ExecutionID:   executions[i].ID,
+				Priority:      priority,
+				ProgressRatio: progressRatio,
+				At:            time.Now(),
+			})
 			jbs = append(jbs, jb)
 		}
 	}
@@ -449,10 +470,30 @@ func (s *ExecutionScheduler) finishExecution(ctx context.Context, ex *Execution,
 			slog.String("execution", ex.ID.String()),
 			slog.Any("error", exError))
 	}
+	finishStatus := "ok"
+	if exError != nil {
+		finishStatus = "error"
+	}
+	finishedAt := time.Now()
+	duration := ex.GetDuration(finishedAt)
+	progressRatio := ex.GetProgressRatio()
+	s.events.RecordExecutionEvent(ctx, ExecutionEvent{
+		Type:            "finished",
+		ExecutionID:     ex.ID,
+		ProgressRatio:   progressRatio,
+		DurationSeconds: duration.Seconds(),
+		Status:          finishStatus,
+		At:              finishedAt,
+	})
 
 	defer s.nowWeight.Add(-ex.Definition.Weight)
 
 	ex.ForceFail()
+	func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		delete(s.executions, ex.ID)
+	}()
 
 	if err := s.unitOfWork.Do(ctx, func(ctx context.Context) error {
 		var msg messages.Message

@@ -79,6 +79,23 @@ func (ex *Execution) GetPriority(now time.Time) float64 {
 	return ex.executionProgressAndRetriesBasedPriority(now)
 }
 
+func (ex *Execution) GetProgressRatio() float64 {
+	ex.mu.Lock()
+	defer ex.mu.Unlock()
+
+	if ex.TotalExpectedTime <= 0 {
+		return 0
+	}
+	return float64(ex.TotalDoneJobsExpectedTime) / float64(ex.TotalExpectedTime)
+}
+
+func (ex *Execution) GetDuration(now time.Time) time.Duration {
+	if ex.ScheduledAt == nil {
+		return 0
+	}
+	return now.Sub(*ex.ScheduledAt)
+}
+
 func (ex *Execution) scheduleTimeBasedPriority(now time.Time) float64 {
 	return ex.getProgressTime(now)
 }

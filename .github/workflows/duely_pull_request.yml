@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - Duely/**
+      - .github/workflows/duely_pull_request.yml
 
 jobs:
   unit-tests:

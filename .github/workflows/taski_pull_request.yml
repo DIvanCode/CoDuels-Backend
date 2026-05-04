@@ -6,7 +6,8 @@ on:
       - master
     paths:
       - Taski/**
-      - !Taski/tasks
+      - "!Taski/tasks"
+      - .github/workflows/taski_pull_request.yml
 
 jobs:
   unit-tests:
