@@ -135,9 +135,9 @@ def worker_series(workers, field):
 
 
 def line_chart(series, forced_max=None, domain=None):
-    width = 900
-    height = 260
-    pad = {"left": 46, "right": 16, "top": 14, "bottom": 58}
+    width = 1100
+    height = 300
+    pad = {"left": 54, "right": 20, "top": 16, "bottom": 70}
     values = [point["value"] for line in series for point in line["points"] if is_number(point["value"])]
     max_value = forced_max if forced_max is not None else max([1, *values]) * 1.12
     min_ts = domain["start"] if domain else 0
@@ -152,8 +152,8 @@ def line_chart(series, forced_max=None, domain=None):
         return height - pad["bottom"] - plot_height * value / max(0.001, max_value)
 
     parts = [
-        f'<svg viewBox="0 0 {width} {height}" role="img">',
-        "<style>text{font:12px system-ui;fill:#9299a8}.grid{stroke:#333846}.legend{fill:#edf0f5}</style>",
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img">',
+        "<style>text{font:13px system-ui;fill:#9299a8}.grid{stroke:#333846}.legend{font:14px system-ui;fill:#edf0f5}</style>",
     ]
     for i in range(5):
         gy = pad["top"] + plot_height * i / 4
@@ -179,12 +179,12 @@ def line_chart(series, forced_max=None, domain=None):
         )
 
     legend_x = pad["left"]
-    legend_y = height - 12
+    legend_y = height - 14
     for line in series[:24]:
         name = escape(line["name"])
-        parts.append(f'<rect x="{legend_x}" y="{legend_y - 8}" width="10" height="10" fill="{escape(line["color"])}"/>')
-        parts.append(f'<text class="legend" x="{legend_x + 14}" y="{legend_y + 1}">{name}</text>')
-        legend_x += min(160, 34 + len(line["name"]) * 7)
+        parts.append(f'<rect x="{legend_x}" y="{legend_y - 10}" width="12" height="12" fill="{escape(line["color"])}"/>')
+        parts.append(f'<text class="legend" x="{legend_x + 16}" y="{legend_y + 1}">{name}</text>')
+        legend_x += min(190, 40 + len(line["name"]) * 8)
     if len(series) > 24:
         parts.append(f'<text x="{legend_x}" y="{legend_y + 1}">+{len(series) - 24}</text>')
 
