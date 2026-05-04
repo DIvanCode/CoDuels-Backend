@@ -125,6 +125,10 @@ main {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.grid.charts {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .panel {
   padding: 14px;
   min-width: 0;
@@ -134,14 +138,15 @@ main {
   width: 100%;
   min-height: 300px;
   display: block;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #101217;
 }
 
 .chart svg {
-  min-width: 1100px;
+  width: 100%;
+  height: auto;
   display: block;
 }
 
