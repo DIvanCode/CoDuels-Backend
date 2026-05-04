@@ -29,6 +29,9 @@ def event_dashboard_history(start, end):
             "execution_points": len(execution_buckets),
             "execution_pick_points": len(execution_pick_buckets),
             "worker_points": len(worker_buckets),
+            "window_start": since.timestamp(),
+            "window_end": until.timestamp(),
+            "timezone_offset_seconds": since.utcoffset().total_seconds() if since.utcoffset() else 0,
             "elapsed_ms": round((perf_counter() - started) * 1000, 2),
         },
     }

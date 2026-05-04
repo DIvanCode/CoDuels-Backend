@@ -21,8 +21,9 @@ def rendered_dashboard(start, end):
     history = event_dashboard_history(start=start, end=end)
     execution = history["execution"]
     latest_point = execution[-1] if execution else {}
+    domain = chart_domain(history)
     rendered = {
-        "status": status_html(history, latest_point),
+        "status": status_html(history, latest_point, domain),
         "kpis": kpis(history, latest_point),
         "charts": {
             "throughput": line_chart(
@@ -30,7 +31,8 @@ def rendered_dashboard(start, end):
                     series_from_values("started/s", COLORS["started"], execution, "started_rate"),
                     series_from_values("finished/s", COLORS["finished"], execution, "finished_rate"),
                     series_from_values("pick/s", COLORS["picks"], execution, "scheduler_pick_rate"),
-                ]
+                ],
+                domain=domain,
             ),
             "fairness": line_chart(
                 [
@@ -38,13 +40,14 @@ def rendered_dashboard(start, end):
                     series_from_values("priority p95", COLORS["p95"], execution, "priority_p95"),
                     series_from_values("progress pick p10", COLORS["picks"], execution, "progress_pick_p10"),
                     series_from_values("progress pick p90", COLORS["started"], execution, "progress_pick_p90"),
-                ]
+                ],
+                domain=domain,
             ),
-            "execution_priority": line_chart(execution_series(history["executions"], "priority")),
-            "execution_progress": line_chart(execution_series(history["executions"], "progress_ratio"), forced_max=1),
-            "worker_slots": line_chart(worker_series(history["workers"], "slot_utilization_percent")),
-            "worker_memory": line_chart(worker_series(history["workers"], "memory_utilization_percent")),
-            "rectangles": rectangles_svg(history["jobs"]),
+            "execution_priority": line_chart(execution_series(history["executions"], "priority"), domain=domain),
+            "execution_progress": line_chart(execution_series(history["executions"], "progress_ratio"), forced_max=1, domain=domain),
+            "worker_slots": line_chart(worker_series(history["workers"], "slot_utilization_percent"), domain=domain),
+            "worker_memory": line_chart(worker_series(history["workers"], "memory_utilization_percent"), domain=domain),
+            "rectangles": rectangles_svg(history["jobs"], domain=domain),
         },
         "tables": {
             "worker_pool": worker_pool_table(history["latest_worker_pool"]),
@@ -58,12 +61,21 @@ def rendered_dashboard(start, end):
     return rendered
 
 
-def status_html(history, latest_point):
+def chart_domain(history):
+    meta = history["meta"]
+    return {
+        "start": meta["window_start"],
+        "end": meta["window_end"],
+        "timezone_offset_seconds": meta["timezone_offset_seconds"],
+    }
+
+
+def status_html(history, latest_point, domain):
     meta = history["meta"]
     raw_events = meta["execution_events"] + meta["worker_events"] + meta["job_events"]
     chart_points = meta["execution_points"] + meta["execution_pick_points"] + meta["worker_points"] + meta["job_events"]
     timestamp = latest_point.get("timestamp")
-    text = "no events" if not timestamp else format_time(timestamp)
+    text = "no events" if not timestamp else format_time(timestamp, domain)
     return (
         f'<span class="ok">{len(history["execution"])} execution points</span>'
         f" | {chart_points} rendered points | {raw_events} raw events | {fmt(meta['elapsed_ms'])} ms db | {text}"
@@ -122,15 +134,14 @@ def worker_series(workers, field):
     return result
 
 
-def line_chart(series, forced_max=None):
+def line_chart(series, forced_max=None, domain=None):
     width = 900
     height = 260
-    pad = {"left": 46, "right": 16, "top": 14, "bottom": 34}
+    pad = {"left": 46, "right": 16, "top": 14, "bottom": 58}
     values = [point["value"] for line in series for point in line["points"] if is_number(point["value"])]
-    timestamps = [point["timestamp"] for line in series for point in line["points"] if is_number(point["timestamp"])]
     max_value = forced_max if forced_max is not None else max([1, *values]) * 1.12
-    min_ts = min(timestamps) if timestamps else 0
-    max_ts = max(timestamps) if timestamps else 1
+    min_ts = domain["start"] if domain else 0
+    max_ts = domain["end"] if domain else 1
     plot_width = width - pad["left"] - pad["right"]
     plot_height = height - pad["top"] - pad["bottom"]
 
@@ -150,10 +161,10 @@ def line_chart(series, forced_max=None):
         parts.append(f'<line class="grid" x1="{pad["left"]}" x2="{width - pad["right"]}" y1="{gy}" y2="{gy}"/>')
         parts.append(f'<text x="6" y="{gy + 4}">{escape(label)}</text>')
 
-    for tick in time_ticks(min_ts, max_ts, max_labels=max(2, plot_width // 120)):
+    for tick in time_ticks(min_ts, max_ts, max_labels=max(2, plot_width // 140)):
         tx = x(tick)
         parts.append(f'<line class="grid" x1="{tx:.2f}" x2="{tx:.2f}" y1="{pad["top"]}" y2="{height - pad["bottom"]}"/>')
-        parts.append(f'<text text-anchor="middle" x="{tx:.2f}" y="{height - 16}">{escape(format_time(tick))}</text>')
+        parts.append(f'<text text-anchor="middle" x="{tx:.2f}" y="{height - 34}">{escape(format_time(tick, domain))}</text>')
 
     for line in series:
         points = line["points"]
@@ -181,12 +192,11 @@ def line_chart(series, forced_max=None):
     return "".join(parts)
 
 
-def rectangles_svg(jobs):
+def rectangles_svg(jobs, domain):
     if not jobs:
         return '<div style="padding:16px;color:#9299a8">No retained job rectangles yet.</div>'
-    now = max([job.get("finish_timestamp_seconds") or job.get("start_timestamp_seconds") or 0 for job in jobs])
-    min_start = min([job.get("start_timestamp_seconds") or now for job in jobs])
-    max_finish = max([positive_time(job.get("finish_timestamp_seconds")) or now for job in jobs])
+    min_start = domain["start"]
+    max_finish = domain["end"]
     max_memory = max([1, *[job.get("memory_end_mb") or job.get("memory_mb") or 0 for job in jobs]])
     workers = sorted(set([job.get("worker_id") or "unknown" for job in jobs]))
     width = max(960, int((max_finish - min_start) * 120 + 220))
@@ -217,12 +227,12 @@ def rectangles_svg(jobs):
     for tick in time_ticks(min_start, max_finish, max_labels=max(2, plot_width // 140)):
         tx = x(tick)
         parts.append(f'<line class="axis" x1="{tx:.2f}" x2="{tx:.2f}" y1="{plot_top}" y2="{height - 36}"/>')
-        parts.append(f'<text text-anchor="middle" x="{tx:.2f}" y="{axis_y}">{escape(format_time(tick))}</text>')
+        parts.append(f'<text text-anchor="middle" x="{tx:.2f}" y="{axis_y}">{escape(format_time(tick, domain))}</text>')
 
     for index, job in enumerate(jobs):
         worker_index = max(0, workers.index(job.get("worker_id") or "unknown"))
-        start = job.get("start_timestamp_seconds") or now
-        finish = positive_time(job.get("finish_timestamp_seconds")) or now
+        start = job.get("start_timestamp_seconds") or min_start
+        finish = positive_time(job.get("finish_timestamp_seconds")) or max_finish
         memory_start = job.get("memory_start_mb") or 0
         memory_end = job.get("memory_end_mb") or job.get("memory_mb") or 0
         rect_x = x(start)
@@ -307,8 +317,8 @@ def short_execution(execution_id):
     return value[:8] if len(value) > 10 else value
 
 
-def format_time(timestamp):
-    return datetime.fromtimestamp(timestamp).strftime("%H:%M:%S")
+def format_time(timestamp, domain):
+    return datetime.utcfromtimestamp(timestamp + domain["timezone_offset_seconds"]).strftime("%H:%M:%S")
 
 
 def time_ticks(start, end, max_labels):
