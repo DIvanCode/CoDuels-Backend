@@ -53,7 +53,7 @@ function formatDatetimeLocal(date) {
     date.getFullYear(),
     pad(date.getMonth() + 1),
     pad(date.getDate()),
-  ].join("-") + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  ].join("-") + `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 function localInputToIsoWithOffset(value) {
@@ -69,7 +69,7 @@ function dateToIsoWithOffset(date) {
   const sign = offsetMinutes >= 0 ? "+" : "-";
   const hours = pad(offsetMinutes / 60);
   const minutes = pad(offsetMinutes % 60);
-  return `${formatDatetimeLocal(date)}:00${sign}${hours}:${minutes}`;
+  return `${formatDatetimeLocal(date)}${sign}${hours}:${minutes}`;
 }
 
 function render(payload) {
