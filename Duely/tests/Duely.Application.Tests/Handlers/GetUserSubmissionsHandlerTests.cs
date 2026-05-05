@@ -2,6 +2,8 @@ using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Submissions;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Groups;
+using Duely.Domain.Services.Groups;
 using FluentAssertions;
 
 namespace Duely.Application.Tests.Handlers;
@@ -12,7 +14,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
     public async Task NotFound_when_duel_absent()
     {
         var ctx = Context;
-        var handler = new GetUserSubmissionsHandler(ctx);
+        var handler = new GetUserSubmissionsHandler(ctx, new GroupPermissionsService());
 
         var res = await handler.Handle(new GetUserSubmissionsQuery
         {
@@ -38,7 +40,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
         ctx.Submissions.Add(EntityFactory.MakeSubmission(1, duel, u1, taskKey: 'A'));
         await ctx.SaveChangesAsync();
 
-        var handler = new GetUserSubmissionsHandler(ctx);
+        var handler = new GetUserSubmissionsHandler(ctx, new GroupPermissionsService());
         var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 1, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -60,7 +62,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
         ctx.Submissions.Add(EntityFactory.MakeSubmission(3, duel, u2, time: System.DateTime.UtcNow.AddMinutes(3), taskKey: 'A'));
         await ctx.SaveChangesAsync();
 
-        var handler = new GetUserSubmissionsHandler(ctx);
+        var handler = new GetUserSubmissionsHandler(ctx, new GroupPermissionsService());
         var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 1, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -69,7 +71,7 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Not_found_when_target_user_not_in_duel()
+    public async Task Forbidden_when_target_user_cannot_view_duel()
     {
         var ctx = Context;
 
@@ -81,10 +83,39 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
         ctx.Duels.Add(duel);
         await ctx.SaveChangesAsync();
 
-        var handler = new GetUserSubmissionsHandler(ctx);
+        var handler = new GetUserSubmissionsHandler(ctx, new GroupPermissionsService());
         var res = await handler.Handle(new GetUserSubmissionsQuery { UserId = 3, DuelId = 10, TaskKey = 'A' }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
+        res.Errors.Should().ContainSingle(e => e is ForbiddenError);
+    }
+
+    [Fact]
+    public async Task Returns_both_users_submissions_for_group_duel_viewer()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var viewer = EntityFactory.MakeUser(3, "viewer");
+        var group = EntityFactory.MakeGroup(1);
+        ctx.Users.AddRange(u1, u2, viewer);
+        ctx.Groups.Add(group);
+        ctx.GroupMemberships.Add(EntityFactory.MakeGroupMembership(viewer, group, GroupRole.Manager));
+        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK");
+        ctx.Duels.Add(duel);
+        ctx.GroupDuels.Add(new GroupDuel { Group = group, Duel = duel, CreatedBy = viewer });
+        ctx.Submissions.Add(EntityFactory.MakeSubmission(1, duel, u1, taskKey: 'A'));
+        ctx.Submissions.Add(EntityFactory.MakeSubmission(2, duel, u2, taskKey: 'A'));
+        await ctx.SaveChangesAsync();
+
+        var handler = new GetUserSubmissionsHandler(ctx, new GroupPermissionsService());
+        var res = await handler.Handle(
+            new GetUserSubmissionsQuery { UserId = viewer.Id, DuelId = 10, TaskKey = 'A' },
+            CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Select(i => i.SubmissionId).Should().BeEquivalentTo([1, 2]);
+        res.Value.Select(i => i.Author.Id).Should().BeEquivalentTo([u1.Id, u2.Id]);
     }
 }

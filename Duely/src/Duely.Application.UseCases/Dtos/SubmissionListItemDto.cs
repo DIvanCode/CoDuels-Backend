@@ -14,6 +14,9 @@ public sealed class SubmissionListItemDto
 
     [JsonPropertyName("language"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required Language Language { get; init; }
+
+    [JsonPropertyName("author")]
+    public required UserDto Author { get; init; }
     
     [JsonPropertyName("created_at")]
     public required DateTime CreatedAt { get; init; }
