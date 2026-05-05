@@ -42,32 +42,32 @@ public sealed class GetDuelHandler(
         }
 
         var isParticipant = duel.User1.Id == query.UserId || duel.User2.Id == query.UserId;
-        var isViewer = false;
-
-        if (!isParticipant)
+        if (isParticipant)
         {
-            var groupDuel = await context.GroupDuels
-                .AsNoTracking()
-                .Include(d => d.Group)
-                .Where(d => d.Duel.Id == query.DuelId)
-                .SingleOrDefaultAsync(cancellationToken);
-
-            if (groupDuel is not null)
-            {
-                var membership = await context.GroupMemberships
-                    .AsNoTracking()
-                    .Where(m => m.Group.Id == groupDuel.Group.Id && m.User.Id == query.UserId)
-                    .SingleOrDefaultAsync(cancellationToken);
-
-                isViewer = membership is not null && groupPermissionsService.CanViewDuel(membership);
-            }
+            return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
         }
 
-        if (!isParticipant && !isViewer)
+        var groupDuel = await context.GroupDuels
+            .AsNoTracking()
+            .Include(d => d.Group)
+            .Where(d => d.Duel.Id == query.DuelId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (groupDuel is null)
         {
-            return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);  
+            return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);
+        }
+        
+        var membership = await context.GroupMemberships
+            .AsNoTracking()
+            .Where(m => m.Group.Id == groupDuel.Group.Id && m.User.Id == query.UserId)
+            .SingleOrDefaultAsync(cancellationToken);
+        var canView = membership is not null && groupPermissionsService.CanViewDuel(membership);
+        if (!canView)
+        {
+            return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);
         }
 
-        return DuelDtoMapper.Map(duel, query.UserId, isViewer, ratingManager, taskService);
+        return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
     }
 }
