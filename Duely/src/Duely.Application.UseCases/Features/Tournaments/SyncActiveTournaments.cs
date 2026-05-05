@@ -56,6 +56,8 @@ public sealed class SyncActiveTournamentsHandler(
             .Distinct()
             .ToList();
         var duelsById = await context.Duels
+            .Include(d => d.User1)
+            .Include(d => d.User2)
             .Include(d => d.Winner)
             .Where(d => duelIds.Contains(d.Id))
             .ToDictionaryAsync(d => d.Id, cancellationToken);
