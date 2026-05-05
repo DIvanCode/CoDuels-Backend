@@ -12,6 +12,7 @@ public interface IGroupPermissionsService
     bool CanExclude(GroupMembership actor, GroupRole targetRole);
     bool CanLeave(GroupMembership membership);
     bool CanCreateDuel(GroupMembership membership);
+    bool CanViewDuel(GroupMembership membership);
     bool CanCancelDuel(GroupMembership membership);
     bool CanCreateTournament(GroupMembership membership);
     bool CanStartTournament(GroupMembership membership);
@@ -84,6 +85,11 @@ public sealed class GroupPermissionsService : IGroupPermissionsService
     public bool CanCreateDuel(GroupMembership membership)
     {
         return CanManageCompetitiveActivities(membership);
+    }
+
+    public bool CanViewDuel(GroupMembership membership)
+    {
+        return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
     }
 
     public bool CanCancelDuel(GroupMembership membership)
