@@ -6,7 +6,10 @@ using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Groups;
 using Duely.Domain.Services.Duels;
+using Duely.Domain.Services.Groups;
+using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -14,6 +17,11 @@ using Xunit;
 
 public class GetDuelHandlerTests : ContextBasedTest
 {
+    private static GetDuelHandler CreateHandler(Context ctx, IRatingManager ratingManager)
+    {
+        return new GetDuelHandler(ctx, ratingManager, new TaskService(), new GroupPermissionsService());
+    }
+
     [Fact]
     public async Task NotFound_when_duel_absent()
     {
@@ -21,7 +29,7 @@ public class GetDuelHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
+        var handler = CreateHandler(ctx, ratingManager.Object);
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -48,7 +56,7 @@ public class GetDuelHandlerTests : ContextBasedTest
 
         var ratingManager = new Mock<IRatingManager>();
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
+        var handler = CreateHandler(ctx, ratingManager.Object);
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -121,7 +129,7 @@ public class GetDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
+        var handler = CreateHandler(ctx, ratingManager.Object);
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -200,7 +208,7 @@ public class GetDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -15
             });
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
+        var handler = CreateHandler(ctx, ratingManager.Object);
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -236,7 +244,7 @@ public class GetDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
+        var handler = CreateHandler(ctx, ratingManager.Object);
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -272,7 +280,7 @@ public class GetDuelHandlerTests : ContextBasedTest
                 [DuelResult.Lose] = -10
             });
 
-        var handler = new GetDuelHandler(ctx, ratingManager.Object, new TaskService());
+        var handler = CreateHandler(ctx, ratingManager.Object);
 
         var res = await handler.Handle(new GetDuelQuery
         {
@@ -284,6 +292,57 @@ public class GetDuelHandlerTests : ContextBasedTest
         res.Value.WinnerId.Should().Be(1);
         res.Value.Status.Should().Be(DuelStatus.Finished);
         res.Value.EndTime.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Returns_group_duel_for_group_member_viewer()
+    {
+        var ctx = Context;
+
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var viewer = EntityFactory.MakeUser(3, "viewer");
+        var group = EntityFactory.MakeGroup(1);
+        var membership = EntityFactory.MakeGroupMembership(viewer, group, GroupRole.Manager);
+        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK-10");
+        duel.User1Solutions['A'].Solution = "print('u1')";
+        duel.User2Solutions['A'].Solution = "print('u2')";
+
+        ctx.Users.AddRange(u1, u2, viewer);
+        ctx.Groups.Add(group);
+        ctx.GroupMemberships.Add(membership);
+        ctx.Duels.Add(duel);
+        ctx.GroupDuels.Add(new GroupDuel
+        {
+            Group = group,
+            Duel = duel,
+            CreatedBy = viewer
+        });
+        await ctx.SaveChangesAsync();
+
+        var ratingManager = new Mock<IRatingManager>();
+        ratingManager.Setup(m => m.GetRatingChanges(It.IsAny<Duel>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(new Dictionary<DuelResult, int>
+            {
+                [DuelResult.Win] = 10,
+                [DuelResult.Draw] = 0,
+                [DuelResult.Lose] = -10
+            });
+
+        var handler = CreateHandler(ctx, ratingManager.Object);
+
+        var res = await handler.Handle(new GetDuelQuery
+        {
+            UserId = viewer.Id,
+            DuelId = duel.Id
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Tasks['A'].Id.Should().Be("TASK-10");
+        res.Value.ShouldShowOpponentSolution.Should().BeTrue();
+        res.Value.Solutions['A'].Solution.Should().Be("print('u1')");
+        res.Value.OpponentSolutions.Should().NotBeNull();
+        res.Value.OpponentSolutions!['A'].Solution.Should().Be("print('u2')");
     }
 }
 

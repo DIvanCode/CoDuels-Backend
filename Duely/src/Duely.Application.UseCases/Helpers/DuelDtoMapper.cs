@@ -6,7 +6,11 @@ namespace Duely.Application.UseCases.Helpers;
 
 public static class DuelDtoMapper
 {
-    public static DuelDto Map(Duel duel, int viewerId, IRatingManager ratingManager, ITaskService taskService)
+    public static DuelDto Map(
+        Duel duel,
+        int viewerId,
+        IRatingManager ratingManager,
+        ITaskService taskService)
     {
         var winner = duel.Winner?.Id;
         var ratingChanges = new Dictionary<int, Dictionary<DuelResult, int>>
@@ -18,7 +22,7 @@ public static class DuelDtoMapper
         var isParticipant = duel.User1.Id == viewerId || duel.User2.Id == viewerId;
         var visibleTasks = isParticipant
             ? taskService.GetVisibleTasks(duel, viewerId)
-            : new Dictionary<char, DuelTask>();
+            : duel.Tasks;
 
         var tasks = MapTasks(duel.Tasks, visibleTasks);
         var solutions = new Dictionary<char, DuelTaskSolutionDto>();
@@ -35,12 +39,19 @@ public static class DuelDtoMapper
                     visibleTasks.Keys);
             }
         }
+        else
+        {
+            solutions = MapSolutions(duel.User1Solutions, visibleTasks.Keys);
+            opponentSolutions = MapSolutions(duel.User2Solutions, visibleTasks.Keys);
+        }
 
         return new DuelDto
         {
             Id = duel.Id,
             IsRated = duel.Configuration.IsRated,
-            ShouldShowOpponentSolution = duel.Configuration.ShouldShowOpponentSolution,
+            ShouldShowOpponentSolution = isParticipant
+                ? duel.Configuration.ShouldShowOpponentSolution
+                : true,
             Participants = [
                 new UserDto
                 {

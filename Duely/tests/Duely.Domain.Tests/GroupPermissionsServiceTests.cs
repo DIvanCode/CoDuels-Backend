@@ -56,6 +56,24 @@ public sealed class GroupPermissionsServiceTests
     [InlineData(GroupRole.Creator, true, false)]
     [InlineData(GroupRole.Manager, true, false)]
     [InlineData(GroupRole.Member, true, false)]
+    public void CanViewDuel_respects_pending_and_role(
+        GroupRole role,
+        bool pending,
+        bool expected)
+    {
+        var service = new GroupPermissionsService();
+        var membership = MakeMembership(role, pending);
+
+        service.CanViewDuel(membership).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(GroupRole.Creator, false, true)]
+    [InlineData(GroupRole.Manager, false, true)]
+    [InlineData(GroupRole.Member, false, false)]
+    [InlineData(GroupRole.Creator, true, false)]
+    [InlineData(GroupRole.Manager, true, false)]
+    [InlineData(GroupRole.Member, true, false)]
     public void CanUpdateGroup_respects_pending_and_role(
         GroupRole role,
         bool pending,

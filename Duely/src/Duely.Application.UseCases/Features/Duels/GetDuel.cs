@@ -7,6 +7,7 @@ using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Helpers;
 using Duely.Domain.Models.Duels;
 using Duely.Domain.Services.Duels;
+using Duely.Domain.Services.Groups;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
@@ -16,7 +17,11 @@ public sealed class GetDuelQuery : IRequest<Result<DuelDto>>
     public required int DuelId { get; init; }
 }
 
-public sealed class GetDuelHandler(Context context, IRatingManager ratingManager, ITaskService taskService)
+public sealed class GetDuelHandler(
+    Context context,
+    IRatingManager ratingManager,
+    ITaskService taskService,
+    IGroupPermissionsService groupPermissionsService)
     : IRequestHandler<GetDuelQuery, Result<DuelDto>>
 {
     public async Task<Result<DuelDto>> Handle(GetDuelQuery query, CancellationToken cancellationToken)
@@ -36,9 +41,31 @@ public sealed class GetDuelHandler(Context context, IRatingManager ratingManager
             return new EntityNotFoundError(nameof(Duel), nameof(Duel.Id), query.DuelId);
         }
 
-        if (duel.User1.Id != query.UserId && duel.User2.Id != query.UserId)
+        var isParticipant = duel.User1.Id == query.UserId || duel.User2.Id == query.UserId;
+        if (isParticipant)
         {
-            return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);  
+            return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
+        }
+
+        var groupDuel = await context.GroupDuels
+            .AsNoTracking()
+            .Include(d => d.Group)
+            .Where(d => d.Duel.Id == query.DuelId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (groupDuel is null)
+        {
+            return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);
+        }
+        
+        var membership = await context.GroupMemberships
+            .AsNoTracking()
+            .Where(m => m.Group.Id == groupDuel.Group.Id && m.User.Id == query.UserId)
+            .SingleOrDefaultAsync(cancellationToken);
+        var canView = membership is not null && groupPermissionsService.CanViewDuel(membership);
+        if (!canView)
+        {
+            return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);
         }
 
         return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);

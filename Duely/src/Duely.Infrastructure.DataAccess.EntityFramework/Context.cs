@@ -15,6 +15,7 @@ public sealed class Context : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<GroupMembership> GroupMemberships => Set<GroupMembership>();
+    public DbSet<GroupDuel> GroupDuels => Set<GroupDuel>();
     public DbSet<Duel> Duels => Set<Duel>();
     public DbSet<PendingDuel> PendingDuels => Set<PendingDuel>();
     public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
