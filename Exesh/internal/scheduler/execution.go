@@ -118,7 +118,7 @@ func (ex *Execution) executionProgressAndRetriesBasedPriority(now time.Time) flo
 		expectedProgress = totalExpectedTime / totalDoneJobsExpectedTime
 	}
 
-	return (alpha*realProgress/1000.0 + beta*expectedProgress/1000.0) * retriesPower
+	return (alpha*realProgress + beta*expectedProgress) * retriesPower
 }
 
 func (ex *Execution) getProgressTime(now time.Time) float64 {
