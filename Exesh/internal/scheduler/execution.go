@@ -112,13 +112,13 @@ func (ex *Execution) executionProgressAndRetriesBasedPriority(now time.Time) flo
 	totalDoneJobsExpectedTime := float64(ex.TotalDoneJobsExpectedTime)
 	retriesPower := math.Pow(gamma, float64(max(0, ex.Tries-1)))
 
-	realProgress := alpha * (progressTime / totalExpectedTime)
-	expectedProgress := 0.0
+	realProgress := progressTime / totalExpectedTime
+	expectedProgress := totalExpectedTime
 	if totalDoneJobsExpectedTime > 0 {
-		expectedProgress = beta * (totalExpectedTime / totalDoneJobsExpectedTime)
+		expectedProgress = totalExpectedTime / totalDoneJobsExpectedTime
 	}
 
-	return (realProgress + expectedProgress) * retriesPower
+	return (alpha*realProgress + beta*expectedProgress) * retriesPower
 }
 
 func (ex *Execution) getProgressTime(now time.Time) float64 {
