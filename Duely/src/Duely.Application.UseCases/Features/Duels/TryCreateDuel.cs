@@ -39,22 +39,43 @@ public sealed class TryCreateDuelHandler(
         
         pendingDuels.AddRange(await context.PendingDuels.OfType<RankedPendingDuel>()
             .Include(d => d.User)
+            .ThenInclude(u => u.DuelsAsUser1)
+            .Include(d => d.User)
+            .ThenInclude(u => u.DuelsAsUser2)
             .ToListAsync(cancellationToken));
         pendingDuels.AddRange(await context.PendingDuels.OfType<FriendlyPendingDuel>()
             .Include(d => d.User1)
+            .ThenInclude(u => u.DuelsAsUser1)
+            .Include(d => d.User1)
+            .ThenInclude(u => u.DuelsAsUser2)
             .Include(d => d.User2)
+            .ThenInclude(u => u.DuelsAsUser1)
+            .Include(d => d.User2)
+            .ThenInclude(u => u.DuelsAsUser2)
             .Include(d => d.Configuration)
             .ToListAsync(cancellationToken));
         pendingDuels.AddRange(await context.PendingDuels.OfType<GroupPendingDuel>()
             .Include(d => d.User1)
+            .ThenInclude(u => u.DuelsAsUser1)
+            .Include(d => d.User1)
+            .ThenInclude(u => u.DuelsAsUser2)
             .Include(d => d.User2)
+            .ThenInclude(u => u.DuelsAsUser1)
+            .Include(d => d.User2)
+            .ThenInclude(u => u.DuelsAsUser2)
             .Include(d => d.Configuration)
             .Include(d => d.Group)
             .Include(d => d.CreatedBy)
             .ToListAsync(cancellationToken));
         pendingDuels.AddRange(await context.PendingDuels.OfType<TournamentPendingDuel>()
             .Include(d => d.User1)
+            .ThenInclude(u => u.DuelsAsUser1)
+            .Include(d => d.User1)
+            .ThenInclude(u => u.DuelsAsUser2)
             .Include(d => d.User2)
+            .ThenInclude(u => u.DuelsAsUser1)
+            .Include(d => d.User2)
+            .ThenInclude(u => u.DuelsAsUser2)
             .Include(d => d.Configuration)
             .Include(d => d.Tournament)
             .ToListAsync(cancellationToken));
@@ -65,6 +86,7 @@ public sealed class TryCreateDuelHandler(
             return Result.Ok();
         }
 
+        var reservedTaskIds = new HashSet<string>();
         foreach (var pair in pairs)
         {
             DuelConfiguration configuration;
@@ -93,11 +115,17 @@ public sealed class TryCreateDuelHandler(
                 configuration = pair.Configuration;
             }
 
-            var tasksResult = await ChooseTasksAsync(pair.User1, pair.User2, configuration, cancellationToken);
+            var tasksResult = await ChooseTasksAsync(
+                pair.User1,
+                pair.User2,
+                configuration,
+                reservedTaskIds,
+                cancellationToken);
             if (tasksResult.IsFailed)
             {
                 return tasksResult.ToResult();
             }
+            reservedTaskIds.UnionWith(tasksResult.Value.Values.Select(task => task.Id));
 
             var startTime = DateTime.UtcNow;
             var deadlineTime = startTime.AddMinutes(configuration.MaxDurationMinutes);
@@ -185,6 +213,7 @@ public sealed class TryCreateDuelHandler(
         User user1,
         User user2,
         DuelConfiguration configuration,
+        IReadOnlySet<string> reservedTaskIds,
         CancellationToken cancellationToken)
     {
         var tasksList = await taskiClient.GetTasksListAsync(cancellationToken);
@@ -194,7 +223,15 @@ public sealed class TryCreateDuelHandler(
         }
 
         var tasks = tasksList.Value.Tasks.Select(t => new DuelTask(t.Id, t.Level, t.Topics)).ToList();
-        if (!taskService.TryChooseTasks(user1, user2, configuration, tasks, out var chosenTasks))
+        var tasksForSelection = tasks
+            .ExceptBy(reservedTaskIds, task => task.Id)
+            .ToList();
+        if (tasksForSelection.Count < configuration.TasksConfigurations.Count)
+        {
+            tasksForSelection = tasks;
+        }
+
+        if (!taskService.TryChooseTasks(user1, user2, configuration, tasksForSelection, out var chosenTasks))
         {
             return new EntityNotFoundError(nameof(DuelTask), "configuration", configuration.Id);
         }
