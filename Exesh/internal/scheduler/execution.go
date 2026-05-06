@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	priorityTimeExpectedFactor = 0.2
+	priorityTimeExpectedFactor = 0.05
 	priorityFailedTryFactor    = 3.0
 )
 
