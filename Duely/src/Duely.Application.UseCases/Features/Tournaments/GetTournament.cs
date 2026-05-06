@@ -60,6 +60,9 @@ public sealed class GetTournamentHandler(
 
         var duelsById = await context.Duels
             .AsNoTracking()
+            .Include(d => d.User1)
+            .Include(d => d.User2)
+            .Include(d => d.Winner)
             .Where(d => duelIds.Contains(d.Id))
             .ToDictionaryAsync(d => d.Id, cancellationToken);
 

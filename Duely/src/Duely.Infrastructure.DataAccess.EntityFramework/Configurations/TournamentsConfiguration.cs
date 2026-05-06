@@ -59,7 +59,8 @@ public sealed class TournamentsConfiguration : IEntityTypeConfiguration<Tourname
             .IsRequired(false);
 
         builder.HasDiscriminator(t => t.MatchmakingType)
-            .HasValue<SingleEliminationBracketTournament>(TournamentMatchmakingType.SingleEliminationBracket);
+            .HasValue<SingleEliminationBracketTournament>(TournamentMatchmakingType.SingleEliminationBracket)
+            .HasValue<GroupStageTournament>(TournamentMatchmakingType.GroupStage);
 
         builder.UseTphMappingStrategy();
     }
