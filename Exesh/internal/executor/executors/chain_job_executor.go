@@ -184,7 +184,13 @@ func (e *ChainJobExecutor) SaveOutput(ctx context.Context, res *results.Result) 
 	}
 
 	lastIdx := len(e.innerExecutors) - 1
-	if err := e.innerExecutors[lastIdx].SaveOutput(ctx, res); err != nil {
+	chainResult := res.AsChain()
+	if len(chainResult.Results) == 0 {
+		return nil
+	}
+
+	lastInnerResult := &chainResult.Results[len(chainResult.Results)-1]
+	if err := e.innerExecutors[lastIdx].SaveOutput(ctx, lastInnerResult); err != nil {
 		if errors.Is(err, errs.ErrFileAlreadyExists) {
 			return nil
 		}
