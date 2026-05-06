@@ -1,7 +1,7 @@
 name: Nginx
 
 on:
-  push:
+  pull_request: # TODO: push
     branches:
       - master
     paths:
