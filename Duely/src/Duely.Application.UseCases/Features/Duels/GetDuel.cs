@@ -8,7 +8,6 @@ using Duely.Application.UseCases.Helpers;
 using Duely.Domain.Models.Duels;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Services.Groups;
-using Duely.Domain.Services.Tournaments;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
@@ -22,8 +21,7 @@ public sealed class GetDuelHandler(
     Context context,
     IRatingManager ratingManager,
     ITaskService taskService,
-    IGroupPermissionsService groupPermissionsService,
-    ITournamentMatchmakingStrategyResolver tournamentMatchmakingStrategyResolver)
+    IGroupPermissionsService groupPermissionsService)
     : IRequestHandler<GetDuelQuery, Result<DuelDto>>
 {
     public async Task<Result<DuelDto>> Handle(GetDuelQuery query, CancellationToken cancellationToken)
@@ -57,11 +55,6 @@ public sealed class GetDuelHandler(
 
         if (groupDuel is null)
         {
-            if (await CanViewTournamentDuel(query.UserId, query.DuelId, cancellationToken))
-            {
-                return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
-            }
-
             return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);
         }
         
@@ -72,43 +65,9 @@ public sealed class GetDuelHandler(
         var canView = membership is not null && groupPermissionsService.CanViewDuel(membership);
         if (!canView)
         {
-            if (await CanViewTournamentDuel(query.UserId, query.DuelId, cancellationToken))
-            {
-                return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
-            }
-
             return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);
         }
 
         return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
-    }
-
-    private async Task<bool> CanViewTournamentDuel(
-        int userId,
-        int duelId,
-        CancellationToken cancellationToken)
-    {
-        var tournaments = await context.Tournaments
-            .AsNoTracking()
-            .Include(t => t.Group)
-            .Where(t => t.Status != Duely.Domain.Models.Tournaments.TournamentStatus.New)
-            .ToListAsync(cancellationToken);
-
-        var tournament = tournaments.FirstOrDefault(t =>
-            tournamentMatchmakingStrategyResolver
-                .GetStrategy(t.MatchmakingType)
-                .GetReferencedDuelIds(t)
-                .Contains(duelId));
-        if (tournament is null)
-        {
-            return false;
-        }
-
-        var membership = await context.GroupMemberships
-            .AsNoTracking()
-            .Where(m => m.Group.Id == tournament.Group.Id && m.User.Id == userId)
-            .SingleOrDefaultAsync(cancellationToken);
-
-        return membership is not null && groupPermissionsService.CanViewDuel(membership);
     }
 }

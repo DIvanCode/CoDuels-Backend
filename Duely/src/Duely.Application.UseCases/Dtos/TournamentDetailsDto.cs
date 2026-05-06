@@ -9,7 +9,4 @@ public sealed class TournamentDetailsDto
 
     [JsonPropertyName("single_elimination_bracket")]
     public SingleEliminationBracketDto? SingleEliminationBracket { get; init; }
-
-    [JsonPropertyName("group_stage")]
-    public GroupStageDto? GroupStage { get; init; }
 }
