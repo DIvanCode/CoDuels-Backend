@@ -26,6 +26,5 @@ public enum TournamentStatus
 
 public enum TournamentMatchmakingType
 {
-    SingleEliminationBracket = 1,
-    GroupStage = 2
+    SingleEliminationBracket = 1
 }

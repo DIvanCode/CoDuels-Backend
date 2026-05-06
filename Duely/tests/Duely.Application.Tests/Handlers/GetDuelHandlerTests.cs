@@ -7,10 +7,8 @@ using Duely.Application.UseCases.Features.Duels;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Groups;
-using Duely.Domain.Models.Tournaments;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Services.Groups;
-using Duely.Domain.Services.Tournaments;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -21,15 +19,7 @@ public class GetDuelHandlerTests : ContextBasedTest
 {
     private static GetDuelHandler CreateHandler(Context ctx, IRatingManager ratingManager)
     {
-        return new GetDuelHandler(
-            ctx,
-            ratingManager,
-            new TaskService(),
-            new GroupPermissionsService(),
-            new TournamentMatchmakingStrategyResolver([
-                new SingleEliminationBracketMatchmakingStrategy(),
-                new GroupStageMatchmakingStrategy()
-            ]));
+        return new GetDuelHandler(ctx, ratingManager, new TaskService(), new GroupPermissionsService());
     }
 
     [Fact]
@@ -353,111 +343,6 @@ public class GetDuelHandlerTests : ContextBasedTest
         res.Value.Solutions['A'].Solution.Should().Be("print('u1')");
         res.Value.OpponentSolutions.Should().NotBeNull();
         res.Value.OpponentSolutions!['A'].Solution.Should().Be("print('u2')");
-    }
-
-    [Fact]
-    public async Task Returns_tournament_duel_for_group_manager_viewer()
-    {
-        var ctx = Context;
-
-        var u1 = EntityFactory.MakeUser(1, "u1");
-        var u2 = EntityFactory.MakeUser(2, "u2");
-        var viewer = EntityFactory.MakeUser(3, "viewer");
-        var group = EntityFactory.MakeGroup(1);
-        var membership = EntityFactory.MakeGroupMembership(viewer, group, GroupRole.Manager);
-        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK-10");
-        duel.User1Solutions['A'].Solution = "print('u1')";
-        duel.User2Solutions['A'].Solution = "print('u2')";
-        var tournament = new SingleEliminationBracketTournament
-        {
-            Id = 100,
-            Name = "Tournament",
-            Status = TournamentStatus.InProgress,
-            Group = group,
-            CreatedBy = viewer,
-            CreatedAt = DateTime.UtcNow,
-            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket,
-            Nodes =
-            [
-                new SingleEliminationBracketNode { DuelId = duel.Id },
-                new SingleEliminationBracketNode { UserId = u1.Id, WinnerUserId = u1.Id },
-                new SingleEliminationBracketNode { UserId = u2.Id, WinnerUserId = u2.Id }
-            ]
-        };
-
-        ctx.Users.AddRange(u1, u2, viewer);
-        ctx.Groups.Add(group);
-        ctx.GroupMemberships.Add(membership);
-        ctx.Duels.Add(duel);
-        ctx.Tournaments.Add(tournament);
-        await ctx.SaveChangesAsync();
-
-        var ratingManager = new Mock<IRatingManager>();
-        ratingManager.Setup(m => m.GetRatingChanges(It.IsAny<Duel>(), It.IsAny<int>(), It.IsAny<int>()))
-            .Returns(new Dictionary<DuelResult, int>
-            {
-                [DuelResult.Win] = 10,
-                [DuelResult.Draw] = 0,
-                [DuelResult.Lose] = -10
-            });
-
-        var handler = CreateHandler(ctx, ratingManager.Object);
-
-        var res = await handler.Handle(new GetDuelQuery
-        {
-            UserId = viewer.Id,
-            DuelId = duel.Id
-        }, CancellationToken.None);
-
-        res.IsSuccess.Should().BeTrue();
-        res.Value.Tasks['A'].Id.Should().Be("TASK-10");
-        res.Value.ShouldShowOpponentSolution.Should().BeTrue();
-        res.Value.Solutions['A'].Solution.Should().Be("print('u1')");
-        res.Value.OpponentSolutions.Should().NotBeNull();
-        res.Value.OpponentSolutions!['A'].Solution.Should().Be("print('u2')");
-    }
-
-    [Fact]
-    public async Task Forbidden_for_tournament_duel_when_group_viewer_cannot_view_duels()
-    {
-        var ctx = Context;
-
-        var u1 = EntityFactory.MakeUser(1, "u1");
-        var u2 = EntityFactory.MakeUser(2, "u2");
-        var viewer = EntityFactory.MakeUser(3, "viewer");
-        var group = EntityFactory.MakeGroup(1);
-        var membership = EntityFactory.MakeGroupMembership(viewer, group, GroupRole.Member);
-        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK-10");
-        var tournament = new GroupStageTournament
-        {
-            Id = 100,
-            Name = "Tournament",
-            Status = TournamentStatus.InProgress,
-            Group = group,
-            CreatedBy = viewer,
-            CreatedAt = DateTime.UtcNow,
-            MatchmakingType = TournamentMatchmakingType.GroupStage,
-            DuelIds = [duel.Id]
-        };
-
-        ctx.Users.AddRange(u1, u2, viewer);
-        ctx.Groups.Add(group);
-        ctx.GroupMemberships.Add(membership);
-        ctx.Duels.Add(duel);
-        ctx.Tournaments.Add(tournament);
-        await ctx.SaveChangesAsync();
-
-        var ratingManager = new Mock<IRatingManager>();
-        var handler = CreateHandler(ctx, ratingManager.Object);
-
-        var res = await handler.Handle(new GetDuelQuery
-        {
-            UserId = viewer.Id,
-            DuelId = duel.Id
-        }, CancellationToken.None);
-
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is ForbiddenError);
     }
 }
 

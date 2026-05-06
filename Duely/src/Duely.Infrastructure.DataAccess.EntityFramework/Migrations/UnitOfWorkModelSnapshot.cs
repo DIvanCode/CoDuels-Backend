@@ -769,18 +769,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.HasDiscriminator().HasValue("Tournament");
                 });
 
-            modelBuilder.Entity("Duely.Domain.Models.Tournaments.GroupStageTournament", b =>
-                {
-                    b.HasBaseType("Duely.Domain.Models.Tournaments.Tournament");
-
-                    b.Property<string>("DuelIds")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("GroupStageDuelIds");
-
-                    b.HasDiscriminator().HasValue("GroupStage");
-                });
-
             modelBuilder.Entity("Duely.Domain.Models.Tournaments.SingleEliminationBracketTournament", b =>
                 {
                     b.HasBaseType("Duely.Domain.Models.Tournaments.Tournament");
