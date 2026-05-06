@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	alpha = 0.5
+	alpha = 1
 	beta  = 1
 	gamma = 1.5
 )
@@ -111,7 +111,7 @@ func (ex *Execution) executionProgressAndRetriesBasedPriority(now time.Time) flo
 	totalExpectedTime := float64(ex.TotalExpectedTime)
 	totalDoneJobsExpectedTime := float64(ex.TotalDoneJobsExpectedTime)
 	retriesPower := math.Pow(gamma, float64(max(0, ex.Tries-1)))
-	return (alpha*progressTime + beta*totalDoneJobsExpectedTime) / totalExpectedTime * retriesPower
+	return (alpha*(progressTime/totalExpectedTime) + beta*(totalExpectedTime/totalDoneJobsExpectedTime)) * retriesPower
 }
 
 func (ex *Execution) getProgressTime(now time.Time) float64 {
