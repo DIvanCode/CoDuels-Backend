@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	priorityTimeExpectedFactor = 0.05
-	priorityFailedTryFactor    = 3.0
+	alpha = 1.0
+	beta  = 0.5
+	gamma = 1.5
 )
 
 type Execution struct {
@@ -110,8 +111,8 @@ func (ex *Execution) executionProgressAndRetriesBasedPriority(now time.Time) flo
 	totalExpectedTime := float64(ex.TotalExpectedTime)
 	totalDoneJobsExpectedTime := float64(ex.TotalDoneJobsExpectedTime)
 	retryCount := max(0, ex.Tries-1)
-	retriesPower := math.Pow(priorityFailedTryFactor, float64(retryCount))
-	return retriesPower * progressTime / (priorityTimeExpectedFactor*totalExpectedTime + totalDoneJobsExpectedTime)
+	retriesPower := math.Pow(gamma, float64(retryCount))
+	return (alpha*progressTime + beta*(totalDoneJobsExpectedTime/totalExpectedTime)) * retriesPower
 }
 
 func (ex *Execution) getProgressTime(now time.Time) float64 {
