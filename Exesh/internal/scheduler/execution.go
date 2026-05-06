@@ -13,6 +13,7 @@ const (
 	alpha = 2
 	beta  = 0.75
 	gamma = 1.5
+	eps   = 0.01
 )
 
 type Execution struct {
@@ -111,7 +112,7 @@ func (ex *Execution) executionProgressAndRetriesBasedPriority(now time.Time) flo
 	totalExpectedTime := float64(ex.TotalExpectedTime)
 	totalDoneJobsExpectedTime := float64(ex.TotalDoneJobsExpectedTime)
 	retriesPower := math.Pow(gamma, float64(max(0, ex.Tries-1)))
-	return (alpha*(progressTime/totalExpectedTime) + beta*(totalExpectedTime/totalDoneJobsExpectedTime)) * retriesPower
+	return (alpha*(progressTime/totalExpectedTime) + beta*(totalExpectedTime/(eps+totalDoneJobsExpectedTime))) * retriesPower
 }
 
 func (ex *Execution) getProgressTime(now time.Time) float64 {
