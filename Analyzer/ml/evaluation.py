@@ -19,7 +19,7 @@ def evaluate_binary_classifier(
     y_true: np.ndarray,
     y_proba: np.ndarray,
     *,
-    threshold: float = 0.5,
+    threshold: float = 0.6,
 ) -> dict[str, Any]:
     y_pred = (y_proba >= threshold).astype(int)
 
