@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	alpha = 7.31
+	alpha = 17.4
 	gamma = 1.31
 )
 
