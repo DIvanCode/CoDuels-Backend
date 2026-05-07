@@ -1,0 +1,83 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Exesh Load Dashboard</title>
+  <link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Exesh Load Dashboard</h1>
+      <p id="status">{{ status|safe }}</p>
+    </div>
+    <form id="timeRangeForm" class="time-range" method="get">
+      <label>Start <input name="start" type="datetime-local" step="1" value="{{ start_value }}"></label>
+      <label>End <input name="end" type="datetime-local" step="1" value="{{ end_value }}"></label>
+      <button type="submit">Apply</button>
+    </form>
+  </header>
+
+  <main>
+    <section class="kpis">
+      <div><span>Started/s</span><strong>{{ kpis.startedRate }}</strong></div>
+      <div><span>Finished/s</span><strong>{{ kpis.finishedRate }}</strong></div>
+      <div><span>Pick/s</span><strong>{{ kpis.pickRate }}</strong></div>
+      <div><span>Duration p95</span><strong>{{ kpis.durationP95 }}</strong></div>
+      <div><span>Priority p95</span><strong>{{ kpis.priorityP95 }}</strong></div>
+      <div><span>Workers</span><strong>{{ kpis.workerCount }}</strong></div>
+    </section>
+
+    <section class="grid charts">
+      <article class="panel">
+        <h2>Execution Throughput</h2>
+        <div class="chart">{{ charts.throughput|safe }}</div>
+      </article>
+      <article class="panel">
+        <h2>Execution Fairness</h2>
+        <div class="chart">{{ charts.fairness|safe }}</div>
+      </article>
+    </section>
+
+    <section class="grid charts">
+      <article class="panel">
+        <h2>Execution Priority By Execution</h2>
+        <div class="chart">{{ charts.execution_priority|safe }}</div>
+      </article>
+      <article class="panel">
+        <h2>Execution Progress By Execution</h2>
+        <div class="chart">{{ charts.execution_progress|safe }}</div>
+      </article>
+    </section>
+
+    <section class="grid charts">
+      <article class="panel">
+        <h2>Worker Slot Utilization</h2>
+        <div class="chart">{{ charts.worker_slots|safe }}</div>
+      </article>
+      <article class="panel">
+        <h2>Worker Memory Utilization</h2>
+        <div class="chart">{{ charts.worker_memory|safe }}</div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>JobScheduler Time x Memory Rectangles</h2>
+      <div class="rectangles">{{ charts.rectangles|safe }}</div>
+    </section>
+
+    <section class="grid two">
+      <article class="panel">
+        <h2>Worker Pool</h2>
+        <div class="table">{{ tables.worker_pool|safe }}</div>
+      </article>
+      <article class="panel">
+        <h2>Workers Runtime</h2>
+        <div class="table">{{ tables.workers|safe }}</div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

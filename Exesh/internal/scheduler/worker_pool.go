@@ -18,6 +18,7 @@ type (
 
 		mu      sync.Mutex
 		workers map[string]*worker
+		events  EventRecorder
 	}
 
 	worker struct {
@@ -33,17 +34,22 @@ type (
 	runningJob struct {
 		expectedTime   int
 		expectedMemory int
+		memoryOffset   int
 		startedAt      time.Time
 	}
 )
 
-func NewWorkerPool(log *slog.Logger, cfg config.WorkerPoolConfig) *WorkerPool {
+func NewWorkerPool(log *slog.Logger, cfg config.WorkerPoolConfig, events EventRecorder) *WorkerPool {
+	if events == nil {
+		events = NoopEventRecorder{}
+	}
 	return &WorkerPool{
 		log: log,
 		cfg: cfg,
 
 		mu:      sync.Mutex{},
 		workers: make(map[string]*worker),
+		events:  events,
 	}
 }
 
@@ -66,6 +72,11 @@ func (p *WorkerPool) StartObserver(ctx context.Context) {
 				for _, w := range deadWorkers {
 					p.log.Warn("worker removed after missed heartbeat", slog.String("worker", w))
 					delete(p.workers, w)
+					p.events.RecordWorkerEvent(ctx, WorkerEvent{
+						Type:     "removed",
+						WorkerID: w,
+						At:       time.Now(),
+					})
 				}
 				p.mu.Unlock()
 			}
@@ -77,6 +88,7 @@ func (p *WorkerPool) Heartbeat(workerID string, slots, memory int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	now := time.Now()
 	if _, ok := p.workers[workerID]; !ok {
 		p.log.Info("worker registered",
 			slog.String("worker", workerID),
@@ -87,14 +99,35 @@ func (p *WorkerPool) Heartbeat(workerID string, slots, memory int) {
 			ID:                             workerID,
 			Slots:                          slots,
 			Memory:                         memory,
-			LastHeartbeat:                  time.Now(),
+			LastHeartbeat:                  now,
 			Artifacts:                      make(map[job.ID]time.Time),
 			RunningJobs:                    make(map[job.ID]runningJob),
 			RunningJobsTotalExpectedMemory: 0,
 		}
+		p.events.RecordWorkerEvent(context.Background(), WorkerEvent{
+			Type:              "registered",
+			WorkerID:          workerID,
+			TotalSlots:        slots,
+			TotalMemoryMB:     memory,
+			FreeSlots:         slots,
+			AvailableMemoryMB: memory,
+			At:                now,
+		})
 	}
 
-	p.workers[workerID].LastHeartbeat = time.Now()
+	p.workers[workerID].LastHeartbeat = now
+	w := p.workers[workerID]
+	p.events.RecordWorkerEvent(context.Background(), WorkerEvent{
+		Type:              "heartbeat",
+		WorkerID:          workerID,
+		TotalSlots:        w.Slots,
+		TotalMemoryMB:     w.Memory,
+		FreeSlots:         w.Slots - len(w.RunningJobs),
+		AvailableMemoryMB: w.Memory - w.RunningJobsTotalExpectedMemory,
+		RunningJobs:       len(w.RunningJobs),
+		UsedMemoryMB:      w.RunningJobsTotalExpectedMemory,
+		At:                now,
+	})
 }
 
 func (p *WorkerPool) PutArtifact(workerID string, jobID job.ID, trashTime time.Time) {
@@ -125,7 +158,7 @@ func (p *WorkerPool) getWorkersState() map[string]workerState {
 	return workers
 }
 
-func (p *WorkerPool) placeJob(workerID string, jobID job.ID, jb runningJob) {
+func (p *WorkerPool) placeJob(workerID string, jobID job.ID, jb runningJob) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -133,8 +166,21 @@ func (p *WorkerPool) placeJob(workerID string, jobID job.ID, jb runningJob) {
 	if exJb, ok := w.RunningJobs[jobID]; ok {
 		w.RunningJobsTotalExpectedMemory -= exJb.expectedMemory
 	}
+	jb.memoryOffset = firstFreeMemoryOffset(w.RunningJobs, jb.expectedMemory, w.Memory)
 	w.RunningJobs[jobID] = jb
 	w.RunningJobsTotalExpectedMemory += jb.expectedMemory
+	p.events.RecordWorkerEvent(context.Background(), WorkerEvent{
+		Type:              "job_placed",
+		WorkerID:          workerID,
+		TotalSlots:        w.Slots,
+		TotalMemoryMB:     w.Memory,
+		FreeSlots:         w.Slots - len(w.RunningJobs),
+		AvailableMemoryMB: w.Memory - w.RunningJobsTotalExpectedMemory,
+		RunningJobs:       len(w.RunningJobs),
+		UsedMemoryMB:      w.RunningJobsTotalExpectedMemory,
+		At:                time.Now(),
+	})
+	return jb.memoryOffset
 }
 
 func (p *WorkerPool) removeJob(workerID string, jobID job.ID) {
@@ -145,7 +191,49 @@ func (p *WorkerPool) removeJob(workerID string, jobID job.ID) {
 	if jb, ok := w.RunningJobs[jobID]; ok {
 		w.RunningJobsTotalExpectedMemory -= jb.expectedMemory
 		delete(w.RunningJobs, jobID)
+		p.events.RecordWorkerEvent(context.Background(), WorkerEvent{
+			Type:              "job_removed",
+			WorkerID:          workerID,
+			TotalSlots:        w.Slots,
+			TotalMemoryMB:     w.Memory,
+			FreeSlots:         w.Slots - len(w.RunningJobs),
+			AvailableMemoryMB: w.Memory - w.RunningJobsTotalExpectedMemory,
+			RunningJobs:       len(w.RunningJobs),
+			UsedMemoryMB:      w.RunningJobsTotalExpectedMemory,
+			At:                time.Now(),
+		})
 	}
+}
+
+func firstFreeMemoryOffset(runningJobs map[job.ID]runningJob, memory int, totalMemory int) int {
+	type interval struct {
+		from int
+		to   int
+	}
+
+	intervals := make([]interval, 0, len(runningJobs))
+	for _, jb := range runningJobs {
+		intervals = append(intervals, interval{
+			from: jb.memoryOffset,
+			to:   jb.memoryOffset + jb.expectedMemory,
+		})
+	}
+
+	for offset := 0; offset+memory <= totalMemory; offset++ {
+		ok := true
+		for _, in := range intervals {
+			if offset < in.to && offset+memory > in.from {
+				ok = false
+				offset = in.to - 1
+				break
+			}
+		}
+		if ok {
+			return offset
+		}
+	}
+
+	return 0
 }
 
 func (p *WorkerPool) getWorkerWithArtifact(jobID job.ID) (workerID string, err error) {

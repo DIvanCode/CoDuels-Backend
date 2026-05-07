@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - Exesh/**
+      - .github/workflows/exesh_push.yml
 
 jobs:
   build:

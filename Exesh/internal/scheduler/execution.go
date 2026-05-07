@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	priorityTimeExpectedFactor = 0.2
-	priorityFailedTryFactor    = 3.0
+	alpha = 31.74
+	gamma = 1.31
 )
 
 type Execution struct {
@@ -79,6 +79,23 @@ func (ex *Execution) GetPriority(now time.Time) float64 {
 	return ex.executionProgressAndRetriesBasedPriority(now)
 }
 
+func (ex *Execution) GetProgressRatio() float64 {
+	ex.mu.Lock()
+	defer ex.mu.Unlock()
+
+	if ex.TotalExpectedTime <= 0 {
+		return 0
+	}
+	return float64(ex.TotalDoneJobsExpectedTime) / float64(ex.TotalExpectedTime)
+}
+
+func (ex *Execution) GetDuration(now time.Time) time.Duration {
+	if ex.ScheduledAt == nil {
+		return 0
+	}
+	return now.Sub(*ex.ScheduledAt)
+}
+
 func (ex *Execution) scheduleTimeBasedPriority(now time.Time) float64 {
 	return ex.getProgressTime(now)
 }
@@ -89,12 +106,12 @@ func (ex *Execution) randomBasedPriority(now time.Time) float64 {
 }
 
 func (ex *Execution) executionProgressAndRetriesBasedPriority(now time.Time) float64 {
-	progressTime := ex.getProgressTime(now)
-	totalExpectedTime := float64(ex.TotalExpectedTime)
-	totalDoneJobsExpectedTime := float64(ex.TotalDoneJobsExpectedTime)
-	retryCount := max(0, ex.Tries-1)
-	retriesPower := math.Pow(priorityFailedTryFactor, float64(retryCount))
-	return retriesPower * progressTime / (priorityTimeExpectedFactor*totalExpectedTime + totalDoneJobsExpectedTime)
+	progress := ex.getProgressTime(now)
+	expectedTotal := float64(ex.TotalExpectedTime)
+	doneExpectedTotal := float64(ex.TotalDoneJobsExpectedTime)
+	expectedRest := expectedTotal - doneExpectedTotal
+	retriesPower := math.Pow(gamma, float64(max(0, ex.Tries-1)))
+	return retriesPower * math.Sqrt(progress*progress+alpha*expectedRest*expectedRest) / expectedTotal
 }
 
 func (ex *Execution) getProgressTime(now time.Time) float64 {

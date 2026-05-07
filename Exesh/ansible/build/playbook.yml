@@ -8,3 +8,9 @@
     - name: Push exesh image
       command: >
         docker push divancode74/coduels-exesh:{{ version }}
+    - name: Build exesh dashboard image
+      command: >
+        docker buildx build -t divancode74/coduels-exesh-dashboard:{{ version }} ../../dashboard
+    - name: Push exesh dashboard image
+      command: >
+        docker push divancode74/coduels-exesh-dashboard:{{ version }}

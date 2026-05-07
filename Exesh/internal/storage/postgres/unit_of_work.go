@@ -39,6 +39,10 @@ func (u *UnitOfWork) Do(ctx context.Context, fn func(ctx context.Context) error)
 	return nil
 }
 
+func (u *UnitOfWork) DB() *sql.DB {
+	return u.db
+}
+
 func withTx(ctx context.Context, tx *sql.Tx) context.Context {
 	return context.WithValue(ctx, "tx", tx)
 }
