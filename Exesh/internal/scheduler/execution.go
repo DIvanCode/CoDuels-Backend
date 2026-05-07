@@ -111,7 +111,7 @@ func (ex *Execution) executionProgressAndRetriesBasedPriority(now time.Time) flo
 	expectedRest := (expectedTotal - doneExpectedTotal) / expectedTotal
 	progress := ex.getProgressTime(now) / expectedTotal
 	retriesPower := math.Pow(gamma, float64(max(0, ex.Tries-1)))
-	return retriesPower * (alpha*expectedRest + math.Log1p(progress))
+	return retriesPower * (alpha*expectedRest + progress)
 }
 
 func (ex *Execution) getProgressTime(now time.Time) float64 {
