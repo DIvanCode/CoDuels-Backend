@@ -39,7 +39,7 @@
           HTTP_SERVER_ADDR: 0.0.0.0:5253
           HTTP_SERVER_METRICS_ADDR: 0.0.0.0:9090
           JOB_FACTORY_FILESTORAGE_ENDPOINT: http://coordinator:5253
-          DISPATCHER_KAFKA_ENABLED: "true"
+          DISPATCHER_KAFKA_ENABLED: "false"
           DISPATCHER_BROKERS: "192.168.0.6:19092"
           DISPATCHER_SASL_AUTH: "true"
           DISPATCHER_SASL_USERNAME: coordinator
