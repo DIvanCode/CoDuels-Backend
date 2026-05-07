@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	alpha = 0.2
-	beta  = 4.6
-	gamma = 1.5
+	alpha = 0.31
+	beta  = 7.40
+	gamma = 1.50
 )
 
 type Execution struct {
