@@ -11,7 +11,7 @@ ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     "django.contrib.staticfiles",
-    "metrics",
+    "dashboard",
 ]
 
 MIDDLEWARE = [
@@ -19,7 +19,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-ROOT_URLCONF = "exesh_dashboard.urls"
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
@@ -30,7 +30,11 @@ TEMPLATES = [
     }
 ]
 
-WSGI_APPLICATION = "exesh_dashboard.wsgi.application"
+WSGI_APPLICATION = "config.wsgi.application"
+
+USE_TZ = True
+TIME_ZONE = os.getenv("EXESH_DASHBOARD_TIME_ZONE", "Europe/Moscow")
+
 
 def postgres_database_config():
     connection_string = os.getenv("EXESH_DASHBOARD_DB_CONNECTION_STRING", "")

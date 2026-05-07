@@ -2,7 +2,7 @@ from datetime import datetime
 from html import escape
 from time import perf_counter
 
-from .event_history import event_dashboard_history
+from .event_queries import dashboard_data
 
 
 COLORS = {
@@ -18,13 +18,13 @@ PALETTE = ["#58b9d7", "#46c278", "#e0b64b", "#e56767", "#7297ff", "#ba7cff"]
 
 def rendered_dashboard(start, end):
     started = perf_counter()
-    history = event_dashboard_history(start=start, end=end)
-    execution = history["execution"]
+    data = dashboard_data(start=start, end=end)
+    execution = data["execution"]
     latest_point = execution[-1] if execution else {}
-    domain = chart_domain(history)
+    domain = chart_domain(data)
     rendered = {
-        "status": status_html(history, latest_point, domain),
-        "kpis": kpis(history, latest_point),
+        "status": status_html(data, latest_point, domain),
+        "kpis": kpis(data, latest_point),
         "charts": {
             "throughput": line_chart(
                 [
@@ -43,26 +43,26 @@ def rendered_dashboard(start, end):
                 ],
                 domain=domain,
             ),
-            "execution_priority": line_chart(execution_series(history["executions"], "priority"), domain=domain),
-            "execution_progress": line_chart(execution_series(history["executions"], "progress_ratio"), forced_max=1, domain=domain),
-            "worker_slots": line_chart(worker_series(history["workers"], "slot_utilization_percent"), domain=domain),
-            "worker_memory": line_chart(worker_series(history["workers"], "memory_utilization_percent"), domain=domain),
-            "rectangles": rectangles_svg(history["jobs"], domain=domain),
+            "execution_priority": line_chart(execution_series(data["executions"], "priority"), domain=domain),
+            "execution_progress": line_chart(execution_series(data["executions"], "progress_ratio"), forced_max=1, domain=domain),
+            "worker_slots": line_chart(worker_series(data["workers"], "slot_utilization_percent"), domain=domain),
+            "worker_memory": line_chart(worker_series(data["workers"], "memory_utilization_percent"), domain=domain),
+            "rectangles": rectangles_svg(data["jobs"], domain=domain),
         },
         "tables": {
-            "worker_pool": worker_pool_table(history["latest_worker_pool"]),
-            "workers": workers_table(history["latest_workers"]),
+            "worker_pool": worker_pool_table(data["latest_worker_pool"]),
+            "workers": workers_table(data["latest_workers"]),
         },
         "meta": {
-            **history["meta"],
+            **data["meta"],
             "render_elapsed_ms": round((perf_counter() - started) * 1000, 2),
         },
     }
     return rendered
 
 
-def chart_domain(history):
-    meta = history["meta"]
+def chart_domain(data):
+    meta = data["meta"]
     return {
         "start": meta["window_start"],
         "end": meta["window_end"],
@@ -70,20 +70,20 @@ def chart_domain(history):
     }
 
 
-def status_html(history, latest_point, domain):
-    meta = history["meta"]
+def status_html(data, latest_point, domain):
+    meta = data["meta"]
     raw_events = meta["execution_events"] + meta["worker_events"] + meta["job_events"]
     chart_points = meta["execution_points"] + meta["execution_pick_points"] + meta["worker_points"] + meta["job_events"]
     timestamp = latest_point.get("timestamp")
     text = "no events" if not timestamp else format_time(timestamp, domain)
     return (
-        f'<span class="ok">{len(history["execution"])} execution points</span>'
+        f'<span class="ok">{len(data["execution"])} execution points</span>'
         f" | {chart_points} rendered points | {raw_events} raw events | {fmt(meta['elapsed_ms'])} ms db | {text}"
     )
 
 
-def kpis(history, point):
-    workers = history["latest_worker_pool"].get("registered_workers") or len(history["latest_workers"])
+def kpis(data, point):
+    workers = data["latest_worker_pool"].get("registered_workers") or len(data["latest_workers"])
     return {
         "startedRate": fmt(point.get("started_rate", 0)),
         "finishedRate": fmt(point.get("finished_rate", 0)),

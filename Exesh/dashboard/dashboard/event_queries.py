@@ -6,7 +6,7 @@ from django.utils import timezone
 from .models import ExeshExecutionEvent, ExeshJobEvent, ExeshWorkerEvent
 
 
-def event_dashboard_history(start, end):
+def dashboard_data(start, end):
     started = perf_counter()
     since, until = dashboard_window(start, end)
     execution_buckets = execution_bucket_rows(since, until)
