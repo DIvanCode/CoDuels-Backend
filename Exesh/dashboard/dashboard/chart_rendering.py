@@ -43,8 +43,8 @@ def rendered_dashboard(start, end):
                 ],
                 domain=domain,
             ),
-            "execution_priority": line_chart(execution_series(data["executions"], "priority"), domain=domain),
-            "execution_progress": line_chart(execution_series(data["executions"], "progress_ratio"), forced_max=1, domain=domain),
+            "execution_priority": line_chart(execution_series(data["execution_priorities"], "priority"), domain=domain),
+            "execution_progress": line_chart(execution_series(data["execution_progress"], "progress_ratio"), forced_max=1, domain=domain),
             "worker_slots": line_chart(worker_series(data["workers"], "slot_utilization_percent"), domain=domain),
             "worker_memory": line_chart(worker_series(data["workers"], "memory_utilization_percent"), domain=domain),
             "rectangles": rectangles_svg(data["jobs"], domain=domain),
@@ -73,12 +73,19 @@ def chart_domain(data):
 def status_html(data, latest_point, domain):
     meta = data["meta"]
     raw_events = meta["execution_events"] + meta["worker_events"] + meta["job_events"]
-    chart_points = meta["execution_points"] + meta["execution_pick_points"] + meta["worker_points"] + meta["job_events"]
+    chart_points = (
+        meta["execution_points"]
+        + meta["execution_pick_points"]
+        + meta["execution_progress_points"]
+        + meta["worker_points"]
+        + meta["job_events"]
+    )
     timestamp = latest_point.get("timestamp")
-    text = "no events" if not timestamp else format_time(timestamp, domain)
+    text = "no execution events" if not timestamp else format_time(timestamp, domain)
     return (
         f'<span class="ok">{len(data["execution"])} execution points</span>'
-        f" | {chart_points} rendered points | {raw_events} raw events | {fmt(meta['elapsed_ms'])} ms db | {text}"
+        f" | {chart_points} rendered points | {raw_events} raw events | {fmt(meta['elapsed_ms'])} ms db"
+        f" | {fmt(meta['bucket_seconds'])}s bucket | {text}"
     )
 
 
