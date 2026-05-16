@@ -21,7 +21,7 @@ job_factory:
 execution_scheduler:
   executions_interval: 500ms
   capacity: 7680000000 # 10000 milliseconds * 512 megabytes * 300 tests * 5 executions
-  execution_retry_after: 30s
+  execution_retry_after: 300s
 job_scheduler:
   promised_jobs_limit: 5
   promise_reschedule_interval: 100ms
