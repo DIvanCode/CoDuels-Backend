@@ -208,13 +208,12 @@ def executions_series(rows):
                 "points": [],
             },
         )
-        record["points"].append(
-            {
-                "timestamp": row["timestamp"],
-                "priority": row["priority"],
-                "progress_ratio": row["progress_ratio"],
-            }
-        )
+        point = {"timestamp": row["timestamp"]}
+        if "priority" in row:
+            point["priority"] = row["priority"]
+        if "progress_ratio" in row:
+            point["progress_ratio"] = row["progress_ratio"]
+        record["points"].append(point)
     return sorted(result.values(), key=lambda row: row.get("started_at") or row["points"][0]["timestamp"] if row["points"] else 0)
 
 
