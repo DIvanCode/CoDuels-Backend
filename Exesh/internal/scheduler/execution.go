@@ -107,12 +107,12 @@ func (ex *Execution) randomBasedPriority(now time.Time) float64 {
 
 func (ex *Execution) executionProgressAndRetriesBasedPriority(now time.Time) float64 {
 	expectedTotal := float64(ex.TotalExpectedTime)
-	// doneExpectedTotal := float64(ex.TotalDoneJobsExpectedTime)
-	// expectedRest := (expectedTotal - doneExpectedTotal) / expectedTotal
-	progress := ex.getProgressTime(now) / expectedTotal
+	doneExpectedTotal := float64(ex.TotalDoneJobsExpectedTime)
+	expectedRest := (expectedTotal - doneExpectedTotal) / expectedTotal
+	// progress := ex.getProgressTime(now) / expectedTotal
 	retriesPower := math.Pow(gamma, float64(max(0, ex.Tries-1)))
 	// return retriesPower * (alpha*expectedRest + progress)
-	return retriesPower * progress
+	return retriesPower * expectedRest
 }
 
 func (ex *Execution) getProgressTime(now time.Time) float64 {
