@@ -4,19 +4,27 @@ from time import perf_counter
 from django.db import connection
 from django.utils import timezone
 
-from .models import ExeshExecutionEvent, ExeshJobEvent, ExeshWorkerEvent
+from .models import ExeshJobEvent
 
 
 def dashboard_data(start, end):
     started = perf_counter()
     since, until = dashboard_window(start, end)
+    timings = {}
     bucket_seconds = dashboard_bucket_seconds(since, until)
-    execution_buckets = execution_bucket_rows(since, until, bucket_seconds)
-    execution_pick_buckets = execution_pick_bucket_rows(since, until, bucket_seconds)
-    execution_progress_buckets = execution_progress_bucket_rows(since, until, bucket_seconds)
-    worker_buckets = worker_bucket_rows(since, until, bucket_seconds)
-    job_events = job_event_rows(since, until)
-    latest_worker_rows = latest_worker_events()
+    execution_buckets = timed("execution", timings, execution_bucket_rows, since, until, bucket_seconds)
+    execution_pick_buckets = timed("execution_picks", timings, execution_pick_bucket_rows, since, until, bucket_seconds)
+    execution_progress_buckets = timed(
+        "execution_progress",
+        timings,
+        execution_progress_bucket_rows,
+        since,
+        until,
+        bucket_seconds,
+    )
+    worker_buckets = timed("workers", timings, worker_bucket_rows, since, until, bucket_seconds)
+    job_events = timed("jobs", timings, job_event_rows, since, until)
+    latest_worker_rows = timed("latest_workers", timings, latest_worker_events, since, until)
     execution_events = sum(row["raw_events"] for row in execution_buckets)
     worker_events = sum(row["raw_events"] for row in worker_buckets)
     return {
@@ -39,6 +47,7 @@ def dashboard_data(start, end):
             "window_start": since.timestamp(),
             "window_end": until.timestamp(),
             "timezone_offset_seconds": since.utcoffset().total_seconds() if since.utcoffset() else 0,
+            "query_timings": timings,
             "elapsed_ms": round((perf_counter() - started) * 1000, 2),
         },
     }
@@ -50,6 +59,13 @@ def dashboard_window(start, end):
     if since > until:
         since, until = until, since
     return since, until
+
+
+def timed(name, timings, func, *args):
+    started = perf_counter()
+    result = func(*args)
+    timings[name] = round((perf_counter() - started) * 1000, 2)
+    return result
 
 
 def dashboard_bucket_seconds(since, until):
@@ -305,21 +321,44 @@ def latest_worker_pool(events):
     return {"registered_workers": len(workers), "workers": sorted(workers, key=lambda row: row["worker_id"])}
 
 
-def latest_worker_events():
-    return list(
-        ExeshWorkerEvent.objects.order_by("worker_id", "-happened_at")
-        .distinct("worker_id")
-        .values(
-            "happened_at",
-            "event_type",
-            "worker_id",
-            "total_slots",
-            "total_memory_mb",
-            "free_slots",
-            "available_memory_mb",
-            "running_jobs",
-            "used_memory_mb",
+def latest_worker_events(since, until):
+    return query_rows(
+        """
+        WITH window_workers AS (
+            SELECT DISTINCT worker_id
+            FROM exesh_worker_events
+            WHERE happened_at >= %s AND happened_at <= %s
         )
+        SELECT
+            latest.happened_at,
+            latest.event_type,
+            latest.worker_id,
+            latest.total_slots,
+            latest.total_memory_mb,
+            latest.free_slots,
+            latest.available_memory_mb,
+            latest.running_jobs,
+            latest.used_memory_mb
+        FROM window_workers
+        CROSS JOIN LATERAL (
+            SELECT
+                happened_at,
+                event_type,
+                worker_id,
+                total_slots,
+                total_memory_mb,
+                free_slots,
+                available_memory_mb,
+                running_jobs,
+                used_memory_mb
+            FROM exesh_worker_events
+            WHERE worker_id = window_workers.worker_id AND happened_at <= %s
+            ORDER BY happened_at DESC
+            LIMIT 1
+        ) latest
+        ORDER BY latest.worker_id
+        """,
+        [since, until, until],
     )
 
 def query_rows(sql, params):

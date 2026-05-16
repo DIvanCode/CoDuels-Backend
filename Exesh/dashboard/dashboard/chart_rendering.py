@@ -85,6 +85,7 @@ def status_html(data, latest_point, domain):
     return (
         f'<span class="ok">{len(data["execution"])} execution points</span>'
         f" | {chart_points} rendered points | {raw_events} raw events | {fmt(meta['elapsed_ms'])} ms db"
+        f" ({escape(query_timing_summary(meta.get('query_timings') or {}))})"
         f" | {fmt(meta['bucket_seconds'])}s bucket | {text}"
     )
 
@@ -99,6 +100,13 @@ def kpis(data, point):
         "priorityP95": fmt(point.get("priority_p95", 0)),
         "workerCount": fmt(workers),
     }
+
+
+def query_timing_summary(timings):
+    if not timings:
+        return "no query timings"
+    slowest = sorted(timings.items(), key=lambda item: item[1], reverse=True)[:3]
+    return ", ".join(f"{name}={fmt(elapsed)}ms" for name, elapsed in slowest)
 
 
 def series_from_values(name, color, rows, field):
