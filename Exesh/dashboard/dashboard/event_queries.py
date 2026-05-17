@@ -1,37 +1,53 @@
+from math import ceil
 from time import perf_counter
 
 from django.db import connection
 from django.utils import timezone
 
-from .models import ExeshExecutionEvent, ExeshJobEvent, ExeshWorkerEvent
+from .models import ExeshJobEvent
 
 
 def dashboard_data(start, end):
     started = perf_counter()
     since, until = dashboard_window(start, end)
-    execution_buckets = execution_bucket_rows(since, until)
-    execution_pick_buckets = execution_pick_bucket_rows(since, until)
-    worker_buckets = worker_bucket_rows(since, until)
-    job_events = job_event_rows(since, until)
-    latest_worker_rows = latest_worker_events()
-    counts = event_counts(since, until)
+    timings = {}
+    bucket_seconds = dashboard_bucket_seconds(since, until)
+    execution_buckets = timed("execution", timings, execution_bucket_rows, since, until, bucket_seconds)
+    execution_pick_buckets = timed("execution_picks", timings, execution_pick_bucket_rows, since, until, bucket_seconds)
+    execution_progress_buckets = timed(
+        "execution_progress",
+        timings,
+        execution_progress_bucket_rows,
+        since,
+        until,
+        bucket_seconds,
+    )
+    worker_buckets = timed("workers", timings, worker_bucket_rows, since, until, bucket_seconds)
+    job_events = timed("jobs", timings, job_event_rows, since, until)
+    latest_worker_rows = timed("latest_workers", timings, latest_worker_events, since, until)
+    execution_events = sum(row["raw_events"] for row in execution_buckets)
+    worker_events = sum(row["raw_events"] for row in worker_buckets)
     return {
         "execution": execution_buckets,
-        "executions": executions_series(execution_pick_buckets),
+        "execution_priorities": executions_series(execution_pick_buckets),
+        "execution_progress": executions_series(execution_progress_buckets),
         "workers": worker_series(worker_buckets),
         "jobs": job_rectangles(job_events),
         "latest_workers": latest_workers(latest_worker_rows),
         "latest_worker_pool": latest_worker_pool(latest_worker_rows),
         "meta": {
-            "execution_events": counts["execution_events"],
-            "worker_events": counts["worker_events"],
+            "bucket_seconds": bucket_seconds,
+            "execution_events": execution_events,
+            "worker_events": worker_events,
             "job_events": len(job_events),
             "execution_points": len(execution_buckets),
             "execution_pick_points": len(execution_pick_buckets),
+            "execution_progress_points": len(execution_progress_buckets),
             "worker_points": len(worker_buckets),
             "window_start": since.timestamp(),
             "window_end": until.timestamp(),
             "timezone_offset_seconds": since.utcoffset().total_seconds() if since.utcoffset() else 0,
+            "query_timings": timings,
             "elapsed_ms": round((perf_counter() - started) * 1000, 2),
         },
     }
@@ -45,14 +61,31 @@ def dashboard_window(start, end):
     return since, until
 
 
-def execution_bucket_rows(since, until):
+def timed(name, timings, func, *args):
+    started = perf_counter()
+    result = func(*args)
+    timings[name] = round((perf_counter() - started) * 1000, 2)
+    return result
+
+
+def dashboard_bucket_seconds(since, until):
+    window_seconds = max(1, int((until - since).total_seconds()))
+    return max(1, int(ceil(window_seconds / 900)))
+
+
+def bucket_timestamp_sql(column_name):
+    return f"(floor(EXTRACT(EPOCH FROM {column_name}) / %s) * %s)::bigint"
+
+
+def execution_bucket_rows(since, until, bucket_seconds):
     return query_rows(
-        """
+        f"""
         SELECT
-            EXTRACT(EPOCH FROM date_trunc('second', happened_at))::bigint AS timestamp,
-            COUNT(*) FILTER (WHERE event_type = 'started')::bigint AS started_rate,
-            COUNT(*) FILTER (WHERE event_type = 'finished')::bigint AS finished_rate,
-            COUNT(*) FILTER (WHERE event_type = 'picked_candidate')::bigint AS scheduler_pick_rate,
+            {bucket_timestamp_sql("happened_at")} AS timestamp,
+            COUNT(*)::bigint AS raw_events,
+            (COUNT(*) FILTER (WHERE event_type = 'started')::float / %s)::float AS started_rate,
+            (COUNT(*) FILTER (WHERE event_type = 'finished')::float / %s)::float AS finished_rate,
+            (COUNT(*) FILTER (WHERE event_type = 'picked_candidate')::float / %s)::float AS scheduler_pick_rate,
             0::bigint AS active_executions,
             COALESCE(
                 percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_seconds)
@@ -91,36 +124,53 @@ def execution_bucket_rows(since, until):
             )::float AS progress_pick_p90
         FROM exesh_execution_events
         WHERE happened_at >= %s AND happened_at <= %s
-        GROUP BY date_trunc('second', happened_at)
+        GROUP BY timestamp
         ORDER BY timestamp
         """,
-        [since, until],
+        [bucket_seconds, bucket_seconds, bucket_seconds, bucket_seconds, bucket_seconds, since, until],
     )
 
 
-def execution_pick_bucket_rows(since, until):
+def execution_pick_bucket_rows(since, until, bucket_seconds):
     return query_rows(
-        """
+        f"""
         SELECT
             execution_id,
-            EXTRACT(EPOCH FROM date_trunc('second', happened_at))::bigint AS timestamp,
+            {bucket_timestamp_sql("happened_at")} AS timestamp,
             AVG(priority)::float AS priority,
             AVG(progress_ratio)::float AS progress_ratio
         FROM exesh_execution_events
         WHERE happened_at >= %s AND happened_at <= %s AND event_type = 'picked_candidate'
-        GROUP BY execution_id, date_trunc('second', happened_at)
+        GROUP BY execution_id, timestamp
         ORDER BY execution_id, timestamp
         """,
-        [since, until],
+        [bucket_seconds, bucket_seconds, since, until],
     )
 
 
-def worker_bucket_rows(since, until):
+def execution_progress_bucket_rows(since, until, bucket_seconds):
     return query_rows(
-        """
+        f"""
+        SELECT
+            execution_id,
+            {bucket_timestamp_sql("happened_at")} AS timestamp,
+            MAX(progress_ratio)::float AS progress_ratio
+        FROM exesh_execution_events
+        WHERE happened_at >= %s AND happened_at <= %s AND event_type IN ('picked_candidate', 'finished')
+        GROUP BY execution_id, timestamp
+        ORDER BY execution_id, timestamp
+        """,
+        [bucket_seconds, bucket_seconds, since, until],
+    )
+
+
+def worker_bucket_rows(since, until, bucket_seconds):
+    return query_rows(
+        f"""
         SELECT
             worker_id,
-            EXTRACT(EPOCH FROM date_trunc('second', happened_at))::bigint AS timestamp,
+            {bucket_timestamp_sql("happened_at")} AS timestamp,
+            COUNT(*)::bigint AS raw_events,
             AVG(100.0 * running_jobs / GREATEST(total_slots, 1))::float AS slot_utilization_percent,
             AVG(100.0 * used_memory_mb / GREATEST(total_memory_mb, 1))::float AS memory_utilization_percent,
             AVG(free_slots)::float AS free_slots,
@@ -129,10 +179,10 @@ def worker_bucket_rows(since, until):
             AVG(used_memory_mb)::float AS used_memory_mb
         FROM exesh_worker_events
         WHERE happened_at >= %s AND happened_at <= %s
-        GROUP BY worker_id, date_trunc('second', happened_at)
+        GROUP BY worker_id, timestamp
         ORDER BY worker_id, timestamp
         """,
-        [since, until],
+        [bucket_seconds, bucket_seconds, since, until],
     )
 
 
@@ -174,13 +224,12 @@ def executions_series(rows):
                 "points": [],
             },
         )
-        record["points"].append(
-            {
-                "timestamp": row["timestamp"],
-                "priority": row["priority"],
-                "progress_ratio": row["progress_ratio"],
-            }
-        )
+        point = {"timestamp": row["timestamp"]}
+        if "priority" in row:
+            point["priority"] = row["priority"]
+        if "progress_ratio" in row:
+            point["progress_ratio"] = row["progress_ratio"]
+        record["points"].append(point)
     return sorted(result.values(), key=lambda row: row.get("started_at") or row["points"][0]["timestamp"] if row["points"] else 0)
 
 
@@ -272,30 +321,45 @@ def latest_worker_pool(events):
     return {"registered_workers": len(workers), "workers": sorted(workers, key=lambda row: row["worker_id"])}
 
 
-def latest_worker_events():
-    return list(
-        ExeshWorkerEvent.objects.order_by("worker_id", "-happened_at")
-        .distinct("worker_id")
-        .values(
-            "happened_at",
-            "event_type",
-            "worker_id",
-            "total_slots",
-            "total_memory_mb",
-            "free_slots",
-            "available_memory_mb",
-            "running_jobs",
-            "used_memory_mb",
+def latest_worker_events(since, until):
+    return query_rows(
+        """
+        WITH window_workers AS (
+            SELECT DISTINCT worker_id
+            FROM exesh_worker_events
+            WHERE happened_at >= %s AND happened_at <= %s
         )
+        SELECT
+            latest.happened_at,
+            latest.event_type,
+            latest.worker_id,
+            latest.total_slots,
+            latest.total_memory_mb,
+            latest.free_slots,
+            latest.available_memory_mb,
+            latest.running_jobs,
+            latest.used_memory_mb
+        FROM window_workers
+        CROSS JOIN LATERAL (
+            SELECT
+                happened_at,
+                event_type,
+                worker_id,
+                total_slots,
+                total_memory_mb,
+                free_slots,
+                available_memory_mb,
+                running_jobs,
+                used_memory_mb
+            FROM exesh_worker_events
+            WHERE worker_id = window_workers.worker_id AND happened_at <= %s
+            ORDER BY happened_at DESC
+            LIMIT 1
+        ) latest
+        ORDER BY latest.worker_id
+        """,
+        [since, until, until],
     )
-
-
-def event_counts(since, until):
-    return {
-        "execution_events": ExeshExecutionEvent.objects.filter(happened_at__gte=since, happened_at__lte=until).count(),
-        "worker_events": ExeshWorkerEvent.objects.filter(happened_at__gte=since, happened_at__lte=until).count(),
-    }
-
 
 def query_rows(sql, params):
     with connection.cursor() as cursor:
