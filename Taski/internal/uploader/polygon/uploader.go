@@ -85,6 +85,12 @@ type fileStorage interface {
 	ReserveBucket(ctx context.Context, id bucket.ID, ttl *time.Duration) (path string, commit, abort func() error, err error)
 }
 
+var (
+	classAttrDoubleQuoteRe = regexp.MustCompile(`(?is)\bclass\s*=\s*"([^"]*)"`)
+	classAttrSingleQuoteRe = regexp.MustCompile(`(?is)\bclass\s*=\s*'([^']*)'`)
+	classAttrUnquotedRe    = regexp.MustCompile(`(?is)\bclass\s*=\s*([^\s>]+)`)
+)
+
 type polygonUploader struct {
 	fs  fileStorage
 	log *slog.Logger
@@ -152,7 +158,7 @@ func (u polygonUploader) Upload(ctx context.Context, cfg uploader.Config) (task.
 
 	statementPath := pickStatementPath(problem)
 	if statementPath == "" {
-		statementPath = filepath.Join("statements", "russian", "problem.tex")
+		statementPath = filepath.Join("statements", ".html", "russian", "problem.html")
 	}
 	statementAbs := filepath.Join(pkgDir, filepath.Clean(statementPath))
 
@@ -197,12 +203,12 @@ func (u polygonUploader) Upload(ctx context.Context, cfg uploader.Config) (task.
 		}
 	}()
 
-	statementMD, err := buildStatementMarkdown(statementAbs, title)
+	statementHTML, err := buildStatementHTML(statementAbs, title)
 	if err != nil {
 		return task.ID{}, fmt.Errorf("failed to convert statement: %w", err)
 	}
-	if err = writeFile(filepath.Join(outDir, "statement.md"), []byte(statementMD)); err != nil {
-		return task.ID{}, fmt.Errorf("failed to write statement.md: %w", err)
+	if err = writeFile(filepath.Join(outDir, "statement.html"), []byte(statementHTML)); err != nil {
+		return task.ID{}, fmt.Errorf("failed to write statement.html: %w", err)
 	}
 	u.info("statement saved")
 
@@ -264,7 +270,7 @@ func (u polygonUploader) Upload(ctx context.Context, cfg uploader.Config) (task.
 			Type:      task.WriteCode,
 			Level:     task.Level(cfg.Level),
 			Topics:    []string{},
-			Statement: "statement.md",
+			Statement: "statement.html",
 		},
 		TimeLimit:   testset.TimeLimit,
 		MemoryLimit: memoryBytesToMB(testset.MemoryLimit),
@@ -407,12 +413,12 @@ func pickTitle(p polygonProblem) string {
 
 func pickStatementPath(p polygonProblem) string {
 	for _, s := range p.Statements.Statements {
-		if strings.EqualFold(s.Language, "russian") && strings.HasSuffix(strings.ToLower(s.Path), ".tex") {
+		if strings.EqualFold(s.Language, "russian") && strings.HasSuffix(strings.ToLower(s.Path), ".html") {
 			return s.Path
 		}
 	}
 	for _, s := range p.Statements.Statements {
-		if strings.HasSuffix(strings.ToLower(s.Path), ".tex") {
+		if strings.HasSuffix(strings.ToLower(s.Path), ".html") {
 			return s.Path
 		}
 	}
@@ -670,111 +676,98 @@ func inlineTestlibIfNeeded(pkgDir, checkerAbs string, checkerCode []byte) ([]byt
 	return []byte(out), nil
 }
 
-func buildStatementMarkdown(statementTexPath, title string) (string, error) {
-	data, err := os.ReadFile(statementTexPath)
+func buildStatementHTML(statementHTMLPath, title string) (string, error) {
+	data, err := os.ReadFile(statementHTMLPath)
 	if err != nil {
 		return "", err
 	}
 	src := string(data)
 	src = strings.ReplaceAll(src, "\r\n", "\n")
 
-	legend := extractBetween(src, `\begin{problem}`, `\InputFile`)
-	input := extractBetween(src, `\InputFile`, `\OutputFile`)
-	output := extractBetween(src, `\OutputFile`, `\Example`)
-	if output == "" {
-		output = extractBetween(src, `\OutputFile`, `\end{problem}`)
+	legend := extractDivByClass(src, "legend")
+	input := extractDivByClass(src, "input-specification")
+	output := extractDivByClass(src, "output-specification")
+	if legend == "" && input == "" && output == "" {
+		return "", fmt.Errorf("failed to find statement sections in %s", statementHTMLPath)
 	}
-	legend = stripProblemHeaderArgs(legend)
-
-	legend = cleanLatexText(legend)
-	input = cleanLatexText(input)
-	output = cleanLatexText(output)
 
 	var b strings.Builder
-	b.WriteString("# ")
-	b.WriteString(strings.TrimSpace(title))
-	b.WriteString("\n\n")
+	if strings.TrimSpace(title) != "" {
+		b.WriteString(`<h1 class="title">`)
+		b.WriteString(escapeHTMLText(strings.TrimSpace(title)))
+		b.WriteString("</h1>\n")
+	}
 	if legend != "" {
-		b.WriteString("## Условие\n\n")
 		b.WriteString(strings.TrimSpace(legend))
-		b.WriteString("\n\n")
+		b.WriteString("\n")
 	}
 	if input != "" {
-		b.WriteString("## Формат входных данных\n\n")
 		b.WriteString(strings.TrimSpace(input))
-		b.WriteString("\n\n")
+		b.WriteString("\n")
 	}
 	if output != "" {
-		b.WriteString("## Формат выходных данных\n\n")
 		b.WriteString(strings.TrimSpace(output))
 		b.WriteString("\n")
 	}
 	return strings.TrimSpace(b.String()) + "\n", nil
 }
 
-func extractBetween(s, left, right string) string {
-	l := strings.Index(s, left)
-	if l < 0 {
-		return ""
-	}
-	s = s[l+len(left):]
-	r := strings.Index(s, right)
-	if r < 0 {
-		return s
-	}
-	return s[:r]
-}
+func extractDivByClass(src, className string) string {
+	openDivRe := regexp.MustCompile(`(?is)<div\b[^>]*>`)
+	divTagRe := regexp.MustCompile(`(?is)</?div\b[^>]*>`)
+	matches := openDivRe.FindAllStringIndex(src, -1)
+	for _, match := range matches {
+		tag := src[match[0]:match[1]]
+		if !tagHasClass(tag, className) {
+			continue
+		}
 
-func cleanLatexText(s string) string {
-	s = strings.TrimSpace(s)
-	s = strings.ReplaceAll(s, "``", "\"")
-	s = strings.ReplaceAll(s, "''", "\"")
-	s = strings.ReplaceAll(s, "<<", "«")
-	s = strings.ReplaceAll(s, ">>", "»")
-	s = strings.ReplaceAll(s, `\~`, " ")
-	s = strings.ReplaceAll(s, `\_`, "_")
-	s = strings.ReplaceAll(s, `\%`, "%")
-	s = strings.ReplaceAll(s, `\#`, "#")
-	s = strings.ReplaceAll(s, `\&`, "&")
-	s = strings.ReplaceAll(s, `\{`, "{")
-	s = strings.ReplaceAll(s, `\}`, "}")
-	s = strings.ReplaceAll(s, `\leq`, "≤")
-	s = strings.ReplaceAll(s, `\le`, "≤")
-	s = strings.ReplaceAll(s, `\geq`, "≥")
-	s = strings.ReplaceAll(s, `\ge`, "≥")
-	s = strings.ReplaceAll(s, `\cdot`, "·")
-	s = strings.ReplaceAll(s, `\times`, "×")
-	s = strings.ReplaceAll(s, `\ldots`, "...")
-	s = strings.ReplaceAll(s, `\dots`, "...")
-	s = strings.ReplaceAll(s, `\texttt`, "")
-	s = strings.ReplaceAll(s, `\textbf`, "")
-	s = strings.ReplaceAll(s, `\emph`, "")
-	s = strings.ReplaceAll(s, "{", "")
-	s = strings.ReplaceAll(s, "}", "")
-	s = strings.ReplaceAll(s, `\par`, "\n")
-	s = strings.ReplaceAll(s, `\\`, "\n")
-	lines := strings.Split(s, "\n")
-	out := make([]string, 0, len(lines))
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			if len(out) > 0 && out[len(out)-1] != "" {
-				out = append(out, "")
+		depth := 0
+		for _, divMatch := range divTagRe.FindAllStringIndex(src[match[0]:], -1) {
+			tagStart := match[0] + divMatch[0]
+			tagEnd := match[0] + divMatch[1]
+			tagText := src[tagStart:tagEnd]
+			if strings.HasPrefix(strings.ToLower(tagText), "</div") {
+				depth--
+				if depth == 0 {
+					return src[match[0]:tagEnd]
+				}
+				continue
 			}
-			continue
+			depth++
 		}
-		if strings.HasPrefix(line, `\begin{`) || strings.HasPrefix(line, `\end{`) || strings.HasPrefix(line, `\exmpfile`) {
-			continue
-		}
-		out = append(out, line)
 	}
-	return strings.TrimSpace(strings.Join(out, "\n"))
+	return ""
 }
 
-func stripProblemHeaderArgs(s string) string {
-	s = strings.TrimLeft(s, " \t\r\n")
-	re := regexp.MustCompile(`^\{[^{}]*\}\{[^{}]*\}\{[^{}]*\}\{[^{}]*\}\{[^{}]*\}\s*`)
-	return re.ReplaceAllString(s, "")
+func tagHasClass(tag, className string) bool {
+	classAttr := ""
+	switch {
+	case classAttrDoubleQuoteRe.MatchString(tag):
+		classAttr = classAttrDoubleQuoteRe.FindStringSubmatch(tag)[1]
+	case classAttrSingleQuoteRe.MatchString(tag):
+		classAttr = classAttrSingleQuoteRe.FindStringSubmatch(tag)[1]
+	case classAttrUnquotedRe.MatchString(tag):
+		classAttr = classAttrUnquotedRe.FindStringSubmatch(tag)[1]
+	default:
+		return false
+	}
+
+	for _, value := range strings.Fields(classAttr) {
+		if value == className {
+			return true
+		}
+	}
+	return false
+}
+
+func escapeHTMLText(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, `"`, "&quot;")
+	s = strings.ReplaceAll(s, "'", "&#39;")
+	return s
 }
 
 func writeFile(path string, data []byte) error {
