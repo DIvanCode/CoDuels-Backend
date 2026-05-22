@@ -123,18 +123,27 @@ func (s *MessageDispatcher) Send(ctx context.Context, msg messages.Message) erro
 func (s *MessageDispatcher) run(ctx context.Context) {
 	consequentFails := 0
 
+	lastProduced := false
 	for {
-		waitTime := time.Duration(10 * math.Pow(2, float64(min(consequentFails, 6))))
-		timer := time.NewTicker(waitTime * time.Millisecond)
+		if consequentFails > 0 || !lastProduced {
+			waitTime := time.Duration(100 * math.Pow(2, float64(min(consequentFails, 6))))
+			timer := time.NewTicker(waitTime * time.Millisecond)
 
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			break
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+			}
+		} else {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 		}
 
-		if err := s.process(ctx); err != nil {
+		var err error
+		if lastProduced, err = s.process(ctx); err != nil {
 			s.log.Error("failed to process outbox", slog.Any("error", err))
 			consequentFails++
 			continue
@@ -144,10 +153,11 @@ func (s *MessageDispatcher) run(ctx context.Context) {
 	}
 }
 
-func (s *MessageDispatcher) process(ctx context.Context) error {
+func (s *MessageDispatcher) process(ctx context.Context) (bool, error) {
 	uowCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
+	produced := false
 	if err := s.unitOfWork.Do(uowCtx, func(ctx context.Context) error {
 		ox, err := s.outboxStorage.GetOutboxForSend(ctx)
 		if err != nil {
@@ -160,7 +170,7 @@ func (s *MessageDispatcher) process(ctx context.Context) error {
 
 		if ox.FailedTries != 0 {
 			retryTimeout := time.Duration(100 * math.Pow(2, float64(min(ox.FailedTries, 6))))
-			if ox.FailedAt.Add(retryTimeout * time.Millisecond).Before(time.Now()) {
+			if ox.FailedAt.Add(retryTimeout * time.Millisecond).After(time.Now()) {
 				return nil
 			}
 		}
@@ -184,10 +194,11 @@ func (s *MessageDispatcher) process(ctx context.Context) error {
 			return fmt.Errorf("failed to delete outbox: %w", err)
 		}
 
+		produced = true
 		return nil
 	}); err != nil {
-		return err
+		return produced, err
 	}
 
-	return nil
+	return produced, nil
 }
