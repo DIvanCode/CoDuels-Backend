@@ -14,12 +14,11 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<Context>(options =>
         {
-            options.UseNpgsql(
-                dbConnectionOptions.ConnectionString,
-                providerOptions =>
-                {
-                    providerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName);
-                });
+            options
+                .UseNpgsql(
+                    dbConnectionOptions.ConnectionString,
+                    providerOptions => providerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName))
+                .AddInterceptors(new ForUpdateInterceptor());
         });
     }
 }
