@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/segmentio/kafka-go/sasl/scram"
 	"log/slog"
 	"math"
 	"strconv"
@@ -12,6 +11,8 @@ import (
 	"taski/internal/domain/outbox"
 	"taski/internal/domain/testing/message/messages"
 	"time"
+
+	"github.com/segmentio/kafka-go/sasl/scram"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -97,18 +98,27 @@ func (p *MessageProducer) Produce(ctx context.Context, msg messages.Message) err
 func (p *MessageProducer) run(ctx context.Context) {
 	consequentFails := 0
 
+	lastProduced := false
 	for {
-		waitTime := time.Duration(100 * math.Pow(2, float64(min(consequentFails, 6))))
-		timer := time.NewTicker(waitTime * time.Millisecond)
+		if consequentFails > 0 || !lastProduced {
+			waitTime := time.Duration(100 * math.Pow(2, float64(min(consequentFails, 6))))
+			timer := time.NewTicker(waitTime * time.Millisecond)
 
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			break
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+			}
+		} else {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 		}
 
-		if err := p.process(ctx); err != nil {
+		var err error
+		if lastProduced, err = p.process(ctx); err != nil {
 			p.log.Error("failed to process outbox", slog.Any("error", err))
 			consequentFails++
 			continue
@@ -118,10 +128,11 @@ func (p *MessageProducer) run(ctx context.Context) {
 	}
 }
 
-func (p *MessageProducer) process(ctx context.Context) error {
+func (p *MessageProducer) process(ctx context.Context) (bool, error) {
 	uowCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
+	produced := false
 	if err := p.unitOfWork.Do(uowCtx, func(ctx context.Context) error {
 		ox, err := p.outboxStorage.GetOutboxForProduce(ctx)
 		if err != nil {
@@ -134,7 +145,7 @@ func (p *MessageProducer) process(ctx context.Context) error {
 
 		if ox.FailedTries != 0 {
 			retryTimeout := time.Duration(100 * math.Pow(2, float64(min(ox.FailedTries, 6))))
-			if ox.FailedAt.Add(retryTimeout * time.Millisecond).Before(time.Now()) {
+			if ox.FailedAt.Add(retryTimeout * time.Millisecond).After(time.Now()) {
 				return nil
 			}
 		}
@@ -159,10 +170,11 @@ func (p *MessageProducer) process(ctx context.Context) error {
 			return fmt.Errorf("failed to delete outbox: %w", err)
 		}
 
+		produced = true
 		return nil
 	}); err != nil {
-		return err
+		return produced, err
 	}
 
-	return nil
+	return produced, nil
 }
