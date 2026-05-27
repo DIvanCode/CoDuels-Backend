@@ -63,7 +63,7 @@ public sealed class SendSubmissionHandler(
             return new EntityNotFoundError(nameof(DuelTask), "key", command.TaskKey);
         }
 
-        if (!taskService.IsTaskVisible(duel, command.UserId, command.TaskKey))
+        if (!taskService.IsTaskVisible(duel, command.TaskKey))
         {
             return new ForbiddenError(nameof(DuelTask), "submit", "key", command.TaskKey);
         }

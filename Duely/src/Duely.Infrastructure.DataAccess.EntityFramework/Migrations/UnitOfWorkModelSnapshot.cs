@@ -225,11 +225,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("ShouldShowOpponentSolution");
 
-                    b.Property<string>("TasksConfigurations")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("TasksConfigurations");
-
                     b.Property<int>("TasksCount")
                         .HasColumnType("integer")
                         .HasColumnName("TasksCount");

@@ -20,9 +20,7 @@ public static class DuelDtoMapper
         };
 
         var isParticipant = duel.User1.Id == viewerId || duel.User2.Id == viewerId;
-        var visibleTasks = isParticipant
-            ? taskService.GetVisibleTasks(duel, viewerId)
-            : duel.Tasks;
+        var visibleTasks = taskService.GetVisibleTasks(duel);
 
         var tasks = MapTasks(duel.Tasks, visibleTasks);
         var solutions = new Dictionary<char, DuelTaskSolutionDto>();
@@ -39,7 +37,7 @@ public static class DuelDtoMapper
                     visibleTasks.Keys);
             }
         }
-        else
+        else if (duel.Configuration.ShouldShowOpponentSolution)
         {
             solutions = MapSolutions(duel.User1Solutions, visibleTasks.Keys);
             opponentSolutions = MapSolutions(duel.User2Solutions, visibleTasks.Keys);
@@ -49,9 +47,7 @@ public static class DuelDtoMapper
         {
             Id = duel.Id,
             IsRated = duel.Configuration.IsRated,
-            ShouldShowOpponentSolution = isParticipant
-                ? duel.Configuration.ShouldShowOpponentSolution
-                : true,
+            ShouldShowOpponentSolution = !isParticipant || duel.Configuration.ShouldShowOpponentSolution,
             Participants = [
                 new UserDto
                 {

@@ -22,17 +22,14 @@ public sealed class TryCreateDuelCommand : IRequest<Result>;
 
 public sealed class TryCreateDuelHandler(
     IDuelManager duelManager,
-    ITaskiClient taskiClient,
     IOptions<DuelOptions> duelOptions,
-    IRatingManager ratingManager,
+    ITaskiClient taskiClient,
     ITaskService taskService,
     ITournamentMatchmakingStrategyResolver tournamentMatchmakingStrategyResolver,
     Context context,
     ILogger<TryCreateDuelHandler> logger)
     : IRequestHandler<TryCreateDuelCommand, Result>
 {
-    private const char DefaultTaskKey = 'A';
-    
     public async Task<Result> Handle(TryCreateDuelCommand request, CancellationToken cancellationToken)
     {
         var pendingDuels = new List<PendingDuel>();
@@ -80,52 +77,28 @@ public sealed class TryCreateDuelHandler(
             .Include(d => d.Tournament)
             .ToListAsync(cancellationToken));
 
-        var pairs = duelManager.GetPairs(pendingDuels).ToList();
-        if (pairs.Count == 0)
-        {
-            return Result.Ok();
-        }
-
-        var reservedTaskIds = new HashSet<string>();
+        var pairs = duelManager.GetPairs(pendingDuels);
         foreach (var pair in pairs)
         {
-            DuelConfiguration configuration;
-            if (pair.Configuration is null)
+            var configuration = pair.Configuration ?? new DuelConfiguration
             {
-                configuration = new DuelConfiguration
-                {
-                    Owner = null,
-                    IsRated = pair.IsRated,
-                    ShouldShowOpponentSolution = true,
-                    MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,
-                    TasksCount = 1,
-                    TasksOrder = DuelTasksOrder.Sequential,
-                    TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
-                    {
-                        [DefaultTaskKey] = new()
-                        {
-                            Level = ratingManager.GetTaskLevel((pair.User1.Rating + pair.User2.Rating) / 2),
-                            Topics = []
-                        }
-                    }
-                };
-            }
-            else
-            {
-                configuration = pair.Configuration;
-            }
-
+                Owner = null,
+                IsRated = pair.IsRated,
+                ShouldShowOpponentSolution = true,
+                MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,
+                TasksCount = 1,
+                TasksOrder = DuelTasksOrder.Sequential
+            };
+            
             var tasksResult = await ChooseTasksAsync(
                 pair.User1,
                 pair.User2,
                 configuration,
-                reservedTaskIds,
                 cancellationToken);
             if (tasksResult.IsFailed)
             {
                 return tasksResult.ToResult();
             }
-            reservedTaskIds.UnionWith(tasksResult.Value.Values.Select(task => task.Id));
 
             var startTime = DateTime.UtcNow;
             var deadlineTime = startTime.AddMinutes(configuration.MaxDurationMinutes);
@@ -213,27 +186,29 @@ public sealed class TryCreateDuelHandler(
         User user1,
         User user2,
         DuelConfiguration configuration,
-        IReadOnlySet<string> reservedTaskIds,
         CancellationToken cancellationToken)
     {
-        var tasksList = await taskiClient.GetTasksListAsync(cancellationToken);
-        if (tasksList.IsFailed)
+        var tasksResult = await taskiClient.GetTasksListAsync(cancellationToken);
+        if (tasksResult.IsFailed)
         {
-            return tasksList.ToResult();
+            return tasksResult.ToResult();
         }
 
-        var tasks = tasksList.Value.Tasks.Select(t => new DuelTask(t.Id, t.Level, t.Topics)).ToList();
-        var tasksForSelection = tasks
-            .ExceptBy(reservedTaskIds, task => task.Id)
+        var solvedTasks = await context.Duels
+            .AsNoTracking()
+            .Where(duel => duel.User1.Id == user1.Id || duel.User2.Id == user2.Id ||
+                           duel.User2.Id == user1.Id || duel.User1.Id == user2.Id)
+            .SelectMany(duel => duel.Tasks.Select(x => x.Value.Id))
+            .ToHashSetAsync(cancellationToken);
+
+        var tasks = tasksResult.Value.Tasks
+            .Select(x => (Task: new DuelTask(x.Id), WasSolved: solvedTasks.Contains(x.Id)))
+            .Select(x => (x.Task, x.WasSolved))
             .ToList();
-        if (tasksForSelection.Count < configuration.TasksConfigurations.Count)
+        var chosenTasks = taskService.ChooseTasks(tasks, configuration.TasksCount);
+        if (chosenTasks.Count < configuration.TasksCount)
         {
-            tasksForSelection = tasks;
-        }
-
-        if (!taskService.TryChooseTasks(user1, user2, configuration, tasksForSelection, out var chosenTasks))
-        {
-            return new EntityNotFoundError(nameof(DuelTask), "configuration", configuration.Id);
+            return new EntityNotFoundError("Not enough tasks present in the system");
         }
 
         return chosenTasks;

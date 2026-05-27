@@ -17,7 +17,4 @@ public sealed class CreateDuelConfigurationRequest
     
     [JsonPropertyName("tasks_order"), JsonConverter(typeof(JsonStringEnumConverter)), Required]
     public required DuelTasksOrder TasksOrder { get; init; }
-    
-    [JsonPropertyName("tasks_configurations"), Required]
-    public required Dictionary<char, DuelTaskConfiguration> TasksConfigurations { get; init; }
 }

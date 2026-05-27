@@ -7,10 +7,4 @@ public sealed record TaskResponse
 {
     [JsonPropertyName("id"), Required]
     public required string Id { get; init; }
-
-    [JsonPropertyName("level"), Required]
-    public required int Level { get; init; }
-
-    [JsonPropertyName("topics"), Required]
-    public required string[] Topics { get; init; }
 }

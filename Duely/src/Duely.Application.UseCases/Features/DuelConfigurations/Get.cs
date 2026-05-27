@@ -33,14 +33,7 @@ public sealed class GetDuelConfigurationHandler(Context context)
             ShouldShowOpponentSolution = configuration.ShouldShowOpponentSolution,
             MaxDurationMinutes = configuration.MaxDurationMinutes,
             TasksCount = configuration.TasksCount,
-            TasksOrder = configuration.TasksOrder,
-            Tasks = configuration.TasksConfigurations.ToDictionary(
-                task => task.Key,
-                task => new DuelTaskConfigurationDto
-                {
-                    Level = task.Value.Level,
-                    Topics = task.Value.Topics
-                })
+            TasksOrder = configuration.TasksOrder
         };
     }
 }

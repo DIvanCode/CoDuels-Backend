@@ -1,14 +1,12 @@
 using Duely.Domain.Models.Duels;
-using Microsoft.Extensions.Options;
 
 namespace Duely.Domain.Services.Duels;
 public interface IRatingManager
 {
     void UpdateRatings(Duel duel);
     Dictionary<DuelResult, int> GetRatingChanges(Duel duel, int rating, int anotherRating);
-    int GetTaskLevel(int rating);
 }
-public sealed class RatingManager(IOptions<DuelOptions> options) : IRatingManager
+public sealed class RatingManager : IRatingManager
 {
     public void UpdateRatings(Duel duel)
     {
@@ -67,15 +65,6 @@ public sealed class RatingManager(IOptions<DuelOptions> options) : IRatingManage
             [DuelResult.Draw] = (int)Math.Round(k * (0.5 - expected)),
             [DuelResult.Lose] = (int)Math.Round(k * (0.0 - expected))
         };
-    }
-
-    public int GetTaskLevel(int rating)
-    {
-        var bestLevel = options.Value.RatingToTaskLevelMapping
-            .Where(item => item.GetInterval().MinRating <= rating && rating <= item.GetInterval().MaxRating)
-            .Select(item => item.Level)
-            .SingleOrDefault();
-        return bestLevel == default ? 1 : bestLevel;
     }
     
     private static int GetK(int rating)

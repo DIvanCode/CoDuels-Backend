@@ -48,12 +48,5 @@ public sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration<D
             .HasColumnType("text")
             .HasConversion<string>()
             .IsRequired();
-        
-        builder.Property(c => c.TasksConfigurations)
-            .HasColumnName("TasksConfigurations")
-            .HasConversion(
-                obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
-                str => JsonSerializer.Deserialize<Dictionary<char, DuelTaskConfiguration>>(str, new JsonSerializerOptions())!);
     }
 }
-

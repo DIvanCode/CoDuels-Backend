@@ -15,11 +15,4 @@ public sealed class DuelConfiguration
     public int MaxDurationMinutes { get; set; }
     public int TasksCount { get; set; }
     public DuelTasksOrder TasksOrder { get; set; }
-    public Dictionary<char, DuelTaskConfiguration> TasksConfigurations { get; set; } = [];
-}
-
-public sealed class DuelTaskConfiguration
-{
-    public required int Level { get; set; }
-    public required string[] Topics { get; set; }
 }

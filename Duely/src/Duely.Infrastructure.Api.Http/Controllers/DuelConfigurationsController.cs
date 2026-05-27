@@ -24,8 +24,7 @@ public sealed class DuelConfigurationsController(IMediator mediator, IUserContex
             ShouldShowOpponentSolution = request.ShouldShowOpponentSolution,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,
-            TasksOrder = request.TasksOrder,
-            TasksConfigurations = request.TasksConfigurations
+            TasksOrder = request.TasksOrder
         };
 
         var result = await mediator.Send(command, cancellationToken);
@@ -71,8 +70,7 @@ public sealed class DuelConfigurationsController(IMediator mediator, IUserContex
             ShouldShowOpponentSolution = request.ShouldShowOpponentSolution,
             MaxDurationMinutes = request.MaxDurationMinutes,
             TasksCount = request.TasksCount,
-            TasksOrder = request.TasksOrder,
-            TasksConfigurations = request.TasksConfigurations
+            TasksOrder = request.TasksOrder
         };
 
         var result = await mediator.Send(command, cancellationToken);
