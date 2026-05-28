@@ -7,6 +7,9 @@ public sealed class DuelConfigurationDto
 {
     [JsonPropertyName("id")]
     public required int Id { get; init; }
+    
+    [JsonPropertyName("is_deleted")]
+    public required bool IsDeleted { get; init; }
 
     [JsonPropertyName("should_show_opponent_solution")]
     public required bool ShouldShowOpponentSolution { get; init; }

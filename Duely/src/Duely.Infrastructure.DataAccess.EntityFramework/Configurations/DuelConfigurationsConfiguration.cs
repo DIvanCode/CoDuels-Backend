@@ -7,44 +7,53 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations;
 
 public sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration<DuelConfiguration>
 {
+    private const string TableName = nameof(DuelConfiguration) + "s";
+    private const string OwnerId = "OwnerId";
+    
     public void Configure(EntityTypeBuilder<DuelConfiguration> builder)
     {
-        builder.ToTable("DuelConfigurations");
+        builder.ToTable(TableName);
 
         builder.HasKey(c => c.Id);
 
         builder.Property(c => c.Id)
-            .HasColumnName("Id")
+            .HasColumnName(nameof(DuelConfiguration.Id))
             .ValueGeneratedOnAdd()
             .UseIdentityByDefaultColumn();
 
         builder.HasOne(c => c.Owner)
             .WithMany()
-            .HasForeignKey("OwnerId")
+            .HasForeignKey(OwnerId)
             .IsRequired(false);
+        
+        builder.Property(c => c.IsDeleted)
+            .HasColumnName(nameof(DuelConfiguration.IsDeleted))
+            .HasColumnType("boolean")
+            .HasDefaultValue(false)
+            .IsRequired();
 
         builder.Property(c => c.IsRated)
-            .HasColumnName("IsRated")
+            .HasColumnName(nameof(DuelConfiguration.IsRated))
             .HasColumnType("boolean")
             .IsRequired();
         
         builder.Property(c => c.ShouldShowOpponentSolution)
-            .HasColumnName("ShouldShowOpponentSolution")
+            .HasColumnName(nameof(DuelConfiguration.ShouldShowOpponentSolution))
             .HasColumnType("boolean")
             .IsRequired();
 
         builder.Property(c => c.MaxDurationMinutes)
-            .HasColumnName("MaxDurationMinutes")
+            .HasColumnName(nameof(DuelConfiguration.MaxDurationMinutes))
             .HasColumnType("integer")
             .IsRequired();
 
         builder.Property(c => c.TasksCount)
-            .HasColumnName("TasksCount")
+            .HasColumnName(nameof(DuelConfiguration.TasksCount))
             .HasColumnType("integer")
             .IsRequired();
 
         builder.Property(c => c.TasksOrder)
-            .HasColumnName("TasksOrder")
+            .HasColumnName(nameof(DuelConfiguration.TasksOrder))
             .HasColumnType("text")
             .HasConversion<string>()
             .IsRequired();

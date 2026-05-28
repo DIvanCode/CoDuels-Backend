@@ -1,18 +1,20 @@
 namespace Duely.Domain.Models.Duels;
 
-public enum DuelTasksOrder
-{
-    Sequential = 0,
-    Parallel = 1
-}
-
 public sealed class DuelConfiguration
 {
     public int Id { get; init; }
     public User? Owner { get; init; }
-    public bool IsRated { get; set; }
-    public bool ShouldShowOpponentSolution { get; set; }
-    public int MaxDurationMinutes { get; set; }
-    public int TasksCount { get; set; }
-    public DuelTasksOrder TasksOrder { get; set; }
+    public bool IsDeleted { get; set; }
+
+    public required bool IsRated { get; init; }
+    public required bool ShouldShowOpponentSolution { get; set; }
+    public required int MaxDurationMinutes { get; set; }
+    public required int TasksCount { get; set; }
+    public required DuelTasksOrder TasksOrder { get; set; }
+}
+
+public enum DuelTasksOrder
+{
+    Sequential = 0,
+    Parallel = 1
 }

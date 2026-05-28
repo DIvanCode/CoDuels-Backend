@@ -82,12 +82,11 @@ public sealed class TryCreateDuelHandler(
         {
             var configuration = pair.Configuration ?? new DuelConfiguration
             {
-                Owner = null,
                 IsRated = pair.IsRated,
-                ShouldShowOpponentSolution = true,
+                ShouldShowOpponentSolution = duelOptions.Value.DefaultShouldShowOpponentSolution,
                 MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,
-                TasksCount = 1,
-                TasksOrder = DuelTasksOrder.Sequential
+                TasksCount = duelOptions.Value.DefaultTasksCount,
+                TasksOrder = duelOptions.Value.DefaultTasksOrder
             };
             
             var tasksResult = await ChooseTasksAsync(

@@ -91,5 +91,20 @@ public sealed class DuelConfigurationsController(IMediator mediator, IUserContex
         var result = await mediator.Send(command, cancellationToken);
         return this.HandleResult(result);
     }
+    
+    [HttpPost("{id:int}/restore")]
+    public async Task<IActionResult> RestoreAsync(
+        [FromRoute] int id,
+        CancellationToken cancellationToken)
+    {
+        var command = new RestoreDuelConfigurationCommand
+        {
+            Id = id,
+            UserId = userContext.UserId
+        };
+        
+        var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
 }
 

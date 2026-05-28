@@ -33,7 +33,8 @@ public sealed class DeleteDuelConfigurationHandler(Context context)
             return new ForbiddenError(nameof(DuelConfiguration), "delete", nameof(DuelConfiguration.Id), request.Id);
         }
 
-        context.DuelConfigurations.Remove(configuration);
+        configuration.IsDeleted = true;
+        
         await context.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();

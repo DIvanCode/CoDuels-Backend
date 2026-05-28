@@ -34,7 +34,7 @@ public sealed class UpdateDuelConfigurationHandler(Context context)
             return new EntityNotFoundError(nameof(DuelConfiguration), nameof(DuelConfiguration.Id), request.Id);
         }
 
-        if (configuration.Owner?.Id != request.UserId)
+        if (configuration.Owner?.Id != request.UserId || configuration.IsDeleted)
         {
             return new ForbiddenError(nameof(DuelConfiguration), "update", nameof(DuelConfiguration.Id), request.Id);
         }
@@ -49,6 +49,7 @@ public sealed class UpdateDuelConfigurationHandler(Context context)
         return new DuelConfigurationDto
         {
             Id = configuration.Id,
+            IsDeleted = configuration.IsDeleted,
             ShouldShowOpponentSolution = configuration.ShouldShowOpponentSolution,
             MaxDurationMinutes = configuration.MaxDurationMinutes,
             TasksCount = configuration.TasksCount,

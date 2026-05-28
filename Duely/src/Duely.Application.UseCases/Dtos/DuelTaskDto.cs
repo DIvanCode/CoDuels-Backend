@@ -5,5 +5,5 @@ namespace Duely.Application.UseCases.Dtos;
 public sealed class DuelTaskDto
 {
     [JsonPropertyName("id")]
-    public string? Id { get; init; }
+    public required string? Id { get; init; }
 }

@@ -43,11 +43,13 @@ public sealed class CreateDuelConfigurationHandler(Context context)
         };
 
         context.DuelConfigurations.Add(configuration);
+        
         await context.SaveChangesAsync(cancellationToken);
 
         return new DuelConfigurationDto
         {
             Id = configuration.Id,
+            IsDeleted = configuration.IsDeleted,
             ShouldShowOpponentSolution = configuration.ShouldShowOpponentSolution,
             MaxDurationMinutes = configuration.MaxDurationMinutes,
             TasksCount = configuration.TasksCount,

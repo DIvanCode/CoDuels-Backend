@@ -23,17 +23,16 @@ public sealed class GetUserDuelConfigurationsHandler(Context context)
             .OrderBy(configuration => configuration.Id)
             .ToListAsync(cancellationToken);
 
-        var result = configurations
+        return configurations
             .Select(configuration => new DuelConfigurationDto
             {
                 Id = configuration.Id,
+                IsDeleted = configuration.IsDeleted,
                 ShouldShowOpponentSolution = configuration.ShouldShowOpponentSolution,
                 MaxDurationMinutes = configuration.MaxDurationMinutes,
                 TasksCount = configuration.TasksCount,
                 TasksOrder = configuration.TasksOrder
             })
             .ToList();
-
-        return Result.Ok(result);
     }
 }

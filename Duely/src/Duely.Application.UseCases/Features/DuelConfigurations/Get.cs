@@ -30,6 +30,7 @@ public sealed class GetDuelConfigurationHandler(Context context)
         return new DuelConfigurationDto
         {
             Id = configuration.Id,
+            IsDeleted = configuration.IsDeleted,
             ShouldShowOpponentSolution = configuration.ShouldShowOpponentSolution,
             MaxDurationMinutes = configuration.MaxDurationMinutes,
             TasksCount = configuration.TasksCount,
