@@ -1,7 +1,7 @@
-using Duely.Application.Services.Errors;
-using Duely.Application.UseCases.Dtos;
-using Duely.Domain.Services.Users;
-using Duely.Domain.Models;
+using Duely.Application.UseCases.Dto.Users;
+using Duely.Domain.Common.Errors;
+using Duely.Domain.Models.Users.Entities;
+using Duely.Domain.Models.Users.Errors;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
@@ -10,37 +10,51 @@ using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Users;
 
-public sealed class LoginCommand : IRequest<Result<TokenDto>>
+public sealed class LoginCommand : IRequest<Result<UserDto>>
 {
     public required string Nickname { get; init; }
     public required string Password { get; init; }
+    public required string RefreshToken { get; init; }
 }
 
-public sealed class LoginHandler(Context context, ITokenService tokenService, ILogger<LoginHandler> logger)
-    : IRequestHandler<LoginCommand, Result<TokenDto>>
+internal sealed class LoginHandler(
+    Context context,
+    ILogger<LoginHandler> logger)
+    : IRequestHandler<LoginCommand, Result<UserDto>>
 {
-    public async Task<Result<TokenDto>> Handle(LoginCommand command, CancellationToken cancellationToken)
+    public async Task<Result<UserDto>> Handle(LoginCommand command, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Nickname == command.Nickname, cancellationToken);
-        if (user is null)
+        var nickname = new Nickname(command.Nickname);
+        
+        var user = await context.Users
+            .Include(u => u.Nickname)
+            .Include(u => u.Password)
+            .SingleOrDefaultAsync(u => u.Nickname.LowerValue == nickname.LowerValue, cancellationToken);
+        if (user is null || !user.Password.Verify(command.Password))
         {
-            return new EntityNotFoundError(nameof(User), nameof(User.Nickname), command.Nickname);
+            return new AuthenticationError("Неверный никнейм или пароль.");
+        }
+        
+        var userWithRefreshTokenExists = await context.Users
+            .AsNoTracking()
+            .AnyAsync(u => u.RefreshToken == command.RefreshToken, cancellationToken);
+        if (userWithRefreshTokenExists)
+        {
+            return new RefreshTokenAlreadyExistsError();
         }
 
-        if (!BCrypt.Net.BCrypt.Verify(command.Password + user.PasswordSalt, user.PasswordHash))
-        {
-            return new AuthenticationError();
-        }
-
-        var (accessToken, refreshToken) = tokenService.GenerateTokens(user);
-        user.RefreshToken = refreshToken;
+        user.UpdateRefreshToken(command.RefreshToken);
 
         await context.SaveChangesAsync(cancellationToken);
+        
+        logger.LogInformation("User {Nickname} logged in", user.Nickname);
 
-        return new TokenDto
+        return new UserDto
         {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken
+            Id = user.Id,
+            Nickname = user.Nickname.Value,
+            Rating = user.Rating.Value,
+            CreatedAt = user.CreatedAt
         };
     }
 }

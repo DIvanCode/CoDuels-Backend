@@ -1,31 +1,36 @@
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Models.Groups;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Models.Tournaments;
 
 public abstract class Tournament
 {
     public int Id { get; init; }
-    public string Name { get; set; } = null!;
-    public TournamentStatus Status { get; set; }
-    public Group Group { get; set; } = null!;
-    public User CreatedBy { get; set; } = null!;
-    public DateTime CreatedAt { get; set; }
-    public TournamentMatchmakingType MatchmakingType { get; set; }
-    public DuelConfiguration? DuelConfiguration { get; set; }
-
-    public List<TournamentParticipant> Participants { get; } = [];
+    public required string Name { get; init; }
+    
+    public required TournametStatus Status { get; set; }
+    public required User CreatedBy { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    
+    public required TournamentType Type { get; init; }
+    public required DuelConfiguration? DuelConfiguration { get; init; }
+    
+    public List<TournamentParticipant> Participants { get; init; } = [];
+    public List<Duel> Duels { get; init; } = [];    
 }
 
 public enum TournamentStatus
 {
-    New = 1,
-    InProgress = 2,
-    Finished = 3
+    New = 0,
+    InProgress = 1,
+    Finished = 2
 }
 
-public enum TournamentMatchmakingType
+public enum TournamentType
 {
-    SingleEliminationBracket = 1,
-    GroupStage = 2
+    SingleEliminationBracket = 0,
+    GroupStage = 1
 }

@@ -1,3 +1,6 @@
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
+
 namespace Duely.Domain.Models.Tournaments;
 
 public sealed class TournamentParticipant

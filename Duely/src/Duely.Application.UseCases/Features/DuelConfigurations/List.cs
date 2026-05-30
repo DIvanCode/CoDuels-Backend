@@ -30,8 +30,8 @@ public sealed class GetUserDuelConfigurationsHandler(Context context)
                 IsDeleted = configuration.IsDeleted,
                 ShouldShowOpponentSolution = configuration.ShouldShowOpponentSolution,
                 MaxDurationMinutes = configuration.MaxDurationMinutes,
-                TasksCount = configuration.TasksCount,
-                TasksOrder = configuration.TasksOrder
+                TasksCount = configuration.ProblemsCount,
+                TasksOrder = configuration.ProblemsOrder
             })
             .ToList();
     }

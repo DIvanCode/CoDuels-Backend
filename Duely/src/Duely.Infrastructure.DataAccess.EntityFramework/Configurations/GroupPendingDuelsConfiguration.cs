@@ -1,4 +1,4 @@
-using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels.GroupDuels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

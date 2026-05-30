@@ -6,7 +6,7 @@ public sealed class OutboxMessage
 {
     public int Id { get; init; }
     public OutboxType Type { get; init; }  
-    public required OutboxPayload Payload { get; init; }     
+    public required OutboxPayoad Payload { get; init; }     
     public OutboxStatus Status { get; set; } = OutboxStatus.ToDo;
     public required DateTime RetryUntil { get; init; }
     public int Retries { get; set; } = 0;

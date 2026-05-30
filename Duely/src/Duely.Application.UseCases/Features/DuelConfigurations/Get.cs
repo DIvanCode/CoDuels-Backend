@@ -1,6 +1,7 @@
 using Duely.Application.Services.Errors;
 using Duely.Application.UseCases.Dtos;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
@@ -33,8 +34,8 @@ public sealed class GetDuelConfigurationHandler(Context context)
             IsDeleted = configuration.IsDeleted,
             ShouldShowOpponentSolution = configuration.ShouldShowOpponentSolution,
             MaxDurationMinutes = configuration.MaxDurationMinutes,
-            TasksCount = configuration.TasksCount,
-            TasksOrder = configuration.TasksOrder
+            TasksCount = configuration.ProblemsCount,
+            TasksOrder = configuration.ProblemsOrder
         };
     }
 }

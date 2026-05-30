@@ -5,6 +5,7 @@ using MediatR;
 using FluentResults;
 using Duely.Domain.Models.Messages;
 using Duely.Application.Services.Errors;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
 

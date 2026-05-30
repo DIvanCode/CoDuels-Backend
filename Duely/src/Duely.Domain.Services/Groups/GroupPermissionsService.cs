@@ -1,114 +1,92 @@
-﻿using Duely.Domain.Models;
-using Duely.Domain.Models.Groups;
+﻿using Duely.Domain.Models.Groups.Entities;
 
 namespace Duely.Domain.Services.Groups;
 
 public interface IGroupPermissionsService
 {
-    bool CanViewGroup(GroupMembership membership);
     bool CanUpdateGroup(GroupMembership membership);
-    bool CanAssignRole(GroupMembership actor, GroupRole targetRole);
-    bool CanChangeRole(GroupMembership actor, GroupMembership target, GroupRole targetRole);
-    bool CanExclude(GroupMembership actor, GroupRole targetRole);
-    bool CanLeave(GroupMembership membership);
-    bool CanCreateDuel(GroupMembership membership);
-    bool CanViewDuel(GroupMembership membership);
-    bool CanCancelDuel(GroupMembership membership);
-    bool CanCreateTournament(GroupMembership membership);
-    bool CanStartTournament(GroupMembership membership);
+    bool CanCreateMembership(GroupMembership membership, GroupRole targetRole);
+    bool CanUpdateMembership(GroupMembership membership, GroupMembership targetMembership);
+    bool CanDeleteMembership(GroupMembership membership, GroupMembership targetMembership);
+    // bool CanCreateDuel(GroupMembership membership);
+    // bool CanViewDuel(GroupMembership membership);
+    // bool CanCancelDuel(GroupMembership membership);
+    // bool CanCreateTournament(GroupMembership membership);
+    // bool CanStartTournament(GroupMembership membership);
 }
 
 public sealed class GroupPermissionsService : IGroupPermissionsService
 {
-    public bool CanViewGroup(GroupMembership membership)
-    {
-        return membership.InvitationPending is false;
-    }
-
     public bool CanUpdateGroup(GroupMembership membership)
     {
-        return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
-    }
-
-    public bool CanAssignRole(GroupMembership actor, GroupRole targetRole)
-    {
-        if (actor.InvitationPending)
-        {
-            return false;
-        }
-
-        return actor.Role switch
-        {
-            GroupRole.Creator => targetRole is GroupRole.Manager or GroupRole.Member,
-            GroupRole.Manager => targetRole is GroupRole.Manager or GroupRole.Member,
-            _ => false
-        };
+        return membership is { IsConfirmed: true, Role: GroupRole.Manager };
     }
     
-    public bool CanChangeRole(GroupMembership actor, GroupMembership target, GroupRole targetRole)
+    public bool CanCreateMembership(GroupMembership membership, GroupRole targetRole)
     {
-        if (actor.InvitationPending)
+        if (!membership.IsConfirmed)
         {
             return false;
         }
 
-        return actor.Role switch
-        {
-            GroupRole.Creator => target.Role is GroupRole.Manager or GroupRole.Member && 
-                                 targetRole is GroupRole.Manager or GroupRole.Member,
-            GroupRole.Manager => target.Role is GroupRole.Member &&
-                                 targetRole is GroupRole.Manager or GroupRole.Member,
-            _ => false
-        };
+        return membership.Role is GroupRole.Manager;
     }
-
-    public bool CanExclude(GroupMembership actor, GroupRole targetRole)
+    
+    public bool CanUpdateMembership(GroupMembership membership, GroupMembership targetMembership)
     {
-        if (actor.InvitationPending)
+        if (!membership.IsConfirmed)
         {
             return false;
         }
 
-        return actor.Role switch
+        return membership.Role switch
         {
-            GroupRole.Creator => targetRole is GroupRole.Manager or GroupRole.Member,
-            GroupRole.Manager => targetRole is GroupRole.Member,
+            GroupRole.Manager => targetMembership.Role is GroupRole.Member,
             _ => false
         };
     }
 
-    public bool CanLeave(GroupMembership membership)
+    public bool CanDeleteMembership(GroupMembership membership, GroupMembership targetMembership)
     {
-        return membership.InvitationPending is false;
+        if (!membership.IsConfirmed)
+        {
+            return false;
+        }
+
+        return membership.Role switch
+        {
+            GroupRole.Manager => targetMembership.Role is GroupRole.Member,
+            _ => false
+        };
     }
 
-    public bool CanCreateDuel(GroupMembership membership)
-    {
-        return CanManageCompetitiveActivities(membership);
-    }
-
-    public bool CanViewDuel(GroupMembership membership)
-    {
-        return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
-    }
-
-    public bool CanCancelDuel(GroupMembership membership)
-    {
-        return CanManageCompetitiveActivities(membership);
-    }
-
-    public bool CanCreateTournament(GroupMembership membership)
-    {
-        return CanManageCompetitiveActivities(membership);
-    }
-
-    public bool CanStartTournament(GroupMembership membership)
-    {
-        return CanManageCompetitiveActivities(membership);
-    }
-
-    private static bool CanManageCompetitiveActivities(GroupMembership membership)
-    {
-        return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
-    }
+    // public bool CanCreateDuel(GroupMembership membership)
+    // {
+    //     return CanManageCompetitiveActivities(membership);
+    // }
+    //
+    // public bool CanViewDuel(GroupMembership membership)
+    // {
+    //     return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
+    // }
+    //
+    // public bool CanCancelDuel(GroupMembership membership)
+    // {
+    //     return CanManageCompetitiveActivities(membership);
+    // }
+    //
+    // public bool CanCreateTournament(GroupMembership membership)
+    // {
+    //     return CanManageCompetitiveActivities(membership);
+    // }
+    //
+    // public bool CanStartTournament(GroupMembership membership)
+    // {
+    //     return CanManageCompetitiveActivities(membership);
+    // }
+    //
+    // private static bool CanManageCompetitiveActivities(GroupMembership membership)
+    // {
+    //     return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
+    // }
 }

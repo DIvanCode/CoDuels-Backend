@@ -1,22 +1,23 @@
 ﻿using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 
 namespace Duely.Domain.Services.Duels;
 
 public interface ITaskService
 {
-    Dictionary<char, DuelTask> ChooseTasks(
-        IReadOnlyCollection<(DuelTask Task, bool WasSolved)> tasks,
+    Dictionary<char, Problem> ChooseTasks(
+        IReadOnlyCollection<(Problem Task, bool WasSolved)> tasks,
         int tasksCount);
-    IReadOnlyDictionary<char, DuelTask> GetVisibleTasks(Duel duel);
+    IReadOnlyDictionary<char, Problem> GetVisibleTasks(Duel duel);
     bool IsTaskVisible(Duel duel, char taskKey);
     IReadOnlyDictionary<char, int> GetSolvedTaskWinners(Duel duel);
 }
 
 public sealed class TaskService : ITaskService
 {
-    public Dictionary<char, DuelTask> ChooseTasks(
-        IReadOnlyCollection<(DuelTask Task, bool WasSolved)> tasks,
+    public Dictionary<char, Problem> ChooseTasks(
+        IReadOnlyCollection<(Problem Task, bool WasSolved)> tasks,
         int tasksCount)
     {
         var tasksToChoose = tasks
@@ -33,7 +34,7 @@ public sealed class TaskService : ITaskService
         }
         
         var chosenTasksList = ChooseRandomTasks(tasksToChoose.ToArray(), tasksCount);
-        var chosenTasks = new Dictionary<char, DuelTask>();
+        var chosenTasks = new Dictionary<char, Problem>();
         for (var i = 0; i < chosenTasksList.Count; i++)
         {
             chosenTasks[(char)('A' + i)] = chosenTasksList[i]; 
@@ -42,11 +43,11 @@ public sealed class TaskService : ITaskService
         return chosenTasks;
     }
 
-    public IReadOnlyDictionary<char, DuelTask> GetVisibleTasks(Duel duel)
+    public IReadOnlyDictionary<char, Problem> GetVisibleTasks(Duel duel)
     {
         if (duel.Configuration.TasksOrder == DuelTasksOrder.Parallel)
         {
-            return new Dictionary<char, DuelTask>(duel.Tasks);
+            return new Dictionary<char, Problem>(duel.Tasks);
         }
 
         var winners = GetSolvedTaskWinners(duel);
@@ -109,7 +110,7 @@ public sealed class TaskService : ITaskService
         return winners;
     }
 
-    private static List<DuelTask> ChooseRandomTasks(DuelTask[] tasks, int count)
+    private static List<Problem> ChooseRandomTasks(Problem[] tasks, int count)
     {
         Random.Shared.Shuffle(tasks);
         return tasks.Take(count).ToList();

@@ -1,6 +1,7 @@
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Models.Messages;
 using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Services.Duels;
@@ -8,6 +9,8 @@ using MediatR;
 using FluentResults;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Duels;

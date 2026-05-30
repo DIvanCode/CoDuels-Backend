@@ -1,5 +1,6 @@
 using Duely.Application.UseCases.Features.Submissions;
 using Duely.Domain.Models;
+using Duely.Domain.Models.Duels;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using MediatR;

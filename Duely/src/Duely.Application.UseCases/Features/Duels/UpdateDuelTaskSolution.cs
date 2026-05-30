@@ -1,6 +1,7 @@
 using Duely.Application.Services.Errors;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
@@ -8,13 +9,15 @@ using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 using FluentValidation;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
 public sealed class UpdateDuelTaskSolutionCommand : IRequest<Result>
 {
-    public required int UserId { get; init; }
+    public required Guid UserId { get; init; }
     public required int DuelId { get; init; }
     public required char TaskKey { get; init; }
     public required string Solution { get; init; }
@@ -38,7 +41,7 @@ public sealed class UpdateDuelTaskSolutionHandler(Context context)
 
         if (!duel.Tasks.ContainsKey(command.TaskKey))
         {
-            return new EntityNotFoundError(nameof(DuelTask), "key", command.TaskKey.ToString());
+            return new EntityNotFoundError(nameof(Problem), "key", command.TaskKey.ToString());
         }
 
         int opponentId;
@@ -46,7 +49,7 @@ public sealed class UpdateDuelTaskSolutionHandler(Context context)
         {
             if (!duel.User1Solutions.TryGetValue(command.TaskKey, out var userSolution))
             {
-                userSolution = new DuelTaskSolution
+                userSolution = new Solution
                 {
                     Solution = command.Solution,
                     Language = command.Language,
@@ -58,7 +61,7 @@ public sealed class UpdateDuelTaskSolutionHandler(Context context)
                 userSolution.Language = command.Language;
             }
 
-            var updated = new Dictionary<char, DuelTaskSolution>(duel.User1Solutions)
+            var updated = new Dictionary<char, Solution>(duel.User1Solutions)
             {
                 [command.TaskKey] = userSolution
             };
@@ -69,7 +72,7 @@ public sealed class UpdateDuelTaskSolutionHandler(Context context)
         {
             if (!duel.User2Solutions.TryGetValue(command.TaskKey, out var userSolution))
             {
-                userSolution = new DuelTaskSolution
+                userSolution = new Solution
                 {
                     Solution = command.Solution,
                     Language = command.Language,
@@ -81,7 +84,7 @@ public sealed class UpdateDuelTaskSolutionHandler(Context context)
                 userSolution.Language = command.Language;
             }
 
-            var updated = new Dictionary<char, DuelTaskSolution>(duel.User2Solutions)
+            var updated = new Dictionary<char, Solution>(duel.User2Solutions)
             {
                 [command.TaskKey] = userSolution
             };

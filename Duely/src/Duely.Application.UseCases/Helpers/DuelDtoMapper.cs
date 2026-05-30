@@ -1,5 +1,8 @@
+using Duely.Application.UseCases.Dto.Users;
 using Duely.Application.UseCases.Dtos;
+using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Services.Duels;
 
 namespace Duely.Application.UseCases.Helpers;
@@ -77,8 +80,8 @@ public static class DuelDtoMapper
     }
 
     private static Dictionary<char, DuelTaskDto> MapTasks(
-        IReadOnlyDictionary<char, DuelTask> tasks,
-        IReadOnlyDictionary<char, DuelTask> visibleTasks)
+        IReadOnlyDictionary<char, Problem> tasks,
+        IReadOnlyDictionary<char, Problem> visibleTasks)
     {
         return tasks
             .OrderBy(kv => kv.Key)
@@ -91,7 +94,7 @@ public static class DuelDtoMapper
     }
 
     private static Dictionary<char, DuelTaskSolutionDto> MapSolutions(
-        Dictionary<char, DuelTaskSolution> solutions,
+        Dictionary<char, Solution> solutions,
         IEnumerable<char> taskKeys)
     {
         var result = new Dictionary<char, DuelTaskSolutionDto>();

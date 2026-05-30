@@ -7,6 +7,6 @@ public enum EventType
     SolutionUpdated = 0
 }
 
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonPolymorphic(TypeDiscrimiatorPropertyName = "type")]
 [JsonDerivedType(typeof(SolutionUpdatedEvent), nameof(EventType.SolutionUpdated))]
 public abstract class Event;

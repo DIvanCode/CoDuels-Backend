@@ -1,4 +1,4 @@
-using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels.RankedDuels;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

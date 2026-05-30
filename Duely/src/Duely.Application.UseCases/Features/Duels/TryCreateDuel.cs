@@ -9,10 +9,16 @@ using Duely.Domain.Services.Duels;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
-using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Models.Duels.FriendlyDuels;
+using Duely.Domain.Models.Duels.GroupDuels;
+using Duely.Domain.Models.Duels.RankedDuels;
+using Duely.Domain.Models.Duels.TournamentDuels;
 using Duely.Domain.Models.Groups;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 using Microsoft.Extensions.Logging;
 using Duely.Domain.Services.Tournaments;
 
@@ -85,8 +91,8 @@ public sealed class TryCreateDuelHandler(
                 IsRated = pair.IsRated,
                 ShouldShowOpponentSolution = duelOptions.Value.DefaultShouldShowOpponentSolution,
                 MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,
-                TasksCount = duelOptions.Value.DefaultTasksCount,
-                TasksOrder = duelOptions.Value.DefaultTasksOrder
+                ProblemsCount = duelOptions.Value.DefaultTasksCount,
+                ProblemsOrder = duelOptions.Value.DefaultTasksOrder
             };
             
             var tasksResult = await ChooseTasksAsync(
@@ -181,7 +187,7 @@ public sealed class TryCreateDuelHandler(
         return Result.Ok();
     }
 
-    private async Task<Result<Dictionary<char, DuelTask>>> ChooseTasksAsync(
+    private async Task<Result<Dictionary<char, Problem>>> ChooseTasksAsync(
         User user1,
         User user2,
         DuelConfiguration configuration,
@@ -201,11 +207,11 @@ public sealed class TryCreateDuelHandler(
             .ToHashSetAsync(cancellationToken);
 
         var tasks = tasksResult.Value.Tasks
-            .Select(x => (Task: new DuelTask(x.Id), WasSolved: solvedTasks.Contains(x.Id)))
+            .Select(x => (Task: new Problem(x.Id), WasSolved: solvedTasks.Contains(x.Id)))
             .Select(x => (x.Task, x.WasSolved))
             .ToList();
-        var chosenTasks = taskService.ChooseTasks(tasks, configuration.TasksCount);
-        if (chosenTasks.Count < configuration.TasksCount)
+        var chosenTasks = taskService.ChooseTasks(tasks, configuration.ProblemsCount);
+        if (chosenTasks.Count < configuration.ProblemsCount)
         {
             return new EntityNotFoundError("Not enough tasks present in the system");
         }

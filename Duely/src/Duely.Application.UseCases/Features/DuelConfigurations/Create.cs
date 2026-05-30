@@ -2,6 +2,9 @@ using Duely.Application.Services.Errors;
 using Duely.Application.UseCases.Dtos;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using FluentValidation;
@@ -38,8 +41,8 @@ public sealed class CreateDuelConfigurationHandler(Context context)
             IsRated = false,
             ShouldShowOpponentSolution = request.ShouldShowOpponentSolution,
             MaxDurationMinutes = request.MaxDurationMinutes,
-            TasksCount = request.TasksCount,
-            TasksOrder = request.TasksOrder
+            ProblemsCount = request.TasksCount,
+            ProblemsOrder = request.TasksOrder
         };
 
         context.DuelConfigurations.Add(configuration);
@@ -52,8 +55,8 @@ public sealed class CreateDuelConfigurationHandler(Context context)
             IsDeleted = configuration.IsDeleted,
             ShouldShowOpponentSolution = configuration.ShouldShowOpponentSolution,
             MaxDurationMinutes = configuration.MaxDurationMinutes,
-            TasksCount = configuration.TasksCount,
-            TasksOrder = configuration.TasksOrder
+            TasksCount = configuration.ProblemsCount,
+            TasksOrder = configuration.ProblemsOrder
         };
     }
 }

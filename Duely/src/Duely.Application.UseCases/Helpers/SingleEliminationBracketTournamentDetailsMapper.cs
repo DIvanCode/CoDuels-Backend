@@ -1,7 +1,11 @@
 using Duely.Application.UseCases.Dtos;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Models.Tournaments;
+using Duely.Domain.Models.Tournaments.SingleEliminationBracketTournaments;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Application.UseCases.Helpers;
 

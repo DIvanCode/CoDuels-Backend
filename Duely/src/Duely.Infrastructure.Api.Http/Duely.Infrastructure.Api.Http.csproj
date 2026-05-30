@@ -20,4 +20,8 @@
       <ProjectReference Include="..\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Users\Services\" />
+    </ItemGroup>
+
 </Project>

@@ -1,12 +1,14 @@
-using System.Text.RegularExpressions;
-using Duely.Application.Services.Errors;
-using Duely.Domain.Models;
+using Duely.Domain.Common.Errors;
+using Duely.Domain.Models.Users.Entities;
+using Duely.Domain.Models.Users.Errors;
+using Duely.Domain.Services.Users;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Duely.Application.UseCases.Features.Users;
 
@@ -16,45 +18,49 @@ public sealed class RegisterCommand : IRequest<Result>
     public required string Password { get; init; }
 }
 
-public sealed class RegisterHandler(Context context, ILogger<RegisterHandler> logger)
+internal sealed class RegisterHandler(
+    Context context,
+    IOptions<UserOptions> userOptions,
+    ILogger<RegisterHandler> logger)
     : IRequestHandler<RegisterCommand, Result>
 {
     public async Task<Result> Handle(RegisterCommand command, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Nickname == command.Nickname, cancellationToken);
-        if (user is not null)
+        var nickname = new Nickname(command.Nickname);
+        
+        var userExists = await context.Users
+            .AsNoTracking()
+            .AnyAsync(u => u.Nickname.LowerValue == nickname.LowerValue, cancellationToken);
+        if (userExists)
         {
-            return new EntityAlreadyExistsError(nameof(User), nameof(User.Nickname), command.Nickname);
+            return new EntityAlreadyExistsError("Пользователь с заданным никнеймом уже существует.");
         }
 
-        var passwordSalt = Guid.NewGuid();
-        var passwordHash = BCrypt.Net.BCrypt.HashPassword(command.Password + passwordSalt, 12);
+        var id = new UserId(Guid.NewGuid());
+        var password = new Password(command.Password);
+        var rating = new Rating(userOptions.Value.InitialRating);
 
-        user = new User
-        {
-            Nickname = command.Nickname,
-            PasswordHash = passwordHash,
-            PasswordSalt = passwordSalt.ToString(),
-            CreatedAt = DateTime.UtcNow,
-            Rating = 1500
-        };
+        var user = new User(id, nickname, password, DateTime.UtcNow, rating);
 
         context.Users.Add(user);
         await context.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("User registered. UserId = {UserId}, Nickname = {Nickname}", user.Id, user.Nickname);
+        logger.LogInformation("User {Nickname} registered", user.Nickname);
 
         return Result.Ok();
     }
 }
 
-public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
+internal sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 {
-    private static readonly Regex NicknameRegex = new("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled); 
-    
     public RegisterCommandValidator()
     {
-        RuleFor(x => x.Nickname).Matches(NicknameRegex).WithMessage("Invalid nickname.");
-        RuleFor(x => x.Password).MinimumLength(8).WithMessage("Password must be at least 8 characters");
+        RuleFor(x => x.Nickname)
+            .NotEmpty().WithMessage("Никнейм не может быть пустым.")
+            .MaximumLength(Nickname.MaxLength).WithMessage($"Никнейм не может содержать более {Nickname.MaxLength} символов.")
+            .Matches(Nickname.Regex).WithMessage("Никнейм содержит недопустимые символы.");
+        RuleFor(x => x.Password)
+            .MinimumLength(Password.MinLength).WithMessage($"Пароль должен содержать не менее {Password.MinLength} символов.")
+            .MaximumLength(Password.MaxLength).WithMessage($"Пароль не может содержать более {Password.MaxLength} символов.");
     }
 }

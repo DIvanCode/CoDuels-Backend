@@ -1,8 +1,10 @@
 using Duely.Application.Services.Errors;
+using Duely.Application.UseCases.Dto.Users;
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Helpers;
-using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels.GroupDuels;
 using Duely.Domain.Models.Groups;
+using Duely.Domain.Models.Groups.Entities;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Services.Groups;
 using Duely.Infrastructure.DataAccess.EntityFramework;

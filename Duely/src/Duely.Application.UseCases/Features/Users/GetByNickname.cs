@@ -1,6 +1,6 @@
-using Duely.Application.Services.Errors;
-using Duely.Application.UseCases.Dtos;
-using Duely.Domain.Models;
+using Duely.Application.UseCases.Dto.Users;
+using Duely.Domain.Models.Users.Entities;
+using Duely.Domain.Models.Users.Errors;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
@@ -13,21 +13,27 @@ public sealed class GetUserByNicknameQuery : IRequest<Result<UserDto>>
     public required string Nickname { get; init; }
 }
 
-public sealed class GetByNicknameHandler(Context context) : IRequestHandler<GetUserByNicknameQuery, Result<UserDto>>
+internal sealed class GetUserByNicknameHandler(Context context) : IRequestHandler<GetUserByNicknameQuery, Result<UserDto>>
 {
     public async Task<Result<UserDto>> Handle(GetUserByNicknameQuery query, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Nickname == query.Nickname, cancellationToken);
+        var nickname = new Nickname(query.Nickname);
+        
+        var user = await context.Users
+            .AsNoTracking()
+            .Include(u => u.Nickname)
+            .Include(u => u.Rating)
+            .SingleOrDefaultAsync(u => u.Nickname.LowerValue == nickname.LowerValue, cancellationToken);
         if (user is null)
         {
-            return new EntityNotFoundError(nameof(User), nameof(User.Nickname), query.Nickname);
+            return new UserNotFoundError();
         }
 
         return new UserDto
         {
             Id = user.Id,
-            Nickname = user.Nickname,
-            Rating = user.Rating,
+            Nickname = user.Nickname.Value,
+            Rating = user.Rating.Value,
             CreatedAt = user.CreatedAt
         };
     }

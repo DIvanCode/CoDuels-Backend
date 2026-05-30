@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentResults;
 using Microsoft.Extensions.Logging;

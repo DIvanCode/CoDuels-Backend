@@ -1,8 +1,9 @@
 using Duely.Domain.Models.Messages;
+using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Infrastructure.Gateway.Client.Abstracts;
 
 public interface IMessageSender
 {
-    Task SendMessage(int userId, Message message, CancellationToken cancellationToken);
+    Task SendMessage(UserId userId, Message message, CancellationToken cancellationToken);
 }

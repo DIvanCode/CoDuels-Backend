@@ -1,4 +1,5 @@
 using Duely.Application.Services.Errors;
+using Duely.Application.UseCases.Dto.Users;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using MediatR;
 using FluentResults;
@@ -6,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Duely.Application.UseCases.Dtos;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Services.Groups;
 
 namespace Duely.Application.UseCases.Features.Submissions;

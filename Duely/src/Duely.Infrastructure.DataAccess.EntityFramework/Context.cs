@@ -1,17 +1,28 @@
 ﻿using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
-using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Models.Duels.GroupDuels;
 using Duely.Domain.Models.Groups;
+using Duely.Domain.Models.Groups.Entities;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Tournaments;
-using Duely.Domain.Models.UserActions;
+using Duely.Domain.Models.Users.Entities;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Duely.Infrastructure.DataAccess.EntityFramework;
 
 public sealed class Context : DbContext
 {
+    private readonly IDomainEventsDispatcher<Context> _domainEventsDispatcher;
+
+    public Context(DbContextOptions<Context> options, IDomainEventsDispatcher<Context> domainEventsDispatcher)
+        : base(options)
+    {
+        _domainEventsDispatcher = domainEventsDispatcher;
+        _domainEventsDispatcher.SetDbContext(this);
+    }
+    
     public DbSet<User> Users => Set<User>();
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<GroupMembership> GroupMemberships => Set<GroupMembership>();
@@ -21,13 +32,33 @@ public sealed class Context : DbContext
     public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
     public DbSet<Tournament> Tournaments => Set<Tournament>();
     public DbSet<Submission> Submissions => Set<Submission>();
-    public DbSet<CodeRun> CodeRuns => Set<CodeRun>();
-    public DbSet<AnticheatScore> AnticheatScores => Set<AnticheatScore>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
-    public DbSet<UserAction> UserActions => Set<UserAction>();
-
-    public Context(DbContextOptions<Context> options) : base(options)
+    
+    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken)
     {
+        return Database.BeginTransactionAsync(cancellationToken);
+    }
+
+    public Task CommitTransactionAsync(CancellationToken cancellationToken)
+    {
+        return Database.CommitTransactionAsync(cancellationToken);
+    }
+
+    public Task RollbackTransactionAsync(CancellationToken cancellationToken)
+    {
+        return Database.RollbackTransactionAsync(cancellationToken);
+    }
+    
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        if (_domainEventsDispatcher is null)
+        {
+            throw new InvalidOperationException("Domain events dispatcher is not set.");
+        }
+
+        await _domainEventsDispatcher.DispatchEventsAsync(cancellationToken);
+
+        return await base.SaveChangesAsync(cancellationToken);
     }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)

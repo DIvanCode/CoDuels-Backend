@@ -7,8 +7,11 @@ using Duely.Application.UseCases.Dtos;
 using Duely.Application.Services.Errors;
 using Duely.Application.Services.RateLimiting;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 using Duely.Domain.Services.Duels;
 
 namespace Duely.Application.UseCases.Features.Submissions;
@@ -60,12 +63,12 @@ public sealed class SendSubmissionHandler(
 
         if (!duel.Tasks.TryGetValue(command.TaskKey, out _))
         {
-            return new EntityNotFoundError(nameof(DuelTask), "key", command.TaskKey);
+            return new EntityNotFoundError(nameof(Problem), "key", command.TaskKey);
         }
 
         if (!taskService.IsTaskVisible(duel, command.TaskKey))
         {
-            return new ForbiddenError(nameof(DuelTask), "submit", "key", command.TaskKey);
+            return new ForbiddenError(nameof(Problem), "submit", "key", command.TaskKey);
         }
         
         var isUpsolving = duel.Status == DuelStatus.Finished;

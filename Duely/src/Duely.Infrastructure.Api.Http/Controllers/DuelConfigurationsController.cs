@@ -4,7 +4,6 @@ using Duely.Infrastructure.Api.Http.Requests.DuelConfigurations;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Duely.Infrastructure.Api.Http.Services;
 
 namespace Duely.Infrastructure.Api.Http.Controllers;
 

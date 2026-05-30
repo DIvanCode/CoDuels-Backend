@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 
 namespace Duely.Domain.Models.Outbox.Payloads;
 

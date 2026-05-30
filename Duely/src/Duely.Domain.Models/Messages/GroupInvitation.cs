@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Duely.Domain.Models.Groups;
+using Duely.Domain.Models.Groups.Entities;
 
 namespace Duely.Domain.Models.Messages;
 

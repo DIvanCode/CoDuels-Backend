@@ -1,6 +1,9 @@
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
 using Duely.Application.Services.Errors;
+using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.Gateway.Analyzer.Abstracts;
 using FluentResults;

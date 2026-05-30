@@ -1,4 +1,6 @@
+using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using FluentResults;
 
 namespace Duely.Infrastructure.Gateway.Tasks.Abstracts;

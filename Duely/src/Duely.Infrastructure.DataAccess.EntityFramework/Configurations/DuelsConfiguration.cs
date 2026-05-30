@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -27,19 +29,19 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
             .HasColumnName("Tasks")
             .HasConversion(
                 obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
-                str => JsonSerializer.Deserialize<Dictionary<char, DuelTask>>(str, new JsonSerializerOptions())!);
+                str => JsonSerializer.Deserialize<Dictionary<char, Problem>>(str, new JsonSerializerOptions())!);
 
         builder.Property(d => d.User1Solutions)
             .HasColumnName("User1Solutions")
             .HasConversion(
                 obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
-                str => JsonSerializer.Deserialize<Dictionary<char, DuelTaskSolution>>(str, new JsonSerializerOptions())!);
+                str => JsonSerializer.Deserialize<Dictionary<char, Solution>>(str, new JsonSerializerOptions())!);
 
         builder.Property(d => d.User2Solutions)
             .HasColumnName("User2Solutions")
             .HasConversion(
                 obj => JsonSerializer.Serialize(obj, new JsonSerializerOptions()),
-                str => JsonSerializer.Deserialize<Dictionary<char, DuelTaskSolution>>(str, new JsonSerializerOptions())!);
+                str => JsonSerializer.Deserialize<Dictionary<char, Solution>>(str, new JsonSerializerOptions())!);
 
         builder.Property(d => d.Status)
             .HasColumnName("Status")

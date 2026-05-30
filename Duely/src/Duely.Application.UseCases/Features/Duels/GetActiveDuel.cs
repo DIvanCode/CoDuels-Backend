@@ -7,6 +7,9 @@ using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Helpers;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 using Duely.Domain.Services.Duels;
 
 namespace Duely.Application.UseCases.Features.Duels;

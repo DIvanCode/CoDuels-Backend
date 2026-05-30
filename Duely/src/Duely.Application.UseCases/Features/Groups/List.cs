@@ -1,5 +1,4 @@
-using Duely.Application.UseCases.Dtos;
-using Duely.Domain.Services.Groups;
+using Duely.Application.UseCases.Dto.Groups;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
@@ -7,29 +6,32 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.Groups;
 
-public sealed class GetUserGroupsQuery : IRequest<Result<List<GroupDto>>>
+public sealed class GetUserGroupsQuery : IRequest<Result<List<GroupShortDto>>>
 {
-    public required int UserId { get; init; }
+    public required Guid UserId { get; init; }
 }
 
-public sealed class GetUserGroupsHandler(Context context, IGroupPermissionsService groupPermissionsService)
-    : IRequestHandler<GetUserGroupsQuery, Result<List<GroupDto>>>
+public sealed class GetUserGroupsHandler(Context context)
+    : IRequestHandler<GetUserGroupsQuery, Result<List<GroupShortDto>>>
 {
-    public async Task<Result<List<GroupDto>>> Handle(GetUserGroupsQuery query, CancellationToken cancellationToken)
+    public async Task<Result<List<GroupShortDto>>> Handle(GetUserGroupsQuery query, CancellationToken cancellationToken)
     {
         var memberships = await context.GroupMemberships
             .AsNoTracking()
-            .Include(m => m.Group)
             .Where(m => m.User.Id == query.UserId)
+            .Include(m => m.Group)
+                .ThenInclude(g => g.Name)
             .ToListAsync(cancellationToken);
-
         return memberships
-            .Where(groupPermissionsService.CanViewGroup)
-            .Select(m => new GroupDto
+            .Select(m => new GroupShortDto
             {
                 Id = m.Group.Id,
-                Name = m.Group.Name,
-                UserRole = m.Role
+                Name = m.Group.Name.Value,
+                Membership = new GroupMembershipShortDto
+                {
+                    Role = m.Role,
+                    IsConfirmed = m.IsConfirmed
+                }
             })
             .ToList();
     }

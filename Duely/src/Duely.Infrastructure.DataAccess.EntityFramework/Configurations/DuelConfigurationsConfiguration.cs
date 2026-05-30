@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -7,12 +8,9 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations;
 
 public sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration<DuelConfiguration>
 {
-    private const string TableName = nameof(DuelConfiguration) + "s";
-    private const string OwnerId = "OwnerId";
-    
     public void Configure(EntityTypeBuilder<DuelConfiguration> builder)
     {
-        builder.ToTable(TableName);
+        builder.ToTable("DuelConfigurations");
 
         builder.HasKey(c => c.Id);
 
@@ -23,7 +21,7 @@ public sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration<D
 
         builder.HasOne(c => c.Owner)
             .WithMany()
-            .HasForeignKey(OwnerId)
+            .HasForeignKey("OwnerId")
             .IsRequired(false);
         
         builder.Property(c => c.IsDeleted)
@@ -47,13 +45,13 @@ public sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration<D
             .HasColumnType("integer")
             .IsRequired();
 
-        builder.Property(c => c.TasksCount)
-            .HasColumnName(nameof(DuelConfiguration.TasksCount))
+        builder.Property(c => c.ProblemsCount)
+            .HasColumnName(nameof(DuelConfiguration.ProblemsCount))
             .HasColumnType("integer")
             .IsRequired();
 
-        builder.Property(c => c.TasksOrder)
-            .HasColumnName(nameof(DuelConfiguration.TasksOrder))
+        builder.Property(c => c.ProblemsOrder)
+            .HasColumnName(nameof(DuelConfiguration.ProblemsOrder))
             .HasColumnType("text")
             .HasConversion<string>()
             .IsRequired();

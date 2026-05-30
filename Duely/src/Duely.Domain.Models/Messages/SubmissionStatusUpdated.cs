@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Duely.Domain.Models.Duels;
 
 namespace Duely.Domain.Models.Messages;
 

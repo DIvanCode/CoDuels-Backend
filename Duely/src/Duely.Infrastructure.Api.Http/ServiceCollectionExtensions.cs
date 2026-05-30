@@ -1,17 +1,22 @@
-﻿using Duely.Infrastructure.Api.Http.Services;
-using Duely.Infrastructure.Api.Http.Services.WebSockets;
-using Duely.Infrastructure.Gateway.Client.Abstracts;
+﻿using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using System.Reflection;
+using System.Text;
 using System.Text.Json.Serialization;
+using Duely.Infrastructure.Api.Http.Users.Services.AuthToken;
+using Duely.Infrastructure.Api.Http.Users.Services.IdentityTicket;
+using Duely.Infrastructure.Api.Http.Users.Services.RefreshToken;
+using Duely.Infrastructure.Api.Http.Users.Services.WebSockets;
 using Hellang.Middleware.ProblemDetails;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ProblemDetailsOptions = Hellang.Middleware.ProblemDetails.ProblemDetailsOptions;
 
@@ -21,17 +26,44 @@ public static class ServiceCollectionExtensions
 {
     public static void SetupApiHttp(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
-
         services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         services.AddScoped<IUserContext, UserContext>();
+        
+        services.AddAuthorization();
+        
+        services.Configure<IdentityTicketOptions>(configuration.GetSection(IdentityTicketOptions.SectionName));
+        services.AddTransient<IIdentityTicketService, IdentityTicketService>();
+        
+        services.Configure<RefreshTokenOptions>(configuration.GetSection(RefreshTokenOptions.SectionName));
+        services.AddTransient<IRefreshTokenService, RefreshTokenService>();
+        
+        services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));
+        services.AddTransient<IAuthTokenService, JwtAuthService>();
 
+        var jwtTokenOptions = configuration.GetSection(JwtTokenOptions.SectionName).Get<JwtTokenOptions>();
+        ArgumentNullException.ThrowIfNull(jwtTokenOptions);
+
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(
+                JwtBearerDefaults.AuthenticationScheme,
+                configureOptions =>
+                {
+                    configureOptions.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtTokenOptions.SecretKey))
+                    };
+                });
+        
         services.Configure<WebSocketConnectionOptions>(configuration.GetSection(WebSocketConnectionOptions.SectionName));
         services.AddSingleton<IWebSocketConnectionManager, WebSocketConnectionManager>();
         services.AddSingleton<IMessageSender, WebSocketMessageSender>();
         services.AddScoped<IUserWebSocketHandler, UserWebSocketHandler>();
-
-        services.AddAuthorization();
-
+        
         services.AddCors(options =>
         {
             options.AddPolicy("AllowAll", policy =>

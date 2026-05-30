@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Helpers;
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Services.Groups;
 using Duely.Domain.Services.Tournaments;

@@ -1,52 +1,57 @@
-using Duely.Application.Services.Errors;
-using Duely.Application.UseCases.Dtos;
-using Duely.Domain.Models;
-using Duely.Domain.Models.Groups;
+using Duely.Application.UseCases.Dto.Groups;
+using Duely.Domain.Common.Errors;
+using Duely.Domain.Models.Groups.Entities;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Groups;
 
-public sealed class CreateGroupCommand : IRequest<Result<GroupDto>>
+public sealed class CreateGroupCommand : IRequest<Result<GroupShortDto>>
 {
-    public required int UserId { get; init; }
+    public required Guid UserId { get; init; }
     public required string Name { get; init; }
 }
 
-public sealed class CreateGroupHandler(Context context)
-    : IRequestHandler<CreateGroupCommand, Result<GroupDto>>
+public sealed class CreateGroupHandler(Context context, ILogger<CreateGroupHandler> logger)
+    : IRequestHandler<CreateGroupCommand, Result<GroupShortDto>>
 {
-    public async Task<Result<GroupDto>> Handle(CreateGroupCommand request, CancellationToken cancellationToken)
+    public async Task<Result<GroupShortDto>> Handle(CreateGroupCommand command, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+        var user = await context.Users
+            .AsNoTracking()
+            .Include(u => u.Nickname)
+            .SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
         if (user is null)
         {
-            return new EntityNotFoundError(nameof(User), nameof(User.Id), request.UserId);
+            return new ForbiddenError();
         }
 
-        var group = new Group
-        {
-            Name = request.Name
-        };
+        var groupId = new GroupId(Guid.NewGuid());
+        var groupName = new GroupName(command.Name);
+        var group = new Group(groupId, groupName);
         
-        group.Users.Add(new GroupMembership
-        {
-            User = user,
-            Group = group,
-            Role = GroupRole.Creator
-        });
+        var groupMembershipId = new GroupMembershipId(Guid.NewGuid());
+        var groupMembership = new GroupMembership(groupMembershipId, user, group, GroupRole.Manager, isConfirmed: true);
         
         context.Groups.Add(group);
+        context.GroupMemberships.Add(groupMembership);
         await context.SaveChangesAsync(cancellationToken);
+        
+        logger.LogInformation("User {Nickname} created group {GroupId}", user.Nickname, group.Id);
 
-        return new GroupDto
+        return new GroupShortDto
         {
             Id = group.Id,
-            Name = group.Name,
-            UserRole = GroupRole.Creator
+            Name = group.Name.Value,
+            Membership = new GroupMembershipShortDto
+            {
+                Role = groupMembership.Role,
+                IsConfirmed = groupMembership.IsConfirmed
+            }
         };
     }
 }
@@ -55,7 +60,8 @@ public sealed class CreateGroupCommandValidator : AbstractValidator<CreateGroupC
 {
     public CreateGroupCommandValidator()
     {
-        RuleFor(r => r.Name)
-            .NotEmpty().WithMessage("group name is required");
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Название группы не может быть пустым.")
+            .MaximumLength(GroupName.MaxLength).WithMessage($"Название группы не может содержать более {GroupName.MaxLength} символов.");
     }
 }

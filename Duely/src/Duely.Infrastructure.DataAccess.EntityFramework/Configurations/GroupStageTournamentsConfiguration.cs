@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Duely.Domain.Models.Tournaments;
+using Duely.Domain.Models.Tournaments.GroupStageTournaments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

@@ -1,33 +1,47 @@
-using Duely.Application.Services.Errors;
-using Duely.Application.UseCases.Dtos;
-using Duely.Domain.Models.Groups;
+using Duely.Application.UseCases.Dto.Groups;
+using Duely.Domain.Common.Errors;
+using Duely.Domain.Models.Groups.Entities;
+using Duely.Domain.Models.Groups.Errors;
 using Duely.Domain.Services.Groups;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Duely.Application.UseCases.Features.Groups;
 
-public sealed class UpdateGroupCommand : IRequest<Result<GroupDto>>
+public sealed class UpdateGroupCommand : IRequest<Result<GroupShortDto>>
 {
-    public required int UserId { get; init; }
-    public required int GroupId { get; init; }
+    public required Guid UserId { get; init; }
+    public required Guid GroupId { get; init; }
     public required string Name { get; init; }
 }
 
-public sealed class UpdateGroupHandler(Context context, IGroupPermissionsService groupPermissionsService)
-    : IRequestHandler<UpdateGroupCommand, Result<GroupDto>>
+public sealed class UpdateGroupHandler(
+    Context context,
+    IGroupPermissionsService groupPermissionsService,
+    ILogger<UpdateGroupHandler> logger)
+    : IRequestHandler<UpdateGroupCommand, Result<GroupShortDto>>
 {
-    private const string Operation = "update";
-    
-    public async Task<Result<GroupDto>> Handle(UpdateGroupCommand request, CancellationToken cancellationToken)
+    public async Task<Result<GroupShortDto>> Handle(UpdateGroupCommand request, CancellationToken cancellationToken)
     {
-        var group = await context.Groups.SingleOrDefaultAsync(g => g.Id == request.GroupId, cancellationToken);
+        var user = await context.Users
+            .AsNoTracking()
+            .Include(u => u.Nickname)
+            .SingleOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+        if (user is null)
+        {
+            return new ForbiddenError();
+        }
+        
+        var group = await context.Groups
+            .Include(g => g.Name)
+            .SingleOrDefaultAsync(g => g.Id == request.GroupId, cancellationToken);
         if (group is null)
         {
-            return new EntityNotFoundError(nameof(Group), nameof(Group.Id), request.GroupId);
+            return new GroupNotFoundError();
         }
 
         var membership = await context.GroupMemberships
@@ -36,17 +50,25 @@ public sealed class UpdateGroupHandler(Context context, IGroupPermissionsService
             .SingleOrDefaultAsync(cancellationToken);
         if (membership is null || !groupPermissionsService.CanUpdateGroup(membership))
         {
-            return new ForbiddenError(nameof(Group), Operation, nameof(Group.Id), request.GroupId);
+            return new ForbiddenError("У вас нет прав для редактирования этой группы.");
         }
 
-        group.Name = request.Name;
+        var name = new GroupName(request.Name);
+        group.UpdateName(name);
+        
         await context.SaveChangesAsync(cancellationToken);
+        
+        logger.LogInformation("User {Nickname} updated group {GroupId}", user.Nickname, group.Id);
 
-        return new GroupDto
+        return new GroupShortDto
         {
             Id = group.Id,
-            Name = group.Name,
-            UserRole = membership.Role
+            Name = group.Name.Value,
+            Membership = new GroupMembershipShortDto
+            {
+                Role = membership.Role,
+                IsConfirmed = membership.IsConfirmed
+            }
         };
     }
 }
@@ -55,7 +77,8 @@ public sealed class UpdateGroupCommandValidator : AbstractValidator<UpdateGroupC
 {
     public UpdateGroupCommandValidator()
     {
-        RuleFor(r => r.Name)
-            .NotEmpty().WithMessage("group name is required");
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Название группы не может быть пустым.")
+            .MaximumLength(GroupName.MaxLength).WithMessage($"Название группы не может содержать более {GroupName.MaxLength} символов.");
     }
 }

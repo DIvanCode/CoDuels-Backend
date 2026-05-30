@@ -1,5 +1,5 @@
 using Duely.Application.UseCases.Dtos;
-using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels.FriendlyDuels;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;

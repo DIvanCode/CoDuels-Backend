@@ -1,6 +1,12 @@
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
-using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Models.Duels.FriendlyDuels;
+using Duely.Domain.Models.Duels.GroupDuels;
+using Duely.Domain.Models.Duels.RankedDuels;
+using Duely.Domain.Models.Duels.TournamentDuels;
+using Duely.Domain.Models.Users;
+using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Services.Duels;
 

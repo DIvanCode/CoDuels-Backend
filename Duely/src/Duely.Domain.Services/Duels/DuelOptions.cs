@@ -1,4 +1,5 @@
 using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
 
 namespace Duely.Domain.Services.Duels;
 

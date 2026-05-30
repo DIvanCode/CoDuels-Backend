@@ -1,4 +1,4 @@
-using Duely.Infrastructure.Api.Http.Services.WebSockets;
+using Duely.Infrastructure.Api.Http.Users.Services.WebSockets;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

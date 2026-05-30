@@ -1,4 +1,9 @@
-using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels;
+using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Models.Duels.FriendlyDuels;
+using Duely.Domain.Models.Duels.GroupDuels;
+using Duely.Domain.Models.Duels.RankedDuels;
+using Duely.Domain.Models.Duels.TournamentDuels;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
@@ -36,11 +41,11 @@ public sealed class SyncActiveTournamentsHandler(
 
         var activeDuelUserIds = await context.Duels
             .AsNoTracking()
-            .Where(d => d.Status == Duely.Domain.Models.Duels.DuelStatus.InProgress)
+            .Where(d => d.Status == DuelStatus.InProgress)
             .Select(d => d.User1.Id)
             .Concat(context.Duels
                 .AsNoTracking()
-                .Where(d => d.Status == Duely.Domain.Models.Duels.DuelStatus.InProgress)
+                .Where(d => d.Status == DuelStatus.InProgress)
                 .Select(d => d.User2.Id))
             .Distinct()
             .ToListAsync(cancellationToken);
