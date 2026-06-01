@@ -1,11 +1,11 @@
-using Duely.Domain.Models.Duels.DomainEvents;
+﻿using Duely.Domain.Models.Duels.DomainEvents;
 using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Models.Duels.Entities.Duels;
 
-public sealed class FriendlyDuel : Duel
+public sealed class GroupManualDuel : Duel
 {
-    public FriendlyDuel(
+    public GroupManualDuel(
         DuelId id,
         DuelType type,
         DuelConfiguration configuration,

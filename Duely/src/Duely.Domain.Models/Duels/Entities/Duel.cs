@@ -39,7 +39,7 @@ public abstract class Duel : Entity<DuelId>
     public IReadOnlyCollection<Solution> Solutions { get; init; } = [];
     public IReadOnlyCollection<Submission> Submissions { get; init; } = [];
 
-    protected virtual void Start(DateTime startedAt)
+    public virtual void Start(DateTime startedAt)
     {
         if (Status != DuelStatus.Pending)
         {
@@ -52,7 +52,7 @@ public abstract class Duel : Entity<DuelId>
         AddDomainEvent(new DuelStartedDomainEvent(Id));
     }
 
-    protected virtual void Finish(DateTime finishedAt, User? winner)
+    public virtual void Finish(DateTime finishedAt, User? winner)
     {
         if (Status != DuelStatus.InProgress)
         {

@@ -21,7 +21,10 @@ public sealed class RankedDuel : Duel
     }
     
     public IReadOnlyDictionary<UserId, Rating> InitRatings { get; init; }
-    public IReadOnlyDictionary<UserId, Rating>? FinalRatings { get; init; }
-    
-    public void Finish()
+    public IReadOnlyDictionary<UserId, Rating>? FinalRatings { get; private set; }
+
+    public void SetFinalRatings(IReadOnlyDictionary<UserId, Rating> finalRatings)
+    {
+        FinalRatings = finalRatings;
+    }
 }
