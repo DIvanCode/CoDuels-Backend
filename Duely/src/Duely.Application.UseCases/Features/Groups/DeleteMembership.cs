@@ -17,7 +17,7 @@ public sealed class DeleteGroupMembershipCommand : IRequest<Result>
     public required Guid TargetUserId { get; init; }
 }
 
-public sealed class DeleteGroupMembershipHandler(
+internal sealed class DeleteGroupMembershipHandler(
     Context context,
     IGroupPermissionsService groupPermissionsService,
     ILogger<DeleteGroupMembershipHandler> logger)
@@ -76,6 +76,7 @@ public sealed class DeleteGroupMembershipHandler(
 
         targetMembership.Delete();
         
+        context.GroupMemberships.Remove(targetMembership);
         await context.SaveChangesAsync(cancellationToken);
         
         logger.LogInformation(

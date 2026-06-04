@@ -19,7 +19,7 @@ public sealed class UpdateGroupCommand : IRequest<Result<GroupShortDto>>
     public required string Name { get; init; }
 }
 
-public sealed class UpdateGroupHandler(
+internal sealed class UpdateGroupHandler(
     Context context,
     IGroupPermissionsService groupPermissionsService,
     ILogger<UpdateGroupHandler> logger)
@@ -73,7 +73,7 @@ public sealed class UpdateGroupHandler(
     }
 }
 
-public sealed class UpdateGroupCommandValidator : AbstractValidator<UpdateGroupCommand>
+internal sealed class UpdateGroupCommandValidator : AbstractValidator<UpdateGroupCommand>
 {
     public UpdateGroupCommandValidator()
     {

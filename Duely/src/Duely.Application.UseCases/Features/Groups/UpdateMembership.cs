@@ -20,7 +20,7 @@ public sealed class UpdateGroupMembershipCommand : IRequest<Result<GroupMembersh
     public required GroupRole TargetRole { get; init; }
 }
 
-public sealed class UpdateGroupMembershipHandler(
+internal sealed class UpdateGroupMembershipHandler(
     Context context,
     IGroupPermissionsService groupPermissionsService,
     ILogger<UpdateGroupMembershipHandler> logger)
@@ -69,7 +69,7 @@ public sealed class UpdateGroupMembershipHandler(
             .SingleOrDefaultAsync(cancellationToken);
         if (targetMembership is null || !groupPermissionsService.CanUpdateMembership(membership, targetMembership))
         {
-            return new SetGroupRoleError();
+            return new ForbiddenError("У вас нет прав на назначение роли этому пользователю.");
         }
         
         targetMembership.ChangeRole(command.TargetRole);

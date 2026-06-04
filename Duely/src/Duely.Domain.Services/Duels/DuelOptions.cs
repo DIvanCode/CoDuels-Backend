@@ -8,7 +8,7 @@ public sealed class DuelOptions
     public const string SectionName = "Duel";
 
     public required bool DefaultShouldShowOpponentSolution { get; init; } = true;
-    public required int DefaultMaxDurationMinutes { get; init; } = 30;
-    public required int DefaultTasksCount { get; init; } = 1;
-    public required DuelTasksOrder DefaultTasksOrder { get; init; } = DuelTasksOrder.Sequential;
+    public required int DefaultDurationMinutes { get; init; } = 30;
+    public required int DefaultProblemsCount { get; init; } = 1;
+    public required ProblemsOrder DefaultProblemsOrder { get; init; } = ProblemsOrder.Sequential;
 }

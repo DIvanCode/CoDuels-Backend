@@ -1,3 +1,4 @@
+using Duely.Application.UseCases.Dto.Tournaments;
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Features.Tournaments;
 using Duely.Infrastructure.Api.Http.Requests.Tournaments;

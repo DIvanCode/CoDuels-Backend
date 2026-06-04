@@ -16,7 +16,7 @@ public sealed class CreateGroupCommand : IRequest<Result<GroupShortDto>>
     public required string Name { get; init; }
 }
 
-public sealed class CreateGroupHandler(Context context, ILogger<CreateGroupHandler> logger)
+internal sealed class CreateGroupHandler(Context context, ILogger<CreateGroupHandler> logger)
     : IRequestHandler<CreateGroupCommand, Result<GroupShortDto>>
 {
     public async Task<Result<GroupShortDto>> Handle(CreateGroupCommand command, CancellationToken cancellationToken)
@@ -56,7 +56,7 @@ public sealed class CreateGroupHandler(Context context, ILogger<CreateGroupHandl
     }
 }
 
-public sealed class CreateGroupCommandValidator : AbstractValidator<CreateGroupCommand>
+internal sealed class CreateGroupCommandValidator : AbstractValidator<CreateGroupCommand>
 {
     public CreateGroupCommandValidator()
     {

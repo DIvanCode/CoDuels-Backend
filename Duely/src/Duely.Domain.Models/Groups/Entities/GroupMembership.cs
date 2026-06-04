@@ -35,6 +35,11 @@ public sealed class GroupMembership : Entity<GroupMembershipId>
     
     public void Confirm()
     {
+        if (IsConfirmed)
+        {
+            throw new InvalidOperationException("Нельзя заново принять ранее принятое приглашение в группу.");
+        }
+        
         IsConfirmed = true;
         
         AddDomainEvent(new GroupMembershipConfirmedDomainEvent(Id));
@@ -42,6 +47,11 @@ public sealed class GroupMembership : Entity<GroupMembershipId>
     
     public void Decline()
     {
+        if (IsConfirmed)
+        {
+            throw new InvalidOperationException("Нельзя отлонить ранее принятое приглашение в группу.");
+        }
+        
         IsConfirmed = false;
         
         AddDomainEvent(new GroupMembershipDeclinedDomainEvent(Id));

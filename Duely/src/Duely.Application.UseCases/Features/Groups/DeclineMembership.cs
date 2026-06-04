@@ -14,7 +14,7 @@ public sealed class DeclineGroupMembershipCommand : IRequest<Result>
     public required Guid GroupId { get; init; }
 }
 
-public sealed class DeclineGroupMembershipHandler(Context context, ILogger<DeclineGroupMembershipHandler> logger)
+internal sealed class DeclineGroupMembershipHandler(Context context, ILogger<DeclineGroupMembershipHandler> logger)
     : IRequestHandler<DeclineGroupMembershipCommand, Result>
 {
     public async Task<Result> Handle(DeclineGroupMembershipCommand command, CancellationToken cancellationToken)
@@ -45,8 +45,14 @@ public sealed class DeclineGroupMembershipHandler(Context context, ILogger<Decli
             return new ForbiddenError();
         }
 
+        if (membership.IsConfirmed)
+        {
+            return new ForbiddenError("Нельзя отлонить ранее принятое приглашение в группу.");
+        }
+
         membership.Decline();
         
+        context.GroupMemberships.Remove(membership);
         await context.SaveChangesAsync(cancellationToken);
         
         logger.LogInformation("User {Nickname} declined membership in group {GroupId}", user.Nickname, group.Id);

@@ -4,7 +4,8 @@ using Duely.Domain.Models;
 using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Models.Tournaments;
-using Duely.Domain.Models.Tournaments.GroupStageTournaments;
+using Duely.Domain.Models.Tournaments.Entities;
+using Duely.Domain.Models.Tournaments.Entities.GroupStageTournaments;
 using Duely.Domain.Models.Users;
 using Duely.Domain.Models.Users.Entities;
 

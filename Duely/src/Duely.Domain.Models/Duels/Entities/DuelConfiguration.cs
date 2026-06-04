@@ -15,7 +15,7 @@ public sealed class DuelConfiguration : Entity<DuelConfigurationId>
         int durationMinutes,
         int problemsCount,
         ProblemsOrder problemsOrder,
-        User? createdBy) : base(id)
+        User? createdBy = null) : base(id)
     {
         Validate(durationMinutes, problemsCount);
         

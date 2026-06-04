@@ -11,15 +11,14 @@ public abstract class Duel : Entity<DuelId>
         DuelType type,
         DuelConfiguration configuration,
         IReadOnlyCollection<User> participants,
-        ProblemSet problemSet,
         DateTime createdAt) : base(id)
     {
-        ArgumentOutOfRangeException.ThrowIfNotEqual(participants.Count, 2, nameof(participants.Count));
+        var distinctParticipants = participants.Distinct().ToList();
+        ArgumentOutOfRangeException.ThrowIfNotEqual(distinctParticipants.Count, 2, nameof(distinctParticipants.Count));
         
         Type = type;
         Configuration = configuration;
         Participants = participants.ToList();
-        ProblemSet = problemSet;
         
         Status = DuelStatus.Pending;
         CreatedAt = createdAt;
@@ -28,10 +27,11 @@ public abstract class Duel : Entity<DuelId>
     public DuelType Type { get; init; }
     public DuelConfiguration Configuration { get; init; }
     public IReadOnlyCollection<User> Participants { get; init; }
-    public ProblemSet ProblemSet { get; init; }
+    public ProblemSet? ProblemSet { get; private set; }
     
     public DuelStatus Status { get; private set; }
     public DateTime CreatedAt { get; init; }
+    public DateTime? UpdatedAt { get; protected set; }
     public DateTime? StartedAt { get; private set; }
     public DateTime? FinishedAt { get; private set; }
     public User? Winner { get; private set; }
@@ -39,14 +39,16 @@ public abstract class Duel : Entity<DuelId>
     public IReadOnlyCollection<Solution> Solutions { get; init; } = [];
     public IReadOnlyCollection<Submission> Submissions { get; init; } = [];
 
-    public virtual void Start(DateTime startedAt)
+    public virtual void Start(DateTime startedAt, ProblemSet problemSet)
     {
         if (Status != DuelStatus.Pending)
         {
             throw new InvalidOperationException("Нельзя начать дуэль, которая уже начата.");
         }
-        
+
+        ProblemSet = problemSet;
         Status = DuelStatus.InProgress;
+        UpdatedAt = startedAt;
         StartedAt = startedAt;
         
         AddDomainEvent(new DuelStartedDomainEvent(Id));
@@ -60,6 +62,7 @@ public abstract class Duel : Entity<DuelId>
         }
         
         Status = DuelStatus.Finished;
+        UpdatedAt = finishedAt;
         FinishedAt = finishedAt;
         Winner = winner;
         
@@ -71,10 +74,10 @@ public sealed record DuelId(Guid Value) : Identity<Guid>(Value);
 
 public enum DuelType
 {
-    Ranked = 0,
-    Friendly = 1,
-    GroupManual = 2,
-    Tournament = 3
+    RankedDuel = 0,
+    FriendlyDuel = 1,
+    GroupDuel = 2,
+    TournamentDuel = 3
 }
 
 public enum DuelStatus

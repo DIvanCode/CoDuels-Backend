@@ -7,6 +7,7 @@ using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Helpers;
 using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Models.Tournaments.Entities;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Services.Groups;
 using Duely.Domain.Services.Tournaments;
@@ -92,7 +93,7 @@ public sealed class GetDuelHandler(
         var tournaments = await context.Tournaments
             .AsNoTracking()
             .Include(t => t.Group)
-            .Where(t => t.Status != Duely.Domain.Models.Tournaments.TournamentStatus.New)
+            .Where(t => t.Status != TournamentStatus.New)
             .ToListAsync(cancellationToken);
 
         var tournament = tournaments.FirstOrDefault(t =>

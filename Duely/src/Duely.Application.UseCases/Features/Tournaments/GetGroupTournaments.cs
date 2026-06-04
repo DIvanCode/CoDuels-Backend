@@ -1,4 +1,5 @@
 using Duely.Application.Services.Errors;
+using Duely.Application.UseCases.Dto.Tournaments;
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Helpers;
 using Duely.Domain.Models.Groups;

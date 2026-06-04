@@ -20,13 +20,15 @@ public sealed class CreateGroupMembershipCommand : IRequest<Result<GroupMembersh
     public required GroupRole TargetUserRole { get; init; }
 }
 
-public sealed class CreateGroupMembershipHandler(
+internal sealed class CreateGroupMembershipHandler(
     Context context,
     IGroupPermissionsService groupPermissionsService,
     ILogger<CreateGroupMembershipHandler> logger)
     : IRequestHandler<CreateGroupMembershipCommand, Result<GroupMembershipShortDto>>
 {
-    public async Task<Result<GroupMembershipShortDto>> Handle(CreateGroupMembershipCommand command, CancellationToken cancellationToken)
+    public async Task<Result<GroupMembershipShortDto>> Handle(
+        CreateGroupMembershipCommand command,
+        CancellationToken cancellationToken)
     {
         var group = await context.Groups
             .AsNoTracking()
@@ -69,7 +71,7 @@ public sealed class CreateGroupMembershipHandler(
             cancellationToken);
         if (targetMembershipExists)
         {
-            return new GroupMembershipAlreadyExistsError();
+            return new EntityAlreadyExistsError("Пользователь уже состоит в группе.");
         }
 
         var targetMembershipId = new GroupMembershipId(Guid.NewGuid());

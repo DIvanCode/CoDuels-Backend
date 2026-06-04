@@ -11,7 +11,7 @@ public sealed class GetUserGroupsQuery : IRequest<Result<List<GroupShortDto>>>
     public required Guid UserId { get; init; }
 }
 
-public sealed class GetUserGroupsHandler(Context context)
+internal sealed class GetUserGroupsHandler(Context context)
     : IRequestHandler<GetUserGroupsQuery, Result<List<GroupShortDto>>>
 {
     public async Task<Result<List<GroupShortDto>>> Handle(GetUserGroupsQuery query, CancellationToken cancellationToken)

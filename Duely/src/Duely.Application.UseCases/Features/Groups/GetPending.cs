@@ -11,7 +11,7 @@ public sealed class GetPendingGroupsQuery : IRequest<Result<List<GroupShortDto>>
     public required Guid UserId { get; init; }
 }
 
-public sealed class GetPendingGroupsHandler(Context context)
+internal sealed class GetPendingGroupsHandler(Context context)
     : IRequestHandler<GetPendingGroupsQuery, Result<List<GroupShortDto>>>
 {
     public async Task<Result<List<GroupShortDto>>> Handle(

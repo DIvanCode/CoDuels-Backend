@@ -2,11 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Entities;
-using Duely.Domain.Models.Duels.GroupDuels;
-using Duely.Domain.Models.Groups;
 using Duely.Domain.Models.Groups.Entities;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Tournaments;
+using Duely.Domain.Models.Tournaments.Entities;
 using Duely.Domain.Models.Users.Entities;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -24,12 +23,11 @@ public sealed class Context : DbContext
     }
     
     public DbSet<User> Users => Set<User>();
+    public DbSet<RankedSearch> RankedSearches => Set<RankedSearch>();
+    public DbSet<Duel> Duels => Set<Duel>();
+    public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<GroupMembership> GroupMemberships => Set<GroupMembership>();
-    public DbSet<GroupDuel> GroupDuels => Set<GroupDuel>();
-    public DbSet<Duel> Duels => Set<Duel>();
-    public DbSet<PendingDuel> PendingDuels => Set<PendingDuel>();
-    public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
     public DbSet<Tournament> Tournaments => Set<Tournament>();
     public DbSet<Submission> Submissions => Set<Submission>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();

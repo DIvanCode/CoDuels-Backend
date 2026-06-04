@@ -1,4 +1,5 @@
 using Duely.Domain.Models.Tournaments;
+using Duely.Domain.Models.Tournaments.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

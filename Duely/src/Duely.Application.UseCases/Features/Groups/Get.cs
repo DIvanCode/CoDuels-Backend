@@ -16,8 +16,7 @@ public sealed class GetGroupQuery : IRequest<Result<GroupDto>>
     public required Guid GroupId { get; init; }
 }
 
-public sealed class GetGroupHandler(Context context, IGroupPermissionsService groupPermissionsService)
-    : IRequestHandler<GetGroupQuery, Result<GroupDto>>
+internal sealed class GetGroupHandler(Context context) : IRequestHandler<GetGroupQuery, Result<GroupDto>>
 {
     public async Task<Result<GroupDto>> Handle(GetGroupQuery query, CancellationToken cancellationToken)
     {
@@ -50,12 +49,10 @@ public sealed class GetGroupHandler(Context context, IGroupPermissionsService gr
             Memberships = group.Memberships
                 .Select(m => new GroupMembershipDto
                 {
-                    User = new UserDto
+                    User = new UserShortDto
                     {
                         Id = m.User.Id,
-                        Nickname = m.User.Nickname.Value,
-                        Rating = m.User.Rating.Value,
-                        CreatedAt = m.User.CreatedAt
+                        Nickname = m.User.Nickname.Value
                     },
                     Role = m.Role,
                     IsConfirmed = m.IsConfirmed

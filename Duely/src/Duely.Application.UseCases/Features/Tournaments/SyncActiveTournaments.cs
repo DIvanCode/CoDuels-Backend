@@ -8,6 +8,7 @@ using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Models.Tournaments;
+using Duely.Domain.Models.Tournaments.Entities;
 using Duely.Domain.Services.Tournaments;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;

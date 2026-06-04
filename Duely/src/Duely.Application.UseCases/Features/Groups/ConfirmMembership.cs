@@ -15,7 +15,7 @@ public sealed class ConfirmGroupMembershipCommand : IRequest<Result<GroupMembers
     public required Guid GroupId { get; init; }
 }
 
-public sealed class ConfirmGroupMembershipHandler(Context context, ILogger<ConfirmGroupMembershipHandler> logger)
+internal sealed class ConfirmGroupMembershipHandler(Context context, ILogger<ConfirmGroupMembershipHandler> logger)
     : IRequestHandler<ConfirmGroupMembershipCommand, Result<GroupMembershipShortDto>>
 {
     public async Task<Result<GroupMembershipShortDto>> Handle(ConfirmGroupMembershipCommand command, CancellationToken cancellationToken)
@@ -44,6 +44,11 @@ public sealed class ConfirmGroupMembershipHandler(Context context, ILogger<Confi
         if (membership is null)
         {
             return new ForbiddenError();
+        }
+        
+        if (membership.IsConfirmed)
+        {
+            return new ForbiddenError("Нельзя заново принять ранее принятое приглашение в группу.");
         }
 
         membership.Confirm();

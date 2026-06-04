@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Duels\Errors\" />
+      <Folder Include="Tournaments\Errors\" />
     </ItemGroup>
 
 </Project>

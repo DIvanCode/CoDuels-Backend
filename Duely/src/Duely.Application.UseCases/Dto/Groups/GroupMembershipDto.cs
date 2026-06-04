@@ -7,7 +7,7 @@ namespace Duely.Application.UseCases.Dto.Groups;
 public sealed class GroupMembershipDto
 {
     [JsonPropertyName("user")]
-    public required UserDto User { get; init; }
+    public required UserShortDto User { get; init; }
     
     [JsonPropertyName("role"), JsonConverter(typeof(JsonStringEnumConverter))]
     public required GroupRole Role { get; init; }

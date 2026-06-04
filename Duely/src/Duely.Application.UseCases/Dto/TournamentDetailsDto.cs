@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Duely.Application.UseCases.Dto.Tournaments;
 
 namespace Duely.Application.UseCases.Dtos;
 

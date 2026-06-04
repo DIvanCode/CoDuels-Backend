@@ -8,10 +8,9 @@ public interface IGroupPermissionsService
     bool CanCreateMembership(GroupMembership membership, GroupRole targetRole);
     bool CanUpdateMembership(GroupMembership membership, GroupMembership targetMembership);
     bool CanDeleteMembership(GroupMembership membership, GroupMembership targetMembership);
-    // bool CanCreateDuel(GroupMembership membership);
-    // bool CanViewDuel(GroupMembership membership);
-    // bool CanCancelDuel(GroupMembership membership);
-    // bool CanCreateTournament(GroupMembership membership);
+    bool CanCreateDuel(GroupMembership membership);
+    bool CanDeleteDuel(GroupMembership membership);
+    bool CanCreateTournament(GroupMembership membership);
     // bool CanStartTournament(GroupMembership membership);
 }
 
@@ -60,33 +59,50 @@ public sealed class GroupPermissionsService : IGroupPermissionsService
         };
     }
 
-    // public bool CanCreateDuel(GroupMembership membership)
-    // {
-    //     return CanManageCompetitiveActivities(membership);
-    // }
-    //
-    // public bool CanViewDuel(GroupMembership membership)
-    // {
-    //     return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
-    // }
-    //
-    // public bool CanCancelDuel(GroupMembership membership)
-    // {
-    //     return CanManageCompetitiveActivities(membership);
-    // }
-    //
-    // public bool CanCreateTournament(GroupMembership membership)
-    // {
-    //     return CanManageCompetitiveActivities(membership);
-    // }
-    //
+    public bool CanCreateDuel(GroupMembership membership)
+    {
+        if (!membership.IsConfirmed)
+        {
+            return false;
+        }
+
+        return membership.Role switch
+        {
+            GroupRole.Manager => true,
+            _ => false
+        };
+    }
+    
+    public bool CanDeleteDuel(GroupMembership membership)
+    {
+        if (!membership.IsConfirmed)
+        {
+            return false;
+        }
+
+        return membership.Role switch
+        {
+            GroupRole.Manager => true,
+            _ => false
+        };
+    }
+    
+    public bool CanCreateTournament(GroupMembership membership)
+    {
+        if (!membership.IsConfirmed)
+        {
+            return false;
+        }
+
+        return membership.Role switch
+        {
+            GroupRole.Manager => true,
+            _ => false
+        };
+    }
+    
     // public bool CanStartTournament(GroupMembership membership)
     // {
     //     return CanManageCompetitiveActivities(membership);
-    // }
-    //
-    // private static bool CanManageCompetitiveActivities(GroupMembership membership)
-    // {
-    //     return membership is { InvitationPending: false, Role: GroupRole.Creator or GroupRole.Manager };
     // }
 }
