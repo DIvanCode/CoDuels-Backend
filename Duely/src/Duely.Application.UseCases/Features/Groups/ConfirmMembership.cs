@@ -20,15 +20,6 @@ internal sealed class ConfirmGroupMembershipHandler(Context context, ILogger<Con
 {
     public async Task<Result<GroupMembershipShortDto>> Handle(ConfirmGroupMembershipCommand command, CancellationToken cancellationToken)
     {
-        var group = await context.Groups
-            .AsNoTracking()
-            .Include(g => g.Name)
-            .SingleOrDefaultAsync(g => g.Id == command.GroupId, cancellationToken);
-        if (group is null)
-        {
-            return new GroupNotFoundError();
-        }
-        
         var user = await context.Users
             .AsNoTracking()
             .Include(u => u.Nickname)
@@ -37,10 +28,19 @@ internal sealed class ConfirmGroupMembershipHandler(Context context, ILogger<Con
         {
             return new ForbiddenError();
         }
+        
+        var group = await context.Groups
+            .AsNoTracking()
+            .Include(g => g.Name)
+            .Include(g => g.Memberships.Where(m => m.User.Id == command.UserId))
+            .ThenInclude(m => m.User)
+            .SingleOrDefaultAsync(g => g.Id == command.GroupId, cancellationToken);
+        if (group is null)
+        {
+            return new GroupNotFoundError();
+        }
 
-        var membership = await context.GroupMemberships
-            .Where(m => m.Group.Id == group.Id && m.User.Id == command.UserId)
-            .SingleOrDefaultAsync(cancellationToken);
+        var membership = group.GetMembership(user);
         if (membership is null)
         {
             return new ForbiddenError();
@@ -51,7 +51,7 @@ internal sealed class ConfirmGroupMembershipHandler(Context context, ILogger<Con
             return new ForbiddenError("Нельзя заново принять ранее принятое приглашение в группу.");
         }
 
-        membership.Confirm();
+        group.ConfirmMembership(user);
         
         await context.SaveChangesAsync(cancellationToken);
         

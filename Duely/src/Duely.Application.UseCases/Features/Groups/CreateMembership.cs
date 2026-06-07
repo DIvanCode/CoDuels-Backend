@@ -31,8 +31,10 @@ internal sealed class CreateGroupMembershipHandler(
         CancellationToken cancellationToken)
     {
         var group = await context.Groups
-            .AsNoTracking()
             .Include(g => g.Name)
+            .Include(g => g.Memberships
+                .Where(m => m.User.Id == command.UserId || m.User.Id == command.TargetUserId))
+            .ThenInclude(u => u.User)
             .SingleOrDefaultAsync(g => g.Id == command.GroupId, cancellationToken);
         if (group is null)
         {
@@ -48,10 +50,7 @@ internal sealed class CreateGroupMembershipHandler(
             return new ForbiddenError();
         }
 
-        var membership = await context.GroupMemberships
-            .AsNoTracking()
-            .Where(m => m.Group.Id == command.GroupId && m.User.Id == command.UserId)
-            .SingleOrDefaultAsync(cancellationToken);
+        var membership = group.Memberships.SingleOrDefault(m => m.User.Id == command.UserId);
         if (membership is null || !groupPermissionsService.CanCreateMembership(membership, command.TargetUserRole))
         {
             return new ForbiddenError();
@@ -66,23 +65,13 @@ internal sealed class CreateGroupMembershipHandler(
             return new UserNotFoundError();
         }
         
-        var targetMembershipExists = await context.GroupMemberships.AnyAsync(
-            m => m.Group.Id == command.GroupId && m.User.Id == command.TargetUserId,
-            cancellationToken);
+        var targetMembershipExists = group.Memberships.Any(m => m.User.Id == command.TargetUserId);
         if (targetMembershipExists)
         {
             return new EntityAlreadyExistsError("Пользователь уже состоит в группе.");
         }
 
-        var targetMembershipId = new GroupMembershipId(Guid.NewGuid());
-        var targetMembership = new GroupMembership(
-            targetMembershipId,
-            targetUser,
-            group,
-            command.TargetUserRole,
-            isConfirmed: false);
-        
-        context.GroupMemberships.Add(targetMembership);
+        var targetMembership = group.CreateMembership(targetUser, command.TargetUserRole, isConfirmed: false);
         await context.SaveChangesAsync(cancellationToken);
         
         logger.LogInformation(
@@ -91,8 +80,8 @@ internal sealed class CreateGroupMembershipHandler(
 
         return new GroupMembershipShortDto
         {
-            Role = membership.Role,
-            IsConfirmed = membership.IsConfirmed
+            Role = targetMembership.Role,
+            IsConfirmed = targetMembership.IsConfirmed
         };
     }
 }

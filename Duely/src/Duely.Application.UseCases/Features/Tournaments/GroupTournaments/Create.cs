@@ -1,34 +1,41 @@
 using Duely.Application.UseCases.Dto.Tournaments;
-using Duely.Application.UseCases.Helpers;
+using Duely.Application.UseCases.Dto.Tournaments.Configurations.Factories;
+using Duely.Application.UseCases.Dto.Users;
 using Duely.Domain.Common.Errors;
 using Duely.Domain.Models.Duels.Entities;
-using Duely.Domain.Models.Groups.Entities;
+using Duely.Domain.Models.Duels.Errors;
 using Duely.Domain.Models.Groups.Errors;
 using Duely.Domain.Models.Tournaments.Entities;
-using Duely.Domain.Models.Users.Entities;
+using Duely.Domain.Models.Tournaments.Entities.Tournaments;
+using Duely.Domain.Models.Users.Errors;
+using Duely.Domain.Services.Duels;
 using Duely.Domain.Services.Groups;
-using Duely.Domain.Services.Tournaments;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Duely.Application.UseCases.Features.Tournaments.GroupTournaments;
 
 public sealed class CreateGroupTournamentCommand : IRequest<Result<GroupTournamentDto>>
 {
     public required Guid UserId { get; init; }
+    public required Guid GroupId { get; init; }
     public required string Name { get; init; }
     public required IReadOnlyList<Guid> Participants { get; init; }
     public required TournamentConfigurationType ConfigurationType { get; init; }
     public required Guid? DuelConfigurationId { get; init; }
-    public required Guid GroupId { get; init; }
 }
 
 public sealed class CreateGroupTournamentHandler(
     Context context,
-    IGroupPermissionsService groupPermissionsService)
+    IGroupPermissionsService groupPermissionsService,
+    IOptions<DuelOptions> duelOptions,
+    ITournamentConfigurationDtoFactory tournamentConfigurationDtoFactory,
+    ILogger<CreateGroupTournamentHandler> logger)
     : IRequestHandler<CreateGroupTournamentCommand, Result<GroupTournamentDto>>
 {
     public async Task<Result<GroupTournamentDto>> Handle(
@@ -47,82 +54,125 @@ public sealed class CreateGroupTournamentHandler(
         var group = await context.Groups
             .AsNoTracking()
             .Include(g => g.Name)
+            .Include(g => g.Memberships)
+            .ThenInclude(m => m.User)
             .SingleOrDefaultAsync(g => g.Id == command.GroupId, cancellationToken);
         if (group is null)
         {
             return new GroupNotFoundError();
         }
         
-        var membership = await context.GroupMemberships
-            .AsNoTracking()
-            .Where(m => m.Group.Id == command.GroupId && m.User.Id == command.UserId)
-            .SingleOrDefaultAsync(cancellationToken);
+        var membership = group.GetMembership(user);
         if (membership is null || !groupPermissionsService.CanCreateTournament(membership))
         {
             return new ForbiddenError();
         }
 
-        DuelConfiguration? configuration = null;
-        if (command.DuelConfigurationId is not null)
+        var duelConfigurationResult = await ResolveDuelConfiguration(command.DuelConfigurationId, cancellationToken);
+        if (duelConfigurationResult.IsFailed)
         {
-            configuration = await context.DuelConfigurations
+            return duelConfigurationResult.ToResult();
+        }
+        
+        var duelConfiguration = duelConfigurationResult.Value;
+        var configuration = TournamentConfiguration.Create(command.ConfigurationType, duelConfiguration);
+        var id = new TournamentId(Guid.NewGuid());
+        var name = new TournamentName(command.Name);
+        var tournament = new GroupTournament(id, name, user, DateTime.UtcNow, configuration, group);
+
+        foreach (var participantId in command.Participants)
+        {
+            var participant = await context.Users
                 .AsNoTracking()
-                .Where(c => c.Id == command.DuelConfigurationId.Value)
-                .SingleOrDefaultAsync(cancellationToken);
-            if (configuration is null)
+                .SingleOrDefaultAsync(u => u.Id == participantId, cancellationToken);
+            if (participant is null)
             {
-                return new EntityNotFoundError(
-                    nameof(DuelConfiguration),
-                    nameof(DuelConfiguration.Id),
-                    command.DuelConfigurationId.Value);
+                return new UserNotFoundError();
             }
-        }
-
-        var participantUsers = new List<User>();
-        foreach (var nickname in command.Participants)
-        {
-            var membership = group.Users
-                .SingleOrDefault(m => !m.InvitationPending && m.User.Nickname == nickname);
-            if (membership is null)
+            
+            var participantMembership = group.GetMembership(participant);
+            if (participantMembership is null)
             {
-                return new EntityNotFoundError(nameof(GroupMembership), nameof(User.Nickname), nickname);
+                return new ForbiddenError("Нельзя пригласить на турнир пользователя не из группы.");
             }
 
-            participantUsers.Add(membership.User);
+            tournament.AddParticipant(participant);
         }
-
-        var strategy = strategyResolver.GetStrategy(command.MatchmakingType);
-        var tournament = strategy.CreateTournament(
-            command.Name,
-            group,
-            actorMembership.User,
-            DateTime.UtcNow,
-            configuration,
-            participantUsers);
 
         context.Tournaments.Add(tournament);
         await context.SaveChangesAsync(cancellationToken);
+        
+        logger.LogInformation(
+            "User {Nickname} created tournament {TournamentId} in group {GroupId}",
+            user.Nickname, tournament.Id, group.Id);
 
-        return TournamentDtoMapper.Map(tournament);
+        return new GroupTournamentDto
+        {
+            Id = tournament.Id,
+            Name = tournament.Name.Value,
+            Type = tournament.Type,
+            Status = tournament.Status,
+            CreatedBy = new UserShortDto
+            {
+                Id = tournament.CreatedBy.Id,
+                Nickname = tournament.CreatedBy.Nickname.Value
+            },
+            CreatedAt = tournament.CreatedAt,
+            Participants = tournament.Participants
+                .Select(p => new UserShortDto
+                {
+                    Id = p.User.Id,
+                    Nickname = p.User.Nickname.Value
+                })
+                .ToList(),
+            Configuration = tournamentConfigurationDtoFactory.Create(tournament.Configuration)
+        };
+    }
+    
+    private async Task<Result<DuelConfiguration>> ResolveDuelConfiguration(
+        Guid? duelConfigurationId,
+        CancellationToken cancellationToken)
+    {
+        DuelConfiguration? duelConfiguration = null;
+        if (duelConfigurationId is not null)
+        {
+            duelConfiguration = await context.DuelConfigurations
+                .AsNoTracking()
+                .SingleOrDefaultAsync(c => c.Id == duelConfigurationId, cancellationToken);
+            if (duelConfiguration is null)
+            {
+                return new DuelConfigurationNotFoundError();
+            }
+        }
+        
+        var duelConfigurationVersionId = new DuelConfigurationId(Guid.NewGuid());
+        var duelConfigurationVersion = new DuelConfiguration(
+            duelConfigurationVersionId,
+            duelConfiguration?.IsRated ?? false,
+            duelConfiguration?.ShouldShowOpponentSolution ?? duelOptions.Value.DefaultShouldShowOpponentSolution,
+            duelConfiguration?.DurationMinutes ?? duelOptions.Value.DefaultDurationMinutes,
+            duelConfiguration?.ProblemsCount ?? duelOptions.Value.DefaultProblemsCount,
+            duelConfiguration?.ProblemsOrder ?? duelOptions.Value.DefaultProblemsOrder);
+
+        context.DuelConfigurations.Add(duelConfigurationVersion);
+        
+        return duelConfigurationVersion;
     }
 }
 
-public sealed class CreateTournamentCommandValidator : AbstractValidator<CreateTournamentCommand>
+public sealed class CreateGroupTournamentCommandValidator : AbstractValidator<CreateGroupTournamentCommand>
 {
-    public CreateTournamentCommandValidator()
+    public CreateGroupTournamentCommandValidator()
     {
-        RuleFor(r => r.Name)
-            .NotEmpty().WithMessage("tournament name is required");
-
-        RuleFor(r => r.MatchmakingType)
-            .IsInEnum().WithMessage("matchmaking type has invalid value");
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Название турнира не может быть пустым.");
+        
+        RuleFor(x => x.Name)
+            .MaximumLength(TournamentName.MaxLength)
+            .WithMessage($"Название турнира не может содержать более {TournamentName.MaxLength} символов.");
 
         RuleFor(r => r.Participants)
-            .Must(p => p.Count >= 2).WithMessage("at least two participants are required")
-            .Must(p => p.Distinct(StringComparer.Ordinal).Count() == p.Count)
-            .WithMessage("participants must be unique");
-
-        RuleForEach(r => r.Participants)
-            .NotEmpty().WithMessage("participant nickname is required");
+            .Must(p => p.Distinct().Count() >= 2)
+            .WithMessage("Турнир должен содержать хотя бы двух различных участников.");
     }
 }

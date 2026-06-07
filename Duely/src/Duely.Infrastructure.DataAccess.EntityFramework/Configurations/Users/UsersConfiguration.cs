@@ -34,6 +34,8 @@ internal sealed class UsersConfiguration : IEntityTypeConfiguration<User>
                 to => JsonSerializer.Deserialize<Password>(to, PasswordJsonContext.Default.Password)!);
         
         builder.Property(u => u.CreatedAt).HasColumnName(nameof(User.CreatedAt));
+        
+        builder.Property(u => u.IsAdmin).HasColumnName(nameof(User.IsAdmin));
 
         builder.Property(u => u.RefreshToken).HasColumnName(nameof(User.RefreshToken));
 

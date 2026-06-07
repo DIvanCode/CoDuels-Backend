@@ -1,5 +1,7 @@
 using System.Reflection;
+using Duely.Application.UseCases.Dto.Tournaments.Configurations.Factories;
 using Duely.Application.UseCases.Helpers;
+using Duely.Domain.Models.Tournaments.Entities.Configurations;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Configuration;
@@ -11,18 +13,20 @@ public static class ServiceCollectionExtensions
 {
     public static void SetupUseCases(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddMediatR(config => config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+        services.AddMediatR(config =>
+            config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+        
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
-        foreach (var mapperType in GetConcreteTypes<ITournamentDetailsMapper>(typeof(ServiceCollectionExtensions).Assembly))
-        {
-            services.AddScoped(typeof(ITournamentDetailsMapper), mapperType);
-        }
-        services.AddScoped<ITournamentDetailsMapperResolver, TournamentDetailsMapperResolver>();
-    }
 
-    private static IEnumerable<Type> GetConcreteTypes<TService>(Assembly assembly)
-    {
-        return assembly.GetTypes()
-            .Where(type => typeof(TService).IsAssignableFrom(type) && type is { IsClass: true, IsAbstract: false });
+        services.AddSingleton<ITournamentConfigurationDtoFactoryResolver, TournamentConfigurationDtoFactoryResolver>();
+        
+        services.AddSingleton<ITournamentConfigurationDtoFactory, GroupStageTournamentConfigurationDtoFactory>();
+        services.AddSingleton<ITournamentConfigurationDtoFactory<GroupStageTournamentConfiguration>,
+            GroupStageTournamentConfigurationDtoFactory>();
+        
+        services.AddSingleton<ITournamentConfigurationDtoFactory,
+            SingleEliminationBracketTournamentConfigurationDtoFactory>();
+        services.AddSingleton<ITournamentConfigurationDtoFactory<SingleEliminationBracketTournamentConfiguration>,
+            SingleEliminationBracketTournamentConfigurationDtoFactory>();
     }
 }

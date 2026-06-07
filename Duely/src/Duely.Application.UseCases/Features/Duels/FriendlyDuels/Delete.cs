@@ -34,7 +34,7 @@ internal sealed class DeleteFriendlyDuelHandler(
         
         var duel = await context.Duels.OfType<FriendlyDuel>()
             .Include(d => d.Participants)
-                .ThenInclude(p => p.Nickname)
+            .ThenInclude(p => p.Nickname)
             .SingleOrDefaultAsync(d => d.Id == command.Id, cancellationToken);
         if (duel is null)
         {

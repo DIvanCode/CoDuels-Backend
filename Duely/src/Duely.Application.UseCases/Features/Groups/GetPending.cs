@@ -1,4 +1,5 @@
 using Duely.Application.UseCases.Dto.Groups;
+using Duely.Domain.Common.Errors;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
@@ -18,23 +19,34 @@ internal sealed class GetPendingGroupsHandler(Context context)
         GetPendingGroupsQuery query,
         CancellationToken cancellationToken)
     {
-        var memberships = await context.GroupMemberships
+        var user = await context.Users
             .AsNoTracking()
-            .Where(m => m.User.Id == query.UserId && !m.IsConfirmed)
-            .Include(m => m.Group)
-                .ThenInclude(g => g.Name)
+            .SingleOrDefaultAsync(u => u.Id == query.UserId, cancellationToken);
+        if (user is null)
+        {
+            return new ForbiddenError();
+        }
+        
+        var groups = await context.Groups
+            .Include(g => g.Memberships)
+            .ThenInclude(m => m.User)
+            .Where(g => g.Memberships.Any(m => m.User.Id == query.UserId && !m.IsConfirmed))
             .ToListAsync(cancellationToken);
         
-        return memberships
-            .Select(m => new GroupShortDto
+        return groups
+            .Select(g =>
             {
-                Id = m.Group.Id,
-                Name = m.Group.Name.Value,
-                Membership = new GroupMembershipShortDto
+                var membership = g.GetMembership(user)!;
+                return new GroupShortDto
                 {
-                    Role = m.Role,
-                    IsConfirmed = m.IsConfirmed
-                }
+                    Id = g.Id,
+                    Name = g.Name.Value,
+                    Membership = new GroupMembershipShortDto
+                    {
+                        Role = membership.Role,
+                        IsConfirmed = membership.IsConfirmed
+                    }
+                };
             })
             .ToList();
     }

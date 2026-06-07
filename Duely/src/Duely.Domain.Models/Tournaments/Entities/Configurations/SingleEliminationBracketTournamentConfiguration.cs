@@ -6,20 +6,24 @@ namespace Duely.Domain.Models.Tournaments.Entities.Configurations;
 
 public sealed class SingleEliminationBracketTournamentConfiguration : TournamentConfiguration
 {
-    public SingleEliminationBracketTournamentConfiguration(DuelConfiguration? duelConfiguration)
+    internal SingleEliminationBracketTournamentConfiguration(DuelConfiguration duelConfiguration)
         : base(TournamentConfigurationType.SingleEliminationBracket, duelConfiguration)
     {
     }
 
-    private List<SingleEliminationBracketNode?> _nodes = [];
-    public IReadOnlyList<SingleEliminationBracketNode?> Nodes => _nodes.AsReadOnly();
+    private List<SingleEliminationBracketNode> _nodes = [];
+    public IReadOnlyList<SingleEliminationBracketNode> Nodes => _nodes.AsReadOnly();
     
     internal override void Build(IReadOnlyCollection<TournamentParticipant> participants)
     {
         var orderedParticipants = new List<TournamentParticipant>(participants.Count);
         orderedParticipants.AddRange(participants.OrderBy(p => p.Seed));
 
-        _nodes = Enumerable.Repeat<SingleEliminationBracketNode?>(null, 4 * orderedParticipants.Count).ToList();
+        for (var v = 0; v < 4 * orderedParticipants.Count; v++)
+        {
+            _nodes.Add(new SingleEliminationBracketNullNode(v, v * 2 + 1, v * 2 + 2));
+        }
+        
         _buildNodes(0, 0, orderedParticipants.Count, orderedParticipants);
     }
     
@@ -50,8 +54,9 @@ public sealed class SingleEliminationBracketTournamentConfiguration : Tournament
 
 public enum SingleEliminationBracketNodeType
 {
-    User = 0,
-    Duel = 1
+    Null = 0,
+    User = 1,
+    Duel = 2
 }
 
 public abstract class SingleEliminationBracketNode : ValueObject
@@ -84,6 +89,19 @@ public abstract class SingleEliminationBracketNode : ValueObject
     public int Index { get; init; }
     public int? LeftChildIndex { get; init; }
     public int? RightChildIndex { get; init; }
+    
+    protected override IEnumerable<object?> GetEqualityComponents()
+    {
+        yield return Index;
+    }
+}
+
+public sealed class SingleEliminationBracketNullNode : SingleEliminationBracketNode
+{
+    public SingleEliminationBracketNullNode(int index, int? leftChildIndex, int? rightChildIndex)
+        : base(SingleEliminationBracketNodeType.User, index, leftChildIndex, rightChildIndex)
+    {
+    }
 }
 
 public sealed class SingleEliminationBracketUserNode : SingleEliminationBracketNode
@@ -95,11 +113,6 @@ public sealed class SingleEliminationBracketUserNode : SingleEliminationBracketN
     }
     
     public UserId UserId { get; init; }
-    
-    protected override IEnumerable<object?> GetEqualityComponents()
-    {
-        yield return Index;
-    }
 }
 
 public sealed class SingleEliminationBracketDuelNode : SingleEliminationBracketNode
@@ -115,10 +128,5 @@ public sealed class SingleEliminationBracketDuelNode : SingleEliminationBracketN
     public void SetDuelId(DuelId duelId)
     {
         DuelId = duelId;
-    }
-    
-    protected override IEnumerable<object?> GetEqualityComponents()
-    {
-        yield return Index;
     }
 }

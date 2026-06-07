@@ -37,7 +37,7 @@ internal sealed class DeleteGroupDuelHandler(
         
         var duel = await context.Duels.OfType<GroupDuel>()
             .Include(d => d.Participants)
-                .ThenInclude(p => p.Nickname)
+            .ThenInclude(p => p.Nickname)
             .Include(d => d.Group)
             .SingleOrDefaultAsync(d => d.Id == command.Id, cancellationToken);
         if (duel is null)
@@ -45,15 +45,23 @@ internal sealed class DeleteGroupDuelHandler(
             return new DuelNotFoundError();
         }
         
-        var membership = await context.GroupMemberships
+        var group = await context.Groups
             .AsNoTracking()
-            .Where(m => m.User.Id == command.UserId && m.Group.Id == duel.Group.Id)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (membership is null)
+            .Include(g => g.Name)
+            .Include(g => g.Memberships.Where(m => m.User.Id == command.UserId))
+            .ThenInclude(m => m.User)
+            .SingleOrDefaultAsync(g => g.Id == duel.Group.Id, cancellationToken);
+        if (group is null)
         {
-            return new ForbiddenError();
+            return new GroupNotFoundError();
         }
 
+        var membership = group.GetMembership(user);
+        if (membership is null)
+        {
+            return new ForbiddenError();            
+        }
+        
         if (!groupPermissionsService.CanDeleteDuel(membership))
         {
             return new ForbiddenError("У вас недостаточно прав для удаления дуэли в этой группе.");

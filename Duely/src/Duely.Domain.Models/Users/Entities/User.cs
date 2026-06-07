@@ -23,7 +23,8 @@ public sealed class User : Entity<UserId>
     public Nickname Nickname { get; init; }
     public Password Password { get; init; }
     public DateTime CreatedAt { get; init; }
-    
+    public bool IsAdmin { get; init; }
+
     public string? RefreshToken { get; private set; }
     public string? IdentityTicket { get; private set; }
     

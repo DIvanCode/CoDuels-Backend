@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Duely.Domain.Common.Entities;
+using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Models.Tournaments.DomainEvents;
 using Duely.Domain.Models.Users.Entities;
 
@@ -54,9 +55,9 @@ public abstract class Tournament : Entity<TournamentId>
             throw new InvalidOperationException("Нельзя запустить уже запущенный ранее турнир.");
         }
 
-        if (_participants.Count == 0)
+        if (_participants.Count >= 2)
         {
-            throw new InvalidOperationException("Нельзя запустить турнир без участников.");
+            throw new InvalidOperationException("Турнир должен содержать хотя бы двух участников.");
         }
         
         Configuration.Build(Participants);

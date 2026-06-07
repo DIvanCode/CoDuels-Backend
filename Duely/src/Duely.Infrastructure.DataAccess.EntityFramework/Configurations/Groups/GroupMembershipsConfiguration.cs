@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations.Groups;
 
-public sealed class GroupMembershipsConfiguration : IEntityTypeConfiguration<GroupMembership>
+internal sealed class GroupMembershipsConfiguration : IEntityTypeConfiguration<GroupMembership>
 {
     private const string TableName = "GroupMemberships";
     private const string GroupIdColumnName = "GroupId";
@@ -14,30 +14,20 @@ public sealed class GroupMembershipsConfiguration : IEntityTypeConfiguration<Gro
     {
         builder.ToTable(TableName);
 
-        builder.HasKey(m => m.Id);
-
-        builder.Property(m => m.Id)
-            .HasColumnName(nameof(GroupMembership.Id))
-            .ValueGeneratedNever();
+        builder.HasKey(GroupIdColumnName, UserIdColumnName);
         
         builder.HasOne(m => m.Group)
-            .WithMany(g => g.Memberships)
-            .HasForeignKey(GroupIdColumnName)
-            .OnDelete(DeleteBehavior.Cascade);
+            .WithMany()
+            .HasForeignKey(GroupIdColumnName);
         
         builder.HasOne(m => m.User)
             .WithMany()
-            .HasForeignKey(UserIdColumnName)
-            .OnDelete(DeleteBehavior.Cascade);
+            .HasForeignKey(UserIdColumnName);
 
         builder.Property(m => m.Role)
             .HasColumnName(nameof(GroupMembership.Role))
             .HasConversion<string>();
 
         builder.Property(m => m.IsConfirmed).HasColumnName(nameof(GroupMembership.IsConfirmed));
-        
-        builder.HasIndex(UserIdColumnName, GroupIdColumnName).IsUnique();
-        
-        builder.HasIndex(GroupIdColumnName, UserIdColumnName).IsUnique();
     }
 }

@@ -1,14 +1,14 @@
 using Duely.Domain.Models.Groups.Entities;
-using Duely.Domain.Models.Users.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations.Groups;
 
-public sealed class GroupsConfiguration : IEntityTypeConfiguration<Group>
+internal sealed class GroupsConfiguration : IEntityTypeConfiguration<Group>
 {
     private const string TableName = "Groups";
+    private const string MembershipsFieldName = "_memberships";
     
     public void Configure(EntityTypeBuilder<Group> builder)
     {
@@ -24,8 +24,9 @@ public sealed class GroupsConfiguration : IEntityTypeConfiguration<Group>
             .HasColumnName(nameof(Group.Name))
             .HasConversion<GroupNameConverter>();
 
-        builder.HasMany(g => g.Memberships)
-            .WithOne(g => g.Group);
+        builder.Navigation(g => g.Memberships)
+            .HasField(MembershipsFieldName)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }
 

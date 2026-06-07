@@ -33,7 +33,7 @@ internal sealed class ConfirmFriendlyDuelHandler(
         
         var duel = await context.Duels.OfType<FriendlyDuel>()
             .Include(d => d.Participants)
-                .ThenInclude(p => p.Nickname)
+            .ThenInclude(p => p.Nickname)
             .Include(d => d.CreatedBy)
             .SingleOrDefaultAsync(d => d.Id == command.Id, cancellationToken);
         if (duel is null)

@@ -16,8 +16,4 @@
       <ProjectReference Include="..\Duely.Domain.Kernel\Duely.Domain.Kernel.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Tournaments\Errors\" />
-    </ItemGroup>
-
 </Project>

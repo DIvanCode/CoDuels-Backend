@@ -6,7 +6,7 @@ namespace Duely.Domain.Models.Tournaments.Entities.Configurations;
 
 public sealed class GroupStageTournamentConfiguration : TournamentConfiguration
 {
-    public GroupStageTournamentConfiguration(DuelConfiguration? duelConfiguration)
+    internal GroupStageTournamentConfiguration(DuelConfiguration duelConfiguration)
         : base(TournamentConfigurationType.GroupStage, duelConfiguration)
     {
     }

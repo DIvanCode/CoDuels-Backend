@@ -33,12 +33,9 @@ internal sealed class CreateGroupHandler(Context context, ILogger<CreateGroupHan
         var groupId = new GroupId(Guid.NewGuid());
         var groupName = new GroupName(command.Name);
         var group = new Group(groupId, groupName);
-        
-        var groupMembershipId = new GroupMembershipId(Guid.NewGuid());
-        var groupMembership = new GroupMembership(groupMembershipId, user, group, GroupRole.Manager, isConfirmed: true);
+        var membership = group.CreateMembership(user, GroupRole.Manager, isConfirmed: true);
         
         context.Groups.Add(group);
-        context.GroupMemberships.Add(groupMembership);
         await context.SaveChangesAsync(cancellationToken);
         
         logger.LogInformation("User {Nickname} created group {GroupId}", user.Nickname, group.Id);
@@ -49,8 +46,8 @@ internal sealed class CreateGroupHandler(Context context, ILogger<CreateGroupHan
             Name = group.Name.Value,
             Membership = new GroupMembershipShortDto
             {
-                Role = groupMembership.Role,
-                IsConfirmed = groupMembership.IsConfirmed
+                Role = membership.Role,
+                IsConfirmed = membership.IsConfirmed
             }
         };
     }

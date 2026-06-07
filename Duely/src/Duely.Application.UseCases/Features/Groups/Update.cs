@@ -25,12 +25,12 @@ internal sealed class UpdateGroupHandler(
     ILogger<UpdateGroupHandler> logger)
     : IRequestHandler<UpdateGroupCommand, Result<GroupShortDto>>
 {
-    public async Task<Result<GroupShortDto>> Handle(UpdateGroupCommand request, CancellationToken cancellationToken)
+    public async Task<Result<GroupShortDto>> Handle(UpdateGroupCommand command, CancellationToken cancellationToken)
     {
         var user = await context.Users
             .AsNoTracking()
             .Include(u => u.Nickname)
-            .SingleOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+            .SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
         if (user is null)
         {
             return new ForbiddenError();
@@ -38,22 +38,21 @@ internal sealed class UpdateGroupHandler(
         
         var group = await context.Groups
             .Include(g => g.Name)
-            .SingleOrDefaultAsync(g => g.Id == request.GroupId, cancellationToken);
+            .Include(g => g.Memberships.Where(m => m.User.Id == command.UserId))
+            .ThenInclude(m => m.User)
+            .SingleOrDefaultAsync(g => g.Id == command.GroupId, cancellationToken);
         if (group is null)
         {
             return new GroupNotFoundError();
         }
 
-        var membership = await context.GroupMemberships
-            .AsNoTracking()
-            .Where(m => m.Group.Id == group.Id && m.User.Id == request.UserId)
-            .SingleOrDefaultAsync(cancellationToken);
+        var membership = group.GetMembership(user);
         if (membership is null || !groupPermissionsService.CanUpdateGroup(membership))
         {
             return new ForbiddenError("У вас нет прав для редактирования этой группы.");
         }
 
-        var name = new GroupName(request.Name);
+        var name = new GroupName(command.Name);
         group.UpdateName(name);
         
         await context.SaveChangesAsync(cancellationToken);

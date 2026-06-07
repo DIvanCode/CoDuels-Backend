@@ -47,16 +47,15 @@ internal sealed class CreateGroupDuelHandler(
         var group = await context.Groups
             .AsNoTracking()
             .Include(g => g.Name)
+            .Include(g => g.Memberships.Where(m => m.User.Id == command.UserId))
+            .ThenInclude(m => m.User)
             .SingleOrDefaultAsync(g => g.Id == command.GroupId, cancellationToken);
         if (group is null)
         {
             return new GroupNotFoundError();
         }
-        
-        var membership = await context.GroupMemberships
-            .AsNoTracking()
-            .Where(m => m.User.Id == command.UserId && m.Group.Id == command.GroupId)
-            .SingleOrDefaultAsync(cancellationToken);
+
+        var membership = group.GetMembership(user);
         if (membership is null)
         {
             return new ForbiddenError();

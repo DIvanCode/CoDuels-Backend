@@ -28,15 +28,6 @@ internal sealed class UpdateGroupMembershipHandler(
 {
     public async Task<Result<GroupMembershipShortDto>> Handle(UpdateGroupMembershipCommand command, CancellationToken cancellationToken)
     {
-        var group = await context.Groups
-            .AsNoTracking()
-            .Include(g => g.Name)
-            .SingleOrDefaultAsync(g => g.Id == command.GroupId, cancellationToken);
-        if (group is null)
-        {
-            return new GroupNotFoundError();
-        }
-        
         var user = await context.Users
             .AsNoTracking()
             .Include(u => u.Nickname)
@@ -45,11 +36,20 @@ internal sealed class UpdateGroupMembershipHandler(
         {
             return new ForbiddenError();
         }
-
-        var membership = await context.GroupMemberships
+        
+        var group = await context.Groups
             .AsNoTracking()
-            .Where(m => m.Group.Id == command.GroupId && m.User.Id == command.UserId)
-            .SingleOrDefaultAsync(cancellationToken);
+            .Include(g => g.Name)
+            .Include(g => g.Memberships
+                .Where(m => m.User.Id == command.UserId || m.User.Id == command.TargetUserId))
+            .ThenInclude(m => m.User)
+            .SingleOrDefaultAsync(g => g.Id == command.GroupId, cancellationToken);
+        if (group is null)
+        {
+            return new GroupNotFoundError();
+        }
+
+        var membership = group.GetMembership(user);
         if (membership is null)
         {
             return new ForbiddenError();
@@ -63,16 +63,14 @@ internal sealed class UpdateGroupMembershipHandler(
         {
             return new UserNotFoundError();
         }
-        
-        var targetMembership = await context.GroupMemberships
-            .Where(m => m.Group.Id == command.GroupId && m.User.Id == command.TargetUserId)
-            .SingleOrDefaultAsync(cancellationToken);
+
+        var targetMembership = group.GetMembership(targetUser);
         if (targetMembership is null || !groupPermissionsService.CanUpdateMembership(membership, targetMembership))
         {
             return new ForbiddenError("У вас нет прав на назначение роли этому пользователю.");
         }
         
-        targetMembership.ChangeRole(command.TargetRole);
+        group.UpdateMembership(targetUser, command.TargetRole);
         
         await context.SaveChangesAsync(cancellationToken);
         
@@ -82,8 +80,8 @@ internal sealed class UpdateGroupMembershipHandler(
 
         return new GroupMembershipShortDto
         {
-            Role = membership.Role,
-            IsConfirmed = membership.IsConfirmed
+            Role = targetMembership.Role,
+            IsConfirmed = targetMembership.IsConfirmed
         };
     }
 }

@@ -1,6 +1,7 @@
 using Duely.Application.UseCases.Dto.Tournaments;
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Features.Tournaments;
+using Duely.Application.UseCases.Features.Tournaments.GroupTournaments;
 using Duely.Infrastructure.Api.Http.Requests.Tournaments;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

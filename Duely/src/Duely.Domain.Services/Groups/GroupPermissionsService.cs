@@ -11,7 +11,7 @@ public interface IGroupPermissionsService
     bool CanCreateDuel(GroupMembership membership);
     bool CanDeleteDuel(GroupMembership membership);
     bool CanCreateTournament(GroupMembership membership);
-    // bool CanStartTournament(GroupMembership membership);
+    bool CanStartTournament(GroupMembership membership);
 }
 
 public sealed class GroupPermissionsService : IGroupPermissionsService
@@ -101,8 +101,17 @@ public sealed class GroupPermissionsService : IGroupPermissionsService
         };
     }
     
-    // public bool CanStartTournament(GroupMembership membership)
-    // {
-    //     return CanManageCompetitiveActivities(membership);
-    // }
+    public bool CanStartTournament(GroupMembership membership)
+    {
+        if (!membership.IsConfirmed)
+        {
+            return false;
+        }
+
+        return membership.Role switch
+        {
+            GroupRole.Manager => true,
+            _ => false
+        };
+    }
 }

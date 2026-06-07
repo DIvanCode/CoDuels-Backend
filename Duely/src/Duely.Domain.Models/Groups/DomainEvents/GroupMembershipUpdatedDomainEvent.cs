@@ -1,14 +1,17 @@
 using Duely.Domain.Common.DomainEvents;
 using Duely.Domain.Models.Groups.Entities;
+using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Models.Groups.DomainEvents;
 
 public sealed class GroupMembershipUpdatedDomainEvent : DomainEvent
 {
-    public GroupMembershipUpdatedDomainEvent(GroupMembershipId id)
+    public GroupMembershipUpdatedDomainEvent(GroupId groupId, UserId userId)
     {
-        Id = id;
+        GroupId = groupId;
+        UserId = userId;
     }
     
-    public GroupMembershipId Id { get; init; }
+    public GroupId GroupId { get; init; }
+    public UserId UserId { get; init; }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Duely.Application.UseCases.Dto.Tournaments.Configurations;
 using Duely.Application.UseCases.Dto.Users;
 using Duely.Domain.Models.Tournaments.Entities;
 
@@ -7,7 +8,7 @@ namespace Duely.Application.UseCases.Dto.Tournaments;
 public abstract class TournamentDto
 {
     [JsonPropertyName("id")]
-    public required TournamentId Id { get; init; }
+    public required Guid Id { get; init; }
 
     [JsonPropertyName("name")]
     public required string Name { get; init; }
@@ -19,7 +20,7 @@ public abstract class TournamentDto
     public required TournamentStatus Status { get; init; }
 
     [JsonPropertyName("created_by")]
-    public required UserDto CreatedBy { get; init; }
+    public required UserShortDto CreatedBy { get; init; }
 
     [JsonPropertyName("created_at")]
     public required DateTime CreatedAt { get; init; }
