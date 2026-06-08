@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace Duely.Domain.Common.Entities;
 
 public abstract class ValueObject : IEquatable<ValueObject>

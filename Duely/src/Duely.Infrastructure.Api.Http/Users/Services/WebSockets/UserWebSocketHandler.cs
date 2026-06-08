@@ -1,9 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
-using System.Text.Json;
 using Duely.Application.UseCases.Dto.Users;
-using Duely.Application.UseCases.Features.Duels;
-using Duely.Infrastructure.Api.Http.Events;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +25,8 @@ public sealed class UserWebSocketHandler(
         UserDto userDto,
         CancellationToken cancellationToken)
     {
-        if (!httpContext.WebSockets.IsWeSocketRequest)
+        // TODO: // не нравится что отключение вебсокета влияет на бизнес логику. по сути это просто канал доставки сообщений
+        if (!httpContext.WebSockets.IsWebSocketRequest)
         {
             return new BadRequestObjectResult("WebSocket request expected.");
         }
@@ -68,7 +66,7 @@ public sealed class UserWebSocketHandler(
                     continue;
                 }
 
-                await HandleEventAsync(userDto.Id, message, cancellationToken);
+                // await HandleEventAsync(userDto.Id, message, cancellationToken);
             }
         }
         finally
@@ -84,22 +82,22 @@ public sealed class UserWebSocketHandler(
 
             webSocketConnections.RemoveConnection(userDto.Id);
 
-            using (var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
-            {
-                var cleanupToken = cleanupTokenSource.Token;
-
-                var cancelResult = await mediator.Send(new CancelPendingDuelsCommand
-                {
-                    UserId = userDto.Id
-                }, cleanupToken);
-                if (cancelResult.IsFailed)
-                {
-                    logger.LogWarning(
-                        "WebSocket cleanup failed to cancel search for user {UserId}: {Error}",
-                        userDto.Id, string.Join(", ", cancelResult.Errors));
-                }
-
-            }
+            // using (var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+            // {
+            //     var cleanupToken = cleanupTokenSource.Token;
+            //
+            //     var cancelResult = await mediator.Send(new CancelPendingDuelsCommand
+            //     {
+            //         UserId = userDto.Id
+            //     }, cleanupToken);
+            //     if (cancelResult.IsFailed)
+            //     {
+            //         logger.LogWarning(
+            //             "WebSocket cleanup failed to cancel search for user {UserId}: {Error}",
+            //             userDto.Id, string.Join(", ", cancelResult.Errors));
+            //     }
+            //
+            // }
 
             logger.LogInformation("WebSocket disconnected user {UserId}", userDto.Id);
         }
@@ -151,62 +149,62 @@ public sealed class UserWebSocketHandler(
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private async Task HandleEventAsync(Guid userId, string message, CancellationToken cancellationToken)
-    {
-        Event? request;
-        try
-        {
-            request = JsonSerializer.Deserialize<Event>(message);
-        }
-        catch (JsonException)
-        {
-            logger.LogWarning("WebSocket message ignored: invalid json");
-            return;
-        }
+    // private async Task HandleEventAsync(Guid userId, string message, CancellationToken cancellationToken)
+    // {
+    //     Event? request;
+    //     try
+    //     {
+    //         request = JsonSerializer.Deserialize<Event>(message);
+    //     }
+    //     catch (JsonException)
+    //     {
+    //         logger.LogWarning("WebSocket message ignored: invalid json");
+    //         return;
+    //     }
+    //
+    //     if (request is null)
+    //     {
+    //         logger.LogWarning("WebSocket message ignored: empty payload");
+    //         return;
+    //     }
+    //
+    //     switch (request)
+    //     {
+    //         case SolutionUpdatedEvent solutionUpdated:
+    //             await HandleSolutionUpdatedEventAsync(userId, solutionUpdated, cancellationToken);
+    //             return;
+    //         default:
+    //             logger.LogWarning("WebSocket message ignored: unknown type");
+    //             return;
+    //     }
+    // }
 
-        if (request is null)
-        {
-            logger.LogWarning("WebSocket message ignored: empty payload");
-            return;
-        }
-
-        switch (request)
-        {
-            case SolutionUpdatedEvent solutionUpdated:
-                await HandleSolutionUpdatedEventAsync(userId, solutionUpdated, cancellationToken);
-                return;
-            default:
-                logger.LogWarning("WebSocket message ignored: unknown type");
-                return;
-        }
-    }
-
-    private async Task HandleSolutionUpdatedEventAsync(
-        Guid userId,
-        SolutionUpdatedEvent request,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(request.TaskKey) || request.TaskKey.Length != 1)
-        {
-            logger.LogWarning("WebSocket message ignored: invalid task key");
-            return;
-        }
-
-        var command = new UpdateDuelTaskSolutionCommand
-        {
-            UserId = userId,
-            DuelId = request.DuelId,
-            TaskKey = request.TaskKey[0],
-            Solution = request.Solution,
-            Language = request.Language
-        };
-
-        var result = await mediator.Send(command, cancellationToken);
-        if (result.IsFailed)
-        {
-            logger.LogWarning(
-                "Failed to update duel task solution for user {UserId}: {Error}",
-                userId, string.Join(", ", result.Errors));
-        }
-    }
+    // private async Task HandleSolutionUpdatedEventAsync(
+    //     Guid userId,
+    //     SolutionUpdatedEvent request,
+    //     CancellationToken cancellationToken)
+    // {
+    //     if (string.IsNullOrWhiteSpace(request.TaskKey) || request.TaskKey.Length != 1)
+    //     {
+    //         logger.LogWarning("WebSocket message ignored: invalid task key");
+    //         return;
+    //     }
+    //
+    //     var command = new UpdateDuelTaskSolutionCommand
+    //     {
+    //         UserId = userId,
+    //         DuelId = request.DuelId,
+    //         TaskKey = request.TaskKey[0],
+    //         Solution = request.Solution,
+    //         Language = request.Language
+    //     };
+    //
+    //     var result = await mediator.Send(command, cancellationToken);
+    //     if (result.IsFailed)
+    //     {
+    //         logger.LogWarning(
+    //             "Failed to update duel task solution for user {UserId}: {Error}",
+    //             userId, string.Join(", ", result.Errors));
+    //     }
+    // }
 }

@@ -7,16 +7,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.Duels;
 
-public sealed class GetUserDuelConfigurationsQuery : IRequest<Result<List<DuelConfigurationDto>>>
+public sealed class GetDuelConfigurationsQuery : IRequest<Result<List<DuelConfigurationDto>>>
 {
     public required Guid UserId { get; init; }
 }
 
-internal sealed class GetUserDuelConfigurationsHandler(Context context)
-    : IRequestHandler<GetUserDuelConfigurationsQuery, Result<List<DuelConfigurationDto>>>
+internal sealed class GetDuelConfigurationsHandler(Context context)
+    : IRequestHandler<GetDuelConfigurationsQuery, Result<List<DuelConfigurationDto>>>
 {
     public async Task<Result<List<DuelConfigurationDto>>> Handle(
-        GetUserDuelConfigurationsQuery query,
+        GetDuelConfigurationsQuery query,
         CancellationToken cancellationToken)
     {
         var user = await context.Users

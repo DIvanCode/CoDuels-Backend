@@ -17,11 +17,9 @@ internal sealed class GroupsConfiguration : IEntityTypeConfiguration<Group>
         builder.HasKey(g => g.Id);
 
         builder.Property(g => g.Id)
-            .HasColumnName(nameof(Group.Id))
             .ValueGeneratedNever();
 
         builder.Property(g => g.Name)
-            .HasColumnName(nameof(Group.Name))
             .HasConversion<GroupNameConverter>();
 
         builder.Navigation(g => g.Memberships)

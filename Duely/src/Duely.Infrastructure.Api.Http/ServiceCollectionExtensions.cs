@@ -1,5 +1,4 @@
-﻿using Duely.Infrastructure.Gateway.Client.Abstracts;
-using FluentValidation;
+﻿using FluentValidation;
 using FluentValidation.AspNetCore;
 using System.Reflection;
 using System.Text;
@@ -61,7 +60,7 @@ public static class ServiceCollectionExtensions
         
         services.Configure<WebSocketConnectionOptions>(configuration.GetSection(WebSocketConnectionOptions.SectionName));
         services.AddSingleton<IWebSocketConnectionManager, WebSocketConnectionManager>();
-        services.AddSingleton<IMessageSender, WebSocketMessageSender>();
+        // services.AddSingleton<IMessageSender, WebSocketMessageSender>();
         services.AddScoped<IUserWebSocketHandler, UserWebSocketHandler>();
         
         services.AddCors(options =>

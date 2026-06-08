@@ -11,10 +11,14 @@ internal sealed class SingleEliminationBracketTournamentConfigurationsConfigurat
     
     public void Configure(EntityTypeBuilder<SingleEliminationBracketTournamentConfiguration> builder)
     {
-        builder.OwnsMany(c => c.Nodes, b =>
-        {
-            b.ToJson();
-            b.UsePropertyAccessMode(PropertyAccessMode.Field);
-        }).Navigation(c => c.Nodes).HasField(NodesFieldName);
+        builder
+            .OwnsMany(c => c.Nodes, b =>
+            {
+                b.ToJson();
+                b.UsePropertyAccessMode(PropertyAccessMode.Field);
+                
+            })
+            .Navigation(c => c.Nodes)
+            .HasField(NodesFieldName);
     }
 }

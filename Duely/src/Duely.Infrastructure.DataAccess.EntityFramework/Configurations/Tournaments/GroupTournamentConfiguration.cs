@@ -6,12 +6,12 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations.Tournam
 
 internal sealed class GroupTournamentConfiguration : IEntityTypeConfiguration<GroupTournament>
 {
-    private const string GroupIdColumnName = "GroupId";
     
     public void Configure(EntityTypeBuilder<GroupTournament> builder)
     {
         builder.HasOne(t => t.Group)
-            .WithMany()
-            .HasForeignKey(GroupIdColumnName);
+            .WithMany();
+        
+        // builder.HasIndex(t => t.Group);
     }
 }

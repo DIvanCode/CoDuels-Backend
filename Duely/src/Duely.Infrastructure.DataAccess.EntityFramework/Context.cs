@@ -1,10 +1,7 @@
 ﻿using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Models.Groups.Entities;
-using Duely.Domain.Models.Outbox;
-using Duely.Domain.Models.Tournaments;
 using Duely.Domain.Models.Tournaments.Entities;
 using Duely.Domain.Models.Users.Entities;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -28,8 +25,8 @@ public sealed class Context : DbContext
     public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<Tournament> Tournaments => Set<Tournament>();
-    public DbSet<Submission> Submissions => Set<Submission>();
-    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    // public DbSet<Submission> Submissions => Set<Submission>();
+    // public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     
     public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken)
     {

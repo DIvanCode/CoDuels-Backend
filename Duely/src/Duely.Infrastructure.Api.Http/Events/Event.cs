@@ -1,12 +1,12 @@
-using System.Text.Json.Serialization;
-
-namespace Duely.Infrastructure.Api.Http.Events;
-
-public enum EventType
-{
-    SolutionUpdated = 0
-}
-
-[JsonPolymorphic(TypeDiscrimiatorPropertyName = "type")]
-[JsonDerivedType(typeof(SolutionUpdatedEvent), nameof(EventType.SolutionUpdated))]
-public abstract class Event;
+// using System.Text.Json.Serialization;
+//
+// namespace Duely.Infrastructure.Api.Http.Events;
+//
+// public enum EventType
+// {
+//     SolutionUpdated = 0
+// }
+//
+// [JsonPolymorphic(TypeDiscrimiatorPropertyName = "type")]
+// [JsonDerivedType(typeof(SolutionUpdatedEvent), nameof(EventType.SolutionUpdated))]
+// public abstract class Event;

@@ -47,7 +47,7 @@ internal sealed class CreateGroupDuelHandler(
         var group = await context.Groups
             .AsNoTracking()
             .Include(g => g.Name)
-            .Include(g => g.Memberships.Where(m => m.User.Id == command.UserId))
+            .Include(g => g.Memberships)
             .ThenInclude(m => m.User)
             .SingleOrDefaultAsync(g => g.Id == command.GroupId, cancellationToken);
         if (group is null)
@@ -75,6 +75,15 @@ internal sealed class CreateGroupDuelHandler(
         if (participants.Count != 2)
         {
             return new UserNotFoundError();
+        }
+
+        foreach (var participant in participants)
+        {
+            var participantMembership = group.GetMembership(participant);
+            if (participantMembership is null || !participantMembership.IsConfirmed)
+            {
+                return new ForbiddenError("Для создания дуэли оба участника должны быть в группе.");
+            }
         }
         
         var duelConfigurationResult = await ResolveDuelConfiguration(command.DuelConfigurationId, cancellationToken);

@@ -20,5 +20,7 @@ public static class ServiceCollectionExtensions
                     providerOptions => providerOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName))
                 .AddInterceptors(new ForUpdateInterceptor());
         });
+
+        services.AddScoped<IDomainEventsDispatcher<Context>, DomainEventsDispatcher<Context>>();
     }
 }

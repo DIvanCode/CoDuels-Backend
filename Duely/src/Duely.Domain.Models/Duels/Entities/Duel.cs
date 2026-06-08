@@ -36,8 +36,8 @@ public abstract class Duel : Entity<DuelId>
     public DateTime? FinishedAt { get; private set; }
     public User? Winner { get; private set; }
 
-    public IReadOnlyCollection<Solution> Solutions { get; init; } = [];
-    public IReadOnlyCollection<Submission> Submissions { get; init; } = [];
+    // public IReadOnlyCollection<Solution> Solutions { get; init; } = [];
+    // public IReadOnlyCollection<Submission> Submissions { get; init; } = [];
 
     public virtual void Start(DateTime startedAt, ProblemSet problemSet)
     {

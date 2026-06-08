@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Duely.Domain.Models.Tournaments.Entities;
 
 namespace Duely.Application.UseCases.Dto.Tournaments.Configurations.Factories;
@@ -11,10 +12,9 @@ internal sealed class TournamentConfigurationDtoFactoryResolver : ITournamentCon
 {
     private readonly IReadOnlyDictionary<TournamentConfigurationType, ITournamentConfigurationDtoFactory> _factories;
 
-    public TournamentConfigurationDtoFactoryResolver(
-        Dictionary<TournamentConfigurationType, ITournamentConfigurationDtoFactory> factories)
+    public TournamentConfigurationDtoFactoryResolver(IEnumerable<ITournamentConfigurationDtoFactory> factories)
     {
-        _factories = factories.AsReadOnly();
+        _factories = factories.ToDictionary(factory => factory.SupportedType, factory => factory);
     }
     
     public ITournamentConfigurationDtoFactory GetFactory(TournamentConfigurationType tournamentConfigurationType)

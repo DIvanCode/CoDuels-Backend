@@ -7,23 +7,19 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations.Tournam
 public sealed class TournamentParticipantsConfiguration : IEntityTypeConfiguration<TournamentParticipant>
 {
     private const string TableName = "TournamentParticipants";
-    private const string TournamentIdColumnName = "TournamentId";
-    private const string UserIdColumnName = "UserId";
 
     public void Configure(EntityTypeBuilder<TournamentParticipant> builder)
     {
         builder.ToTable(TableName);
 
-        builder.HasKey(TournamentIdColumnName, UserIdColumnName);
+        // builder.HasKey(t => new { t.Tournament, t.User });
 
         builder.HasOne(p => p.Tournament)
-            .WithMany()
-            .HasForeignKey(TournamentIdColumnName);
+            .WithMany();
 
         builder.HasOne(p => p.User)
-            .WithMany()
-            .HasForeignKey(UserIdColumnName);
+            .WithMany();
 
-        builder.Property(p => p.Seed).HasColumnName(nameof(TournamentParticipant.Seed));
+        builder.Property(p => p.Seed);
     }
 }

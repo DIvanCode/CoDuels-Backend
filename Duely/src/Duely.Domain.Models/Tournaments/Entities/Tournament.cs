@@ -72,8 +72,7 @@ public sealed record TournamentId(Guid Value) : Identity<Guid>(Value);
 
 public enum TournamentType
 {
-    Global = 0,
-    Group = 1
+    Group = 0
 }
 
 public enum TournamentStatus

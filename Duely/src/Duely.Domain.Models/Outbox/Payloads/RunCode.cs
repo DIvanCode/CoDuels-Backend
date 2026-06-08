@@ -1,26 +1,26 @@
-using System.Text.Json.Serialization;
-using Duely.Domain.Models.Duels;
-using Duely.Domain.Models.Duels.Entities;
-
-namespace Duely.Domain.Models.Outbox.Payloads;
-
-public sealed class RunCodePayload : OutboxPayload
-{
-    [JsonPropertyName("run_id")]
-    public required int RunId { get; init; }
-    
-    [JsonPropertyName("code")]
-    public required string Code { get; init; }
-
-    [JsonPropertyName("language"), JsonConverter(typeof(JsonStringEnumConverter))]
-    public required Language Language { get; init; }
-
-    [JsonPropertyName("input")]
-    public required string Input { get; init; }
-
-    [JsonPropertyName("time_limit")]
-    public required int TimeLimit { get; init; }
-
-    [JsonPropertyName("memory_limit")]
-    public required int MemoryLimit { get; init; }
-}
+// using System.Text.Json.Serialization;
+// using Duely.Domain.Models.Duels;
+// using Duely.Domain.Models.Duels.Entities;
+//
+// namespace Duely.Domain.Models.Outbox.Payloads;
+//
+// public sealed class RunCodePayload : OutboxPayload
+// {
+//     [JsonPropertyName("run_id")]
+//     public required int RunId { get; init; }
+//     
+//     [JsonPropertyName("code")]
+//     public required string Code { get; init; }
+//
+//     [JsonPropertyName("language"), JsonConverter(typeof(JsonStringEnumConverter))]
+//     public required Language Language { get; init; }
+//
+//     [JsonPropertyName("input")]
+//     public required string Input { get; init; }
+//
+//     [JsonPropertyName("time_limit")]
+//     public required int TimeLimit { get; init; }
+//
+//     [JsonPropertyName("memory_limit")]
+//     public required int MemoryLimit { get; init; }
+// }

@@ -1,39 +1,39 @@
-using System.Text.Json.Serialization;
-
-namespace Duely.Domain.Models.Messages;
-
-public enum MessageType
-{
-    DuelStarted = 0,
-    DuelFinished = 1,
-    DuelChanged = 2,
-    OpponentSolutionUpdated = 4,
-    DuelInvitation = 6,
-    DuelInvitationCanceled = 7,
-    DuelInvitationDenied = 8,
-    SubmissionStatusUpdated = 9,
-    CodeRunStatusUpdated = 10,
-    GroupInvitation = 11,
-    GroupInvitationCanceled = 12,
-    GroupDuelInvitation = 13,
-    GroupDuelInvitationCanceled = 14,
-    TournamentDuelInvitation = 15,
-}
-
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(DuelStartedMessage), nameof(MessageType.DuelStarted))]
-[JsonDerivedType(typeof(DuelFinishedMessage), nameof(MessageType.DuelFinished))]
-[JsonDerivedType(typeof(DuelChangedMessage), nameof(MessageType.DuelChanged))]
-[JsonDerivedType(typeof(OpponentSolutionUpdatedMessage), nameof(MessageType.OpponentSolutionUpdated))]
-[JsonDerivedType(typeof(DuelInvitationMessage), nameof(MessageType.DuelInvitation))]
-[JsonDerivedType(typeof(DuelInvitationCanceledMessage), nameof(MessageType.DuelInvitationCanceled))]
-[JsonDerivedType(typeof(DuelInvitationDeniedMessage), nameof(MessageType.DuelInvitationDenied))]
-[JsonDerivedType(typeof(SubmissionStatusUpdatedMessage), nameof(MessageType.SubmissionStatusUpdated))]
-[JsonDerivedType(typeof(CodeRunStatusUpdatedMessage), nameof(MessageType.CodeRunStatusUpdated))]
-[JsonDerivedType(typeof(GroupInvitationMessage), nameof(MessageType.GroupInvitation))]
-[JsonDerivedType(typeof(GroupInvitationCanceledMessage), nameof(MessageType.GroupInvitationCanceled))]
-[JsonDerivedType(typeof(GroupDuelInvitationMessage), nameof(MessageType.GroupDuelInvitation))]
-[JsonDerivedType(typeof(GroupDuelInvitationCanceledMessage), nameof(MessageType.GroupDuelInvitationCanceled))]
-[JsonDerivedType(typeof(TournamentDuelInvitationMessage), nameof(MessageType.TournamentDuelInvitation))]
-
-public abstract class Message;
+// using System.Text.Json.Serialization;
+//
+// namespace Duely.Domain.Models.Messages;
+//
+// public enum MessageType
+// {
+//     DuelStarted = 0,
+//     DuelFinished = 1,
+//     DuelChanged = 2,
+//     OpponentSolutionUpdated = 4,
+//     DuelInvitation = 6,
+//     DuelInvitationCanceled = 7,
+//     DuelInvitationDenied = 8,
+//     SubmissionStatusUpdated = 9,
+//     CodeRunStatusUpdated = 10,
+//     GroupInvitation = 11,
+//     GroupInvitationCanceled = 12,
+//     GroupDuelInvitation = 13,
+//     GroupDuelInvitationCanceled = 14,
+//     TournamentDuelInvitation = 15,
+// }
+//
+// [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+// [JsonDerivedType(typeof(DuelStartedMessage), nameof(MessageType.DuelStarted))]
+// [JsonDerivedType(typeof(DuelFinishedMessage), nameof(MessageType.DuelFinished))]
+// [JsonDerivedType(typeof(DuelChangedMessage), nameof(MessageType.DuelChanged))]
+// [JsonDerivedType(typeof(OpponentSolutionUpdatedMessage), nameof(MessageType.OpponentSolutionUpdated))]
+// [JsonDerivedType(typeof(DuelInvitationMessage), nameof(MessageType.DuelInvitation))]
+// [JsonDerivedType(typeof(DuelInvitationCanceledMessage), nameof(MessageType.DuelInvitationCanceled))]
+// [JsonDerivedType(typeof(DuelInvitationDeniedMessage), nameof(MessageType.DuelInvitationDenied))]
+// [JsonDerivedType(typeof(SubmissionStatusUpdatedMessage), nameof(MessageType.SubmissionStatusUpdated))]
+// [JsonDerivedType(typeof(CodeRunStatusUpdatedMessage), nameof(MessageType.CodeRunStatusUpdated))]
+// [JsonDerivedType(typeof(GroupInvitationMessage), nameof(MessageType.GroupInvitation))]
+// [JsonDerivedType(typeof(GroupInvitationCanceledMessage), nameof(MessageType.GroupInvitationCanceled))]
+// [JsonDerivedType(typeof(GroupDuelInvitationMessage), nameof(MessageType.GroupDuelInvitation))]
+// [JsonDerivedType(typeof(GroupDuelInvitationCanceledMessage), nameof(MessageType.GroupDuelInvitationCanceled))]
+// [JsonDerivedType(typeof(TournamentDuelInvitationMessage), nameof(MessageType.TournamentDuelInvitation))]
+//
+// public abstract class Message;

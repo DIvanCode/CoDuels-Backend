@@ -1,9 +1,7 @@
 using System.Reflection;
 using Duely.Application.UseCases.Dto.Tournaments.Configurations.Factories;
-using Duely.Application.UseCases.Helpers;
 using Duely.Domain.Models.Tournaments.Entities.Configurations;
 using FluentValidation;
-using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

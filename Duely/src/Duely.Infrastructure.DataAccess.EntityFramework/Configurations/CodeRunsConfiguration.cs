@@ -1,85 +1,85 @@
-using Duely.Domain.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
-namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations;
-
-public sealed class CodeRunsConfiguration : IEntityTypeConfiguration<CodeRun>
-{
-    public void Configure(EntityTypeBuilder<CodeRun> builder)
-    {
-        builder.ToTable("CodeRuns");
-
-        builder.HasKey(r => r.Id);
-
-        builder.Property(r => r.Id)
-            .HasColumnName("Id")
-            .ValueGeneratedOnAdd()
-            .UseIdentityByDefaultColumn();
-
-        builder.HasOne(r => r.User)
-            .WithMany()
-            .IsRequired()
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Property(r => r.Code)
-            .HasColumnName("Code")
-            .HasColumnType("text")
-            .IsRequired();
-
-        builder.Property(r => r.DuelId)
-            .HasColumnName("DuelId")
-            .HasColumnType("integer")
-            .IsRequired();
-
-        builder.Property(r => r.TaskKey)
-            .HasColumnName("TaskKey")
-            .HasColumnType("varchar(1)")
-            .IsRequired();
-
-        builder.Property(r => r.Language)
-            .HasColumnName("Language")
-            .HasColumnType("text")
-            .HasConversion<string>()
-            .IsRequired();
-
-        builder.Property(r => r.Input)
-            .HasColumnName("Input")
-            .HasColumnType("text")
-            .IsRequired();
-
-        builder.Property(r => r.Status)
-            .HasColumnName("Status")
-            .HasColumnType("text")
-            .HasConversion<string>()
-            .IsRequired();
-
-        builder.Property(r => r.Output)
-            .HasColumnName("Output")
-            .HasColumnType("text")
-            .IsRequired(false);
-
-        builder.Property(r => r.Error)
-            .HasColumnName("Error")
-            .HasColumnType("text")
-            .IsRequired(false);
-
-        builder.Property(r => r.ExecutionId)
-            .HasColumnName("ExecutionId")
-            .HasColumnType("text")
-            .IsRequired(false);
-
-        builder.Property(r => r.HandledStatusCount)
-            .HasColumnName("HandledStatusCount")
-            .HasColumnType("integer")
-            .HasDefaultValue(0)
-            .IsRequired();
-
-        builder.Property(u => u.CreatedAt)
-            .HasColumnName("CreatedAt")
-            .HasColumnType("timestamp")
-            .IsRequired();
-
-        builder.HasIndex(r => new { r.DuelId, r.TaskKey });
-    }
-}
+// using Duely.Domain.Models;
+// using Microsoft.EntityFrameworkCore;
+// using Microsoft.EntityFrameworkCore.Metadata.Builders;
+//
+// namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations;
+//
+// public sealed class CodeRunsConfiguration : IEntityTypeConfiguration<CodeRun>
+// {
+//     public void Configure(EntityTypeBuilder<CodeRun> builder)
+//     {
+//         builder.ToTable("CodeRuns");
+//
+//         builder.HasKey(r => r.Id);
+//
+//         builder.Property(r => r.Id)
+//             .HasColumnName("Id")
+//             .ValueGeneratedOnAdd()
+//             .UseIdentityByDefaultColumn();
+//
+//         builder.HasOne(r => r.User)
+//             .WithMany()
+//             .IsRequired()
+//             .OnDelete(DeleteBehavior.Cascade);
+//
+//         builder.Property(r => r.Code)
+//             .HasColumnName("Code")
+//             .HasColumnType("text")
+//             .IsRequired();
+//
+//         builder.Property(r => r.DuelId)
+//             .HasColumnName("DuelId")
+//             .HasColumnType("integer")
+//             .IsRequired();
+//
+//         builder.Property(r => r.TaskKey)
+//             .HasColumnName("TaskKey")
+//             .HasColumnType("varchar(1)")
+//             .IsRequired();
+//
+//         builder.Property(r => r.Language)
+//             .HasColumnName("Language")
+//             .HasColumnType("text")
+//             .HasConversion<string>()
+//             .IsRequired();
+//
+//         builder.Property(r => r.Input)
+//             .HasColumnName("Input")
+//             .HasColumnType("text")
+//             .IsRequired();
+//
+//         builder.Property(r => r.Status)
+//             .HasColumnName("Status")
+//             .HasColumnType("text")
+//             .HasConversion<string>()
+//             .IsRequired();
+//
+//         builder.Property(r => r.Output)
+//             .HasColumnName("Output")
+//             .HasColumnType("text")
+//             .IsRequired(false);
+//
+//         builder.Property(r => r.Error)
+//             .HasColumnName("Error")
+//             .HasColumnType("text")
+//             .IsRequired(false);
+//
+//         builder.Property(r => r.ExecutionId)
+//             .HasColumnName("ExecutionId")
+//             .HasColumnType("text")
+//             .IsRequired(false);
+//
+//         builder.Property(r => r.HandledStatusCount)
+//             .HasColumnName("HandledStatusCount")
+//             .HasColumnType("integer")
+//             .HasDefaultValue(0)
+//             .IsRequired();
+//
+//         builder.Property(u => u.CreatedAt)
+//             .HasColumnName("CreatedAt")
+//             .HasColumnType("timestamp")
+//             .IsRequired();
+//
+//         builder.HasIndex(r => new { r.DuelId, r.TaskKey });
+//     }
+// }

@@ -10,52 +10,51 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Configurations.Users;
 internal sealed class UsersConfiguration : IEntityTypeConfiguration<User>
 {
     private const string TableName = "Users";
-    private const string NicknameColumnName = "Nickname";
-    private const string NicknameLowerColumnName = "NicknameLower";
+    private const string NicknameValueColumnName = "Nickname";
+    private const string NicknameLowerValueColumnName = "NicknameLower";
     
     public void Configure(EntityTypeBuilder<User> builder)
     {
         builder.ToTable(TableName);
 
         builder.HasKey(u => u.Id);
-
         builder.Property(u => u.Id)
-            .HasColumnName(nameof(User.Id))
             .ValueGeneratedNever();
 
-        builder.Property(u => u.Nickname.Value).HasColumnName(NicknameColumnName);
-        
-        builder.Property(u => u.Nickname.LowerValue).HasColumnName(NicknameLowerColumnName);
+        builder.Property(u => u.Nickname.Value).HasColumnName(NicknameValueColumnName);
+        builder.Property(u => u.Nickname.LowerValue).HasColumnName(NicknameLowerValueColumnName);
 
         builder.Property(u => u.Password)
-            .HasColumnName(nameof(User.Password))
-            .HasConversion(
-                from => JsonSerializer.Serialize(from, PasswordJsonContext.Default.Password),
-                to => JsonSerializer.Deserialize<Password>(to, PasswordJsonContext.Default.Password)!);
-        
-        builder.Property(u => u.CreatedAt).HasColumnName(nameof(User.CreatedAt));
-        
-        builder.Property(u => u.IsAdmin).HasColumnName(nameof(User.IsAdmin));
+            .HasConversion<PasswordConverter>();
 
-        builder.Property(u => u.RefreshToken).HasColumnName(nameof(User.RefreshToken));
+        builder.Property(u => u.CreatedAt);
+        
+        builder.Property(u => u.IsAdmin);
 
-        builder.Property(u => u.IdentityTicket).HasColumnName(nameof(User.IdentityTicket));
+        builder.Property(u => u.RefreshToken);
+
+        builder.Property(u => u.IdentityTicket);
 
         builder.Property(s => s.Rating)
-            .HasColumnName(nameof(User.Rating))
             .HasConversion<RatingConverter>();
 
         builder.HasIndex(u => u.Nickname.LowerValue);
-        
         builder.HasIndex(u => u.RefreshToken);
-        
         builder.HasIndex(u => u.IdentityTicket);
     }
 }
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, PropertyNameCaseInsensitive = false)]
-[JsonSerializable(typeof(Password))]
-internal sealed partial class PasswordJsonContext : JsonSerializerContext;
+internal sealed class PasswordConverter : ValueConverter<Password, string>
+{
+    private static readonly JsonSerializerOptions Options = new();
+    
+    public PasswordConverter()
+        : base(
+            from => JsonSerializer.Serialize(from, Options),
+            to => JsonSerializer.Deserialize<Password>(to, Options)!)
+    {
+    }
+}
 
 internal sealed class RatingConverter : ValueConverter<Rating, int>
 {

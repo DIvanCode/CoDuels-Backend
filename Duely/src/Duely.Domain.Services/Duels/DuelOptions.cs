@@ -1,4 +1,3 @@
-using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Entities;
 
 namespace Duely.Domain.Services.Duels;
@@ -7,8 +6,8 @@ public sealed class DuelOptions
 {
     public const string SectionName = "Duel";
 
-    public required bool DefaultShouldShowOpponentSolution { get; init; } = true;
-    public required int DefaultDurationMinutes { get; init; } = 30;
-    public required int DefaultProblemsCount { get; init; } = 1;
-    public required ProblemsOrder DefaultProblemsOrder { get; init; } = ProblemsOrder.Sequential;
+    public bool DefaultShouldShowOpponentSolution { get; init; } = true;
+    public int DefaultDurationMinutes { get; init; } = 30;
+    public int DefaultProblemsCount { get; init; } = 1;
+    public ProblemsOrder DefaultProblemsOrder { get; init; } = ProblemsOrder.Sequential;
 }
