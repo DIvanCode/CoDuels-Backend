@@ -25,6 +25,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Duely.Domain.Models\Duely.Domain.Models.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.IntegrationEvents.Models\Duely.Infrastructure.IntegrationEvents.Models.csproj" />
     </ItemGroup>
 
 </Project>

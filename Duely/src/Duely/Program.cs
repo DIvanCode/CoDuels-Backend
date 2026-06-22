@@ -1,10 +1,11 @@
 using System.Reflection;
-using Duely.Application.UseCases;
+using Duely.Application.Handlers;
 // using Duely.Application.BackgroundJobs;
 // using Duely.Application.Services;
 using Duely.Domain.Services;
 using Duely.Infrastructure.Api.Http;
 using Duely.Infrastructure.DataAccess.EntityFramework;
+using Duely.Infrastructure.IntegrationEvents;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 // using Duely.Infrastructure.Gateway.Tasks;
@@ -28,6 +29,8 @@ builder.Services.SetupDomainServices(builder.Configuration);
 // Infrastructure
 builder.Services.SetupApiHttp(builder.Configuration, builder.Environment);
 builder.Services.SetupDataAccessEntityFramework(builder.Configuration);
+builder.Services.SetupIntegrationEvents(builder.Configuration);
+
 // builder.Services.SetupTasksGateway(builder.Configuration);
 // builder.Services.SetupExeshGateway(builder.Configuration);
 

@@ -1,0 +1,116 @@
+// using Duely.Application.Services.Errors;
+// using Duely.Infrastructure.DataAccess.EntityFramework;
+// using MediatR;
+// using FluentResults;
+// using Microsoft.EntityFrameworkCore;
+// using Duely.Application.Handlers.Dtos;
+// using Duely.Application.Handlers.Helpers;
+// using Duely.Domain.Models.Duels;
+// using Duely.Domain.Models.Duels.Entities;
+// using Duely.Domain.Models.Tournaments.Entities;
+// using Duely.Domain.Services.Duels;
+// using Duely.Domain.Services.Groups;
+// using Duely.Domain.Services.Tournaments;
+//
+// namespace Duely.Application.Handlers.Features.Duels;
+//
+// public sealed class GetDuelQuery : IRequest<Result<DuelDto>>
+// {
+//     public required int UserId { get; init; }
+//     public required int DuelId { get; init; }
+// }
+//
+// public sealed class GetDuelHandler(
+//     Context context,
+//     IRatingManager ratingManager,
+//     ITaskService taskService,
+//     IGroupPermissionsService groupPermissionsService,
+//     ITournamentMatchmakingStrategyResolver tournamentMatchmakingStrategyResolver)
+//     : IRequestHandler<GetDuelQuery, Result<DuelDto>>
+// {
+//     public async Task<Result<DuelDto>> Handle(GetDuelQuery query, CancellationToken cancellationToken)
+//     {
+//         var duel = await context.Duels
+//             .AsNoTracking()
+//             .Where(d => d.Id == query.DuelId)
+//             .Include(d => d.Configuration)
+//             .Include(d => d.User1)
+//             .Include(d => d.User2)
+//             .Include(duel => duel.Winner)
+//             .Include(d => d.Submissions)
+//             .ThenInclude(s => s.User)
+//             .SingleOrDefaultAsync(cancellationToken);
+//         if (duel is null)
+//         {
+//             return new EntityNotFoundError(nameof(Duel), nameof(Duel.Id), query.DuelId);
+//         }
+//
+//         var isParticipant = duel.User1.Id == query.UserId || duel.User2.Id == query.UserId;
+//         if (isParticipant)
+//         {
+//             return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
+//         }
+//
+//         var groupDuel = await context.GroupDuels
+//             .AsNoTracking()
+//             .Include(d => d.Group)
+//             .Where(d => d.Duel.Id == query.DuelId)
+//             .SingleOrDefaultAsync(cancellationToken);
+//
+//         if (groupDuel is null)
+//         {
+//             if (await CanViewTournamentDuel(query.UserId, query.DuelId, cancellationToken))
+//             {
+//                 return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
+//             }
+//
+//             return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);
+//         }
+//         
+//         var membership = await context.GroupMemberships
+//             .AsNoTracking()
+//             .Where(m => m.Group.Id == groupDuel.Group.Id && m.User.Id == query.UserId)
+//             .SingleOrDefaultAsync(cancellationToken);
+//         var canView = membership is not null && groupPermissionsService.CanViewDuel(membership);
+//         if (!canView)
+//         {
+//             if (await CanViewTournamentDuel(query.UserId, query.DuelId, cancellationToken))
+//             {
+//                 return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
+//             }
+//
+//             return new ForbiddenError(nameof(Duel), "get", nameof(Duel.Id), query.DuelId);
+//         }
+//
+//         return DuelDtoMapper.Map(duel, query.UserId, ratingManager, taskService);
+//     }
+//
+//     private async Task<bool> CanViewTournamentDuel(
+//         int userId,
+//         int duelId,
+//         CancellationToken cancellationToken)
+//     {
+//         var tournaments = await context.Tournaments
+//             .AsNoTracking()
+//             .Include(t => t.Group)
+//             .Where(t => t.Status != TournamentStatus.New)
+//             .ToListAsync(cancellationToken);
+//
+//         var tournament = tournaments.FirstOrDefault(t =>
+//             tournamentMatchmakingStrategyResolver
+//                 .GetStrategy(t.MatchmakingType)
+//                 .GetReferencedDuelIds(t)
+//                 .Contains(duelId));
+//         if (tournament is null)
+//         {
+//             return false;
+//         }
+//
+//         var membership = await context.GroupMemberships
+//             .AsNoTracking()
+//             .Where(m => m.Group.Id == tournament.Group.Id && m.User.Id == userId)
+//             .SingleOrDefaultAsync(cancellationToken);
+//
+//         return membership is not null && groupPermissionsService.CanViewDuel(membership);
+//     }
+// }

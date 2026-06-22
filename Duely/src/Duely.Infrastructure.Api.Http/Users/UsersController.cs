@@ -1,5 +1,5 @@
-using Duely.Application.UseCases.Users.Handlers;
-using Duely.Application.UseCases.Users.Models;
+using Duely.Application.Handlers.Users.Models;
+using Duely.Application.Handlers.Users.UseCases;
 using Duely.Domain.Kernel.Errors;
 using Duely.Infrastructure.Api.Http.Users.Requests;
 using Duely.Infrastructure.Api.Http.Users.Services.AuthToken;

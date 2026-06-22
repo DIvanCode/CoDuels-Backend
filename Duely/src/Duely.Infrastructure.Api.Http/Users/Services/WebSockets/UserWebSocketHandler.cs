@@ -1,5 +1,5 @@
 using System.Net.WebSockets;
-using Duely.Application.UseCases.Users.Models;
+using Duely.Application.Handlers.Users.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;

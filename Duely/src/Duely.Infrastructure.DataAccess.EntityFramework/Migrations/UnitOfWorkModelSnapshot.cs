@@ -70,6 +70,63 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
                     b.ToTable("Users", (string)null);
                 });
+
+            modelBuilder.Entity("Duely.Infrastructure.IntegrationEvents.Models.IntegrationEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("NextProcessAttemptAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("ProcessAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("IntegrationEvents", (string)null);
+
+                    b.HasDiscriminator<string>("Type");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("Duely.Infrastructure.IntegrationEvents.Models.UserCreatedIntegrationEvent", b =>
+                {
+                    b.HasBaseType("Duely.Infrastructure.IntegrationEvents.Models.IntegrationEvent");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasIndex("UserId");
+
+                    b.HasDiscriminator().HasValue("UserCreated");
+                });
+
+            modelBuilder.Entity("Duely.Infrastructure.IntegrationEvents.Models.UserCreatedIntegrationEvent", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Users.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
 #pragma warning restore 612, 618
         }
     }

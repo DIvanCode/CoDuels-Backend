@@ -1,0 +1,33 @@
+// using System.Text.Json.Serialization;
+// using Duely.Application.Handlers.Dto.Tournaments.Configurations;
+// using Duely.Application.Handlers.Dto.Users;
+// using Duely.Domain.Models.Tournaments.Entities;
+//
+// namespace Duely.Application.Handlers.Dto.Tournaments;
+//
+// public abstract class TournamentDto
+// {
+//     [JsonPropertyName("id")]
+//     public required Guid Id { get; init; }
+//
+//     [JsonPropertyName("name")]
+//     public required string Name { get; init; }
+//     
+//     [JsonPropertyName("type"), JsonConverter(typeof(JsonStringEnumConverter))]
+//     public required TournamentType Type { get; init; }
+//
+//     [JsonPropertyName("status"), JsonConverter(typeof(JsonStringEnumConverter))]
+//     public required TournamentStatus Status { get; init; }
+//
+//     [JsonPropertyName("created_by")]
+//     public required UserShortDto CreatedBy { get; init; }
+//
+//     [JsonPropertyName("created_at")]
+//     public required DateTime CreatedAt { get; init; }
+//
+//     [JsonPropertyName("participants")]
+//     public required IReadOnlyCollection<UserShortDto> Participants { get; init; }
+//
+//     [JsonPropertyName("configuration")]
+//     public required TournamentConfigurationDto Configuration { get; init; }
+// }

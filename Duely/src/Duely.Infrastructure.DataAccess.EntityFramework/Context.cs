@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 // using Duely.Domain.Models.Duels.Entities;
 // using Duely.Domain.Models.Groups.Entities;
 using Duely.Domain.Models.Users.Entities;
+using Duely.Infrastructure.IntegrationEvents.Models;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Duely.Infrastructure.DataAccess.EntityFramework;
@@ -20,6 +21,7 @@ public sealed class Context : DbContext
     }
     
     public DbSet<User> Users => Set<User>();
+    public DbSet<IntegrationEvent> IntegrationEvents => Set<IntegrationEvent>();
     // public DbSet<Group> Groups => Set<Group>();
     // public DbSet<RankedSearch> RankedSearches => Set<RankedSearch>();
     // public DbSet<Duel> Duels => Set<Duel>();

@@ -15,7 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Duely.Application.Services\Duely.Application.Services.csproj" />
     <ProjectReference Include="..\Duely.Domain.Services\Duely.Domain.Services.csproj" />
-    <ProjectReference Include="..\Duely.Application.UseCases\Duely.Application.UseCases.csproj" />
+    <ProjectReference Include="..\Duely.Application.Handlers\Duely.Application.Handlers.csproj" />
   </ItemGroup>
 
 </Project>

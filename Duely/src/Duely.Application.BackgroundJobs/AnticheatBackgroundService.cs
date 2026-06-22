@@ -1,4 +1,4 @@
-// using Duely.Application.UseCases.Features.Duels;
+// using Duely.Application.Handlers.Features.Duels;
 // using MediatR;
 // using Microsoft.Extensions.DependencyInjection;
 // using Microsoft.Extensions.Hosting;
