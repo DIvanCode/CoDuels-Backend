@@ -1,5 +1,5 @@
 using FluentResults;
 
-namespace Duely.Domain.Common.Errors;
+namespace Duely.Domain.Kernel.Errors;
 
 public class AuthenticationError(string message) : Error(message);

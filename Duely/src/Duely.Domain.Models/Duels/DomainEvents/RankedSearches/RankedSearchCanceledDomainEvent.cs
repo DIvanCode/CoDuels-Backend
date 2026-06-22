@@ -1,14 +1,8 @@
-using Duely.Domain.Common.DomainEvents;
-using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Kernel.DomainEvents;
 
 namespace Duely.Domain.Models.Duels.DomainEvents.RankedSearches;
 
-public sealed class RankedSearchCanceledDomainEvent : DomainEvent
+public sealed class RankedSearchCanceledDomainEvent(Guid userId) : DomainEvent
 {
-    public RankedSearchCanceledDomainEvent(RankedSearchId id)
-    {
-        Id = id;
-    }
-    
-    public RankedSearchId Id { get; init; }
+    public Guid UserId { get; init; } = userId;
 }

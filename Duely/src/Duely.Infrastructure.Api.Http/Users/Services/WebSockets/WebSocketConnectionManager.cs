@@ -5,26 +5,26 @@ namespace Duely.Infrastructure.Api.Http.Users.Services.WebSockets;
 
 public interface IWebSocketConnectionManager
 {
-    void AddConnection(Guid userId, WebSocket socket);
-    void RemoveConnection(Guid userId);
-    WebSocket? GetConnection(Guid userId);
+    void AddConnection(int userId, WebSocket socket);
+    void RemoveConnection(int userId);
+    WebSocket? GetConnection(int userId);
 }
 
 public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
 {
-    private readonly ConcurrentDictionary<Guid, WebSocket> _connections = new();
+    private readonly ConcurrentDictionary<int, WebSocket> _connections = new();
 
-    public void AddConnection(Guid userId, WebSocket socket)
+    public void AddConnection(int userId, WebSocket socket)
     {
         _connections[userId] = socket;
     }
 
-    public void RemoveConnection(Guid userId)
+    public void RemoveConnection(int userId)
     {
         _connections.TryRemove(userId, out _);
     }
 
-    public WebSocket? GetConnection(Guid userId)
+    public WebSocket? GetConnection(int userId)
     {
         return _connections.TryGetValue(userId, out var connection) ? connection : null;
     }

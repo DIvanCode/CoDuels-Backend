@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Http;
 
 namespace Duely.Infrastructure.Api.Http;
 
-internal interface IUserContext
+public interface IUserContext
 {
-    Guid UserId { get; }
+    int UserId { get; }
 }
 
 internal sealed class UserContext : IUserContext
@@ -21,12 +21,5 @@ internal sealed class UserContext : IUserContext
         _userClaims = httpContextAccessor.HttpContext.User.Claims;
     }
 
-    public Guid UserId
-    {
-        get
-        {
-            var value = _userClaims.Single(claim => claim.Type == IdClaim).Value;
-            return Guid.Parse(value);
-        }
-    } 
+    public int UserId => int.Parse(_userClaims.Single(claim => claim.Type == IdClaim).Value);
 }

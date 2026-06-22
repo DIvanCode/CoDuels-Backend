@@ -1,4 +1,5 @@
-using Duely.Domain.Common.Errors;
+using Duely.Application.UseCases.Users.Validators;
+using Duely.Domain.Kernel.Errors;
 using Duely.Domain.Models.Users.Errors;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
@@ -7,24 +8,22 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace Duely.Application.UseCases.Features.Users;
+namespace Duely.Application.UseCases.Users.Handlers;
 
 public sealed class SetIdentityTicketCommand : IRequest<Result>
 {
-    public required Guid UserId { get; init; }
+    public required int UserId { get; init; }
     public required string IdentityTicket { get; init; }
 }
 
-internal sealed class SetIdentityTicketHandler(
-    Context context,
-    ILogger<SetIdentityTicketHandler> logger)
+internal sealed class SetIdentityTicketHandler(Context context, ILogger<SetIdentityTicketHandler> logger)
     : IRequestHandler<SetIdentityTicketCommand, Result>
 {
     public async Task<Result> Handle(SetIdentityTicketCommand command, CancellationToken cancellationToken)
     {
         var user = await context.Users
-            .Include(u => u.Nickname)
-            .SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
+            .Where(u => u.Id == command.UserId)
+            .SingleOrDefaultAsync(cancellationToken);
         if (user is null)
         {
             return new UserNotFoundError();
@@ -32,14 +31,14 @@ internal sealed class SetIdentityTicketHandler(
         
         var userWithIdentityTicketExists = await context.Users
             .AsNoTracking()
-            .AnyAsync(u => u.IdentityTicket == command.IdentityTicket, cancellationToken);
+            .Where(u => u.IdentityTicket == command.IdentityTicket)
+            .AnyAsync(cancellationToken);
         if (userWithIdentityTicketExists)
         {
             return new UnexpectedError("Пользователь с заданным идентификационным билетом уже существует.");
         }
 
         user.SetIdentityTicket(command.IdentityTicket);
-        
         await context.SaveChangesAsync(cancellationToken);
         
         logger.LogInformation("User {Nickname} set identity ticket", user.Nickname);
@@ -50,9 +49,8 @@ internal sealed class SetIdentityTicketHandler(
 
 internal sealed class SetIdentityTicketCommandValidator : AbstractValidator<SetIdentityTicketCommand>
 {
-    public SetIdentityTicketCommandValidator()
+    public SetIdentityTicketCommandValidator(IdentityTicketValidator identityTicketValidator)
     {
-        RuleFor(x => x.IdentityTicket)
-            .MaximumLength(1024).WithMessage("Слишком длинный идентификационный билет.");
+        RuleFor(x => x.IdentityTicket).SetValidator(identityTicketValidator);
     }
 }

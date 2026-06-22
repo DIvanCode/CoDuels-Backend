@@ -1,13 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Duely.Application.UseCases.Dto.Users;
+using Duely.Application.UseCases.Users.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Duely.Infrastructure.Api.Http.Users.Services.AuthToken;
 
-internal interface IAuthTokenService
+public interface IAuthTokenService
 {
     string GenerateAuthToken(UserDto userDto);
 }

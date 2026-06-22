@@ -1,13 +1,12 @@
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace Duely.Infrastructure.Api.Http.Users.Requests;
 
-internal sealed class LoginRequest
+public sealed class LoginRequest
 {
-    [JsonPropertyName("nickname"), Required]
+    [JsonPropertyName("nickname")]
     public required string Nickname { get; init; }
 
-    [JsonPropertyName("password"), Required]
+    [JsonPropertyName("password")]
     public required string Password { get; init; }
 }

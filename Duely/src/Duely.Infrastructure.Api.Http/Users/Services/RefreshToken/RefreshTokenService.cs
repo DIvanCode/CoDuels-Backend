@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace Duely.Infrastructure.Api.Http.Users.Services.RefreshToken;
 
-internal interface IRefreshTokenService
+public interface IRefreshTokenService
 {
     string GenerateRefreshToken();
 }

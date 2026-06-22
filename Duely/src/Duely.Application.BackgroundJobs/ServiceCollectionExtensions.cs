@@ -1,30 +1,30 @@
-﻿using Duely.Application.BackgroundJobs.RankedSearchesMatcher;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
-
-namespace Duely.Application.BackgroundJobs;
-
-public static class ServiceCollectionExtensions
-{
-    public static void SetupBackgroundJobs(this IServiceCollection services, IConfiguration configuration)
-    {
-        services.AddHostedService<RankedSearchesMatcherBackgroundService>();
-
-        // services.Configure<DuelMakingJobOptions>(configuration.GetSection(DuelMakingJobOptions.SectionName));
-        // services.AddHostedService<DuelMakingJob>();
-        //
-        // services.Configure<DuelEndWatcherJobOptions>(configuration.GetSection(DuelEndWatcherJobOptions.SectionName));
-        // services.AddHostedService<DuelEndWatcherJob>();
-        //
-        // services.Configure<AnticheatBackgroundServiceOptions>(
-        //     configuration.GetSection(AnticheatBackgroundServiceOptions.SectionName));
-        // services.AddHostedService<AnticheatBackgroundService>();
-        //
-        // services.Configure<TournamentSynchronizationJobOptions>(
-        //     configuration.GetSection(TournamentSynchronizationJobOptions.SectionName));
-        // services.AddHostedService<TournamentSynchronizationJob>();
-        //
-        // services.Configure<OutboxOptions>(configuration.GetSection(OutboxOptions.SectionName));
-        // services.AddHostedService<OutboxJob>();
-    }
-}
+﻿// using Duely.Application.BackgroundJobs.RankedSearchesMatcher;
+// using Microsoft.Extensions.DependencyInjection;
+// using Microsoft.Extensions.Configuration;
+//
+// namespace Duely.Application.BackgroundJobs;
+//
+// public static class ServiceCollectionExtensions
+// {
+//     public static void SetupBackgroundJobs(this IServiceCollection services, IConfiguration configuration)
+//     {
+//         services.AddHostedService<RankedSearchesMatcherBackgroundService>();
+//
+//         // services.Configure<DuelMakingJobOptions>(configuration.GetSection(DuelMakingJobOptions.SectionName));
+//         // services.AddHostedService<DuelMakingJob>();
+//         //
+//         // services.Configure<DuelEndWatcherJobOptions>(configuration.GetSection(DuelEndWatcherJobOptions.SectionName));
+//         // services.AddHostedService<DuelEndWatcherJob>();
+//         //
+//         // services.Configure<AnticheatBackgroundServiceOptions>(
+//         //     configuration.GetSection(AnticheatBackgroundServiceOptions.SectionName));
+//         // services.AddHostedService<AnticheatBackgroundService>();
+//         //
+//         // services.Configure<TournamentSynchronizationJobOptions>(
+//         //     configuration.GetSection(TournamentSynchronizationJobOptions.SectionName));
+//         // services.AddHostedService<TournamentSynchronizationJob>();
+//         //
+//         // services.Configure<OutboxOptions>(configuration.GetSection(OutboxOptions.SectionName));
+//         // services.AddHostedService<OutboxJob>();
+//     }
+// }

@@ -1,24 +1,20 @@
-using Duely.Domain.Common.Entities;
+using Duely.Domain.Kernel.Entities;
 using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Models.Duels.Entities;
 
-public sealed class DuelConfiguration : Entity<DuelConfigurationId>
+public sealed class DuelConfiguration : Entity
 {
-    public const int MaxDurationMinutes = 60;
-    public const int MaxProblemsCount = 8;
-    
     public DuelConfiguration(
-        DuelConfigurationId id,
+        Guid id,
         bool isRated,
         bool shouldShowOpponentSolution,
         int durationMinutes,
         int problemsCount,
         ProblemsOrder problemsOrder,
-        User? createdBy = null) : base(id)
+        User? createdBy = null)
     {
-        Validate(durationMinutes, problemsCount);
-        
+        Id = id;
         IsRated = isRated;
         ShouldShowOpponentSolution = shouldShowOpponentSolution;
         DurationMinutes = durationMinutes;
@@ -26,7 +22,9 @@ public sealed class DuelConfiguration : Entity<DuelConfigurationId>
         ProblemsOrder = problemsOrder;
         CreatedBy = createdBy;
     }
-
+    
+    public Guid Id { get; init; }
+    
     public bool IsRated { get; init; }
     public bool ShouldShowOpponentSolution { get; private set; }
     public int DurationMinutes { get; private set; }
@@ -41,25 +39,12 @@ public sealed class DuelConfiguration : Entity<DuelConfigurationId>
         int problemsCount,
         ProblemsOrder problemsOrder)
     {
-        Validate(durationMinutes, problemsCount);
-        
         ShouldShowOpponentSolution = shouldShowOpponentSolution;
         DurationMinutes = durationMinutes;
         ProblemsCount = problemsCount;
         ProblemsOrder = problemsOrder;
     }
-
-    private static void Validate(int durationMinutes, int problemsCount)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(durationMinutes, 0);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(durationMinutes, MaxDurationMinutes);
-        
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(problemsCount, 0);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(problemsCount, MaxProblemsCount);
-    }
 }
-
-public sealed record DuelConfigurationId(Guid Value) : Identity<Guid>(Value);
 
 public enum ProblemsOrder
 {

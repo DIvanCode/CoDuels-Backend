@@ -1,5 +1,6 @@
-using Duely.Application.UseCases.Dto.Users;
-using Duely.Domain.Common.Errors;
+using Duely.Application.UseCases.Users.Models;
+using Duely.Application.UseCases.Users.Validators;
+using Duely.Domain.Kernel.Errors;
 using Duely.Domain.Models.Users.Errors;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
@@ -8,7 +9,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace Duely.Application.UseCases.Features.Users;
+namespace Duely.Application.UseCases.Users.Handlers;
 
 public sealed class ExchangeRefreshTokenCommand : IRequest<Result<UserDto>>
 {
@@ -22,9 +23,8 @@ internal sealed class RefreshTokenHandler(Context context, ILogger<RefreshTokenH
     public async Task<Result<UserDto>> Handle(ExchangeRefreshTokenCommand command, CancellationToken cancellationToken)
     {
         var user = await context.Users
-            .Include(u => u.Nickname)
-            .Include(u => u.Rating)
-            .SingleOrDefaultAsync(u => u.RefreshToken == command.RefreshToken, cancellationToken);
+            .Where(u => u.RefreshToken == command.RefreshToken)
+            .SingleOrDefaultAsync(cancellationToken);
         if (user is null)
         {
             return new ForbiddenError();
@@ -32,14 +32,14 @@ internal sealed class RefreshTokenHandler(Context context, ILogger<RefreshTokenH
         
         var userWithNewRefreshTokenExists = await context.Users
             .AsNoTracking()
-            .AnyAsync(u => u.RefreshToken == command.NewRefreshToken, cancellationToken);
+            .Where(u => u.RefreshToken == command.NewRefreshToken)
+            .AnyAsync(cancellationToken);
         if (userWithNewRefreshTokenExists)
         {
             return new RefreshTokenAlreadyExistsError();
         }
 
         user.UpdateRefreshToken(command.NewRefreshToken);
-        
         await context.SaveChangesAsync(cancellationToken);
         
         logger.LogInformation("User {Nickname} refreshed token", user.Nickname);
@@ -47,18 +47,17 @@ internal sealed class RefreshTokenHandler(Context context, ILogger<RefreshTokenH
         return new UserDto
         {
             Id = user.Id,
-            Nickname = user.Nickname.Value,
-            Rating = user.Rating.Value,
-            CreatedAt = user.CreatedAt
+            Nickname = user.Nickname,
+            CreatedAt = user.CreatedAt,
+            Rating = user.Rating
         };
     }
 }
 
 internal sealed class ExchangeRefreshTokenCommandValidator : AbstractValidator<ExchangeRefreshTokenCommand>
 {
-    public ExchangeRefreshTokenCommandValidator()
+    public ExchangeRefreshTokenCommandValidator(RefreshTokenValidator refreshTokenValidator)
     {
-        RuleFor(x => x.NewRefreshToken)
-            .MaximumLength(1024).WithMessage("Слишком длинный новый обменный токен.");
+        RuleFor(x => x.NewRefreshToken).SetValidator(refreshTokenValidator);
     }
 }

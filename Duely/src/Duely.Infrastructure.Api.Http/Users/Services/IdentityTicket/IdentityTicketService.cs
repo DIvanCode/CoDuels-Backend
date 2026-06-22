@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace Duely.Infrastructure.Api.Http.Users.Services.IdentityTicket;
 
-internal interface IIdentityTicketService
+public interface IIdentityTicketService
 {
     string GenerateIdentityTicket();
 }

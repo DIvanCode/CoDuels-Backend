@@ -6,11 +6,11 @@ namespace Duely.Domain.Models.Duels.Entities.Duels;
 public sealed class RankedDuel : Duel
 {
     public RankedDuel(
-        DuelId id,
+        Guid id,
         DuelConfiguration configuration,
         IReadOnlyCollection<User> participants,
         DateTime createdAt,
-        IReadOnlyDictionary<UserId, Rating> initRatings)
+        IReadOnlyDictionary<Guid, int> initRatings)
         : base(id, DuelType.RankedDuel, configuration, participants, createdAt)
     {
         InitRatings = initRatings;
@@ -18,13 +18,13 @@ public sealed class RankedDuel : Duel
         AddDomainEvent(new RankedDuelCreatedDomainEvent(Id));
     }
     
-    public IReadOnlyDictionary<UserId, Rating> InitRatings { get; init; }
-    public IReadOnlyDictionary<UserId, Rating>? FinalRatings { get; private set; }
+    public IReadOnlyDictionary<Guid, int> InitRatings { get; init; }
+    public IReadOnlyDictionary<Guid, int>? FinalRatings { get; private set; }
 
-    public void Finish(DateTime finishedAt, User? winner, IReadOnlyDictionary<UserId, Rating> finalRatings)
-    {
-        FinalRatings = finalRatings;
-        
-        base.Finish(finishedAt, winner);
-    }
+    // public void Finish(DateTime finishedAt, User? winner, IReadOnlyDictionary<Guid, int> finalRatings)
+    // {
+    //     FinalRatings = finalRatings;
+    //     
+    //     base.Finish(finishedAt, winner);
+    // }
 }

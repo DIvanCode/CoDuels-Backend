@@ -6,7 +6,7 @@ namespace Duely.Domain.Models.Duels.Entities.Duels;
 public sealed class FriendlyDuel : Duel
 {
     public FriendlyDuel(
-        DuelId id,
+        Guid id,
         DuelConfiguration configuration,
         IReadOnlyCollection<User> participants,
         DateTime createdAt,
@@ -23,11 +23,6 @@ public sealed class FriendlyDuel : Duel
 
     public void Confirm(DateTime confirmedAt)
     {
-        if (IsConfirmed)
-        {
-            throw new InvalidOperationException("Нельзя заново потдвердить участие в дружеской дуэли.");
-        }
-        
         UpdatedAt = confirmedAt;
         IsConfirmed = true;
         
@@ -36,24 +31,14 @@ public sealed class FriendlyDuel : Duel
 
     public void Decline(DateTime declinedAt)
     {
-        if (IsConfirmed)
-        {
-            throw new InvalidOperationException("Нельзя отклонить участие в ранее подтверждённой дружеской дуэли.");
-        }
-        
         UpdatedAt = declinedAt;
         IsConfirmed = false;
         
         AddDomainEvent(new FriendlyDuelDeclinedDomainEvent(Id));
     }
 
-    public void Delete()
+    public void Cancel()
     {
-        if (Status != DuelStatus.Pending)
-        {
-            throw new InvalidOperationException("Нельзя отменить начатую дружескую дуэль.");
-        }
-        
-        AddDomainEvent(new FriendlyDuelDeletedDomainEvent(Id));
+        AddDomainEvent(new FriendlyDuelCanceledDomainEvent(Id));
     }
 }

@@ -8,11 +8,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-      <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\Duely.Domain.Kernel\Duely.Domain.Kernel.csproj" />
     </ItemGroup>
 

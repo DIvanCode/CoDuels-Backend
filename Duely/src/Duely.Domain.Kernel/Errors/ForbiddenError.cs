@@ -1,6 +1,6 @@
 using FluentResults;
 
-namespace Duely.Domain.Common.Errors;
+namespace Duely.Domain.Kernel.Errors;
 
 public class ForbiddenError(string message) : Error(message)
 {

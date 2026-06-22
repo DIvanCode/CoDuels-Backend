@@ -1,4 +1,4 @@
-using Duely.Domain.Common.Errors;
+using Duely.Domain.Kernel.Errors;
 using FluentResults;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +24,7 @@ internal static class ControllerBaseExtensions
 
         var statusCode = error switch
         {
+            ValidationError => StatusCodes.Status400BadRequest,
             AuthenticationError => StatusCodes.Status401Unauthorized,
             EntityNotFoundError => StatusCodes.Status404NotFound,
             EntityAlreadyExistsError => StatusCodes.Status409Conflict,

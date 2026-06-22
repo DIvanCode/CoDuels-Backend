@@ -1,14 +1,8 @@
-using Duely.Domain.Common.DomainEvents;
-using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Kernel.DomainEvents;
 
 namespace Duely.Domain.Models.Duels.DomainEvents;
 
-public sealed class DuelFinishedDomainEvent : DomainEvent
+public sealed class DuelFinishedDomainEvent(Guid id) : DomainEvent
 {
-    public DuelFinishedDomainEvent(DuelId id)
-    {
-        Id = id;
-    }
-    
-    public DuelId Id { get; init; }
+    public Guid Id { get; init; } = id;
 }

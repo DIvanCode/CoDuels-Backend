@@ -1,34 +1,34 @@
-using Duely.Domain.Common.Entities;
+using Duely.Domain.Kernel.Entities;
 using Duely.Domain.Models.Users.DomainEvents;
 
 namespace Duely.Domain.Models.Users.Entities;
 
-public sealed class User : Entity<UserId>
+public sealed class User : Entity
 {
-    public User(
-        UserId id,
-        Nickname nickname,
-        Password password,
-        DateTime createdAt,
-        Rating rating) : base(id)
+    public User(string nickname, DateTime createdAt, string passwordHash, string passwordSalt, int rating)
     {
         Nickname = nickname;
-        Password = password;
         CreatedAt = createdAt;
+        PasswordHash = passwordHash;
+        PasswordSalt = passwordSalt;
         Rating = rating;
         
-        AddDomainEvent(new UserCreatedDomainEvent(Id));
+        AddDomainEvent(new UserCreatedDomainEvent(this));
     }
     
-    public Nickname Nickname { get; init; }
-    public Password Password { get; init; }
+    public int Id { get; init; }
+    public string Nickname { get; init; }
     public DateTime CreatedAt { get; init; }
+    
+    public string PasswordHash { get; init; }
+    public string PasswordSalt { get; init; }
+    
     public bool IsAdmin { get; init; }
 
     public string? RefreshToken { get; private set; }
     public string? IdentityTicket { get; private set; }
     
-    public Rating Rating { get; private set; }
+    public int Rating { get; private set; }
     
     public void UpdateRefreshToken(string refreshToken)
     {
@@ -45,5 +45,3 @@ public sealed class User : Entity<UserId>
         IdentityTicket = null;
     }
 }
-
-public sealed record UserId(Guid Value) : Identity<Guid>(Value);

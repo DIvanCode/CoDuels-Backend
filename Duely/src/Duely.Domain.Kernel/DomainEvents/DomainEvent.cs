@@ -1,6 +1,6 @@
 using MediatR;
 
-namespace Duely.Domain.Common.DomainEvents;
+namespace Duely.Domain.Kernel.DomainEvents;
 
 public interface IDomainEvent : INotification;
 

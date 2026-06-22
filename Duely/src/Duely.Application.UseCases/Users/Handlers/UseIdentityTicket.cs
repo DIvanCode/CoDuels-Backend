@@ -1,35 +1,34 @@
-using Duely.Application.UseCases.Dto.Users;
-using Duely.Domain.Common.Errors;
-using Duely.Domain.Models.Users.Errors;
+using Duely.Application.UseCases.Users.Models;
+using Duely.Application.UseCases.Users.Validators;
+using Duely.Domain.Kernel.Errors;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace Duely.Application.UseCases.Features.Users;
+namespace Duely.Application.UseCases.Users.Handlers;
 
 public sealed class UseIdentityTicketCommand : IRequest<Result<UserDto>>
 {
     public required string IdentityTicket { get; init; }
 }
 
-public sealed class UseIdentityTicketHandler(Context context, ILogger<UseIdentityTicketHandler> logger)
+internal sealed class UseIdentityTicketHandler(Context context, ILogger<UseIdentityTicketHandler> logger)
     : IRequestHandler<UseIdentityTicketCommand, Result<UserDto>>
 {
     public async Task<Result<UserDto>> Handle(UseIdentityTicketCommand command, CancellationToken cancellationToken)
     {
         var user = await context.Users
-            .Include(u => u.Nickname)
-            .Include(u => u.Rating)
-            .SingleOrDefaultAsync(u => u.IdentityTicket == command.IdentityTicket, cancellationToken);
+            .Where(u => u.IdentityTicket == command.IdentityTicket)
+            .SingleOrDefaultAsync(cancellationToken);
         if (user is null)
         {
             return new ForbiddenError();
         }
         
         user.ClearIdentityTicket();
-        
         await context.SaveChangesAsync(cancellationToken);
         
         logger.LogInformation("User {Nickname} used identity ticket", user.Nickname);
@@ -37,9 +36,17 @@ public sealed class UseIdentityTicketHandler(Context context, ILogger<UseIdentit
         return new UserDto
         {
             Id = user.Id,
-            Nickname = user.Nickname.Value,
-            Rating = user.Rating.Value,
-            CreatedAt = user.CreatedAt
+            Nickname = user.Nickname,
+            CreatedAt = user.CreatedAt,
+            Rating = user.Rating
         };
+    }
+}
+
+internal sealed class UseIdentityTicketCommandValidator : AbstractValidator<UseIdentityTicketCommand>
+{
+    public UseIdentityTicketCommandValidator(IdentityTicketValidator identityTicketValidator)
+    {
+        RuleFor(x => x.IdentityTicket).SetValidator(identityTicketValidator);
     }
 }

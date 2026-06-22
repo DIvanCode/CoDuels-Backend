@@ -1,7 +1,5 @@
 using System.Net.WebSockets;
-using System.Text;
-using Duely.Application.UseCases.Dto.Users;
-using MediatR;
+using Duely.Application.UseCases.Users.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -11,11 +9,13 @@ namespace Duely.Infrastructure.Api.Http.Users.Services.WebSockets;
 
 public interface IUserWebSocketHandler
 {
-    Task<IActionResult> HandleConnectionAsync(HttpContext httpContext, UserDto userDto, CancellationToken cancellationToken);
+    Task<IActionResult> HandleConnectionAsync(
+        HttpContext httpContext,
+        UserDto userDto, 
+        CancellationToken cancellationToken);
 }
 
 public sealed class UserWebSocketHandler(
-    IMediator mediator,
     IWebSocketConnectionManager webSocketConnections,
     IOptions<WebSocketConnectionOptions> webSocketOptions,
     ILogger<UserWebSocketHandler> logger) : IUserWebSocketHandler
@@ -25,20 +25,23 @@ public sealed class UserWebSocketHandler(
         UserDto userDto,
         CancellationToken cancellationToken)
     {
-        // TODO: // не нравится что отключение вебсокета влияет на бизнес логику. по сути это просто канал доставки сообщений
+        var closeTimeout = TimeSpan.FromMilliseconds(webSocketOptions.Value.CloseTimeoutMs);
+        
+        // TODO: не нравится что отключение вебсокета влияет на бизнес логику. по сути это просто канал сообщений
         if (!httpContext.WebSockets.IsWebSocketRequest)
         {
-            return new BadRequestObjectResult("WebSocket request expected.");
+            return new BadRequestObjectResult("Некорректный запрос на установление WebSocket соединения.");
         }
 
-        logger.LogInformation("WebSocket connected user {UserId}", userDto.Id);
+        logger.LogInformation("User {Nickname} connected to WebSocket", userDto.Nickname);
 
         using var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
+        
         var existingConnection = webSocketConnections.GetConnection(userDto.Id);
         if (existingConnection is not null)
         {
             webSocketConnections.RemoveConnection(userDto.Id);
-            await CloseExistingConnectionAsync(existingConnection, webSocketOptions.Value.CloseTimeoutMs);
+            await CloseConnectionAsync(existingConnection, "новое соединение", closeTimeout);
         }
 
         webSocketConnections.AddConnection(userDto.Id, webSocket);
@@ -55,32 +58,24 @@ public sealed class UserWebSocketHandler(
                     break;
                 }
 
-                if (result.MessageType != WebSocketMessageType.Text)
-                {
-                    continue;
-                }
-
-                var message = await ReadTextMessageAsync(webSocket, buffer, result, cancellationToken);
-                if (string.IsNullOrWhiteSpace(message))
-                {
-                    continue;
-                }
-
+                // if (result.MessageType != WebSocketMessageType.Text)
+                // {
+                //     continue;
+                // }
+                // 
+                // var message = await ReadTextMessageAsync(webSocket, buffer, result, cancellationToken);
+                // if (string.IsNullOrWhiteSpace(message))
+                // {
+                //     continue;
+                // }
+                // 
                 // await HandleEventAsync(userDto.Id, message, cancellationToken);
             }
         }
         finally
         {
-            using var closeTokenSource = new CancellationTokenSource(
-                TimeSpan.FromMilliseconds(webSocketOptions.Value.CloseTimeoutMs));
-            var closeToken = closeTokenSource.Token;
-
-            if (webSocket.State == WebSocketState.Open)
-            {
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", closeToken);
-            }
-
             webSocketConnections.RemoveConnection(userDto.Id);
+            await CloseConnectionAsync(webSocket, "закрытие соединения", closeTimeout);
 
             // using (var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
             // {
@@ -98,26 +93,27 @@ public sealed class UserWebSocketHandler(
             //     }
             //
             // }
-
-            logger.LogInformation("WebSocket disconnected user {UserId}", userDto.Id);
+            
+            logger.LogInformation("User {Nickname} disconnected from WebSocket", userDto.Nickname);
         }
 
         return new EmptyResult();
     }
 
-    private static async Task CloseExistingConnectionAsync(WebSocket socket, int closeTimeoutMs)
+    private static async Task CloseConnectionAsync(WebSocket socket, string purpose, TimeSpan closeTimeout)
     {
-        if (socket.State == WebSocketState.Open || socket.State == WebSocketState.CloseReceived)
+        if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
         {
-            using var closeTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(closeTimeoutMs));
+            using var closeTokenSource = new CancellationTokenSource(closeTimeout);
+            
             try
             {
-                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Replaced by new connection", closeTokenSource.Token);
+                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, purpose, closeTokenSource.Token);
                 return;
             }
             catch
             {
-                // fall through to abort
+                // ignored
             }
         }
 
@@ -131,23 +127,23 @@ public sealed class UserWebSocketHandler(
         }
     }
 
-    private static async Task<string> ReadTextMessageAsync(
-        WebSocket webSocket,
-        byte[] buffer,
-        WebSocketReceiveResult result,
-        CancellationToken cancellationToken)
-    {
-        using var stream = new MemoryStream();
-        stream.Write(buffer, 0, result.Count);
-
-        while (!result.EndOfMessage)
-        {
-            result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
-            stream.Write(buffer, 0, result.Count);
-        }
-
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
+    // private static async Task<string> ReadTextMessageAsync(
+    //     WebSocket webSocket,
+    //     byte[] buffer,
+    //     WebSocketReceiveResult result,
+    //     CancellationToken cancellationToken)
+    // {
+    //     using var stream = new MemoryStream();
+    //     stream.Write(buffer, 0, result.Count);
+    //
+    //     while (!result.EndOfMessage)
+    //     {
+    //         result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+    //         stream.Write(buffer, 0, result.Count);
+    //     }
+    //
+    //     return Encoding.UTF8.GetString(stream.ToArray());
+    // }
 
     // private async Task HandleEventAsync(Guid userId, string message, CancellationToken cancellationToken)
     // {

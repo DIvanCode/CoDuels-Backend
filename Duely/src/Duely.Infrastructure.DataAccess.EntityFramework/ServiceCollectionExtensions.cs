@@ -10,7 +10,7 @@ public static class ServiceCollectionExtensions
     public static void SetupDataAccessEntityFramework(this IServiceCollection services, IConfiguration configuration)
     {
         var dbConnectionOptions = configuration.GetSection(DbConnectionOptions.SectionName).Get<DbConnectionOptions>();
-        ArgumentNullException.ThrowIfNull(dbConnectionOptions, nameof(dbConnectionOptions));
+        ArgumentNullException.ThrowIfNull(dbConnectionOptions);
 
         services.AddDbContext<Context>(options =>
         {
@@ -21,6 +21,6 @@ public static class ServiceCollectionExtensions
                 .AddInterceptors(new ForUpdateInterceptor());
         });
 
-        services.AddScoped<IDomainEventsDispatcher<Context>, DomainEventsDispatcher<Context>>();
+        services.AddScoped<IDomainEventsDispatcher, DomainEventsDispatcher>();
     }
 }

@@ -1,4 +1,4 @@
-using Duely.Domain.Common.Errors;
+using Duely.Domain.Kernel.Errors;
 
 namespace Duely.Domain.Models.Groups.Errors;
 

@@ -1,8 +1,7 @@
 ﻿using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Duely.Domain.Models.Duels.Entities;
-using Duely.Domain.Models.Groups.Entities;
-using Duely.Domain.Models.Tournaments.Entities;
+// using Duely.Domain.Models.Duels.Entities;
+// using Duely.Domain.Models.Groups.Entities;
 using Duely.Domain.Models.Users.Entities;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -10,9 +9,10 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework;
 
 public sealed class Context : DbContext
 {
-    private readonly IDomainEventsDispatcher<Context> _domainEventsDispatcher;
+    private IDbContextTransaction? _transaction;
+    private readonly IDomainEventsDispatcher _domainEventsDispatcher;
 
-    public Context(DbContextOptions<Context> options, IDomainEventsDispatcher<Context> domainEventsDispatcher)
+    public Context(DbContextOptions<Context> options, IDomainEventsDispatcher domainEventsDispatcher)
         : base(options)
     {
         _domainEventsDispatcher = domainEventsDispatcher;
@@ -20,39 +20,63 @@ public sealed class Context : DbContext
     }
     
     public DbSet<User> Users => Set<User>();
-    public DbSet<RankedSearch> RankedSearches => Set<RankedSearch>();
-    public DbSet<Duel> Duels => Set<Duel>();
-    public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
-    public DbSet<Group> Groups => Set<Group>();
-    public DbSet<Tournament> Tournaments => Set<Tournament>();
+    // public DbSet<Group> Groups => Set<Group>();
+    // public DbSet<RankedSearch> RankedSearches => Set<RankedSearch>();
+    // public DbSet<Duel> Duels => Set<Duel>();
+    // public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
+    // public DbSet<Tournament> Tournaments => Set<Tournament>();
     // public DbSet<Submission> Submissions => Set<Submission>();
     // public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
-    
-    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken)
+
+    public async Task BeginTransactionAsync(CancellationToken cancellationToken)
     {
-        return Database.BeginTransactionAsync(cancellationToken);
+        if (_transaction is not null)
+        {
+            return;
+        }
+        
+        _transaction = await Database.BeginTransactionAsync(cancellationToken);
     }
 
-    public Task CommitTransactionAsync(CancellationToken cancellationToken)
+    public async Task CommitTransactionAsync(CancellationToken cancellationToken)
     {
-        return Database.CommitTransactionAsync(cancellationToken);
+        if (_transaction is null)
+        {
+            return;
+        }
+        
+        await _transaction.CommitAsync(cancellationToken);
+        _transaction = null;
     }
 
-    public Task RollbackTransactionAsync(CancellationToken cancellationToken)
+    public async Task RollbackTransactionAsync(CancellationToken cancellationToken)
     {
-        return Database.RollbackTransactionAsync(cancellationToken);
+        if (_transaction is null)
+        {
+            return;
+        }
+        
+        await _transaction.RollbackAsync(cancellationToken);
+        _transaction = null;
     }
     
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        if (_domainEventsDispatcher is null)
+        var transactionExists = _transaction is not null;
+        if (!transactionExists)
         {
-            throw new InvalidOperationException("Domain events dispatcher is not set.");
+            await BeginTransactionAsync(cancellationToken);   
         }
-
+        
+        var result = await base.SaveChangesAsync(cancellationToken);
         await _domainEventsDispatcher.DispatchEventsAsync(cancellationToken);
 
-        return await base.SaveChangesAsync(cancellationToken);
+        if (!transactionExists)
+        {
+            await CommitTransactionAsync(cancellationToken);
+        }
+        
+        return result;
     }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -30,7 +30,6 @@ public static class ServiceCollectionExtensions
         
         services.AddAuthorization();
         
-        services.Configure<IdentityTicketOptions>(configuration.GetSection(IdentityTicketOptions.SectionName));
         services.AddTransient<IIdentityTicketService, IdentityTicketService>();
         
         services.Configure<RefreshTokenOptions>(configuration.GetSection(RefreshTokenOptions.SectionName));

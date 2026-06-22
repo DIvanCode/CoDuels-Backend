@@ -1,17 +1,9 @@
-using Duely.Domain.Common.DomainEvents;
-using Duely.Domain.Models.Groups.Entities;
-using Duely.Domain.Models.Users.Entities;
+using Duely.Domain.Kernel.DomainEvents;
 
 namespace Duely.Domain.Models.Groups.DomainEvents;
 
-public sealed class GroupMembershipConfirmedDomainEvent : DomainEvent
+public sealed class GroupMembershipConfirmedDomainEvent(Guid groupId, Guid userId) : DomainEvent
 {
-    public GroupMembershipConfirmedDomainEvent(GroupId groupId, UserId userId)
-    {
-        GroupId = groupId;
-        UserId = userId;
-    }
-    
-    public GroupId GroupId { get; init; }
-    public UserId UserId { get; init; }
+    public Guid GroupId { get; init; } = groupId;
+    public Guid UserId { get; init; } = userId;
 }

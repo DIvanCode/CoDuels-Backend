@@ -1,43 +1,34 @@
-using Duely.Domain.Common.DomainEvents;
-using Duely.Domain.Common.Entities;
+using Duely.Domain.Kernel.DomainEvents;
+using Duely.Domain.Kernel.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Infrastructure.DataAccess.EntityFramework;
 
-public interface IDomainEventsDispatcher<in TDbContext> where TDbContext : DbContext
+public interface IDomainEventsDispatcher
 {
-    void SetDbContext(TDbContext dbContext);
+    void SetDbContext(Context context);
     Task DispatchEventsAsync(CancellationToken cancellationToken = default);
 }
 
-internal sealed class DomainEventsDispatcher<TDbContext>
-    : IDomainEventsDispatcher<TDbContext> where TDbContext : DbContext
+internal sealed class DomainEventsDispatcher(IPublisher publisher) : IDomainEventsDispatcher
 {
-    private readonly IPublisher _publisher;
+    private Context? _context;
 
-    private TDbContext? _dbContext;
-
-    public DomainEventsDispatcher(IPublisher publisher)
+    public void SetDbContext(Context context)
     {
-        _publisher = publisher;
-    }
-
-    public void SetDbContext(TDbContext dbContext)
-    {
-        _dbContext = dbContext;
+        _context = context;
     }
 
     public async Task DispatchEventsAsync(CancellationToken cancellationToken = default)
     {
-        if (_dbContext is null)
+        if (_context is null)
         {
-            throw new InvalidOperationException("DbContext is not set");
+            throw new InvalidOperationException("Context is not set");
         }
 
         while (HasUnpublishedDomainEvents())
         {
-            var entities = _dbContext.ChangeTracker
+            var entities = _context.ChangeTracker
                 .Entries<IEntity>()
                 .Where(a => a.Entity.DomainEvents.Count > 0)
                 .Select(a => a.Entity)
@@ -54,19 +45,19 @@ internal sealed class DomainEventsDispatcher<TDbContext>
 
             foreach (var domainEvent in domainEvents)
             {
-                await _publisher.Publish(domainEvent, cancellationToken);
+                await publisher.Publish(domainEvent, cancellationToken);
             }
         }
     }
 
     private bool HasUnpublishedDomainEvents()
     {
-        if (_dbContext is null)
+        if (_context is null)
         {
-            throw new InvalidOperationException("DbContext is not set");
+            throw new InvalidOperationException("Context is not set");
         }
 
-        return _dbContext.ChangeTracker
+        return _context.ChangeTracker
             .Entries<IEntity>()
             .Any(x => x.Entity.DomainEvents.Count > 0);
     }

@@ -1,14 +1,8 @@
-using Duely.Domain.Common.DomainEvents;
-using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Kernel.DomainEvents;
 
 namespace Duely.Domain.Models.Duels.DomainEvents.FriendlyDuels;
 
-public sealed class FriendlyDuelDeclinedDomainEvent : DomainEvent
+public sealed class FriendlyDuelDeclinedDomainEvent(Guid id) : DomainEvent
 {
-    public FriendlyDuelDeclinedDomainEvent(DuelId id)
-    {
-        Id = id;
-    }
-    
-    public DuelId Id { get; init; }
+    public Guid Id { get; init; } = id;
 }

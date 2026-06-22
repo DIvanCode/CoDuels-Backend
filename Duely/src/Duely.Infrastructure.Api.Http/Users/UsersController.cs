@@ -1,12 +1,11 @@
-using Duely.Application.UseCases.Dto.Users;
-using Duely.Application.UseCases.Features.Users;
-using Duely.Domain.Common.Errors;
+using Duely.Application.UseCases.Users.Handlers;
+using Duely.Application.UseCases.Users.Models;
+using Duely.Domain.Kernel.Errors;
 using Duely.Infrastructure.Api.Http.Users.Requests;
 using Duely.Infrastructure.Api.Http.Users.Services.AuthToken;
 using Duely.Infrastructure.Api.Http.Users.Services.IdentityTicket;
 using Duely.Infrastructure.Api.Http.Users.Services.RefreshToken;
 using Duely.Infrastructure.Api.Http.Users.Services.WebSockets;
-using FluentResults;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -17,19 +16,17 @@ namespace Duely.Infrastructure.Api.Http.Users;
 
 [ApiController]
 [Route("users")]
-internal sealed class UsersController(
+public sealed class UsersController(
     IMediator mediator,
     IAuthTokenService authTokenService,
     IRefreshTokenService refreshTokenService,
     IOptions<RefreshTokenOptions> refreshTokenOptions,
     IIdentityTicketService identityTicketService,
-    IOptions<IdentityTicketOptions> identityTicketOptions,
     IUserContext userContext,
     IUserWebSocketHandler webSocketHandler)
     : ControllerBase
 {
     private const string RefreshTokenCookieKey = "refresh_token";
-    private const string IdentityTicketCookieKey = "identity_ticket";
     
     [HttpPost("register")]
     public async Task<IActionResult> RegisterAsync(
@@ -65,8 +62,7 @@ internal sealed class UsersController(
             return this.HandleErrorResult(result.ToResult());
         }
         
-        var cookieExpirationDate = DateTimeOffset.UtcNow.AddDays(refreshTokenOptions.Value.ExpiresDays);
-        AppendCookie(RefreshTokenCookieKey, refreshToken, cookieExpirationDate);
+        AppendRefreshTokenCookie(refreshToken);
         
         var authToken = authTokenService.GenerateAuthToken(result.Value);
         return authToken;
@@ -76,9 +72,10 @@ internal sealed class UsersController(
     [Authorize]
     public async Task<ActionResult<UserDto>> IamAsync(CancellationToken cancellationToken)
     {
-        var query = new GetUserByIdQuery
+        var query = new GetUserQuery
         {
-            Id = userContext.UserId
+            Id = userContext.UserId,
+            Nickname = null
         };
 
         var result = await mediator.Send(query, cancellationToken);
@@ -87,27 +84,14 @@ internal sealed class UsersController(
 
     [HttpGet]
     [Authorize]
-    public async Task<ActionResult<UserDto>> GetByIdAsync(
-        [FromQuery] Guid id,
+    public async Task<ActionResult<UserDto>> GetAsync(
+        [FromQuery] int? id,
+        [FromQuery] string? nickname,
         CancellationToken cancellationToken)
     {
-        var query = new GetUserByIdQuery
+        var query = new GetUserQuery
         {
-            Id = id
-        };
-
-        var result = await mediator.Send(query, cancellationToken);
-        return this.HandleResult(result);
-    }
-
-    [HttpGet]
-    [Authorize]
-    public async Task<ActionResult<UserDto>> GetByNicknameAsync(
-        [FromQuery] string nickname,
-        CancellationToken cancellationToken)
-    {
-        var query = new GetUserByNicknameQuery
-        {
+            Id = id,
             Nickname = nickname
         };
 
@@ -136,8 +120,8 @@ internal sealed class UsersController(
             return this.HandleErrorResult(result.ToResult());
         }
         
-        var cookieExpirationDate = DateTimeOffset.UtcNow.AddDays(refreshTokenOptions.Value.ExpiresDays);
-        AppendCookie(RefreshTokenCookieKey, newRefreshToken, cookieExpirationDate);
+        
+        AppendRefreshTokenCookie(newRefreshToken);
         
         var authToken = authTokenService.GenerateAuthToken(result.Value);
         return authToken;
@@ -145,7 +129,7 @@ internal sealed class UsersController(
 
     [HttpPost("identity-ticket")]
     [Authorize]
-    public async Task<IActionResult> CreateIdentityTicketAsync(CancellationToken cancellationToken)
+    public async Task<ActionResult<string>> CreateIdentityTicketAsync(CancellationToken cancellationToken)
     {
         var identityTicket = identityTicketService.GenerateIdentityTicket();
         var command = new SetIdentityTicketCommand
@@ -160,23 +144,17 @@ internal sealed class UsersController(
             return this.HandleErrorResult(result);
         }
 
-        var cookieExpirationDate = DateTimeOffset.UtcNow.AddMinutes(identityTicketOptions.Value.ExpiresMinutes);
-        AppendCookie(IdentityTicketCookieKey, identityTicket, cookieExpirationDate);
-
-        return this.HandleResult(Result.Ok());
+        return identityTicket;
     }
 
     [HttpGet("connect")]
-    public async Task<IActionResult> ConnectAsync(CancellationToken cancellationToken)
+    public async Task<IActionResult> ConnectAsync(
+        [FromQuery] string ticket,
+        CancellationToken cancellationToken)
     {
-        if (!Request.Cookies.TryGetValue(IdentityTicketCookieKey, out var identityTicket))
-        {
-            return this.HandleResult(new ForbiddenError());
-        }
-        
         var command = new UseIdentityTicketCommand
         {
-            IdentityTicket = identityTicket
+            IdentityTicket = ticket
         };
         
         var userResult = await mediator.Send(command, cancellationToken);
@@ -191,9 +169,10 @@ internal sealed class UsersController(
             cancellationToken);
     }
 
-    private void AppendCookie(string key, string value, DateTimeOffset expirationDate)
+    private void AppendRefreshTokenCookie(string value)
     {
-        Response.Cookies.Append(key, value, new CookieOptions
+        var expirationDate = DateTimeOffset.UtcNow.AddDays(refreshTokenOptions.Value.ExpiresDays);
+        Response.Cookies.Append(RefreshTokenCookieKey, value, new CookieOptions
         {
             Expires = expirationDate,
             HttpOnly = true, // Prevents JavaScript access (XSS protection)
