@@ -1,4 +1,6 @@
 ﻿using System.Reflection;
+using Duely.Domain.Models.Duels.Entities;
+using Duely.Domain.Models.Duels.Entities.Duels;
 using Microsoft.EntityFrameworkCore;
 // using Duely.Domain.Models.Duels.Entities;
 // using Duely.Domain.Models.Groups.Entities;
@@ -21,11 +23,11 @@ public sealed class Context : DbContext
     }
     
     public DbSet<User> Users => Set<User>();
+    public DbSet<RankedDuelSearcher> RankedDuelSearchers => Set<RankedDuelSearcher>();
+    public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
+    public DbSet<Duel> Duels => Set<Duel>();
     public DbSet<IntegrationEvent> IntegrationEvents => Set<IntegrationEvent>();
     // public DbSet<Group> Groups => Set<Group>();
-    // public DbSet<RankedSearch> RankedSearches => Set<RankedSearch>();
-    // public DbSet<Duel> Duels => Set<Duel>();
-    // public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
     // public DbSet<Tournament> Tournaments => Set<Tournament>();
     // public DbSet<Submission> Submissions => Set<Submission>();
     // public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();

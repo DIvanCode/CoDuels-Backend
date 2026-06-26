@@ -14,8 +14,9 @@ internal sealed class IntegrationEventsProcessor(
 {
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Integration events processor started with interval {Interval} s", options.Value.IntervalMs);
-        
+        logger.LogInformation(
+            "Integration events processor started with interval {Interval} ms",
+            options.Value.IntervalMs);
         await Task.Yield();
         
         while (!cancellationToken.IsCancellationRequested)
@@ -68,13 +69,8 @@ internal sealed class IntegrationEventsProcessor(
             }
             else
             {
-                logger.LogError(
-                    "Failed to process integration event {Id} of type {Type} due to error: {Error}",
-                    integrationEvent.Id, integrationEvent.Type,
-                    string.Join(" ", result.Errors.Select(e => e.Message)));
-                    
                 var nextAttemptDelayMs = CalculateNextAttemptDelay(integrationEvent.ProcessAttempts - 1);
-                integrationEvent.Failed(DateTime.UtcNow.AddMilliseconds(nextAttemptDelayMs));;
+                integrationEvent.Failed(DateTime.UtcNow.AddMilliseconds(nextAttemptDelayMs));
             }
             
             await context.SaveChangesAsync(cancellationToken);

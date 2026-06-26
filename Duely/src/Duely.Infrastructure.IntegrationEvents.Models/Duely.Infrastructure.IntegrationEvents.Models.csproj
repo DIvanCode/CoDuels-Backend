@@ -8,6 +8,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Duely.Domain.Models\Duely.Domain.Models.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.Gateway.Client.Abstracts\Duely.Infrastructure.Gateway.Client.Abstracts.csproj" />
     </ItemGroup>
 
 </Project>

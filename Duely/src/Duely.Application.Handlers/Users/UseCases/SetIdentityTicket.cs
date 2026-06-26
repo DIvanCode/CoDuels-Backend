@@ -30,7 +30,6 @@ internal sealed class SetIdentityTicketHandler(Context context, ILogger<SetIdent
         }
         
         var userWithIdentityTicketExists = await context.Users
-            .AsNoTracking()
             .Where(u => u.IdentityTicket == command.IdentityTicket)
             .AnyAsync(cancellationToken);
         if (userWithIdentityTicketExists)

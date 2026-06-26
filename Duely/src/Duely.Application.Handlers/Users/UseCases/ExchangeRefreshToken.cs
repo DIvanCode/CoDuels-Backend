@@ -31,7 +31,6 @@ internal sealed class ExchangeRefreshTokenHandler(Context context, ILogger<Excha
         }
         
         var userWithNewRefreshTokenExists = await context.Users
-            .AsNoTracking()
             .Where(u => u.RefreshToken == command.NewRefreshToken)
             .AnyAsync(cancellationToken);
         if (userWithNewRefreshTokenExists)

@@ -34,7 +34,6 @@ internal sealed class LoginHandler(Context context, ILogger<LoginHandler> logger
         }
         
         var userWithRefreshTokenExists = await context.Users
-            .AsNoTracking()
             .Where(u => u.RefreshToken == command.RefreshToken)
             .AnyAsync(cancellationToken);
         if (userWithRefreshTokenExists)

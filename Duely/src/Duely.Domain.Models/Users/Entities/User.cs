@@ -5,15 +5,13 @@ namespace Duely.Domain.Models.Users.Entities;
 
 public sealed class User : Entity
 {
-    public User(string nickname, DateTime createdAt, string passwordHash, string passwordSalt, int rating)
+    private User(string nickname, DateTime createdAt, string passwordHash, string passwordSalt, int rating)
     {
         Nickname = nickname;
         CreatedAt = createdAt;
         PasswordHash = passwordHash;
         PasswordSalt = passwordSalt;
         Rating = rating;
-        
-        AddDomainEvent(new UserCreatedDomainEvent(this));
     }
     
     public int Id { get; init; }
@@ -29,6 +27,13 @@ public sealed class User : Entity
     public string? IdentityTicket { get; private set; }
     
     public int Rating { get; private set; }
+
+    public static User Create(string nickname, DateTime createdAt, string passwordHash, string passwordSalt, int rating)
+    {
+        var user = new User(nickname, createdAt, passwordHash, passwordSalt, rating);        
+        user.AddDomainEvent(new UserCreatedDomainEvent(user));
+        return user;
+    }
     
     public void UpdateRefreshToken(string refreshToken)
     {

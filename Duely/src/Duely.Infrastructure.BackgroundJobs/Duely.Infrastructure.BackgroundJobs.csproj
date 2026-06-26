@@ -24,8 +24,4 @@
       <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="IntegrationEvents\" />
-    </ItemGroup>
-
 </Project>

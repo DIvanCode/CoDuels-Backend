@@ -7,6 +7,7 @@ using Duely.Infrastructure.Api.Http.Users.Services.AuthToken;
 using Duely.Infrastructure.Api.Http.Users.Services.IdentityTicket;
 using Duely.Infrastructure.Api.Http.Users.Services.RefreshToken;
 using Duely.Infrastructure.Api.Http.Users.Services.WebSockets;
+using Duely.Infrastructure.Gateway.Client.Abstracts;
 using Hellang.Middleware.ProblemDetails;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -29,6 +30,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserContext, UserContext>();
         
         services.AddAuthorization();
+
+        services.AddSingleton<IMessageSender, WebSocketMessageSender>();
         
         services.AddTransient<IIdentityTicketService, IdentityTicketService>();
         

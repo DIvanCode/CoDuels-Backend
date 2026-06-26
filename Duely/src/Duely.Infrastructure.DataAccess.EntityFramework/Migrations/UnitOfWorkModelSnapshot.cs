@@ -22,6 +22,109 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.Duel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ConfigurationId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConfigurationId");
+
+                    b.ToTable("Duels", (string)null);
+
+                    b.HasDiscriminator<string>("Type");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.DuelConfiguration", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CreatedById")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsRated")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ProblemsCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ProblemsOrder")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("ShouldShowOpponentSolution")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.ToTable("DuelConfigurations", (string)null);
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.DuelParticipant", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DuelId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("UserId", "DuelId");
+
+                    b.HasIndex("DuelId");
+
+                    b.ToTable("DuelParticipants", (string)null);
+
+                    b.HasDiscriminator<string>("Type");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.RankedDuelSearcher", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("RankedDuelSearchers", (string)null);
+                });
+
             modelBuilder.Entity("Duely.Domain.Models.Users.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -107,19 +210,126 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("Duely.Infrastructure.IntegrationEvents.Models.UserCreatedIntegrationEvent", b =>
+            modelBuilder.Entity("RankedDuelRankedDuelParticipant", b =>
+                {
+                    b.Property<int>("RankedDuelId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ParticipantsUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ParticipantsDuelId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("RankedDuelId", "ParticipantsUserId", "ParticipantsDuelId");
+
+                    b.HasIndex("ParticipantsUserId", "ParticipantsDuelId");
+
+                    b.ToTable("RankedDuelRankedDuelParticipant");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.Duels.RankedDuel", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.Duels.Entities.Duel");
+
+                    b.HasDiscriminator().HasValue("RankedDuel");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.DuelParticipants.RankedDuelParticipant", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.Duels.Entities.DuelParticipant");
+
+                    b.Property<int>("InitialRating")
+                        .HasColumnType("integer");
+
+                    b.HasDiscriminator().HasValue("RankedDuel");
+                });
+
+            modelBuilder.Entity("Duely.Infrastructure.IntegrationEvents.Models.SendMessageIntegrationEvent", b =>
                 {
                     b.HasBaseType("Duely.Infrastructure.IntegrationEvents.Models.IntegrationEvent");
+
+                    b.Property<TimeSpan>("ExpirationTime")
+                        .HasColumnType("interval");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
                     b.HasIndex("UserId");
 
-                    b.HasDiscriminator().HasValue("UserCreated");
+                    b.HasDiscriminator().HasValue("SendMessage");
                 });
 
-            modelBuilder.Entity("Duely.Infrastructure.IntegrationEvents.Models.UserCreatedIntegrationEvent", b =>
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.Duel", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Duels.Entities.DuelConfiguration", "Configuration")
+                        .WithMany()
+                        .HasForeignKey("ConfigurationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Configuration");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.DuelConfiguration", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Users.Entities.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById");
+
+                    b.Navigation("CreatedBy");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.DuelParticipant", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Duels.Entities.Duel", "Duel")
+                        .WithMany()
+                        .HasForeignKey("DuelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.Users.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Duel");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.RankedDuelSearcher", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Users.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RankedDuelRankedDuelParticipant", b =>
+                {
+                    b.HasOne("Duely.Domain.Models.Duels.Entities.Duels.RankedDuel", null)
+                        .WithMany()
+                        .HasForeignKey("RankedDuelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Duely.Domain.Models.Duels.Entities.DuelParticipants.RankedDuelParticipant", null)
+                        .WithMany()
+                        .HasForeignKey("ParticipantsUserId", "ParticipantsDuelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Duely.Infrastructure.IntegrationEvents.Models.SendMessageIntegrationEvent", b =>
                 {
                     b.HasOne("Duely.Domain.Models.Users.Entities.User", null)
                         .WithMany()

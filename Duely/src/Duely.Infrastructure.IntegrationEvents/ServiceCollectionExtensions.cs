@@ -16,7 +16,7 @@ public static class ServiceCollectionExtensions
         
         services.AddScoped<IIntegrationEventHandlerResolver, IntegrationEventHandlerResolver>();
         
-        services.AddScoped<IIntegrationEventHandler, UserCreatedIntegrationEventHandler>();
-        services.AddScoped<IIntegrationEventHandler<UserCreatedIntegrationEvent>, UserCreatedIntegrationEventHandler>();
+        services.AddScoped<IIntegrationEventHandler, SendMessageIntegrationEventHandler>();
+        services.AddScoped<IIntegrationEventHandler<SendMessageIntegrationEvent>, SendMessageIntegrationEventHandler>();
     }
 }

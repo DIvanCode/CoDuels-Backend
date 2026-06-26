@@ -1,4 +1,5 @@
 using System.Reflection;
+using Duely.Application.BackgroundJobs;
 using Duely.Application.Handlers;
 // using Duely.Application.BackgroundJobs;
 // using Duely.Application.Services;
@@ -6,8 +7,6 @@ using Duely.Domain.Services;
 using Duely.Infrastructure.Api.Http;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.IntegrationEvents;
-using FluentValidation;
-using FluentValidation.AspNetCore;
 // using Duely.Infrastructure.Gateway.Tasks;
 // using Duely.Infrastructure.Gateway.Exesh;
 // using Duely.Infrastructure.MessageBus.Kafka;
@@ -21,7 +20,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Application
 // builder.Services.SetupApplicationServices(builder.Configuration);
 builder.Services.SetupUseCases(builder.Configuration);
-// builder.Services.SetupBackgroundJobs(builder.Configuration);
+builder.Services.SetupBackgroundJobs(builder.Configuration);
 
 // Domain
 builder.Services.SetupDomainServices(builder.Configuration);
@@ -68,7 +67,5 @@ var app = builder.Build();
 
 app.UseApiHttp();
 app.UseProblemDetails();
-
-app.Logger.LogInformation("Duely started");
 
 app.Run();

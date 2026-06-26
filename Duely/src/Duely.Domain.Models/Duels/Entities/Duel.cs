@@ -1,41 +1,33 @@
+using System.ComponentModel;
 using Duely.Domain.Kernel.Entities;
-using Duely.Domain.Models.Duels.DomainEvents;
-using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Models.Duels.Entities;
 
 public abstract class Duel : Entity
 {
     protected Duel(
-        Guid id,
         DuelType type,
         DuelConfiguration configuration,
-        IReadOnlyCollection<User> participants,
         DateTime createdAt)
     {
-        Id = id;
         Type = type;
         Configuration = configuration;
-        Participants = participants.ToList();
         
         Status = DuelStatus.Pending;
         CreatedAt = createdAt;
-        
-        AddDomainEvent(new DuelCreatedDomainEvent(Id));
     }
     
-    public Guid Id { get; init; }
+    public int Id { get; init; }
     public DuelType Type { get; init; }
     public DuelConfiguration Configuration { get; init; }
-    public IReadOnlyCollection<User> Participants { get; init; }
     // public ProblemSet? ProblemSet { get; private set; }
     
     public DuelStatus Status { get; private set; }
     public DateTime CreatedAt { get; init; }
-    public DateTime? UpdatedAt { get; protected set; }
-    public DateTime? StartedAt { get; private set; }
-    public DateTime? FinishedAt { get; private set; }
-    public User? Winner { get; private set; }
+    // public DateTime? UpdatedAt { get; protected set; }
+    // public DateTime? StartedAt { get; private set; }
+    // public DateTime? FinishedAt { get; private set; }
+    // public User? Winner { get; private set; }
 
     // public IReadOnlyCollection<Solution> Solutions { get; init; } = [];
     // public IReadOnlyCollection<Submission> Submissions { get; init; } = [];
@@ -69,13 +61,25 @@ public abstract class Duel : Entity
     //     
     //     AddDomainEvent(new DuelFinishedDomainEvent(Id));
     // }
+    
+    // ReSharper disable once UnusedMember.Local
+#pragma warning disable CS8618, CS9264
+    /// <summary>
+    /// EF constructor. Do not use explicitly!
+    /// </summary>
+    [Obsolete(message: "For EF. Do not use explicitly!", error: true)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    protected Duel()
+    {
+    }
+#pragma warning restore CS8618, CS9264
 }
 
 public enum DuelType
 {
     RankedDuel = 0,
-    FriendlyDuel = 1,
-    GroupDuel = 2
+    // FriendlyDuel = 1,
+    // GroupDuel = 2
     // TournamentDuel = 3
 }
 

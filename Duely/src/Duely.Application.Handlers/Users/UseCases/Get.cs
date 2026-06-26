@@ -19,7 +19,7 @@ internal sealed class GetUserHandler(Context context) : IRequestHandler<GetUserQ
 {
     public async Task<Result<UserDto>> Handle(GetUserQuery query, CancellationToken cancellationToken)
     {
-        var userQuery = context.Users.AsNoTracking();
+        var userQuery = context.Users.AsQueryable();
         
         if (query.Id is not null)
         {

@@ -1,25 +1,35 @@
+using System.ComponentModel;
 using Duely.Domain.Models.Duels.DomainEvents.RankedDuels;
+using Duely.Domain.Models.Duels.Entities.DuelParticipants;
 using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Models.Duels.Entities.Duels;
 
 public sealed class RankedDuel : Duel
 {
-    public RankedDuel(
-        Guid id,
+    private RankedDuel(
         DuelConfiguration configuration,
         IReadOnlyCollection<User> participants,
-        DateTime createdAt,
-        IReadOnlyDictionary<Guid, int> initRatings)
-        : base(id, DuelType.RankedDuel, configuration, participants, createdAt)
+        DateTime createdAt)
+        : base(DuelType.RankedDuel, configuration, createdAt)
     {
-        InitRatings = initRatings;
-        
-        AddDomainEvent(new RankedDuelCreatedDomainEvent(Id));
+        _participants = participants
+            .Select(p => new RankedDuelParticipant(p, this))
+            .ToList();
     }
     
-    public IReadOnlyDictionary<Guid, int> InitRatings { get; init; }
-    public IReadOnlyDictionary<Guid, int>? FinalRatings { get; private set; }
+    private readonly List<RankedDuelParticipant> _participants;
+    public IReadOnlyCollection<RankedDuelParticipant> Participants => _participants.AsReadOnly();
+
+    public static RankedDuel Create(
+        DuelConfiguration configuration,
+        IReadOnlyCollection<User> participants,
+        DateTime createdAt)
+    {
+        var rankedDuel = new RankedDuel(configuration, participants, createdAt);
+        rankedDuel.AddDomainEvent(new RankedDuelCreatedDomainEvent(rankedDuel));
+        return rankedDuel;
+    }
 
     // public void Finish(DateTime finishedAt, User? winner, IReadOnlyDictionary<Guid, int> finalRatings)
     // {
@@ -27,4 +37,16 @@ public sealed class RankedDuel : Duel
     //     
     //     base.Finish(finishedAt, winner);
     // }
+    
+    // ReSharper disable once UnusedMember.Local
+#pragma warning disable CS8618, CS9264
+    /// <summary>
+    /// EF constructor. Do not use explicitly!
+    /// </summary>
+    [Obsolete(message: "For EF. Do not use explicitly!", error: true)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    private RankedDuel()
+    {
+    }
+#pragma warning restore CS8618, CS9264
 }

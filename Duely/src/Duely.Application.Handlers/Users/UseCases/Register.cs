@@ -27,7 +27,6 @@ internal sealed class RegisterHandler(
     public async Task<Result> Handle(RegisterCommand command, CancellationToken cancellationToken)
     {
         var userExists = await context.Users
-            .AsNoTracking()
 #pragma warning disable CA1862
             .Where(u => u.Nickname.ToLower() == command.Nickname.ToLower())
 #pragma warning restore CA1862
@@ -40,7 +39,7 @@ internal sealed class RegisterHandler(
         var passwordSalt = Guid.NewGuid().ToString();
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(command.Password + passwordSalt, 12);
         var rating = userOptions.Value.InitialRating;
-        var user = new User(command.Nickname, DateTime.UtcNow, passwordHash, passwordSalt, rating);
+        var user = User.Create(command.Nickname, DateTime.UtcNow, passwordHash, passwordSalt, rating);
 
         context.Users.Add(user);
         await context.SaveChangesAsync(cancellationToken);
