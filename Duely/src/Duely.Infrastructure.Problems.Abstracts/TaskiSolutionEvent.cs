@@ -1,7 +1,7 @@
 // using System.ComponentModel.DataAnnotations;
 // using System.Text.Json.Serialization;
 //
-// namespace Duely.Infrastructure.Gateway.Tasks.Abstracts;
+// namespace Duely.Infrastructure.Problems.Taski.Abstracts;
 //
 // public sealed class TaskiSolutionEvent
 // {

@@ -3,7 +3,7 @@
 // using MediatR;
 // using Microsoft.EntityFrameworkCore;
 // using Microsoft.Extensions.Options;
-// using Duely.Infrastructure.Gateway.Tasks.Abstracts;
+// using Duely.Infrastructure.Problems.Taski.Abstracts;
 // using Duely.Infrastructure.DataAccess.EntityFramework;
 // using Duely.Domain.Services.Duels;
 // using Duely.Domain.Models.Messages;

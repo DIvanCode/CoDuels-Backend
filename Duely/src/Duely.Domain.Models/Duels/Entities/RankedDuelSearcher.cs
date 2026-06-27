@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using Duely.Domain.Kernel.Entities;
 using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Models.Duels.Entities;

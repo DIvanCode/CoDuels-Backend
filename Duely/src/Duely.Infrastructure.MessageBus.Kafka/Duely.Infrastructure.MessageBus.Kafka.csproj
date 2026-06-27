@@ -16,7 +16,7 @@
     <ItemGroup>
       <ProjectReference Include="..\Duely.Application.Handlers\Duely.Application.Handlers.csproj" />
       <ProjectReference Include="..\Duely.Infrastructure.Gateway.Exesh.Abstracts\Duely.Infrastructure.Gateway.Exesh.Abstracts.csproj" />
-      <ProjectReference Include="..\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj" />
+      <ProjectReference Include="..\Duely.Infrastructure.Problems.Abstracts\Duely.Infrastructure.Problems.Abstracts.csproj" />
     </ItemGroup>
 
 </Project>

@@ -1,6 +1,6 @@
 // using System.Text.Json;
 // using Confluent.Kafka;
-// using Duely.Infrastructure.Gateway.Tasks.Abstracts;
+// using Duely.Infrastructure.Problems.Taski.Abstracts;
 // using MediatR;
 // using Microsoft.Extensions.Hosting;
 // using Microsoft.Extensions.Options;

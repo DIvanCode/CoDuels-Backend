@@ -1,4 +1,3 @@
-using System.Reflection;
 using Duely.Application.BackgroundJobs;
 using Duely.Application.Handlers;
 // using Duely.Application.BackgroundJobs;
@@ -7,7 +6,7 @@ using Duely.Domain.Services;
 using Duely.Infrastructure.Api.Http;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.IntegrationEvents;
-// using Duely.Infrastructure.Gateway.Tasks;
+using Duely.Infrastructure.Problems;
 // using Duely.Infrastructure.Gateway.Exesh;
 // using Duely.Infrastructure.MessageBus.Kafka;
 // using Duely.Infrastructure.BackgroundJobs;
@@ -29,6 +28,8 @@ builder.Services.SetupDomainServices(builder.Configuration);
 builder.Services.SetupApiHttp(builder.Configuration, builder.Environment);
 builder.Services.SetupDataAccessEntityFramework(builder.Configuration);
 builder.Services.SetupIntegrationEvents(builder.Configuration);
+
+builder.Services.SetupProblems(builder.Configuration);
 
 // builder.Services.SetupTasksGateway(builder.Configuration);
 // builder.Services.SetupExeshGateway(builder.Configuration);

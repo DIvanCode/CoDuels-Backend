@@ -3,7 +3,7 @@
 // using Duely.Domain.Models.Duels;
 // using Duely.Domain.Models.Duels.Entities;
 //
-// namespace Duely.Infrastructure.Gateway.Tasks.Abstracts;
+// namespace Duely.Infrastructure.Problems.Taski.Abstracts;
 //
 // public sealed class TestRequest
 // {

@@ -20,7 +20,9 @@ public abstract class Duel : Entity
     public int Id { get; init; }
     public DuelType Type { get; init; }
     public DuelConfiguration Configuration { get; init; }
-    // public ProblemSet? ProblemSet { get; private set; }
+
+    private readonly List<DuelProblem> _problems = [];
+    public IReadOnlyCollection<DuelProblem> Problems => _problems;
     
     public DuelStatus Status { get; private set; }
     public DateTime CreatedAt { get; init; }
@@ -31,6 +33,12 @@ public abstract class Duel : Entity
 
     // public IReadOnlyCollection<Solution> Solutions { get; init; } = [];
     // public IReadOnlyCollection<Submission> Submissions { get; init; } = [];
+
+    public void AddProblem(Problem problem, bool isVisible)
+    {
+        var position = _problems.Count + 1;
+        _problems.Add(new DuelProblem(this, problem, position, isVisible));
+    }
 
     // public virtual void Start(DateTime startedAt, ProblemSet problemSet)
     // {

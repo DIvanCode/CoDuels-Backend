@@ -25,6 +25,9 @@ internal sealed class DuelsConfiguration : IEntityTypeConfiguration<Duel>
         builder.HasOne(d => d.Configuration)
             .WithMany();
 
+        builder.HasMany(d => d.Problems)
+            .WithOne(p => p.Duel);
+
         builder.Property(d => d.Status)
             .HasConversion<string>();
 

@@ -13,9 +13,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Api.Ht
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Gateway.Client.Abstracts", "src\Duely.Infrastructure.Gateway.Client.Abstracts\Duely.Infrastructure.Gateway.Client.Abstracts.csproj", "{D839E04A-03DE-476F-9A17-A856841FB610}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Gateway.Tasks.Abstracts", "src\Duely.Infrastructure.Gateway.Tasks.Abstracts\Duely.Infrastructure.Gateway.Tasks.Abstracts.csproj", "{14D477A0-89DC-4B31-A31D-422C6419A167}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Gateway.Tasks", "src\Duely.Infrastructure.Gateway.Tasks\Duely.Infrastructure.Gateway.Tasks.csproj", "{512821A3-1EF3-480E-B543-DC880EAC7291}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Problems.Abstracts", "src\Duely.Infrastructure.Problems.Abstracts\Duely.Infrastructure.Problems.Abstracts.csproj", "{14D477A0-89DC-4B31-A31D-422C6419A167}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Domain.Models", "src\Duely.Domain.Models\Duely.Domain.Models.csproj", "{60B721DE-5456-4959-B332-D456B4ED9DC9}"
 EndProject
@@ -36,6 +34,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.IntegrationEvents", "src\Duely.Infrastructure.IntegrationEvents\Duely.Infrastructure.IntegrationEvents.csproj", "{0F4DA385-7E48-40EA-955E-FAAF56D4E323}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.IntegrationEvents.Models", "src\Duely.Infrastructure.IntegrationEvents.Models\Duely.Infrastructure.IntegrationEvents.Models.csproj", "{C957BB0D-A1AB-4919-92FD-15860EA44C46}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Duely.Infrastructure.Problems", "src\Duely.Infrastructure.Problems\Duely.Infrastructure.Problems.csproj", "{55342F30-2C25-4BFF-9CCD-8A16C2312010}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,10 +71,6 @@ Global
 		{14D477A0-89DC-4B31-A31D-422C6419A167}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{14D477A0-89DC-4B31-A31D-422C6419A167}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{14D477A0-89DC-4B31-A31D-422C6419A167}.Release|Any CPU.Build.0 = Release|Any CPU
-		{512821A3-1EF3-480E-B543-DC880EAC7291}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{512821A3-1EF3-480E-B543-DC880EAC7291}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{512821A3-1EF3-480E-B543-DC880EAC7291}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{512821A3-1EF3-480E-B543-DC880EAC7291}.Release|Any CPU.Build.0 = Release|Any CPU
 		{60B721DE-5456-4959-B332-D456B4ED9DC9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{60B721DE-5456-4959-B332-D456B4ED9DC9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{60B721DE-5456-4959-B332-D456B4ED9DC9}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -115,5 +111,9 @@ Global
 		{C957BB0D-A1AB-4919-92FD-15860EA44C46}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C957BB0D-A1AB-4919-92FD-15860EA44C46}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C957BB0D-A1AB-4919-92FD-15860EA44C46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{55342F30-2C25-4BFF-9CCD-8A16C2312010}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55342F30-2C25-4BFF-9CCD-8A16C2312010}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55342F30-2C25-4BFF-9CCD-8A16C2312010}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55342F30-2C25-4BFF-9CCD-8A16C2312010}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

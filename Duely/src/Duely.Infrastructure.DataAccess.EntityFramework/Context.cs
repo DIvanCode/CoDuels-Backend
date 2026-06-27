@@ -23,6 +23,7 @@ public sealed class Context : DbContext
     }
     
     public DbSet<User> Users => Set<User>();
+    public DbSet<Problem> Problems => Set<Problem>();
     public DbSet<RankedDuelSearcher> RankedDuelSearchers => Set<RankedDuelSearcher>();
     public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
     public DbSet<Duel> Duels => Set<Duel>();

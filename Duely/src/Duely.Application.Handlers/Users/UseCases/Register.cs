@@ -39,7 +39,7 @@ internal sealed class RegisterHandler(
         var passwordSalt = Guid.NewGuid().ToString();
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(command.Password + passwordSalt, 12);
         var rating = userOptions.Value.InitialRating;
-        var user = User.Create(command.Nickname, DateTime.UtcNow, passwordHash, passwordSalt, rating);
+        var user = new User(command.Nickname, DateTime.UtcNow, passwordHash, passwordSalt, rating);
 
         context.Users.Add(user);
         await context.SaveChangesAsync(cancellationToken);
