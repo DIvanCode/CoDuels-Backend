@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using Duely.Domain.Kernel.Entities;
+using Duely.Domain.Models.Duels.DomainEvents;
+using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Models.Duels.Entities;
 
@@ -20,6 +22,9 @@ public abstract class Duel : Entity
     public int Id { get; init; }
     public DuelType Type { get; init; }
     public DuelConfiguration Configuration { get; init; }
+    
+    private readonly List<DuelParticipant> _participants = [];
+    public IReadOnlyCollection<DuelParticipant> Participants => _participants.AsReadOnly();
 
     private readonly List<DuelProblem> _problems = [];
     public IReadOnlyCollection<DuelProblem> Problems => _problems;
@@ -34,6 +39,19 @@ public abstract class Duel : Entity
     // public IReadOnlyCollection<Solution> Solutions { get; init; } = [];
     // public IReadOnlyCollection<Submission> Submissions { get; init; } = [];
 
+    public abstract void AddParticipant(User user);
+    protected void AddParticipant(DuelParticipant participant)
+    {
+        _participants.Add(participant);
+    }
+
+    public void SetReady()
+    {
+        Status = DuelStatus.Ready;
+        
+        AddDomainEvent(new DuelReadyDomainEvent(this));
+    }
+    
     public void AddProblem(Problem problem, bool isVisible)
     {
         var position = _problems.Count + 1;
@@ -85,7 +103,7 @@ public abstract class Duel : Entity
 
 public enum DuelType
 {
-    RankedDuel = 0,
+    Ranked = 0,
     // FriendlyDuel = 1,
     // GroupDuel = 2
     // TournamentDuel = 3
@@ -94,6 +112,7 @@ public enum DuelType
 public enum DuelStatus
 {
     Pending = 0,
-    InProgress = 1,
-    Finished = 2
+    Ready = 1,
+    InProgress = 2,
+    Finished = 3
 }

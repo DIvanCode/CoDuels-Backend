@@ -34,7 +34,12 @@ internal sealed class CreateRankedDuelHandler(
         }
         
         var duelConfiguration = CreateDuelConfiguration();
-        var rankedDuel = RankedDuel.Create(duelConfiguration, participants, DateTime.UtcNow);
+        var rankedDuel = RankedDuel.Create(duelConfiguration, DateTime.UtcNow);
+
+        foreach (var participant in participants)
+        {
+            rankedDuel.AddParticipant(participant);
+        }
         
         context.Duels.Add(rankedDuel);
         await context.SaveChangesAsync(cancellationToken);

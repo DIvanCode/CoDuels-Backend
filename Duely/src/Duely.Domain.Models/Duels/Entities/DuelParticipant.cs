@@ -1,13 +1,15 @@
 using System.ComponentModel;
+using Duely.Domain.Kernel.Entities;
+using Duely.Domain.Models.Duels.DomainEvents;
 using Duely.Domain.Models.Users.Entities;
 
 namespace Duely.Domain.Models.Duels.Entities;
 
-public abstract class DuelParticipant
+public abstract class DuelParticipant : Entity
 {
-    protected DuelParticipant(DuelType type, User user, Duel duel)
+    protected DuelParticipant(User user, Duel duel)
     {
-        Type = type;
+        Type = duel.Type;
         User = user;
         Duel = duel;
     }
@@ -15,6 +17,14 @@ public abstract class DuelParticipant
     public DuelType Type { get; init; }
     public User User { get; init; }
     public Duel Duel { get; init; }
+    public bool IsReady { get; private set; }
+
+    public void SetReady()
+    {
+        IsReady = true;
+
+        AddDomainEvent(new DuelParticipantReadyDomainEvent(this));
+    }
     
     // ReSharper disable once UnusedMember.Local
 #pragma warning disable CS8618, CS9264

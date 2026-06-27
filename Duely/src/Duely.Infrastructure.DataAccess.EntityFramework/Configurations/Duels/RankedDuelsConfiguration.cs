@@ -9,8 +9,6 @@ internal sealed class RankedDuelsConfiguration : IEntityTypeConfiguration<Ranked
 {
     public void Configure(EntityTypeBuilder<RankedDuel> builder)
     {
-        builder.HasMany(d => d.Participants)
-            .WithMany();
     }
 }
 

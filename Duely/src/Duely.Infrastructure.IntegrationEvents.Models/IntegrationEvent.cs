@@ -5,6 +5,7 @@ namespace Duely.Infrastructure.IntegrationEvents.Models;
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = nameof(Type))]
 [JsonDerivedType(typeof(SendMessageIntegrationEvent), nameof(IntegrationEventType.SendMessage))]
+[JsonDerivedType(typeof(StartDuelIntegrationEvent), nameof(IntegrationEventType.StartDuel))]
 public abstract class IntegrationEvent
 {
     protected IntegrationEvent(IntegrationEventType type, DateTime createdAt, DateTime attemptProcessAt)
@@ -51,7 +52,8 @@ public abstract class IntegrationEvent
 
 public enum IntegrationEventType
 {
-    SendMessage = 0
+    SendMessage = 0,
+    StartDuel = 1
 }
 
 public enum IntegrationEventStatus

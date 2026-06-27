@@ -7,28 +7,23 @@ namespace Duely.Domain.Models.Duels.Entities.Duels;
 
 public sealed class RankedDuel : Duel
 {
-    private RankedDuel(
-        DuelConfiguration configuration,
-        IReadOnlyCollection<User> participants,
-        DateTime createdAt)
-        : base(DuelType.RankedDuel, configuration, createdAt)
+    private RankedDuel(DuelConfiguration configuration, DateTime createdAt)
+        : base(DuelType.Ranked, configuration, createdAt)
     {
-        _participants = participants
-            .Select(p => new RankedDuelParticipant(p, this))
-            .ToList();
     }
-    
-    private readonly List<RankedDuelParticipant> _participants;
-    public IReadOnlyCollection<RankedDuelParticipant> Participants => _participants.AsReadOnly();
 
     public static RankedDuel Create(
         DuelConfiguration configuration,
-        IReadOnlyCollection<User> participants,
         DateTime createdAt)
     {
-        var rankedDuel = new RankedDuel(configuration, participants, createdAt);
+        var rankedDuel = new RankedDuel(configuration, createdAt);
         rankedDuel.AddDomainEvent(new RankedDuelCreatedDomainEvent(rankedDuel));
         return rankedDuel;
+    }
+
+    public override void AddParticipant(User user)
+    {
+        AddParticipant(new RankedDuelParticipant(user, this));
     }
 
     // public void Finish(DateTime finishedAt, User? winner, IReadOnlyDictionary<Guid, int> finalRatings)

@@ -20,14 +20,16 @@ internal sealed class DuelParticipantsConfiguration : IEntityTypeConfiguration<D
         builder.Property(p => p.Type)
             .HasConversion<string>();
         builder.HasDiscriminator(p => p.Type)
-            .HasValue<RankedDuelParticipant>(DuelType.RankedDuel);
+            .HasValue<RankedDuelParticipant>(DuelType.Ranked);
         
         builder.HasOne(p => p.User)
             .WithMany()
             .HasForeignKey(UserIdColumnName);
         
         builder.HasOne(p => p.Duel)
-            .WithMany()
+            .WithMany(d => d.Participants)
             .HasForeignKey(DuelIdColumnName);
+
+        builder.Property(p => p.IsReady);
     }
 }

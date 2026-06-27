@@ -20,10 +20,13 @@ internal sealed class DuelsConfiguration : IEntityTypeConfiguration<Duel>
         builder.Property(d => d.Type)
             .HasConversion<string>();
         builder.HasDiscriminator(d => d.Type)
-            .HasValue<RankedDuel>(DuelType.RankedDuel);
+            .HasValue<RankedDuel>(DuelType.Ranked);
 
         builder.HasOne(d => d.Configuration)
             .WithMany();
+        
+        builder.HasMany(d => d.Participants)
+            .WithOne(p => p.Duel);
 
         builder.HasMany(d => d.Problems)
             .WithOne(p => p.Duel);

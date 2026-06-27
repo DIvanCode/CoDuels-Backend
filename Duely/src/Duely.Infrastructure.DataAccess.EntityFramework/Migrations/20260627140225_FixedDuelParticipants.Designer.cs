@@ -3,6 +3,7 @@ using System;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 {
     [DbContext(typeof(Context))]
-    partial class UnitOfWorkModelSnapshot : ModelSnapshot
+    [Migration("20260627140225_FixedDuelParticipants")]
+    partial class FixedDuelParticipants
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -298,18 +301,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.HasDiscriminator().HasValue("SendMessage");
                 });
 
-            modelBuilder.Entity("Duely.Infrastructure.IntegrationEvents.Models.StartDuelIntegrationEvent", b =>
-                {
-                    b.HasBaseType("Duely.Infrastructure.IntegrationEvents.Models.IntegrationEvent");
-
-                    b.Property<int>("DuelId")
-                        .HasColumnType("integer");
-
-                    b.HasIndex("DuelId");
-
-                    b.HasDiscriminator().HasValue("StartDuel");
-                });
-
             modelBuilder.Entity("Duely.Domain.Models.Duels.Entities.Duel", b =>
                 {
                     b.HasOne("Duely.Domain.Models.Duels.Entities.DuelConfiguration", "Configuration")
@@ -384,15 +375,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.HasOne("Duely.Domain.Models.Users.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Duely.Infrastructure.IntegrationEvents.Models.StartDuelIntegrationEvent", b =>
-                {
-                    b.HasOne("Duely.Domain.Models.Duels.Entities.Duel", null)
-                        .WithMany()
-                        .HasForeignKey("DuelId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

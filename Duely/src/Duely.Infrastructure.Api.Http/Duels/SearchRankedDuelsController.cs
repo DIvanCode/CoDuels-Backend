@@ -8,7 +8,7 @@ namespace Duely.Infrastructure.Api.Http.Duels;
 [ApiController]
 [Route("duels/ranked/search")]
 [Authorize]
-public sealed class DuelsController(IMediator mediator, IUserContext userContext) : ControllerBase
+public sealed class SearchRankedDuelsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult> StartAsync(CancellationToken cancellationToken)

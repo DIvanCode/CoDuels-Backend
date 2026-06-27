@@ -5,7 +5,7 @@ namespace Duely.Domain.Models.Duels.Entities.DuelParticipants;
 
 public sealed class RankedDuelParticipant : DuelParticipant
 {
-    public RankedDuelParticipant(User user, Duel duel) : base(DuelType.RankedDuel, user, duel)
+    public RankedDuelParticipant(User user, Duel duel) : base(user, duel)
     {
         InitialRating = user.Rating;
     }

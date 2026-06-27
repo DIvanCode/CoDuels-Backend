@@ -19,7 +19,8 @@ internal sealed class IntegrationEventsConfiguration : IEntityTypeConfiguration<
         builder.Property(e => e.Type)
             .HasConversion<string>();
         builder.HasDiscriminator(e => e.Type)
-            .HasValue<SendMessageIntegrationEvent>(IntegrationEventType.SendMessage);
+            .HasValue<SendMessageIntegrationEvent>(IntegrationEventType.SendMessage)
+            .HasValue<StartDuelIntegrationEvent>(IntegrationEventType.StartDuel);
         
         builder.Property(e => e.CreatedAt);
 
