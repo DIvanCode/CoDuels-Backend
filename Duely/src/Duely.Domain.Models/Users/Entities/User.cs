@@ -1,13 +1,14 @@
 using Duely.Domain.Kernel.Entities;
+using Duely.Domain.Models.Duels.Entities;
 
 namespace Duely.Domain.Models.Users.Entities;
 
 public sealed class User : Entity
 {
-    public User(string nickname, DateTime createdAt, string passwordHash, string passwordSalt, int rating)
+    public User(string nickname, string passwordHash, string passwordSalt, int rating)
     {
         Nickname = nickname;
-        CreatedAt = createdAt;
+        CreatedAt = DateTime.UtcNow;
         PasswordHash = passwordHash;
         PasswordSalt = passwordSalt;
         Rating = rating;
@@ -26,7 +27,10 @@ public sealed class User : Entity
     public string? IdentityTicket { get; private set; }
     
     public int Rating { get; private set; }
-    
+
+    private readonly List<DuelParticipant> _duelsParticipation = [];
+    public IReadOnlyCollection<DuelParticipant> DuelsParticipation => _duelsParticipation.AsReadOnly();
+
     public void UpdateRefreshToken(string refreshToken)
     {
         RefreshToken = refreshToken;

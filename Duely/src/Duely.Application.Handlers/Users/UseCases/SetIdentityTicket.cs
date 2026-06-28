@@ -34,7 +34,7 @@ internal sealed class SetIdentityTicketHandler(Context context, ILogger<SetIdent
             .AnyAsync(cancellationToken);
         if (userWithIdentityTicketExists)
         {
-            return new UnexpectedError("Пользователь с заданным идентификационным билетом уже существует.");
+            return new InvalidOperationError("Пользователь с заданным идентификационным билетом уже существует.");
         }
 
         user.SetIdentityTicket(command.IdentityTicket);

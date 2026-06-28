@@ -24,10 +24,10 @@ internal static class ControllerBaseExtensions
 
         var statusCode = error switch
         {
-            ValidationError => StatusCodes.Status400BadRequest,
+            ValidationError or InvalidOperationError => StatusCodes.Status400BadRequest,
             AuthenticationError => StatusCodes.Status401Unauthorized,
-            EntityNotFoundError => StatusCodes.Status404NotFound,
-            EntityAlreadyExistsError => StatusCodes.Status409Conflict,
+            NotFoundError => StatusCodes.Status404NotFound,
+            ConflictError => StatusCodes.Status409Conflict,
             ForbiddenError => StatusCodes.Status403Forbidden,
             RateLimitExceededError => StatusCodes.Status429TooManyRequests,
             _ => StatusCodes.Status500InternalServerError

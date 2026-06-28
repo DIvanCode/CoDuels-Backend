@@ -31,10 +31,10 @@ internal sealed class StartRankedDuelSearchHandler(Context context, ILogger<Star
             .AnyAsync(cancellationToken);
         if (rankedDuelSearcherExists)
         {
-            return new EntityAlreadyExistsError("Вы уже находитесь в поиске рейтинговой дуэли.");
+            return new ConflictError("Вы уже находитесь в поиске рейтинговой дуэли.");
         }
 
-        var rankedDuelSearcher = RankedDuelSearcher.Create(user, DateTime.UtcNow);
+        var rankedDuelSearcher = RankedDuelSearcher.Create(user);
         
         context.RankedDuelSearchers.Add(rankedDuelSearcher);
         await context.SaveChangesAsync(cancellationToken);

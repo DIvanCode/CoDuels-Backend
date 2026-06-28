@@ -33,13 +33,13 @@ internal sealed class RegisterHandler(
             .AnyAsync(cancellationToken);
         if (userExists)
         {
-            return new EntityAlreadyExistsError("Пользователь с заданным никнеймом уже существует.");
+            return new ConflictError("Пользователь с заданным никнеймом уже существует.");
         }
 
         var passwordSalt = Guid.NewGuid().ToString();
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(command.Password + passwordSalt, 12);
         var rating = userOptions.Value.InitialRating;
-        var user = new User(command.Nickname, DateTime.UtcNow, passwordHash, passwordSalt, rating);
+        var user = new User(command.Nickname, passwordHash, passwordSalt, rating);
 
         context.Users.Add(user);
         await context.SaveChangesAsync(cancellationToken);

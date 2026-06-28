@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Duely.Application.Handlers\Duely.Application.Handlers.csproj" />
       <ProjectReference Include="..\Duely.Infrastructure.DataAccess.EntityFramework\Duely.Infrastructure.DataAccess.EntityFramework.csproj" />
       <ProjectReference Include="..\Duely.Infrastructure.IntegrationEvents.Models\Duely.Infrastructure.IntegrationEvents.Models.csproj" />
     </ItemGroup>

@@ -23,7 +23,7 @@ internal sealed class DuelParticipantsConfiguration : IEntityTypeConfiguration<D
             .HasValue<RankedDuelParticipant>(DuelType.Ranked);
         
         builder.HasOne(p => p.User)
-            .WithMany()
+            .WithMany(u => u.DuelsParticipation)
             .HasForeignKey(UserIdColumnName);
         
         builder.HasOne(p => p.Duel)

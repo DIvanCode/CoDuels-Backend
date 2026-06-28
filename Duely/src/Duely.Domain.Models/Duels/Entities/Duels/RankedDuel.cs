@@ -7,16 +7,14 @@ namespace Duely.Domain.Models.Duels.Entities.Duels;
 
 public sealed class RankedDuel : Duel
 {
-    private RankedDuel(DuelConfiguration configuration, DateTime createdAt)
-        : base(DuelType.Ranked, configuration, createdAt)
+    private RankedDuel(DuelConfiguration configuration)
+        : base(DuelType.Ranked, configuration)
     {
     }
 
-    public static RankedDuel Create(
-        DuelConfiguration configuration,
-        DateTime createdAt)
+    public static RankedDuel Create(DuelConfiguration configuration)
     {
-        var rankedDuel = new RankedDuel(configuration, createdAt);
+        var rankedDuel = new RankedDuel(configuration);
         rankedDuel.AddDomainEvent(new RankedDuelCreatedDomainEvent(rankedDuel));
         return rankedDuel;
     }

@@ -1,6 +1,6 @@
+using Duely.Domain.Kernel.Errors;
 using Duely.Domain.Models.Duels.Entities;
 using Duely.Domain.Models.Duels.Entities.Duels;
-using Duely.Domain.Models.Users.Errors;
 using Duely.Domain.Services.Duels;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
@@ -30,11 +30,11 @@ internal sealed class CreateRankedDuelHandler(
             .ToListAsync(cancellationToken);
         if (participants.Count != command.Participants.Count)
         {
-            return new UserNotFoundError();
+            return new NotFoundError("Один или несколько участников дуэли не найдены.");
         }
         
         var duelConfiguration = CreateDuelConfiguration();
-        var rankedDuel = RankedDuel.Create(duelConfiguration, DateTime.UtcNow);
+        var rankedDuel = RankedDuel.Create(duelConfiguration);
 
         foreach (var participant in participants)
         {

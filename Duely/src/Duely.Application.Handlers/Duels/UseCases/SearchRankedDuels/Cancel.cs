@@ -30,7 +30,7 @@ internal sealed class CancelRankedDuelSearchHandler(Context context, ILogger<Can
             .SingleOrDefaultAsync(cancellationToken);
         if (rankedDuelSearcher is null)
         {
-            return new EntityNotFoundError("Вы не находитесь в поиске рейтинговой дуэли.");
+            return new InvalidOperationError("Вы не находитесь в поиске рейтинговой дуэли.");
         }
 
         context.RankedDuelSearchers.Remove(rankedDuelSearcher);

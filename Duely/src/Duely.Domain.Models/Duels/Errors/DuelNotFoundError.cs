@@ -2,4 +2,4 @@ using Duely.Domain.Kernel.Errors;
 
 namespace Duely.Domain.Models.Duels.Errors;
 
-public sealed class DuelNotFoundError() : EntityNotFoundError("Дуэль не найдена.");
+public sealed class DuelNotFoundError() : NotFoundError("Дуэль не найдена.");

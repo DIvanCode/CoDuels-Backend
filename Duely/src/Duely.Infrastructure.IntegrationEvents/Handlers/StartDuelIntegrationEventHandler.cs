@@ -1,11 +1,11 @@
+using Duely.Application.Handlers.Duels.UseCases;
 using Duely.Infrastructure.IntegrationEvents.Models;
 using FluentResults;
-using Microsoft.Extensions.Logging;
+using MediatR;
 
 namespace Duely.Infrastructure.IntegrationEvents.Handlers;
 
-internal sealed class StartDuelIntegrationEventHandler(
-    ILogger<StartDuelIntegrationEventHandler> logger)
+internal sealed class StartDuelIntegrationEventHandler(IMediator mediator)
     : IntegrationEventHandler<StartDuelIntegrationEvent>
 {
     public override IntegrationEventType SupportedType => IntegrationEventType.StartDuel;
@@ -14,7 +14,11 @@ internal sealed class StartDuelIntegrationEventHandler(
         StartDuelIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation("Requested to start duel {Id}", integrationEvent.DuelId);
-        return Result.Ok();
+        var command = new StartDuelCommand
+        {
+            DuelId = integrationEvent.DuelId,
+        };
+        
+        return await mediator.Send(command, cancellationToken);
     }
 }

@@ -5,18 +5,18 @@ namespace Duely.Domain.Models.Duels.Entities;
 
 public sealed class RankedDuelSearcher
 {
-    private RankedDuelSearcher(User user, DateTime createdAt)
+    private RankedDuelSearcher(User user)
     {
         User = user;
-        CreatedAt = createdAt;
+        CreatedAt = DateTime.UtcNow;
     }
     
     public User User { get; init; }
     public DateTime CreatedAt { get; init; }
 
-    public static RankedDuelSearcher Create(User user, DateTime createdAt)
+    public static RankedDuelSearcher Create(User user)
     {
-        return new RankedDuelSearcher(user, createdAt);
+        return new RankedDuelSearcher(user);
     }
     
     // ReSharper disable once UnusedMember.Local

@@ -7,16 +7,13 @@ namespace Duely.Domain.Models.Duels.Entities;
 
 public abstract class Duel : Entity
 {
-    protected Duel(
-        DuelType type,
-        DuelConfiguration configuration,
-        DateTime createdAt)
+    protected Duel(DuelType type, DuelConfiguration configuration)
     {
         Type = type;
         Configuration = configuration;
         
         Status = DuelStatus.Pending;
-        CreatedAt = createdAt;
+        CreatedAt = DateTime.UtcNow;
     }
     
     public int Id { get; init; }
@@ -27,12 +24,12 @@ public abstract class Duel : Entity
     public IReadOnlyCollection<DuelParticipant> Participants => _participants.AsReadOnly();
 
     private readonly List<DuelProblem> _problems = [];
-    public IReadOnlyCollection<DuelProblem> Problems => _problems;
+    public IReadOnlyCollection<DuelProblem> Problems => _problems.AsReadOnly();
     
     public DuelStatus Status { get; private set; }
     public DateTime CreatedAt { get; init; }
-    // public DateTime? UpdatedAt { get; protected set; }
-    // public DateTime? StartedAt { get; private set; }
+    public DateTime? UpdatedAt { get; protected set; }
+    public DateTime? StartedAt { get; private set; }
     // public DateTime? FinishedAt { get; private set; }
     // public User? Winner { get; private set; }
 
@@ -43,11 +40,13 @@ public abstract class Duel : Entity
     protected void AddParticipant(DuelParticipant participant)
     {
         _participants.Add(participant);
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void SetReady()
     {
         Status = DuelStatus.Ready;
+        UpdatedAt = DateTime.UtcNow;
         
         AddDomainEvent(new DuelReadyDomainEvent(this));
     }
@@ -56,22 +55,18 @@ public abstract class Duel : Entity
     {
         var position = _problems.Count + 1;
         _problems.Add(new DuelProblem(this, problem, position, isVisible));
+        
+        UpdatedAt = DateTime.UtcNow;
     }
 
-    // public virtual void Start(DateTime startedAt, ProblemSet problemSet)
-    // {
-    //     if (Status != DuelStatus.Pending)
-    //     {
-    //         throw new InvalidOperationException("Нельзя начать дуэль, которая уже начата.");
-    //     }
-    //
-    //     ProblemSet = problemSet;
-    //     Status = DuelStatus.InProgress;
-    //     UpdatedAt = startedAt;
-    //     StartedAt = startedAt;
-    //     
-    //     AddDomainEvent(new DuelStartedDomainEvent(Id));
-    // }
+    public void Start()
+    {
+        UpdatedAt = DateTime.UtcNow;
+        StartedAt = DateTime.UtcNow;
+        Status = DuelStatus.InProgress;
+        
+        AddDomainEvent(new DuelStartedDomainEvent(this));
+    }
 
     // public virtual void Finish(DateTime finishedAt, User? winner)
     // {
