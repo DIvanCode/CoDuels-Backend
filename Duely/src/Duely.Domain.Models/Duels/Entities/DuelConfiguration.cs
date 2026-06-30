@@ -7,14 +7,14 @@ public sealed class DuelConfiguration
 {
     public DuelConfiguration(
         bool isRated,
-        bool shouldShowOpponentSolution,
+        bool showOpponentSolution,
         int durationMinutes,
         int problemsCount,
         ProblemsOrder problemsOrder,
         User? createdBy = null)
     {
         IsRated = isRated;
-        ShouldShowOpponentSolution = shouldShowOpponentSolution;
+        ShowOpponentSolution = showOpponentSolution;
         DurationMinutes = durationMinutes;
         ProblemsCount = problemsCount;
         ProblemsOrder = problemsOrder;
@@ -23,7 +23,7 @@ public sealed class DuelConfiguration
     
     public int Id { get; init; }
     public bool IsRated { get; init; }
-    public bool ShouldShowOpponentSolution { get; private set; }
+    public bool ShowOpponentSolution { get; private set; }
     public int DurationMinutes { get; private set; }
     public int ProblemsCount { get; private set; }
     public ProblemsOrder ProblemsOrder { get; private set; }

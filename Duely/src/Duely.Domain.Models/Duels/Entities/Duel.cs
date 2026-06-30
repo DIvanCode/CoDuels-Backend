@@ -7,13 +7,14 @@ namespace Duely.Domain.Models.Duels.Entities;
 
 public abstract class Duel : Entity
 {
-    protected Duel(DuelType type, DuelConfiguration configuration)
+    protected Duel(DuelType type, DuelConfiguration configuration, TimeSpan confirmTimeout)
     {
         Type = type;
         Configuration = configuration;
         
         Status = DuelStatus.Pending;
         CreatedAt = DateTime.UtcNow;
+        ConfirmTimeout = confirmTimeout;
     }
     
     public int Id { get; init; }
@@ -28,6 +29,7 @@ public abstract class Duel : Entity
     
     public DuelStatus Status { get; private set; }
     public DateTime CreatedAt { get; init; }
+    public TimeSpan ConfirmTimeout { get; init; }
     public DateTime? UpdatedAt { get; protected set; }
     public DateTime? StartedAt { get; private set; }
     // public DateTime? FinishedAt { get; private set; }
@@ -49,6 +51,14 @@ public abstract class Duel : Entity
         UpdatedAt = DateTime.UtcNow;
         
         AddDomainEvent(new DuelReadyDomainEvent(this));
+    }
+
+    public void Cancel()
+    {
+        Status = DuelStatus.Canceled;
+        UpdatedAt = DateTime.UtcNow;
+        
+        AddDomainEvent(new DuelCanceledDomainEvent(this));
     }
     
     public void AddProblem(Problem problem, bool isVisible)
@@ -108,6 +118,7 @@ public enum DuelStatus
 {
     Pending = 0,
     Ready = 1,
-    InProgress = 2,
-    Finished = 3
+    Canceled = 2,
+    InProgress = 3,
+    Finished = 4
 }

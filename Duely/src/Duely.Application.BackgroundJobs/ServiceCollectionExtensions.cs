@@ -11,6 +11,9 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<RankedDuelSearchersMatcher>();
         services.Configure<RankedDuelSearchersMatcherOptions>(
             configuration.GetSection(RankedDuelSearchersMatcherOptions.SectionName));
+        
+        services.AddHostedService<DuelsAutoCanceler>();
+        services.Configure<DuelsAutoCancelerOptions>(configuration.GetSection(DuelsAutoCancelerOptions.SectionName));
 
         // services.Configure<DuelMakingJobOptions>(configuration.GetSection(DuelMakingJobOptions.SectionName));
         // services.AddHostedService<DuelMakingJob>();

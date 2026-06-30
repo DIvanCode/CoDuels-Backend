@@ -39,6 +39,8 @@ internal sealed class DuelsConfiguration : IEntityTypeConfiguration<Duel>
             .HasConversion<string>();
 
         builder.Property(d => d.CreatedAt);
+
+        builder.Property(d => d.ConfirmTimeout);
         
         builder.Property(d => d.UpdatedAt)
             .IsConcurrencyToken();

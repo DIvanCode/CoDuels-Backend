@@ -34,7 +34,8 @@ internal sealed class CreateRankedDuelHandler(
         }
         
         var duelConfiguration = CreateDuelConfiguration();
-        var rankedDuel = RankedDuel.Create(duelConfiguration);
+        var confirmTimeout = TimeSpan.FromSeconds(options.Value.Ranked.ConfirmationTimeoutSeconds);
+        var rankedDuel = RankedDuel.Create(duelConfiguration, confirmTimeout);
 
         foreach (var participant in participants)
         {
@@ -55,7 +56,7 @@ internal sealed class CreateRankedDuelHandler(
     {
         var configuration = new DuelConfiguration(
             isRated: true,
-            options.Value.DefaultConfiguration.ShouldShowOpponentSolution,
+            options.Value.DefaultConfiguration.ShowOpponentSolution,
             options.Value.DefaultConfiguration.DurationMinutes,
             options.Value.DefaultConfiguration.ProblemsCount,
             options.Value.DefaultConfiguration.ProblemsOrder);

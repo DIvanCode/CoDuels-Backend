@@ -12,7 +12,7 @@ public sealed class DuelOptions
 
 public sealed class DefaultDuelConfigurationOptions
 {
-    public bool ShouldShowOpponentSolution { get; init; } = true;
+    public bool ShowOpponentSolution { get; init; } = true;
     public int DurationMinutes { get; init; } = 30;
     public int ProblemsCount { get; init; } = 1;
     public ProblemsOrder ProblemsOrder { get; init; } = ProblemsOrder.Sequential;

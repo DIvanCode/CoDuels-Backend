@@ -9,8 +9,6 @@ namespace Duely.Application.Handlers.Duels.Notifications.RankedDuels;
 internal sealed class RankedDuelCreatedNotificationHandler(Context context)
     : INotificationHandler<RankedDuelCreatedDomainEvent>
 {
-    private const int MessageExpirationTimeSeconds = 30;
-    
     public async Task Handle(RankedDuelCreatedDomainEvent notification, CancellationToken cancellationToken)
     {
         foreach (var participant in notification.RankedDuel.Participants)
@@ -20,7 +18,7 @@ internal sealed class RankedDuelCreatedNotificationHandler(Context context)
                 attemptProcessAt: DateTime.UtcNow,
                 userId: participant.User.Id,
                 message: new RankedDuelCreatedMessage(notification.RankedDuel.Id),
-                expirationTime: TimeSpan.FromSeconds(MessageExpirationTimeSeconds));
+                expirationTime: notification.RankedDuel.ConfirmTimeout);
             context.IntegrationEvents.Add(integrationEvent);
         }
         

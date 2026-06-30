@@ -18,7 +18,7 @@ internal sealed class DuelConfigurationsConfiguration : IEntityTypeConfiguration
 
         builder.Property(c => c.IsRated);
         
-        builder.Property(c => c.ShouldShowOpponentSolution);
+        builder.Property(c => c.ShowOpponentSolution);
         
         builder.Property(c => c.DurationMinutes);
         
