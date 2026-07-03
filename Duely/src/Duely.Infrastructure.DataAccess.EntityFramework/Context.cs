@@ -27,6 +27,7 @@ public sealed class Context : DbContext
     public DbSet<RankedDuelSearcher> RankedDuelSearchers => Set<RankedDuelSearcher>();
     public DbSet<DuelConfiguration> DuelConfigurations => Set<DuelConfiguration>();
     public DbSet<Duel> Duels => Set<Duel>();
+    public DbSet<Submission> Submissions => Set<Submission>();
     public DbSet<IntegrationEvent> IntegrationEvents => Set<IntegrationEvent>();
     // public DbSet<Group> Groups => Set<Group>();
     // public DbSet<Tournament> Tournaments => Set<Tournament>();
