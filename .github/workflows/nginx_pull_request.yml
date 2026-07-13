@@ -1,0 +1,25 @@
+name: Nginx checks
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - nginx/**
+      - .github/workflows/nginx_pull_request.yml
+
+permissions:
+  contents: read
+
+jobs:
+  check-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Nginx configuration
+        run: |
+          docker run --rm \
+            --add-host duely:127.0.0.1 \
+            --add-host taski:127.0.0.1 \
+            --add-host exesh-dashboard:127.0.0.1 \
+            -v "$GITHUB_WORKSPACE/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            nginx:1.29.2 nginx -t
