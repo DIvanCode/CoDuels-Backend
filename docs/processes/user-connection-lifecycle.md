@@ -2,9 +2,9 @@
 
 ## 1. Purpose
 
-Authenticate a WebSocket with a one-time ticket, maintain one registered socket
-per user in a Duely process, relay client events, and apply pending-duel cleanup
-when a connection handler ends.
+Authenticate a WebSocket with an intended single-use ticket, maintain one
+registered socket per user in a Duely process, relay client events, and attempt
+pending-duel cleanup when a connection handler reaches that part of `finally`.
 
 ## 2. Participants
 
@@ -24,7 +24,8 @@ when a connection handler ends.
 ## 4. Preconditions
 
 - Ticket creation requires an authenticated existing user.
-- Connect consumes an exact stored ticket and must be a WebSocket upgrade.
+- Connect requires an exact stored ticket and must be a WebSocket upgrade. The
+  handler reads, clears, and saves the ticket without an atomic consume lock.
 - Ticket storage has no unique database index or transactional consume lock.
 - Connection registration is process-local; no distributed presence exists.
 
@@ -34,7 +35,9 @@ when a connection handler ends.
 
 Ticket creation generates 32 random bytes as hex, checks for collision up to
 three times, stores it on the user, and returns it. Connect looks up the ticket,
-sets it to null, saves, accepts the WebSocket, then works with the user id.
+sets it to null, saves, accepts the WebSocket, then works with the user id. Two
+concurrent handlers can both read the same value before either clearing save is
+committed, so this does not prove exactly-one consumption.
 
 ### Replacing a connection
 
@@ -90,9 +93,11 @@ that call; map removal and business cleanup below it can be skipped.
 | Tournament | Preserve; reset only disconnected user's acceptance; no message |
 | Active duel, submissions, code runs | Unchanged |
 
-The same broad cleanup runs for normal close, network failure, request
-cancellation, replacement, and normally any exception. It is not conditioned on
-whether another socket for that user is already active.
+The same broad cleanup is attempted when normal close, network failure, request
+cancellation, replacement, or an exception reaches the statements below the
+socket-close attempt in `finally`. It can be skipped if current-socket
+`CloseAsync` throws and is not conditioned on whether another socket for that
+user is already active.
 
 ## 8. Emitted messages
 

@@ -1,10 +1,12 @@
-# Duely business processes
+# CoDuels Backend processes
 
 This directory documents the behavior observed at `CoDuels-Backend` revision
 `b0ca65fb91bc`. Source code, EF mappings, runtime configuration, and assertions
 in `Duely/tests` are the evidence. The documents intentionally distinguish
 current behavior from proposed requirements; an implementation detail is not
 automatically treated as an approved product rule.
+
+## Duely business processes
 
 ## Process map
 
