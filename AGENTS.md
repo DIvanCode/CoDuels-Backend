@@ -17,10 +17,14 @@
 ## Change rules
 
 - Keep handlers/controllers thin. Put orchestration in application/usecase layers and invariants in domain layers.
+- Use Conventional Commits (`type(scope): description`) for every commit and use the same concise, imperative convention for pull-request titles.
 - For EF model changes, add/update migrations and verify migration startup through the Duely migration image.
 - For Taski/Exesh contract changes, update both sides and any Duely gateway or polling consumer.
 - Preserve `isolate` for untrusted runtime jobs and preserve worker resource accounting.
 - Use `gofmt` on changed Go files. Do not introduce a new formatter or dependency without a concrete need.
+- For every Taski or Exesh change, run `./e2e/taski-exesh/run.sh` after focused tests. If Docker or the required isolation features are unavailable, report the test as not run and give the exact reason.
+- When Taski, Exesh, their Docker/Compose/Ansible configuration, task fixtures, submodules, or related infrastructure changes, review the Taski-Exesh e2e scenario and update its services, configs, fixtures, requests, or assertions when the contract changed.
+- New cross-service e2e scenarios must follow `e2e/README.md`, have one local `run.sh`, and add a non-duplicating pull-request workflow whose paths cover every participating service plus related configuration and infrastructure.
 - Do not decrypt vault files or run deploy playbooks without explicit user authorization.
 - This repository has no production deployment workflow. After a validated backend change is merged here, release it by advancing the `Backend` submodule in a pull request to root `CoDuels`.
 
@@ -42,6 +46,7 @@
 - Duely: `cd Duely && dotnet test --configuration Release`.
 - Exesh: `cd Exesh && go test ./...`.
 - Taski: `cd Taski && go test ./...`.
+- Taski-Exesh e2e after any Taski or Exesh change: `./e2e/taski-exesh/run.sh` from the Backend repository.
 - filestorage: `cd filestorage && go test ./...`.
 - Analyzer has no committed automated test suite; at minimum syntax-check changed Python and exercise feature/model code relevant to the change. Train both models with `cd Analyzer && python train.py --data-dir data/train` when the feature schema or training code changes.
 - Use the matching GitHub Actions workflow as the final CI command reference.
