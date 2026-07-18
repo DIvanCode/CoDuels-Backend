@@ -1,0 +1,23 @@
+env: docker
+runtime: isolate
+http_server:
+  addr: 0.0.0.0:5254
+  metrics_addr: ""
+filestorage:
+  root_dir: /var/lib/coduels/worker
+  trasher:
+    workers: 1
+    collector_iterations_delay: 60
+    worker_iterations_delay: 5
+source_provider:
+  filestorage_bucket_ttl: 15m
+  artifact_ttl: 5m
+output_provider:
+  artifact_ttl: 5m
+worker:
+  id: http://worker:5254
+  free_slots: 2
+  available_memory_mb: 1024
+  coordinator_endpoint: http://coordinator:5253
+  heartbeat_delay: 100ms
+  worker_delay: 10ms

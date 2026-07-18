@@ -1,0 +1,105 @@
+services:
+  exesh-postgres:
+    image: postgres:17.7
+    environment:
+      POSTGRES_USER: coordinator
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: exesh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coordinator -d exesh"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+    volumes:
+      - exesh-postgres:/var/lib/postgresql/data
+
+  taski-postgres:
+    image: postgres:17.7
+    environment:
+      POSTGRES_USER: taski
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: taski
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taski -d taski"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+    volumes:
+      - taski-postgres:/var/lib/postgresql/data
+
+  coordinator:
+    image: coduels-exesh-e2e:local
+    build:
+      context: ../../Exesh
+      dockerfile: Dockerfile
+    command: ["/app/bin/coordinator"]
+    environment:
+      CONFIG_PATH: /config/coordinator.yml
+    depends_on:
+      exesh-postgres:
+        condition: service_healthy
+    volumes:
+      - ./config/coordinator.yml:/config/coordinator.yml:ro
+      - coordinator-storage:/var/lib/coduels/coordinator
+
+  worker:
+    image: coduels-exesh-e2e:local
+    build:
+      context: ../../Exesh
+      dockerfile: Dockerfile
+    command: ["/app/bin/worker"]
+    environment:
+      CONFIG_PATH: /config/worker.yml
+    depends_on:
+      coordinator:
+        condition: service_started
+    privileged: true
+    volumes:
+      - ./config/worker.yml:/config/worker.yml:ro
+      - ../../Exesh/config/isolate.conf:/usr/local/etc/isolate:ro
+      - worker-storage:/var/lib/coduels/worker
+
+  taski:
+    image: coduels-taski-e2e:local
+    build:
+      context: ../../Taski
+      dockerfile: Dockerfile
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        mkdir -p /var/lib/coduels/taski/storage
+        cp -a /task-seed/. /var/lib/coduels/taski/storage/
+        exec /app/bin/taski
+    environment:
+      CONFIG_PATH: /config/taski.yml
+    depends_on:
+      taski-postgres:
+        condition: service_healthy
+      coordinator:
+        condition: service_started
+    volumes:
+      - ./config/taski.yml:/config/taski.yml:ro
+      - ../../Taski/tasks/storage:/task-seed:ro
+      - taski-storage:/var/lib/coduels/taski
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      CODUELS_E2E: "1"
+      TASKI_URL: http://taski:5252
+      COORDINATOR_URL: http://coordinator:5253
+    depends_on:
+      taski:
+        condition: service_started
+      worker:
+        condition: service_started
+
+volumes:
+  exesh-postgres:
+  taski-postgres:
+  coordinator-storage:
+  worker-storage:
+  taski-storage:

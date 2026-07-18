@@ -1,0 +1,34 @@
+env: docker
+http_server:
+  addr: 0.0.0.0:5253
+  metrics_addr: ""
+storage:
+  connection_string: host=exesh-postgres port=5432 database=exesh user=coordinator password=secret
+  init_timeout: 60s
+filestorage:
+  root_dir: /var/lib/coduels/coordinator
+  trasher:
+    workers: 1
+    collector_iterations_delay: 60
+    worker_iterations_delay: 5
+job_factory:
+  output:
+    compiled_binary: bin
+    run_output: output
+  source_ttl:
+    filestorage_bucket: 30m
+  filestorage_endpoint: http://coordinator:5253
+execution_scheduler:
+  executions_interval: 100ms
+  capacity: 7680000000
+  execution_retry_after: 30s
+job_scheduler:
+  promised_jobs_limit: 5
+  promise_reschedule_interval: 100ms
+worker_pool:
+  worker_die_after: 2s
+dispatcher:
+  kafka_enabled: false
+  brokers: []
+  topic: exesh.step-updates
+  sasl_auth: false
