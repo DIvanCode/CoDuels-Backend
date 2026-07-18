@@ -54,7 +54,7 @@ func (ts *TaskStorage) Get(ctx context.Context, id task.ID) (t task.Task, unlock
 	path, unlock, err = ts.fs.GetBucket(ctx, bucketID, nil)
 	if err != nil {
 		if errors.Is(err, ferrs.ErrBucketNotFound) {
-			err = fmt.Errorf("task bucket not found")
+			err = fmt.Errorf("get task bucket: %w", task.ErrNotFound)
 			return
 		}
 		if errors.Is(err, ferrs.ErrWriteLocked) {
@@ -104,11 +104,11 @@ func (ts *TaskStorage) GetFile(ctx context.Context, taskID task.ID, file string)
 	path, unlock, err = ts.fs.GetFile(ctx, bucketID, file, nil)
 	if err != nil {
 		if errors.Is(err, ferrs.ErrBucketNotFound) {
-			err = fmt.Errorf("task bucket not found")
+			err = fmt.Errorf("get task bucket: %w", task.ErrNotFound)
 			return
 		}
 		if errors.Is(err, ferrs.ErrFileNotFound) {
-			err = fmt.Errorf("file in bucket not found")
+			err = fmt.Errorf("get task file: %w", task.ErrFileNotFound)
 			return
 		}
 		if errors.Is(err, ferrs.ErrWriteLocked) {
@@ -126,6 +126,10 @@ func (ts *TaskStorage) GetFile(ctx context.Context, taskID task.ID, file string)
 
 	r, err = os.OpenFile(filepath.Join(path, file), os.O_RDONLY, 0666)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			err = fmt.Errorf("open task file: %w", task.ErrFileNotFound)
+			return
+		}
 		err = fmt.Errorf("failed to open file: %w", err)
 		return
 	}
