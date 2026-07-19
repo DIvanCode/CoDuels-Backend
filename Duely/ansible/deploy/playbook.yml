@@ -1,7 +1,7 @@
 - name: Deploy
   hosts: Production
   vars_files:
-    - credentials.yml
+    - "{{ credentials_file | default('credentials.yml') }}"
   remote_user: root
   tasks:
     - name: Ensure network exists
@@ -46,8 +46,14 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "5001:5001"
+        state: healthy
+        healthy_wait_timeout: 120
+        healthcheck:
+          test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5001'"]
+          interval: 5s
+          timeout: 3s
+          retries: 12
+          start_period: 20s
         env:
           ASPNETCORE_ENVIRONMENT: "Production"
           DbConnection__ConnectionString: "{{ postgres_connection }}"
@@ -59,3 +65,13 @@
           Kafka__GroupId: taski.testing-group
         networks:
           - name: coduels
+    - name: Inspect duely rollout
+      docker_container_info:
+        name: duely
+      register: duely_container
+    - name: Verify duely is healthy and private
+      assert:
+        that:
+          - duely_container.container.State.Health.Status == "healthy"
+          - (duely_container.container.HostConfig.PortBindings | default({}, true) | length) == 0
+          - "'coduels' in duely_container.container.NetworkSettings.Networks"

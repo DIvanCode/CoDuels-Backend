@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	healthAPI "taski/internal/api/health"
 	getFileAPI "taski/internal/api/task/file"
 	getAPI "taski/internal/api/task/get"
 	listAPI "taski/internal/api/task/list"
@@ -69,6 +70,7 @@ func main() {
 		AllowCredentials: false,
 		MaxAge:           300,
 	}))
+	healthAPI.Register(mux)
 
 	fileStorage, err := fs.New(log, cfg.FileStorage, mux)
 	if err != nil {

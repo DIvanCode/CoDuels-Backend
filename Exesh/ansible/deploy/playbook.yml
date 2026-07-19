@@ -1,7 +1,7 @@
 - name: Deploy
   hosts: Production
   vars_files:
-    - credentials.yml
+    - "{{ credentials_file | default('credentials.yml') }}"
   remote_user: root
   tasks:
     - name: Ensure network exists
@@ -27,9 +27,14 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "5253:5253"
-          - "9080:9090"
+        state: healthy
+        healthy_wait_timeout: 120
+        healthcheck:
+          test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5253'"]
+          interval: 5s
+          timeout: 3s
+          retries: 12
+          start_period: 10s
         command:
           - /app/bin/coordinator
         env:
@@ -53,9 +58,14 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "5254:5254"
-          - "9081:9091"
+        state: healthy
+        healthy_wait_timeout: 120
+        healthcheck:
+          test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5254'"]
+          interval: 5s
+          timeout: 3s
+          retries: 12
+          start_period: 10s
         command:
           - /app/bin/worker
         privileged: true
@@ -78,9 +88,14 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "5255:5255"
-          - "9082:9092"
+        state: healthy
+        healthy_wait_timeout: 120
+        healthcheck:
+          test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5255'"]
+          interval: 5s
+          timeout: 3s
+          retries: 12
+          start_period: 10s
         command:
           - /app/bin/worker
         privileged: true
@@ -103,9 +118,33 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "9000:9000"
+        state: healthy
+        healthy_wait_timeout: 120
+        healthcheck:
+          test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=2)"]
+          interval: 5s
+          timeout: 3s
+          retries: 12
+          start_period: 10s
         env:
           EXESH_DASHBOARD_DB_CONNECTION_STRING: "{{ dashboard_postgres_connection }}"
         networks:
           - name: coduels
+    - name: Inspect Exesh rollout
+      docker_container_info:
+        name: "{{ item }}"
+      loop:
+        - coordinator
+        - worker-1
+        - worker-2
+        - exesh-dashboard
+      register: exesh_containers
+    - name: Verify Exesh containers are healthy and private
+      assert:
+        that:
+          - item.container.State.Health.Status == "healthy"
+          - (item.container.HostConfig.PortBindings | default({}, true) | length) == 0
+          - "'coduels' in item.container.NetworkSettings.Networks"
+      loop: "{{ exesh_containers.results }}"
+      loop_control:
+        label: "{{ item.container.Name }}"

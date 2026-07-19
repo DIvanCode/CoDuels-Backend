@@ -23,6 +23,13 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
+        state: healthy
+        healthy_wait_timeout: 60
+        healthcheck:
+          test: ["CMD-SHELL", "nginx -t"]
+          interval: 5s
+          timeout: 3s
+          retries: 6
         ports:
           - "80:80"
           - "443:443"
@@ -30,3 +37,22 @@
           - /opt/coduels/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
         networks:
           - name: coduels
+    - name: Wait for public nginx readiness
+      uri:
+        url: http://127.0.0.1/health
+        status_code: 200
+        return_content: true
+      register: nginx_health
+      retries: 12
+      delay: 5
+      until: nginx_health.status == 200
+    - name: Inspect nginx rollout
+      docker_container_info:
+        name: nginx
+      register: nginx_container
+    - name: Verify nginx publishes only public entrypoints
+      assert:
+        that:
+          - nginx_container.container.State.Health.Status == "healthy"
+          - "'coduels' in nginx_container.container.NetworkSettings.Networks"
+          - (nginx_container.container.HostConfig.PortBindings | dict2items | map(attribute='key') | sort) == ['443/tcp', '80/tcp']

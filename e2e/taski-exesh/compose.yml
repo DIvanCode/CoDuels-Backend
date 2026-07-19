@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: exesh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U coordinator -d exesh"]
+      test: ["CMD-SHELL", "pg_isready -U coordinator -d exesh && test \"$$(head -1 $$PGDATA/postmaster.pid)\" = \"1\""]
       interval: 1s
       timeout: 3s
       retries: 60
@@ -20,7 +20,7 @@ services:
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: taski
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U taski -d taski"]
+      test: ["CMD-SHELL", "pg_isready -U taski -d taski && test \"$$(head -1 $$PGDATA/postmaster.pid)\" = \"1\""]
       interval: 1s
       timeout: 3s
       retries: 60
@@ -38,6 +38,11 @@ services:
     depends_on:
       exesh-postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5253'"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
     volumes:
       - ./config/coordinator.yml:/config/coordinator.yml:ro
 
@@ -51,7 +56,12 @@ services:
       CONFIG_PATH: /config/worker.yml
     depends_on:
       coordinator:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5254'"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
     privileged: true
     volumes:
       - ./config/worker.yml:/config/worker.yml:ro
@@ -75,7 +85,12 @@ services:
       taski-postgres:
         condition: service_healthy
       coordinator:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5252'"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
     volumes:
       - ./config/taski.yml:/config/taski.yml:ro
       - ../../Taski/tasks/storage:/task-seed:ro
@@ -91,9 +106,9 @@ services:
       COORDINATOR_URL: http://coordinator:5253
     depends_on:
       taski:
-        condition: service_started
+        condition: service_healthy
       worker:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   exesh-postgres:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	executeAPI "exesh/internal/api/execute"
+	healthAPI "exesh/internal/api/health"
 	heartbeatAPI "exesh/internal/api/heartbeat"
 	messagesAPI "exesh/internal/api/messages"
 	"exesh/internal/calculator"
@@ -49,6 +50,7 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	mux := chi.NewRouter()
+	healthAPI.Register(mux)
 
 	unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, eventStorage, err := setupStorage(log, cfg.Storage)
 	if err != nil {

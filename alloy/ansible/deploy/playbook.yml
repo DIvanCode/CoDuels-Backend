@@ -1,7 +1,7 @@
 - name: Deploy Grafana Alloy
   hosts: Production
   vars_files:
-    - credentials.yml
+    - "{{ credentials_file | default('credentials.yml') }}"
   vars:
     grafana_prometheus_remote_write_url: https://prometheus-prod-56-prod-us-east-2.grafana.net/api/prom/push
     grafana_loki_push_url: https://logs-prod-036.grafana.net/loki/api/v1/push
@@ -46,11 +46,27 @@
         restart: yes
         restart_policy: unless-stopped
         command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
-        ports:
-          - "12345:12345"
         volumes:
           - "/opt/coduels/alloy/config.alloy:/etc/alloy/config.alloy:ro"
           - "/var/lib/coduels/alloy:/var/lib/alloy/data"
           - "/var/run/docker.sock:/var/run/docker.sock"
         networks:
           - name: coduels
+    - name: Inspect Alloy rollout
+      docker_container_info:
+        name: alloy
+      register: alloy_container
+    - name: Verify Alloy is private and networked
+      assert:
+        that:
+          - alloy_container.container.State.Running
+          - (alloy_container.container.HostConfig.PortBindings | default({}, true) | length) == 0
+          - "'coduels' in alloy_container.container.NetworkSettings.Networks"
+    - name: Wait for Alloy readiness through the Docker network
+      uri:
+        url: "http://{{ alloy_container.container.NetworkSettings.Networks.coduels.IPAddress }}:12345/-/ready"
+        status_code: 200
+      register: alloy_health
+      retries: 12
+      delay: 5
+      until: alloy_health.status == 200

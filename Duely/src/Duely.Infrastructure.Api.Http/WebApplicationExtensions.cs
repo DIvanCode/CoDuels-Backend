@@ -21,6 +21,7 @@ public static class WebApplicationExtensions
 
         app.UseCors("AllowAll");
 
+        app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
         app.MapControllers();
     }
 }

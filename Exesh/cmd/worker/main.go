@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	healthAPI "exesh/internal/api/health"
 	"exesh/internal/config"
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/executor"
@@ -47,6 +48,7 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	mux := chi.NewRouter()
+	healthAPI.Register(mux)
 
 	fs, err := filestorage.New(log, cfg.FileStorage.ToExternal(), mux)
 	if err != nil {

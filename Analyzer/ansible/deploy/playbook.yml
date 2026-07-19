@@ -19,10 +19,26 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
+        state: healthy
+        healthy_wait_timeout: 120
+        healthcheck:
+          test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+          interval: 5s
+          timeout: 3s
+          retries: 12
+          start_period: 20s
         env:
           ANALYZER_PROD_MODEL_PATH: /app/artifacts/prod_random_forest.pkl
           ANALYZER_BASELINE_MODEL_PATH: /app/artifacts/baseline_logreg.pkl
-        ports:
-          - "8000:8000"
         networks:
           - name: coduels
+    - name: Inspect analyzer rollout
+      docker_container_info:
+        name: analyzer
+      register: analyzer_container
+    - name: Verify analyzer is healthy and private
+      assert:
+        that:
+          - analyzer_container.container.State.Health.Status == "healthy"
+          - (analyzer_container.container.HostConfig.PortBindings | default({}, true) | length) == 0
+          - "'coduels' in analyzer_container.container.NetworkSettings.Networks"

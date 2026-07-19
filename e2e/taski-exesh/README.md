@@ -21,7 +21,8 @@ Run it from the Backend repository:
 
 The Compose project uses no host ports or fixed container names, so it can run
 alongside the regular local CoDuels stack. Containers, networks, and volumes
-created by the test are removed when it finishes.
+created by the test are removed when it finishes. Taski, Coordinator, and the
+worker must pass their container health checks before the test client starts.
 
 The `End-to-end tests` pull-request workflow in
 `.github/workflows/e2e_tests_pull_request.yml` runs this command once when a PR

@@ -1,10 +1,15 @@
 from datetime import timedelta
 
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from .chart_rendering import rendered_dashboard
+
+
+def health(_request):
+    return JsonResponse({"status": "ok"})
 
 
 def index(request):

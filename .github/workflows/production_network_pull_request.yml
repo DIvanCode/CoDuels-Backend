@@ -1,0 +1,79 @@
+name: Production network checks
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/production_network_pull_request.yml
+      - docker-compose.yml
+      - Duely/docker-compose.yml
+      - Duely/ansible/deploy/playbook.yml
+      - Taski/docker-compose.yml
+      - Taski/ansible/deploy/playbook.yml
+      - Exesh/docker-compose.yml
+      - Exesh/ansible/deploy/playbook.yml
+      - Analyzer/docker-compose.yml
+      - Analyzer/ansible/deploy/playbook.yml
+      - e2e/taski-exesh/compose.yml
+      - nginx/**
+      - alloy/**
+      - scripts/verify-production-network.sh
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-network-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Compose topology
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml -f Duely/docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml -f Taski/docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml -f Exesh/docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml -f Analyzer/docker-compose.yml config --quiet
+          docker compose -f e2e/taski-exesh/compose.yml config --quiet
+
+      - name: Set up Ansible
+        run: python3 -m pip install ansible docker
+
+      - name: Validate deployment playbooks without Vault secrets
+        run: |
+          set -euo pipefail
+          empty_vars="${RUNNER_TEMP}/coduels-empty-vars.yml"
+          touch "$empty_vars"
+
+          for deploy_dir in \
+            Duely/ansible/deploy \
+            Taski/ansible/deploy \
+            Exesh/ansible/deploy \
+            Analyzer/ansible/deploy \
+            nginx/ansible/deploy \
+            alloy/ansible/deploy
+          do
+            ansible-playbook \
+              -i "$deploy_dir/inventory" \
+              "$deploy_dir/playbook.yml" \
+              --syntax-check \
+              --extra-vars="version=syntax-check credentials_file=$empty_vars"
+          done
+
+      - name: Validate Nginx and rollout script
+        run: |
+          set -euo pipefail
+          bash -n scripts/verify-production-network.sh
+          docker run --rm \
+            --add-host duely:127.0.0.1 \
+            --add-host taski:127.0.0.1 \
+            --add-host exesh-dashboard:127.0.0.1 \
+            -v "$GITHUB_WORKSPACE/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            nginx:1.29.2 nginx -t

@@ -14,15 +14,15 @@ services:
     networks:
       - coduels
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_USER: coordinator
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: exesh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U coordinator"]
+      test: ["CMD-SHELL", "pg_isready -U coordinator -d exesh && test \"$$(head -1 $$PGDATA/postmaster.pid)\" = \"1\""]
       interval: 1s
-      timeout: 0s
+      timeout: 3s
       retries: 30
     volumes:
       - postgres:/var/lib/postgresql/data
@@ -37,8 +37,14 @@ services:
     networks:
       - coduels
     ports:
-      - "5253:5253"
-      - "9080:9090"
+      - "127.0.0.1:5253:5253"
+      - "127.0.0.1:9080:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5253'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     environment:
       CONFIG_PATH: /config/coordinator.yml
       ENV: docker
@@ -61,8 +67,14 @@ services:
     networks:
       - coduels
     ports:
-      - "5254:5254"
-      - "9081:9091"
+      - "127.0.0.1:5254:5254"
+      - "127.0.0.1:9081:9091"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5254'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     environment:
       CONFIG_PATH: /config/worker.yml
       ENV: docker
@@ -87,8 +99,14 @@ services:
     networks:
       - coduels
     ports:
-      - "5255:5255"
-      - "9082:9092"
+      - "127.0.0.1:5255:5255"
+      - "127.0.0.1:9082:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/5255'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     environment:
       CONFIG_PATH: /config/worker.yml
       ENV: docker
@@ -111,7 +129,13 @@ services:
     networks:
       - coduels
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     environment:
       EXESH_DASHBOARD_DB_HOST: exesh_postgres
       EXESH_DASHBOARD_DB_PORT: "5432"

@@ -16,6 +16,7 @@
 
 ## Change rules
 
+- Treat a failed `gh auth status` inside the sandbox as a possible network-isolation failure, not immediate proof of an expired token. Repeat the same check with approved network access before asking the user to log in again; when that check succeeds, keep the existing credentials and run subsequent network-dependent `gh` commands with the same access.
 - Keep handlers/controllers thin. Put orchestration in application/usecase layers and invariants in domain layers.
 - Use Conventional Commits (`type(scope): description`) for every commit and use the same concise, imperative convention for pull-request titles.
 - For EF model changes, add/update migrations and verify migration startup through the Duely migration image.
@@ -53,6 +54,7 @@
 - Taski-Exesh e2e after any Taski or Exesh change: `./e2e/taski-exesh/run.sh` from the Backend repository.
 - filestorage: `cd filestorage && go test ./...`.
 - Analyzer has no committed automated test suite; at minimum syntax-check changed Python and exercise feature/model code relevant to the change. Train both models with `cd Analyzer && python train.py --data-dir data/train` when the feature schema or training code changes.
+- Production network/delivery changes: validate every Compose combination, syntax-check all deploy playbooks with an empty `credentials_file`, run `bash -n scripts/verify-production-network.sh`, and match `.github/workflows/production_network_pull_request.yml`.
 - Use the matching GitHub Actions workflow as the final CI command reference.
 
 ## Distributed execution process documentation
