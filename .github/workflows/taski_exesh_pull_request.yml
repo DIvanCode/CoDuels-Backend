@@ -126,10 +126,8 @@ jobs:
       group: production-taski
       cancel-in-progress: false
     steps:
-      - name: Checkout trusted deploy revision
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
       - name: Set up python and ansible
         run: |
           sudo apt update
@@ -179,10 +177,8 @@ jobs:
       group: production-exesh
       cancel-in-progress: false
     steps:
-      - name: Checkout trusted deploy revision
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
       - name: Set up python and ansible
         run: |
           sudo apt update

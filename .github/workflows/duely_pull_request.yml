@@ -111,10 +111,8 @@ jobs:
       group: production-duely
       cancel-in-progress: false
     steps:
-      - name: Checkout trusted deploy revision
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
       - name: Set up python and ansible
         run: |
           sudo apt update
@@ -122,11 +120,6 @@ jobs:
           pip3 install ansible docker
       - name: Create ansible vault password file
         run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/vault_pass.txt
-      - name: Apply trusted migration compatibility fix
-        working-directory: Duely/ansible/deploy
-        run: |
-          sed -i 's/auto_remove: true/cleanup: true/' playbook.yml
-          sed -i 's/migration_result.container.State.ExitCode/migration_result.status/' playbook.yml
       - name: Run ansible playbook
         run: |
           cd Duely/ansible/deploy
