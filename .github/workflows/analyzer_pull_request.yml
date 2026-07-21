@@ -57,16 +57,19 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    concurrency:
+      group: production-analyzer
+      cancel-in-progress: false
     steps:
-      - name: Checkout code
+      - name: Checkout trusted deploy revision
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
       - name: Set up python and ansible
         run: |
           sudo apt update
           sudo apt install -y python3-pip
           pip3 install ansible docker
-      - name: Log in to docker hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
       - name: Run ansible deploy playbook
         run: |
           cd Analyzer/ansible/deploy

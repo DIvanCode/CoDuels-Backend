@@ -1,0 +1,201 @@
+name: Taski and Exesh
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - Taski/**
+      - "!Taski/tasks"
+      - Exesh/**
+      - e2e/taski-exesh/**
+      - docker-compose.yml
+      - .gitmodules
+      - .github/workflows/taski_exesh_pull_request.yml
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      taski: ${{ steps.filter.outputs.taski }}
+      exesh: ${{ steps.filter.outputs.exesh }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect affected services
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          taski=false
+          exesh=false
+
+          if ! git diff --quiet "$BASE_SHA...$HEAD_SHA" -- Taski ":(exclude)Taski/tasks"; then
+            taski=true
+          fi
+          if ! git diff --quiet "$BASE_SHA...$HEAD_SHA" -- Exesh; then
+            exesh=true
+          fi
+          if ! git diff --quiet "$BASE_SHA...$HEAD_SHA" -- .github/workflows/taski_exesh_pull_request.yml; then
+            taski=true
+            exesh=true
+          fi
+
+          echo "taski=$taski" >> "$GITHUB_OUTPUT"
+          echo "exesh=$exesh" >> "$GITHUB_OUTPUT"
+
+  taski-unit-tests:
+    needs: changes
+    if: needs.changes.outputs.taski == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "^1.24.0"
+      - name: Run tests
+        working-directory: Taski
+        run: go test -v ./...
+
+  exesh-unit-tests:
+    needs: changes
+    if: needs.changes.outputs.exesh == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "^1.24.0"
+      - name: Run tests
+        working-directory: Exesh
+        run: go test -v ./...
+      - name: Check dashboard
+        working-directory: Exesh/dashboard
+        run: |
+          python -m pip install -r requirements.txt
+          python manage.py check
+
+  end-to-end:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: taski-exesh-e2e-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Run Taski-Exesh end-to-end test
+        run: ./e2e/taski-exesh/run.sh
+
+  taski-build:
+    needs:
+      - changes
+      - taski-unit-tests
+      - end-to-end
+    if: needs.changes.outputs.taski == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Log in to docker hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
+      - name: Run ansible playbook
+        working-directory: Taski/ansible/build
+        run: |
+          ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }}"
+
+  taski-deploy:
+    needs: taski-build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: production-taski
+      cancel-in-progress: false
+    steps:
+      - name: Checkout trusted deploy revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Create ansible vault password file
+        run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/vault_pass.txt
+      - name: Run ansible playbook
+        working-directory: Taski/ansible/deploy
+        run: |
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }} ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}" \
+            --vault-password-file ~/vault_pass.txt
+      - name: Clean up
+        if: always()
+        run: rm -f ~/vault_pass.txt
+
+  exesh-build:
+    needs:
+      - changes
+      - exesh-unit-tests
+      - end-to-end
+    if: needs.changes.outputs.exesh == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Log in to docker hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
+      - name: Run ansible playbook
+        working-directory: Exesh/ansible/build
+        run: |
+          ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }}"
+
+  exesh-deploy:
+    needs: exesh-build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: production-exesh
+      cancel-in-progress: false
+    steps:
+      - name: Checkout trusted deploy revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Create ansible vault password file
+        run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/vault_pass.txt
+      - name: Run ansible playbook
+        working-directory: Exesh/ansible/deploy
+        run: |
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }} ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}" \
+            --vault-password-file ~/vault_pass.txt
+      - name: Clean up
+        if: always()
+        run: rm -f ~/vault_pass.txt
