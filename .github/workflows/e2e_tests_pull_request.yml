@@ -1,26 +1,19 @@
-name: Taski-Exesh end-to-end
+name: End-to-end tests
 
 on:
   pull_request:
-    branches:
-      - master
+    branches: [master]
     paths:
       - Taski/**
+      - "!Taski/tasks"
       - Exesh/**
-      - e2e/taski-exesh/**
-      - docker-compose.yml
-      - .gitmodules
-      - .github/workflows/taski_exesh_e2e_pull_request.yml
+      - .github/workflows/e2e_tests_pull_request.yml
 
 permissions:
   contents: read
 
-concurrency:
-  group: taski-exesh-e2e-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
-  end-to-end:
+  taski-exesh-e2e-test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

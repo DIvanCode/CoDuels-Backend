@@ -98,7 +98,7 @@
           - name: coduels
     - name: Run dashboard container
       docker_container:
-        name: exesh-dashboard
+        name: dashboard
         image: "divancode74/coduels-exesh-dashboard:{{ version }}"
         recreate: yes
         restart: yes

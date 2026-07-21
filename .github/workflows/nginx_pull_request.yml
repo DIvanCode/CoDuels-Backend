@@ -1,4 +1,4 @@
-name: Nginx checks
+name: Nginx
 
 on:
   pull_request:
@@ -20,6 +20,26 @@ jobs:
           docker run --rm \
             --add-host duely:127.0.0.1 \
             --add-host taski:127.0.0.1 \
-            --add-host exesh-dashboard:127.0.0.1 \
+            --add-host dashboard:127.0.0.1 \
             -v "$GITHUB_WORKSPACE/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
             nginx:1.29.2 nginx -t
+
+  deploy:
+    needs: check-config
+    runs-on: ubuntu-latest
+    concurrency:
+      group: production-nginx
+      cancel-in-progress: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Run ansible playbook
+        run: |
+          cd nginx/ansible/deploy
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
+            --extra-vars="ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}"

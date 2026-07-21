@@ -1,4 +1,4 @@
-name: Analyzer checks
+name: Analyzer
 
 on:
   pull_request:
@@ -27,3 +27,49 @@ jobs:
       - name: Train baseline and production models
         working-directory: Analyzer
         run: python train.py --data-dir data/train
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          cd Analyzer
+          pip3 install -r requirements.txt
+          pip3 install ansible docker
+      - name: Train baseline and production models
+        run: |
+          cd Analyzer
+          python3 train.py --data-dir data/train
+          ls -lah artifacts
+      - name: Log in to docker hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
+      - name: Run ansible build playbook
+        run: |
+          cd Analyzer/ansible/build
+          ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }}"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: production-analyzer
+      cancel-in-progress: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Run ansible deploy playbook
+        run: |
+          cd Analyzer/ansible/deploy
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }} ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}"

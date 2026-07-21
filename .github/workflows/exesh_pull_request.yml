@@ -2,12 +2,13 @@ name: Exesh
 
 on:
   pull_request:
-    branches:
-      - master
+    branches: [master]
     paths:
       - Exesh/**
-      - nginx/**
       - .github/workflows/exesh_pull_request.yml
+
+permissions:
+  contents: read
 
 jobs:
   unit-tests:
@@ -19,11 +20,54 @@ jobs:
         with:
           go-version: "^1.24.0"
       - name: Run tests
-        run: |
-          cd Exesh
-          go test -v ./...
+        working-directory: Exesh
+        run: go test -v ./...
       - name: Check dashboard
+        working-directory: Exesh/dashboard
         run: |
-          cd Exesh/dashboard
           python -m pip install -r requirements.txt
           python manage.py check
+
+  build:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Log in to docker hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u divancode74 --password-stdin
+      - name: Run ansible playbook
+        working-directory: Exesh/ansible/build
+        run: |
+          ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }}"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+      - name: Create ansible vault password file
+        run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/vault_pass.txt
+      - name: Run ansible playbook
+        working-directory: Exesh/ansible/deploy
+        run: |
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
+            --extra-vars="version=${{ github.sha }} ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}" \
+            --vault-password-file ~/vault_pass.txt
+      - name: Clean up
+        if: always()
+        run: rm -f ~/vault_pass.txt
