@@ -1,0 +1,24 @@
+name: End-to-end tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - Taski/**
+      - "!Taski/tasks"
+      - Exesh/**
+      - .github/workflows/e2e_tests_pull_request.yml
+
+permissions:
+  contents: read
+
+jobs:
+  taski-exesh-e2e-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Run Taski-Exesh end-to-end test
+        run: ./e2e/taski-exesh/run.sh

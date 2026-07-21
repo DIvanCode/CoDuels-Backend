@@ -107,7 +107,7 @@ services:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
-    container_name: exesh-dashboard
+    container_name: dashboard
     networks:
       - coduels
     ports:

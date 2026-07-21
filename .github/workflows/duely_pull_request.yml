@@ -2,8 +2,7 @@ name: Duely
 
 on:
   pull_request:
-    branches:
-      - master
+    branches: [master]
     paths:
       - Duely/**
       - .github/workflows/duely_pull_request.yml
