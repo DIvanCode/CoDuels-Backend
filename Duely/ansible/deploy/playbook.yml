@@ -25,7 +25,7 @@
         name: duely-migration
         image: "divancode74/coduels-duely-migration:{{ version }}"
         recreate: yes
-        auto_remove: true
+        cleanup: true
         detach: false
         env:
           DbConnection__ConnectionString: "{{ postgres_connection }}"
@@ -38,7 +38,7 @@
     - name: Fail if migration failed
       fail:
         msg: "Migration failed!"
-      when: migration_result.container.State.ExitCode != 0
+      when: migration_result.status != 0
     - name: Run duely container
       docker_container:
         name: duely
