@@ -1,4 +1,4 @@
-name: Alloy template checks
+name: Alloy
 
 on:
   pull_request:

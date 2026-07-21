@@ -1,4 +1,4 @@
-name: Analyzer checks
+name: Analyzer
 
 on:
   pull_request:

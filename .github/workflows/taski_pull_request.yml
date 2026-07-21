@@ -1,4 +1,4 @@
-name: Taski and Exesh
+name: Taski
 
 on:
   pull_request:
