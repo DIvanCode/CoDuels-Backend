@@ -22,3 +22,30 @@ jobs:
         run: |
           python -m pip install jinja2
           python -c "from pathlib import Path; from jinja2 import Environment; Environment().parse(Path('alloy/config.alloy.j2').read_text(encoding='utf-8'))"
+
+  deploy:
+    needs: check-template
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up python and ansible
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip
+          pip3 install ansible docker
+
+      - name: Create ansible vault password file
+        run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/vault_pass.txt
+
+      - name: Run ansible playbook
+        run: |
+          cd alloy/ansible/deploy
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
+            --extra-vars="ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}" \
+            --vault-password-file ~/vault_pass.txt
+
+      - name: Clean up
+        if: always()
+        run: rm -f ~/vault_pass.txt

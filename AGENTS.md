@@ -26,7 +26,8 @@
 - When Taski, Exesh, their Docker/Compose/Ansible configuration, task fixtures, submodules, or related infrastructure changes, review the Taski-Exesh e2e scenario and update its services, configs, fixtures, requests, or assertions when the contract changed.
 - New cross-service e2e scenarios must follow `e2e/README.md`, have one local `run.sh`, and add a non-duplicating pull-request workflow whose paths cover every participating service plus related configuration and infrastructure.
 - Do not decrypt vault files or run deploy playbooks without explicit user authorization.
-- This repository has no production deployment workflow. After a validated backend change is merged here, release it by advancing the `Backend` submodule in a pull request to root `CoDuels`.
+- Component pull-request workflows run validation, build the affected production image when applicable, and deploy the pull-request revision after validation succeeds. Pushes to `master` do not deploy Backend services.
+- `Taski/tasks` is released by its own repository workflow on pushes to its `master` branch; the Backend Taski workflow excludes that nested submodule.
 
 ## Business process documentation
 
