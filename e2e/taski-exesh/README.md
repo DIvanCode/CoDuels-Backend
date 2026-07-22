@@ -4,6 +4,15 @@ The test starts an isolated Taski/Exesh stack, submits a correct C++ A+B
 solution with a random solution ID, and polls Taski's REST API until the last
 stored message is `finish` with the `Accepted` verdict.
 
+Coordinator and worker intentionally retain relative filestorage roots to
+exercise the path shape that caused the production failure. Production now
+uses the equivalent canonical absolute paths as an additional safeguard, but
+the test still prevents relative-versus-absolute regressions in filestorage.
+
+The e2e Exesh image replaces the released filestorage module with the checked
+out `filestorage` submodule. A backend pull request that advances filestorage
+therefore tests that exact revision before a new module version is published.
+
 Run it from the Backend repository:
 
 ```sh

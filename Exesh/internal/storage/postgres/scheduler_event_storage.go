@@ -16,6 +16,19 @@ type SchedulerEventStorage struct {
 	retention time.Duration
 }
 
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+var deleteOldSchedulerEventQueries = []struct {
+	table string
+	query string
+}{
+	{table: "exesh_execution_events", query: `DELETE FROM exesh_execution_events WHERE happened_at < $1`},
+	{table: "exesh_job_events", query: `DELETE FROM exesh_job_events WHERE happened_at < $1`},
+	{table: "exesh_worker_events", query: `DELETE FROM exesh_worker_events WHERE happened_at < $1`},
+}
+
 const createSchedulerEventTablesQuery = `
 	CREATE TABLE IF NOT EXISTS exesh_execution_events(
 		id bigserial PRIMARY KEY,
@@ -189,12 +202,16 @@ func (s *SchedulerEventStorage) runRetention(ctx context.Context) {
 
 func (s *SchedulerEventStorage) deleteOldEvents(ctx context.Context) error {
 	cutoff := time.Now().Add(-s.retention)
-	_, err := s.db.ExecContext(ctx, `
-		DELETE FROM exesh_execution_events WHERE happened_at < $1;
-		DELETE FROM exesh_job_events WHERE happened_at < $1;
-		DELETE FROM exesh_worker_events WHERE happened_at < $1;
-	`, cutoff)
-	return err
+	return deleteOldSchedulerEvents(ctx, s.db, cutoff)
+}
+
+func deleteOldSchedulerEvents(ctx context.Context, db sqlExecutor, cutoff time.Time) error {
+	for _, statement := range deleteOldSchedulerEventQueries {
+		if _, err := db.ExecContext(ctx, statement.query, cutoff); err != nil {
+			return fmt.Errorf("failed to delete old events from %s: %w", statement.table, err)
+		}
+	}
+	return nil
 }
 
 func nullableTime(t *time.Time) any {

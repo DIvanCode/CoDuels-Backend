@@ -6,7 +6,8 @@ storage:
   connection_string: host=exesh-postgres port=5432 database=exesh user=coordinator password=secret
   init_timeout: 60s
 filestorage:
-  root_dir: /var/lib/coduels/coordinator
+  # Keep this relative to cover the path shape that caused the production regression.
+  root_dir: file_storage/coordinator
   trasher:
     workers: 1
     collector_iterations_delay: 60

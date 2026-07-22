@@ -7,6 +7,8 @@ on:
       - Taski/**
       - "!Taski/tasks"
       - Exesh/**
+      - filestorage
+      - e2e/taski-exesh/**
       - .github/workflows/e2e_tests_pull_request.yml
 
 permissions:

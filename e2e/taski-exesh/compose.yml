@@ -30,8 +30,8 @@ services:
   coordinator:
     image: coduels-exesh-e2e:local
     build:
-      context: ../../Exesh
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: e2e/taski-exesh/Exesh.Dockerfile
     command: ["/app/bin/coordinator"]
     environment:
       CONFIG_PATH: /config/coordinator.yml
@@ -40,13 +40,12 @@ services:
         condition: service_healthy
     volumes:
       - ./config/coordinator.yml:/config/coordinator.yml:ro
-      - coordinator-storage:/var/lib/coduels/coordinator
 
   worker:
     image: coduels-exesh-e2e:local
     build:
-      context: ../../Exesh
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: e2e/taski-exesh/Exesh.Dockerfile
     command: ["/app/bin/worker"]
     environment:
       CONFIG_PATH: /config/worker.yml
@@ -57,7 +56,6 @@ services:
     volumes:
       - ./config/worker.yml:/config/worker.yml:ro
       - ../../Exesh/config/isolate.conf:/usr/local/etc/isolate:ro
-      - worker-storage:/var/lib/coduels/worker
 
   taski:
     image: coduels-taski-e2e:local
@@ -100,6 +98,4 @@ services:
 volumes:
   exesh-postgres:
   taski-postgres:
-  coordinator-storage:
-  worker-storage:
   taski-storage:

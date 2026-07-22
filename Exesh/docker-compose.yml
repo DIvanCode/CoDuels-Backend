@@ -68,7 +68,7 @@ services:
       ENV: docker
       HTTP_SERVER_ADDR: 0.0.0.0:5254
       HTTP_SERVER_METRICS_ADDR: 0.0.0.0:9091
-      FILE_STORAGE_ROOT_DIR: file_storage/worker-1
+      FILE_STORAGE_ROOT_DIR: /file_storage/worker-1
       WORKER_ID: http://worker-1:5254
       WORKER_COORDINATOR_ENDPOINT: http://coordinator:5253
     privileged: true
@@ -94,7 +94,7 @@ services:
       ENV: docker
       HTTP_SERVER_ADDR: 0.0.0.0:5255
       HTTP_SERVER_METRICS_ADDR: 0.0.0.0:9092
-      FILE_STORAGE_ROOT_DIR: file_storage/worker-2
+      FILE_STORAGE_ROOT_DIR: /file_storage/worker-2
       WORKER_ID: http://worker-2:5255
       WORKER_COORDINATOR_ENDPOINT: http://coordinator:5253
     privileged: true
