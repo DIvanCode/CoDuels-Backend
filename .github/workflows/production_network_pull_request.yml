@@ -2,6 +2,7 @@ name: Production network checks
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [master]
     paths:
       - .github/workflows/production_network_pull_request.yml
@@ -28,6 +29,7 @@ concurrency:
 
 jobs:
   validate:
+    if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
