@@ -6,7 +6,7 @@ storage:
   connection_string: host=exesh_postgres port=5432 database=exesh user=coordinator password=secret
   init_timeout: 60s
 filestorage:
-  root_dir: file_storage/coordinator
+  root_dir: /file_storage/coordinator
   trasher:
     workers: 1
     collector_iterations_delay: 60

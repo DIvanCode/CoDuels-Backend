@@ -4,7 +4,9 @@ http_server:
   addr: 0.0.0.0:5254
   metrics_addr: ""
 filestorage:
-  root_dir: /var/lib/coduels/worker
+  # Keep this relative to exercise the coordinator-to-worker regression even
+  # though production now uses the equivalent canonical absolute path.
+  root_dir: file_storage/worker
   trasher:
     workers: 1
     collector_iterations_delay: 60
