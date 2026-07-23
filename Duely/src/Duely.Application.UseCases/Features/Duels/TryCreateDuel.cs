@@ -55,7 +55,6 @@ public sealed class TryCreateDuelHandler(
         var taskCatalog = tasksList.Value.Tasks
             .Select(task => new DuelTask(task.Id, task.Level, task.Topics))
             .ToList();
-        var reservedTaskIds = new HashSet<string>();
         var pairErrors = new List<IError>();
 
         foreach (var candidate in pairs)
@@ -148,8 +147,7 @@ public sealed class TryCreateDuelHandler(
                 var tasksResult = ChooseTasks(
                     configuration,
                     previouslyUsedTaskIds,
-                    taskCatalog,
-                    reservedTaskIds);
+                    taskCatalog);
                 if (tasksResult.IsFailed)
                 {
                     logger.LogWarning(
@@ -190,7 +188,6 @@ public sealed class TryCreateDuelHandler(
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
-                reservedTaskIds.UnionWith(duel.Tasks.Values.Select(task => task.Id));
                 logger.LogInformation(
                     "Duel started. DuelId = {DuelId}, User1Id = {User1Id}, User2Id = {User2Id}, PendingIds = {PendingIds}, Deadline = {Deadline}",
                     duel.Id,
@@ -344,20 +341,11 @@ public sealed class TryCreateDuelHandler(
     private Result<Dictionary<char, DuelTask>> ChooseTasks(
         DuelConfiguration configuration,
         IReadOnlySet<string> previouslyUsedTaskIds,
-        IReadOnlyCollection<DuelTask> taskCatalog,
-        IReadOnlySet<string> reservedTaskIds)
+        IReadOnlyCollection<DuelTask> taskCatalog)
     {
-        var tasksForSelection = taskCatalog
-            .ExceptBy(reservedTaskIds, task => task.Id)
-            .ToList();
-        if (tasksForSelection.Count < configuration.TasksConfigurations.Count)
-        {
-            tasksForSelection = taskCatalog.ToList();
-        }
-
         if (!taskService.TryChooseTasks(
                 configuration,
-                tasksForSelection,
+                taskCatalog,
                 previouslyUsedTaskIds,
                 out var chosenTasks))
         {

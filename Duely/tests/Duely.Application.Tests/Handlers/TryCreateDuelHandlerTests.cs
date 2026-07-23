@@ -474,7 +474,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Creates_parallel_tournament_duels_with_distinct_tasks_when_possible()
+    public async Task Creates_parallel_tournament_duels_with_reused_catalog_task()
     {
         var ctx = Context;
 
@@ -550,7 +550,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             RatingToTaskLevelMapping = []
         });
 
-        var taski = new TaskiClientSuccessFake(["TASK-1", "TASK-2", "TASK-3"]);
+        var taski = new TaskiClientSuccessFake(["TASK-1"]);
         var handler = new TryCreateDuelHandler(
             new DuelManager(),
             taski,
@@ -569,8 +569,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             .Select(d => d.Tasks['A'].Id)
             .ToListAsync();
         taskIds.Should().HaveCount(3);
-        taskIds.Should().OnlyHaveUniqueItems();
-        taskIds.Should().BeEquivalentTo("TASK-1", "TASK-2", "TASK-3");
+        taskIds.Should().OnlyContain(taskId => taskId == "TASK-1");
         taski.GetTasksListCalls.Should().Be(1);
     }
 

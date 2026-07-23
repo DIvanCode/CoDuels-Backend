@@ -45,8 +45,8 @@ the configured default, and level derives from current average rating.
 Taski's full task list is fetched once after pairing and is the immutable catalog
 snapshot for that maker tick; the next tick always fetches a fresh snapshot.
 Only the `Tasks` projection from either user's previous duels is loaded for
-exclusion. Chosen task ids are reserved across pairs in this invocation; if too
-few unreserved tasks remain, the tick snapshot is reused. Topic match, then
+exclusion. Each pair selects independently from the same tick snapshot, so a
+task can be assigned to multiple duels created in that tick. Topic match, then
 level proximity, guides selection.
 
 ### Creation and linkage
