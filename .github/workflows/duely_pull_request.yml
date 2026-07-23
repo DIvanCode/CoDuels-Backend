@@ -2,13 +2,18 @@ name: Duely
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [master]
     paths:
       - Duely/**
       - .github/workflows/duely_pull_request.yml
 
+permissions:
+  contents: read
+
 jobs:
   unit-tests:
+    if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

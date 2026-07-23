@@ -2,6 +2,7 @@ name: Exesh
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [master]
     paths:
       - Exesh/**
@@ -12,6 +13,7 @@ permissions:
 
 jobs:
   unit-tests:
+    if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -2,6 +2,7 @@ name: Nginx
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [master]
     paths:
       - nginx/**
@@ -12,6 +13,7 @@ permissions:
 
 jobs:
   check-config:
+    if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

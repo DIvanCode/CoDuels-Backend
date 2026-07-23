@@ -2,6 +2,7 @@ name: End-to-end tests
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [master]
     paths:
       - Taski/**
@@ -16,6 +17,7 @@ permissions:
 
 jobs:
   taski-exesh-e2e-test:
+    if: ${{ github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
