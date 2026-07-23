@@ -17,6 +17,7 @@
 ## Change rules
 
 - Keep handlers/controllers thin. Put orchestration in application/usecase layers and invariants in domain layers.
+- Do not use `Context.ChangeTracker`, `EF.Property`, or LINQ `Cast` in application code. Use short-lived contexts for isolated units of work, mapped properties or navigations, and type-safe collections instead.
 - Use Conventional Commits (`type(scope): description`) for every commit and use the same concise, imperative convention for pull-request titles.
 - For EF model changes, add/update migrations and verify migration startup through the Duely migration image.
 - For Taski/Exesh contract changes, update both sides and any Duely gateway or polling consumer.

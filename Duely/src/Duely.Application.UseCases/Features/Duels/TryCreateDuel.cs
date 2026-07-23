@@ -13,7 +13,6 @@ using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentResults;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -28,7 +27,7 @@ public sealed class TryCreateDuelHandler(
     IRatingManager ratingManager,
     ITaskService taskService,
     ITournamentMatchmakingStrategyResolver tournamentMatchmakingStrategyResolver,
-    Context context,
+    IDbContextFactory<Context> contextFactory,
     ILogger<TryCreateDuelHandler> logger)
     : IRequestHandler<TryCreateDuelCommand, Result>
 {
@@ -61,10 +60,9 @@ public sealed class TryCreateDuelHandler(
 
         foreach (var candidate in pairs)
         {
-            context.ChangeTracker.Clear();
-
             try
             {
+                await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
                 await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
                 var userIds = new[] { candidate.User1.Id, candidate.User2.Id }
@@ -82,7 +80,7 @@ public sealed class TryCreateDuelHandler(
                         "Duel pair was skipped because a user disappeared. User1Id = {User1Id}, User2Id = {User2Id}",
                         candidate.User1.Id,
                         candidate.User2.Id);
-                    await RollbackAndClearAsync(transaction, cancellationToken);
+                    await transaction.RollbackAsync(cancellationToken);
                     continue;
                 }
 
@@ -103,11 +101,12 @@ public sealed class TryCreateDuelHandler(
                         candidate.User1.Id,
                         candidate.User2.Id,
                         pendingIds);
-                    await RollbackAndClearAsync(transaction, cancellationToken);
+                    await transaction.RollbackAsync(cancellationToken);
                     continue;
                 }
 
                 var currentPendingDuels = await LoadPendingDuelsAsync(
+                    context,
                     candidate.UsedPendingDuels[0].Type,
                     pendingIds,
                     cancellationToken);
@@ -120,7 +119,7 @@ public sealed class TryCreateDuelHandler(
                         candidate.User1.Id,
                         candidate.User2.Id,
                         pendingIds);
-                    await RollbackAndClearAsync(transaction, cancellationToken);
+                    await transaction.RollbackAsync(cancellationToken);
                     continue;
                 }
 
@@ -128,8 +127,8 @@ public sealed class TryCreateDuelHandler(
                     .AsNoTracking()
                     .AnyAsync(duel =>
                             duel.Status == DuelStatus.InProgress &&
-                            (userIds.Contains(EF.Property<int>(duel, "User1Id")) ||
-                             userIds.Contains(EF.Property<int>(duel, "User2Id"))),
+                            (userIds.Contains(duel.User1.Id) ||
+                             userIds.Contains(duel.User2.Id)),
                         cancellationToken);
                 if (hasActiveDuel)
                 {
@@ -138,12 +137,15 @@ public sealed class TryCreateDuelHandler(
                         pair.User1.Id,
                         pair.User2.Id,
                         pendingIds);
-                    await RollbackAndClearAsync(transaction, cancellationToken);
+                    await transaction.RollbackAsync(cancellationToken);
                     continue;
                 }
 
                 var configuration = pair.Configuration ?? CreateDefaultConfiguration(pair);
-                var previouslyUsedTaskIds = await LoadPreviouslyUsedTaskIdsAsync(userIds, cancellationToken);
+                var previouslyUsedTaskIds = await LoadPreviouslyUsedTaskIdsAsync(
+                    context,
+                    userIds,
+                    cancellationToken);
                 var tasksResult = ChooseTasks(
                     configuration,
                     previouslyUsedTaskIds,
@@ -160,7 +162,7 @@ public sealed class TryCreateDuelHandler(
                         FormatErrors(tasksResult.Errors));
                     pairErrors.Add(new Error(
                         $"Could not select tasks for users {pair.User1.Id} and {pair.User2.Id}."));
-                    await RollbackAndClearAsync(transaction, cancellationToken);
+                    await transaction.RollbackAsync(cancellationToken);
                     continue;
                 }
 
@@ -184,8 +186,8 @@ public sealed class TryCreateDuelHandler(
                 context.Duels.Add(duel);
                 await context.SaveChangesAsync(cancellationToken);
 
-                AttachDuel(pair, duel);
-                AddDuelStartedMessages(duel);
+                AttachDuel(context, pair, duel);
+                AddDuelStartedMessages(context, duel);
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
@@ -200,12 +202,10 @@ public sealed class TryCreateDuelHandler(
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                context.ChangeTracker.Clear();
                 throw;
             }
             catch (Exception exception)
             {
-                context.ChangeTracker.Clear();
                 pairErrors.Add(new Error(
                     $"Could not create a duel for users {candidate.User1.Id} and {candidate.User2.Id}: {exception.Message}"));
                 logger.LogError(
@@ -224,6 +224,7 @@ public sealed class TryCreateDuelHandler(
 
     private async Task<List<PendingDuel>> LoadPendingDuelSnapshotAsync(CancellationToken cancellationToken)
     {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         var pendingDuels = new List<PendingDuel>();
 
         pendingDuels.AddRange(await context.PendingDuels.OfType<RankedPendingDuel>()
@@ -256,47 +257,49 @@ public sealed class TryCreateDuelHandler(
     }
 
     private async Task<List<PendingDuel>> LoadPendingDuelsAsync(
+        Context context,
         PendingDuelType type,
         int[] pendingIds,
         CancellationToken cancellationToken)
     {
         return type switch
         {
-            PendingDuelType.Ranked => (await context.PendingDuels.OfType<RankedPendingDuel>()
+            PendingDuelType.Ranked => ToPendingDuelList(await context.PendingDuels.OfType<RankedPendingDuel>()
                     .Where(pending => pendingIds.Contains(pending.Id))
                     .Include(pending => pending.User)
-                    .ToListAsync(cancellationToken))
-                .Cast<PendingDuel>()
-                .ToList(),
-            PendingDuelType.Friendly => (await context.PendingDuels.OfType<FriendlyPendingDuel>()
+                    .ToListAsync(cancellationToken)),
+            PendingDuelType.Friendly => ToPendingDuelList(await context.PendingDuels.OfType<FriendlyPendingDuel>()
                     .Where(pending => pendingIds.Contains(pending.Id))
                     .Include(pending => pending.User1)
                     .Include(pending => pending.User2)
                     .Include(pending => pending.Configuration)
-                    .ToListAsync(cancellationToken))
-                .Cast<PendingDuel>()
-                .ToList(),
-            PendingDuelType.Group => (await context.PendingDuels.OfType<GroupPendingDuel>()
+                    .ToListAsync(cancellationToken)),
+            PendingDuelType.Group => ToPendingDuelList(await context.PendingDuels.OfType<GroupPendingDuel>()
                     .Where(pending => pendingIds.Contains(pending.Id))
                     .Include(pending => pending.User1)
                     .Include(pending => pending.User2)
                     .Include(pending => pending.Configuration)
                     .Include(pending => pending.Group)
                     .Include(pending => pending.CreatedBy)
-                    .ToListAsync(cancellationToken))
-                .Cast<PendingDuel>()
-                .ToList(),
-            PendingDuelType.Tournament => (await context.PendingDuels.OfType<TournamentPendingDuel>()
+                    .ToListAsync(cancellationToken)),
+            PendingDuelType.Tournament => ToPendingDuelList(await context.PendingDuels.OfType<TournamentPendingDuel>()
                     .Where(pending => pendingIds.Contains(pending.Id))
                     .Include(pending => pending.User1)
                     .Include(pending => pending.User2)
                     .Include(pending => pending.Configuration)
                     .Include(pending => pending.Tournament)
-                    .ToListAsync(cancellationToken))
-                .Cast<PendingDuel>()
-                .ToList(),
+                    .ToListAsync(cancellationToken)),
             _ => []
         };
+    }
+
+    private static List<PendingDuel> ToPendingDuelList<TPendingDuel>(
+        IEnumerable<TPendingDuel> pendingDuels)
+        where TPendingDuel : PendingDuel
+    {
+        var result = new List<PendingDuel>();
+        result.AddRange(pendingDuels);
+        return result;
     }
 
     private DuelConfiguration CreateDefaultConfiguration(DuelPair pair)
@@ -321,14 +324,15 @@ public sealed class TryCreateDuelHandler(
     }
 
     private async Task<HashSet<string>> LoadPreviouslyUsedTaskIdsAsync(
+        Context context,
         int[] userIds,
         CancellationToken cancellationToken)
     {
         var taskMaps = await context.Duels
             .AsNoTracking()
             .Where(duel =>
-                userIds.Contains(EF.Property<int>(duel, "User1Id")) ||
-                userIds.Contains(EF.Property<int>(duel, "User2Id")))
+                userIds.Contains(duel.User1.Id) ||
+                userIds.Contains(duel.User2.Id))
             .Select(duel => duel.Tasks)
             .ToListAsync(cancellationToken);
 
@@ -364,7 +368,7 @@ public sealed class TryCreateDuelHandler(
         return chosenTasks;
     }
 
-    private void AttachDuel(DuelPair pair, Duel duel)
+    private void AttachDuel(Context context, DuelPair pair, Duel duel)
     {
         var groupPendingDuel = pair.UsedPendingDuels.OfType<GroupPendingDuel>().SingleOrDefault();
         if (groupPendingDuel is not null)
@@ -386,7 +390,7 @@ public sealed class TryCreateDuelHandler(
         }
     }
 
-    private void AddDuelStartedMessages(Duel duel)
+    private static void AddDuelStartedMessages(Context context, Duel duel)
     {
         var retryUntil = duel.DeadlineTime.AddMinutes(5);
         context.OutboxMessages.Add(CreateDuelStartedMessage(duel.User1.Id, duel.Id, retryUntil));
@@ -408,14 +412,6 @@ public sealed class TryCreateDuelHandler(
             },
             RetryUntil = retryUntil
         };
-    }
-
-    private async Task RollbackAndClearAsync(
-        IDbContextTransaction transaction,
-        CancellationToken cancellationToken)
-    {
-        await transaction.RollbackAsync(cancellationToken);
-        context.ChangeTracker.Clear();
     }
 
     private static bool HasSamePendingRows(DuelPair expected, DuelPair current)
