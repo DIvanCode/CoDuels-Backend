@@ -60,7 +60,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             taskService.Object,
             CreateTournamentStrategyResolver(),
-            ContextFactory,
+            ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
@@ -132,7 +132,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             taskService.Object,
             CreateTournamentStrategyResolver(),
-            ContextFactory,
+            ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
@@ -235,7 +235,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             taskService.Object,
             CreateTournamentStrategyResolver(),
-            ContextFactory,
+            ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
@@ -322,7 +322,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             taskService.Object,
             CreateTournamentStrategyResolver(),
-            ContextFactory,
+            ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
 
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
@@ -396,7 +396,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             taskService.Object,
             CreateTournamentStrategyResolver(),
-            ContextFactory,
+            ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
 
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
@@ -464,7 +464,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             taskService.Object,
             CreateTournamentStrategyResolver(),
-            ContextFactory,
+            ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
 
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
@@ -558,7 +558,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             new TaskService(),
             CreateTournamentStrategyResolver(),
-            ContextFactory,
+            ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
 
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
@@ -611,7 +611,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             new TaskService(),
             CreateTournamentStrategyResolver(),
-            ContextFactory,
+            ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
 
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
@@ -679,7 +679,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             taskService.Object,
             CreateTournamentStrategyResolver(),
-            ContextFactory,
+            ctx,
             NullLogger<TryCreateDuelHandler>.Instance);
         var res = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
@@ -732,7 +732,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         await Context.SaveChangesAsync();
 
         var taski = new TaskiClientSuccessFake(["TASK-1"]);
-        var handler = CreateHandler(ContextFactory, taski);
+        var handler = CreateHandler(Context, taski);
 
         var result = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
@@ -779,7 +779,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var taski = new Mock<ITaskiClient>();
         taski.Setup(client => client.GetTasksListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Fail<TaskListResponse>("catalog unavailable"));
-        var handler = CreateHandler(ContextFactory, taski.Object);
+        var handler = CreateHandler(Context, taski.Object);
 
         var result = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
@@ -809,7 +809,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         await Context.SaveChangesAsync();
 
         var taski = new TaskiClientSuccessFake(["TASK-2"]);
-        var handler = CreateHandler(ContextFactory, taski);
+        var handler = CreateHandler(Context, taski);
 
         var result = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
@@ -820,7 +820,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Rolls_back_duel_link_and_outbox_when_second_save_fails()
+    public async Task Rolls_back_duel_link_and_outbox_and_stops_tick_when_second_save_fails()
     {
         var interceptor = new FailOnArmedSaveChangesInterceptor(2);
         using var connection = new SqliteConnection("DataSource=:memory:");
@@ -835,34 +835,47 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var creator = EntityFactory.MakeUser(1, "creator");
         var user1 = EntityFactory.MakeUser(2, "u1");
         var user2 = EntityFactory.MakeUser(3, "u2");
+        var user3 = EntityFactory.MakeUser(4, "u3");
+        var user4 = EntityFactory.MakeUser(5, "u4");
         var group = EntityFactory.MakeGroup(1, "group");
-        context.Users.AddRange(creator, user1, user2);
+        context.Users.AddRange(creator, user1, user2, user3, user4);
         context.Groups.Add(group);
-        context.PendingDuels.Add(new GroupPendingDuel
-        {
-            Type = PendingDuelType.Group,
-            Group = group,
-            CreatedBy = creator,
-            User1 = user1,
-            User2 = user2,
-            Configuration = null,
-            IsAcceptedByUser1 = true,
-            IsAcceptedByUser2 = true,
-            CreatedAt = DateTime.UtcNow
-        });
+        context.PendingDuels.AddRange(
+            new GroupPendingDuel
+            {
+                Type = PendingDuelType.Group,
+                Group = group,
+                CreatedBy = creator,
+                User1 = user1,
+                User2 = user2,
+                Configuration = null,
+                IsAcceptedByUser1 = true,
+                IsAcceptedByUser2 = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new GroupPendingDuel
+            {
+                Type = PendingDuelType.Group,
+                Group = group,
+                CreatedBy = creator,
+                User1 = user3,
+                User2 = user4,
+                Configuration = null,
+                IsAcceptedByUser1 = true,
+                IsAcceptedByUser2 = true,
+                CreatedAt = DateTime.UtcNow.AddSeconds(1)
+            });
         await context.SaveChangesAsync();
         interceptor.Arm();
 
-        var handler = CreateHandler(
-            new TestContextFactory(options),
-            new TaskiClientSuccessFake(["TASK-1"]));
+        var handler = CreateHandler(context, new TaskiClientSuccessFake(["TASK-1"]));
         var result = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
         result.IsFailed.Should().BeTrue();
         (await context.Duels.AsNoTracking().CountAsync()).Should().Be(0);
         (await context.GroupDuels.AsNoTracking().CountAsync()).Should().Be(0);
         (await context.OutboxMessages.AsNoTracking().CountAsync()).Should().Be(0);
-        (await context.PendingDuels.OfType<GroupPendingDuel>().AsNoTracking().CountAsync()).Should().Be(1);
+        (await context.PendingDuels.OfType<GroupPendingDuel>().AsNoTracking().CountAsync()).Should().Be(2);
     }
 
     [Fact]
@@ -917,9 +930,10 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
                 });
             });
 
-        var contextFactory = new TestContextFactory(options);
-        var handler1 = CreateHandler(contextFactory, taski.Object);
-        var handler2 = CreateHandler(contextFactory, taski.Object);
+        await using var context1 = new Context(options);
+        await using var context2 = new Context(options);
+        var handler1 = CreateHandler(context1, taski.Object);
+        var handler2 = CreateHandler(context2, taski.Object);
 
         await Task.WhenAll(
             handler1.Handle(new TryCreateDuelCommand(), CancellationToken.None),
@@ -931,7 +945,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
     }
 
     private static TryCreateDuelHandler CreateHandler(
-        IDbContextFactory<Context> contextFactory,
+        Context context,
         ITaskiClient taskiClient)
     {
         var ratingManager = new Mock<IRatingManager>();
@@ -948,7 +962,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             ratingManager.Object,
             new TaskService(),
             CreateTournamentStrategyResolver(),
-            contextFactory,
+            context,
             NullLogger<TryCreateDuelHandler>.Instance);
     }
 

@@ -151,8 +151,8 @@ outbox retry, while offline delivery is treated as success and cannot retry.
 - If validation of a replacement target fails, deletion/messages staged for the
   old invitation are not saved, so the old invitation remains.
 - Cancellation before `SaveChangesAsync` leaves durable state unchanged.
-- A task-selection or pair-transaction failure leaves the accepted invitation
-  pending and does not stop later pairs in the tick.
+- Task-selection failure leaves the accepted invitation pending and does not
+  stop later pairs. Pair persistence failure leaves it pending and stops the tick.
 - Message delivery failure does not roll back the already committed invitation transition.
 
 ## 13. User-visible result

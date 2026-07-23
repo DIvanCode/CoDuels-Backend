@@ -147,8 +147,8 @@ after the active duel's first save but in the same transaction. General retry/du
   already exists.
 - Missing accept target: not found; missing cancel target: success.
 - Validation or cancellation before save leaves staged Ranked/Friendly cleanup unsaved.
-- Task selection or pair persistence failure leaves the Group row pending and
-  later pairs continue in the same tick.
+- Task-selection failure leaves the Group row pending and later pairs continue.
+  Pair persistence failure leaves the row pending and stops the tick.
 - Message delivery failure does not undo the committed pending transition.
 
 ## 13. User-visible result

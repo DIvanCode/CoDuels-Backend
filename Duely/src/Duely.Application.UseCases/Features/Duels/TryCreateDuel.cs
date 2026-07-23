@@ -27,7 +27,7 @@ public sealed class TryCreateDuelHandler(
     IRatingManager ratingManager,
     ITaskService taskService,
     ITournamentMatchmakingStrategyResolver tournamentMatchmakingStrategyResolver,
-    IDbContextFactory<Context> contextFactory,
+    Context context,
     ILogger<TryCreateDuelHandler> logger)
     : IRequestHandler<TryCreateDuelCommand, Result>
 {
@@ -62,7 +62,6 @@ public sealed class TryCreateDuelHandler(
         {
             try
             {
-                await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
                 await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
                 var userIds = new[] { candidate.User1.Id, candidate.User2.Id }
@@ -210,10 +209,11 @@ public sealed class TryCreateDuelHandler(
                     $"Could not create a duel for users {candidate.User1.Id} and {candidate.User2.Id}: {exception.Message}"));
                 logger.LogError(
                     exception,
-                    "Duel pair failed without stopping the matchmaking tick. User1Id = {User1Id}, User2Id = {User2Id}, PendingIds = {PendingIds}",
+                    "Duel pair failed and stopped the matchmaking tick. User1Id = {User1Id}, User2Id = {User2Id}, PendingIds = {PendingIds}",
                     candidate.User1.Id,
                     candidate.User2.Id,
                     candidate.UsedPendingDuels.Select(pending => pending.Id).ToArray());
+                break;
             }
         }
 
@@ -224,7 +224,6 @@ public sealed class TryCreateDuelHandler(
 
     private async Task<List<PendingDuel>> LoadPendingDuelSnapshotAsync(CancellationToken cancellationToken)
     {
-        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         var pendingDuels = new List<PendingDuel>();
 
         pendingDuels.AddRange(await context.PendingDuels.OfType<RankedPendingDuel>()

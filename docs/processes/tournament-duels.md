@@ -156,7 +156,7 @@ duel-creation save; the first and second saves become visible together at commit
   back that pass's tournament changes, rows, and invitation messages.
 - Task selection failure leaves the accepted Tournament row pending.
 - A failed second duel-creation save rolls back the active duel, pending deletion,
-  Tournament linkage, and `DuelStarted` messages; later pairs still run.
+  Tournament linkage, and `DuelStarted` messages, then stops the tick.
 - Delivery failure does not roll back the scheduled Tournament row.
 
 ## 13. User-visible result

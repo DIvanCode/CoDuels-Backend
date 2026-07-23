@@ -12,7 +12,7 @@ public static class ServiceCollectionExtensions
         var dbConnectionOptions = configuration.GetSection(DbConnectionOptions.SectionName).Get<DbConnectionOptions>();
         ArgumentNullException.ThrowIfNull(dbConnectionOptions, nameof(dbConnectionOptions));
 
-        services.AddDbContextFactory<Context>(options =>
+        services.AddDbContext<Context>(options =>
         {
             options
                 .UseNpgsql(

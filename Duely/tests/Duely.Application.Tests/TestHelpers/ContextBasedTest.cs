@@ -11,13 +11,10 @@ public abstract class ContextBasedTest : IAsyncLifetime
         var builder = new DbContextOptionsBuilder<Context>();
         builder.UseInMemoryDatabase(Guid.NewGuid().ToString())
         .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
-        ContextFactory = new TestContextFactory(builder.Options);
-        Context = ContextFactory.CreateDbContext();
+        Context = new Context(builder.Options);
     }
 
     protected Context Context { get; }
-
-    protected IDbContextFactory<Context> ContextFactory { get; }
 
     public async Task InitializeAsync()
     {

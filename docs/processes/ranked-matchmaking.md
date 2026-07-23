@@ -165,6 +165,7 @@ and duplicate rules are detailed in [Notifications and outbox](notifications-and
   compensating action.
 - Failure after the first duel-creation save rolls the pair transaction back, so
   no active duel is exposed without its pending rows and `DuelStarted` outbox.
+  The persistence failure stops later pairs in that tick.
 - Failed WebSocket delivery does not necessarily cause an outbox retry.
 
 ## 13. User-visible result

@@ -160,8 +160,8 @@ an offline socket or duplicated by outbox replay.
   pending rows intact. Task-selection failure is logged for that pair, leaves it
   pending, and later pairs continue.
 - A database failure in one pair rolls back its pending deletion, duel,
-  association, and outbox while later pairs continue. The command reports a
-  partial failure after processing the batch.
+  association, and outbox, then stops the tick so rolled-back tracked state is
+  not reused. The command reports the failure after preserving earlier commits.
 - Missing duel/task or nonparticipant solution update: not-found/forbidden and no save.
 - Cancellation during finish rolls back the explicit transaction if commit did not complete.
 - Finish messages can be inserted already expired when a duel finishes more than
