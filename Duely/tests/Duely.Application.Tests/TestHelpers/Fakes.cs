@@ -9,6 +9,9 @@ public sealed class TaskiClientSuccessFake : ITaskiClient
 {
     private readonly string[] _tasks;
     private readonly bool _testSolutionSucceeds;
+    private int _getTasksListCalls;
+
+    public int GetTasksListCalls => Volatile.Read(ref _getTasksListCalls);
 
     public TaskiClientSuccessFake(string[]? tasks = null, bool testSolutionSucceeds = true)
     {
@@ -17,7 +20,9 @@ public sealed class TaskiClientSuccessFake : ITaskiClient
     }
 
     public Task<Result<TaskListResponse>> GetTasksListAsync(CancellationToken cancellationToken)
-        => Task.FromResult(Result.Ok(new TaskListResponse
+    {
+        Interlocked.Increment(ref _getTasksListCalls);
+        return Task.FromResult(Result.Ok(new TaskListResponse
         {
             Tasks = _tasks
                 .Select(task => new TaskResponse
@@ -28,6 +33,7 @@ public sealed class TaskiClientSuccessFake : ITaskiClient
                 })
                 .ToList()
         }));
+    }
 
     public Task<Result> TestSolutionAsync(
         string taskId, string solutionId, string solution, Language language, CancellationToken cancellationToken)

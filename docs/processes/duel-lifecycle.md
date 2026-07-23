@@ -27,8 +27,9 @@ notifications and anti-cheat work.
 - A pending pair must satisfy its type-specific readiness rule.
 - Taski must return tasks and `TaskService` must select a task for every
   configured key.
-- No database invariant enforces distinct users or one active duel per user.
-- The maker does not re-check active-duel status or lock pending rows.
+- No database constraint enforces distinct users or one active duel per user.
+  The maker enforces the active-duel rule by locking both user rows in stable id
+  order and re-checking persisted state inside the pair transaction.
 
 ## 5. Current behavior
 
@@ -41,18 +42,23 @@ configuration, the maker creates a one-task sequential configuration: Ranked is
 rated, other types unrated, opponent solution visibility is enabled, duration is
 the configured default, and level derives from current average rating.
 
-Taski's full task list is fetched separately for each pair. Tasks from either
-user's previous duels are preferred for exclusion. Chosen task ids are reserved
-across pairs in this invocation; if too few unreserved tasks remain, the full
-list is reused. Topic match, then level proximity, guides selection.
+Taski's full task list is fetched once after pairing and is the immutable catalog
+snapshot for that maker tick; the next tick always fetches a fresh snapshot.
+Only the `Tasks` projection from either user's previous duels is loaded for
+exclusion. Chosen task ids are reserved across pairs in this invocation; if too
+few unreserved tasks remain, the tick snapshot is reused. Topic match, then
+level proximity, guides selection.
 
 ### Creation and linkage
 
-The maker sets `StartTime`, `DeadlineTime`, current initial ratings, empty
-solution dictionaries, and status `InProgress`. It deletes only the selected
-`UsedPendingDuels` and saves the duel. Then it creates a `GroupDuel` link or
-attaches the duel id to Tournament state when applicable, records
-`DuelStarted` for both users, and saves again.
+For each selected pair, the maker opens a transaction, locks both users and the
+selected pending rows, reloads the typed pending state, re-runs readiness, and
+checks that neither user has an active duel. It then sets `StartTime`,
+`DeadlineTime`, current initial ratings, empty solution dictionaries, and status
+`InProgress`. The selected pending deletion, duel, optional `GroupDuel` link or
+Tournament attachment, and both `DuelStarted` outbox rows commit together. Two
+EF saves are used so a generated duel id can be attached to Tournament state,
+but neither save is externally visible before the transaction commits.
 
 ### Live solution state
 
@@ -100,19 +106,21 @@ disconnect uses the separate shared cleanup and does not affect an active duel.
 
 | Condition | Message type | Recipient | Main data | Reason |
 | --- | --- | --- | --- | --- |
-| Duel second creation save | `DuelStarted` | Both participants | Duel id | Fetch/open active duel |
+| Atomic duel creation transaction | `DuelStarted` | Both participants | Duel id | Fetch/open active duel |
 | Visible opponent solution updated | `OpponentSolutionUpdated` | Opponent | Duel id, task key, solution, language | Live code view |
 | Accepted submission status | `DuelChanged` | Both participants | Duel id | Refresh tasks/score |
 | Duel finish transaction | `DuelFinished` | Both participants | Duel id | Fetch final result |
 
-`DuelStarted` is not atomic with initial duel insertion. Live-solution and finish
-messages are atomic with their business state. `DuelChanged` is documented in
+`DuelStarted` is atomic with duel insertion, pending deletion, and applicable
+group/tournament linkage. Live-solution and finish messages are atomic with their business state. `DuelChanged` is documented in
 [Submission and testing](submission-and-testing.md). Any message may be lost to
 an offline socket or duplicated by outbox replay.
 
 ## 9. Idempotency
 
-- Maker idempotency relies on pending deletion; there is no pair/request key.
+- Maker idempotency relies on locked pending rows plus revalidation. Concurrent
+  ticks for the same rows serialize; the later transaction observes that the
+  pending state was consumed and creates no duplicate.
 - Identical solution events overwrite with identical data and create another message.
 - Once a finish handler observes persisted `Finished`, it no longer selects that
   duel. Concurrent handlers can both load `InProgress` before either commits.
@@ -121,9 +129,10 @@ an offline socket or duplicated by outbox replay.
 
 ## 10. Transaction boundaries
 
-- Taski lookup is outside a database transaction.
-- Save 1: selected pending deletion, synthesized configuration, active duel.
-- Save 2: group/tournament linkage and both `DuelStarted` outbox rows.
+- One Taski catalog lookup occurs before all pair transactions in the tick.
+- Each pair has its own transaction. Save 1 writes pending deletion, synthesized
+  configuration, and active duel; Save 2 writes group/tournament linkage and
+  both `DuelStarted` outbox rows; the transaction commits only after both saves.
 - Each live solution update and optional message use one save.
 - Finish opens an explicit transaction: status/rating save, then messages,
   anti-cheat rows/action cleanup save, then commit. Those finish effects are atomic.
@@ -131,10 +140,11 @@ an offline socket or duplicated by outbox replay.
 
 ## 11. Concurrency and race conditions
 
-- Multiple maker instances can select the same pending rows; no transactional claim exists.
-- Surviving pending rows can create a second active duel for an already-active user.
-- Cancellation/reset after maker load may not prevent creation.
-- Split creation can expose an active duel without linkage/start messages.
+- Multiple maker instances can select the same snapshot, but user and pending
+  row locks serialize their transactional revalidation.
+- Surviving pending rows are skipped while either participant has an active duel.
+- Cancellation/reset committed before the locked reload prevents creation;
+  cancellation that needs the same rows waits for the current transaction.
 - Two finish handlers can process the same duel. With accepted tasks, the
   composite anti-cheat score key may make one transaction fail; without scores,
   duplicate finish messages can commit.
@@ -146,9 +156,12 @@ an offline socket or duplicated by outbox replay.
 ## 12. Failure handling
 
 - No pair: successful no-op.
-- Taski/list/selection failure: failed command; the current pair stays pending,
-  but pairs saved earlier in the loop remain active.
-- Failure after save 1: no automatic compensation for active duel/pending deletion.
+- Taski catalog failure stops the tick before any pair transaction and leaves all
+  pending rows intact. Task-selection failure is logged for that pair, leaves it
+  pending, and later pairs continue.
+- A database failure in one pair rolls back its pending deletion, duel,
+  association, and outbox while later pairs continue. The command reports a
+  partial failure after processing the batch.
 - Missing duel/task or nonparticipant solution update: not-found/forbidden and no save.
 - Cancellation during finish rolls back the explicit transaction if commit did not complete.
 - Finish messages can be inserted already expired when a duel finishes more than
@@ -176,14 +189,16 @@ solution dictionaries, while participant opponent solutions depend on configurat
 - [CheckDuelsForFinishHandlerTests.cs](../../Duely/tests/Duely.Application.Tests/Handlers/CheckDuelsForFinishHandlerTests.cs)
 - [TaskServiceTests.cs](../../Duely/tests/Duely.Domain.Tests/TaskServiceTests.cs)
 
-Tests cover priority/gating, pending deletion, messages, task reuse avoidance,
+Tests cover priority/gating, pending deletion, atomic rollback between creation
+saves, concurrent maker ticks, per-pair error isolation, one catalog read per
+tick, Taski failure retention, messages, task reuse avoidance,
 visibility-conditioned live messages, deadline blocking, task winners, ratings
-invocation, and anti-cheat row/action creation. They do not cover maker/finisher concurrency.
+invocation, and anti-cheat row/action creation. Finisher concurrency is not covered.
 
 ## 15. Open questions
 
-- Is one active duel per user a required invariant?
-- Should active duel creation, linkage, and start notifications be one transaction?
+- Should one active duel per user also be represented by a database constraint,
+  rather than the maker's user-row locks?
 - Should solution updates be allowed for finished or hidden tasks?
 - What timeout resolves permanently Running submissions?
 - Should an early partial Accepted candidate be excluded until it can finish?
@@ -191,8 +206,8 @@ invocation, and anti-cheat row/action creation. They do not cover maker/finisher
 
 ## 16. Proposed requirements
 
-- Introduce a transactional pending claim and a database active-user invariant.
-- Make all activation effects one commit or add an explicit recoverable activation state.
+- Consider a database active-user invariant in addition to transactional user
+  and pending-row locking.
 - Reject/define live updates outside active visible tasks.
 - Add a terminal policy for lost testing status and a fair finish-job query.
 - Add concurrency tests against PostgreSQL for maker and finish jobs.

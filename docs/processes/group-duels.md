@@ -63,9 +63,9 @@ flag false, without a group message.
 
 `DuelManager` requires both flags. Accepted Friendly rows have higher priority;
 accepted Tournament rows and Ranked have lower priority. On selection, the Group
-row is one of `UsedPendingDuels` and is deleted with the new duel. In a later
-save, a `GroupDuel { Group, Duel, CreatedBy }` link and two `DuelStarted` rows are
-created.
+row is locked and both acceptance flags and active-user state are re-checked.
+The row is deleted with the new duel, `GroupDuel { Group, Duel, CreatedBy }`
+link, and two `DuelStarted` rows in one transaction.
 
 ## 6. State transitions
 
@@ -74,7 +74,7 @@ created.
 - `This user's true -> false` on shared cancel/disconnect.
 - `GroupPendingDuel -> deleted` on authorized cancel.
 - `GroupPendingDuel(true, true) -> deleted; Duel(InProgress) created`.
-- `No GroupDuel link -> GroupDuel created` in the post-duel save.
+- `No GroupDuel link -> GroupDuel created` before the creation transaction commits.
 
 ## 7. Conflicting state cleanup
 
@@ -102,7 +102,7 @@ HTTP operations can create coexistence.
 
 Creation/cancellation rows commit atomically with the Group pending transition.
 Acceptance produces no Group message. `DuelStarted` and `GroupDuel` are recorded
-after the active duel's first save. General retry/duplicate behavior is in
+after the active duel's first save but in the same transaction. General retry/duplicate behavior is in
 [Notifications and outbox](notifications-and-outbox.md).
 
 ## 9. Idempotency
@@ -120,25 +120,24 @@ after the active duel's first save. General retry/duplicate behavior is in
 
 - Each create, accept, authorized cancel, and shared cleanup uses one save for
   state and outbox rows.
-- Duel conversion first commits pending deletion and `Duel`, then separately
-  commits `GroupDuel` plus both `DuelStarted` rows.
-- Taski task selection occurs before either duel-creation save and is not part of
-  a database transaction.
+- Taski's catalog is fetched once before pair transactions. Duel conversion uses
+  one pair transaction: pending deletion and `Duel` are saved first, then
+  `GroupDuel` plus both `DuelStarted` rows, then both saves commit together.
 
 ## 11. Concurrency and race conditions
 
 - Concurrent creates can insert duplicates and duplicate invitations.
-- Both acceptances can race with shared reset; last committed flag values win,
-  while a maker can act on values loaded before the reset.
-- Authorized cancel can race after the maker loads the row.
-- The active-duel checks at create/accept are not coupled to row insertion or
-  pairing, and `TryCreateDuelHandler` does not check active duels.
-- Another accepted pending type can win the current maker run, leaving the fully
-  accepted Group row to start a second duel later.
+- Both acceptances can race with shared reset; the maker uses the values reloaded
+  after locking the Group pending row.
+- Authorized cancel and the maker serialize on the Group pending row.
+- The active-duel checks at create/accept are not coupled to those HTTP saves,
+  but `TryCreateDuelHandler` locks both users and re-checks active duels.
+- Another accepted pending type can leave the fully accepted Group row, but the
+  maker skips it while either participant has an active duel.
 - If `User1 == User2`, create sends two messages to one user, but accept always
   takes the `User1` branch; `IsAcceptedByUser2` cannot be set through this handler.
-- Failure between the two duel-creation saves leaves an active duel without its
-  group link or start messages.
+- Failure between the two duel-creation saves rolls the transaction back; the
+  Group row remains and no active duel, link, or start message is exposed.
 
 ## 12. Failure handling
 
@@ -148,6 +147,8 @@ after the active duel's first save. General retry/duplicate behavior is in
   already exists.
 - Missing accept target: not found; missing cancel target: success.
 - Validation or cancellation before save leaves staged Ranked/Friendly cleanup unsaved.
+- Task selection or pair persistence failure leaves the Group row pending and
+  later pairs continue in the same tick.
 - Message delivery failure does not undo the committed pending transition.
 
 ## 13. User-visible result
@@ -179,13 +180,13 @@ the durable behavior is Ranked deletion with no message.
 - Must the two participants be distinct and still be group members at acceptance/start?
 - Should Group creation cancel or reject other pending states?
 - Should each acceptance/reset be visible to the other participant or group actor?
-- Must `GroupDuel` linkage be atomic with active duel creation?
+- Should Group membership also be re-checked during transactional duel creation?
 - See [Open questions](open-questions.md).
 
 ## 16. Proposed requirements
 
 - Validate distinct participants and add a database uniqueness rule for the
   intended group/pair/configuration identity.
-- Re-check membership, active duel, and acceptance in a transactional pair claim.
+- Re-check membership at acceptance or start; active duel and acceptance are
+  already re-checked in the transactional pair claim.
 - Specify symmetric cleanup recipients and acceptance/reset events.
-- Include `GroupDuel` and `DuelStarted` rows in the same commit that exposes the duel.
