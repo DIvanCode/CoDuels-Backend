@@ -104,7 +104,7 @@ incoming rows remain but their acceptance is reset without messages.
 
 All are outbox messages. There is deliberately no acceptance message. Rows are
 recorded atomically with the state change in their handler, except `DuelStarted`
-is recorded in the second duel-creation save. Delivery can repeat after an
+uses the second save inside the atomic duel-creation transaction. Delivery can repeat after an
 outbox retry, while offline delivery is treated as success and cannot retry.
 
 ## 9. Idempotency
@@ -124,7 +124,7 @@ outbox retry, while offline delivery is treated as success and cannot retry.
   `SaveChangesAsync`; its state changes and outbox rows are atomic.
 - Validation failures and early returns occur before saving, so any previously
   staged cleanup in that handler is discarded.
-- Friendly-to-duel conversion has the split transaction boundary documented in
+- Friendly-to-duel conversion has the pair transaction documented in
   [Duel lifecycle](duel-lifecycle.md#10-transaction-boundaries).
 
 ## 11. Concurrency and race conditions
@@ -133,11 +133,13 @@ outbox retry, while offline delivery is treated as success and cannot retry.
   `SingleOrDefaultAsync` calls can throw.
 - Accept and sender cancel can race. Either the cancel commits first and accept
   finds nothing, or accept can set a row that cancel subsequently deletes.
-- Accept can pass its active-duel check while a background job creates another duel.
-- Disconnect can reset `IsAccepted`, but a maker that loaded the old value can
-  still create the duel.
-- Accepted Friendly has priority over Group/Tournament/Ranked in one maker call,
-  yet non-selected pending rows survive and can create a later second duel.
+- Accept can pass its HTTP-time active-duel check, but the maker locks both users
+  and re-checks active state before insertion.
+- A maker reloads `IsAccepted` after locking the selected pending row, so a reset
+  committed before that reload prevents creation.
+- Accepted Friendly has priority over Group/Tournament/Ranked in one maker call.
+  Non-selected pending rows survive, but are skipped while either user has an
+  active duel.
 - Mutual invitations are legal. Accepting one can delete the opposite-direction
   row and notify only the acceptor, producing asymmetric client knowledge.
 
@@ -149,6 +151,8 @@ outbox retry, while offline delivery is treated as success and cannot retry.
 - If validation of a replacement target fails, deletion/messages staged for the
   old invitation are not saved, so the old invitation remains.
 - Cancellation before `SaveChangesAsync` leaves durable state unchanged.
+- Task-selection failure leaves the accepted invitation pending and does not
+  stop later pairs. Pair persistence failure leaves it pending and stops the tick.
 - Message delivery failure does not roll back the already committed invitation transition.
 
 ## 13. User-visible result
@@ -191,5 +195,5 @@ the assertions exercise `FriendlyPendingDuel`, so the names conflict with code.
 - Define a uniqueness key and explicit semantics for pair, direction, and configuration.
 - Add request idempotency for state-changing invitation endpoints.
 - Specify symmetric recipients for every cleanup path and test both participants.
-- Re-check invitation existence/acceptance and both users' active-duel status in
-  the same transactional claim used to create the duel.
+- Consider a durable invitation uniqueness key; duel conversion already locks
+  and re-checks invitation acceptance and both users' active-duel status.

@@ -46,9 +46,9 @@ flowchart LR
     outbox --> ws["Process-local WebSocket"]
 ```
 
-The diagram shows ownership, not a single transaction. In particular, duel
-creation has two separate `SaveChangesAsync` boundaries; calling Taski, Exesh,
-Analyzer, or a WebSocket is never atomic with PostgreSQL.
+The diagram shows ownership, not a single transaction. Duel creation uses two
+`SaveChangesAsync` calls inside one explicit pair transaction. Calling Taski,
+Exesh, Analyzer, or a WebSocket is never atomic with PostgreSQL.
 
 ## Cross-process cleanup matrix
 
@@ -69,7 +69,8 @@ Two qualifications matter:
    saving staged Friendly cleanup. In that combined state, the documented
    cancellation does not reach the database.
 2. `TryCreateDuelHandler` does not remove other pending rows for the selected
-   users and does not exclude users who already have an active duel.
+   users, but it locks both users and skips a pair when either already has an
+   active duel.
 
 ## Transaction vocabulary
 

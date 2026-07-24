@@ -1,7 +1,6 @@
 # Open questions and risks
 
-This registry separates observed implementation from product decisions. No item
-below was fixed as part of this documentation change.
+This registry separates current observed implementation from product decisions.
 
 ## Pending state and duel creation
 
@@ -9,9 +8,8 @@ below was fixed as part of this documentation change.
 | --- | --- | --- | --- | --- |
 | Ranked repeat skips Friendly cleanup | Start stages outgoing Friendly deletion/messages, then returns before save when Ranked already exists. | Stale invitation and no cancellation despite success. | `StartDuelSearch.cs` | Move repeat check before cleanup, save cleanup before return, or explicitly preserve Friendly. |
 | Duplicate pending rows | Pending mappings have no uniqueness constraints; handlers use check-then-insert and often `SingleOrDefault`. | Concurrent requests create duplicates; later handlers throw. | Pending EF configurations and all create/start handlers | Define per-type unique keys and handle conflicts. |
-| More than one active duel per user | Maker does not filter active users and removes only selected pending rows. | Surviving accepted/Ranked rows can create a second active duel. | `DuelManager.cs`, `TryCreateDuel.cs` | Add active-user DB invariant and transactional claim/re-check. |
-| Disconnect/cancel versus maker | Maker reads readiness without locks; cleanup updates/deletes in another context. | Duel may start after user disconnected/canceled, or save may conflict. | `TryCreateDuel.cs`, `CancelPendingDuels.cs` | Claim rows atomically; define which operation wins. |
-| Split activation transaction | Pending deletion and active duel commit before group/tournament link and `DuelStarted`. | Active duel exists without linkage or notifications after second-save failure. | `TryCreateDuel.cs` | One explicit transaction, or recoverable activation/outbox repair state. |
+| More than one active duel per user | Maker locks both users and re-checks active state, but no database invariant represents the rule. | A future write path that omits the lock convention could create a second active duel. | `TryCreateDuel.cs`, `DuelsConfiguration.cs` | Add an active-user database invariant or keep the single-maker convention explicit. |
+| Disconnect/cancel versus maker | Maker locks and reloads selected pending rows. Whichever transaction obtains the row lock first determines whether creation or cleanup wins. | A duel can still start when the maker wins immediately before disconnect cleanup. | `TryCreateDuel.cs`, `CancelPendingDuels.cs` | Decide whether disconnect must take precedence even after creation has begun. |
 | Asymmetric Friendly cleanup on acceptance | Friendly/Group/Tournament acceptance deletes caller's outgoing Friendly row but notifies only caller. | Former invitee retains stale UI. | Three accept handlers | Notify both users or explicitly document single-recipient UX. |
 | Same Friendly opponent ignores configuration | Existing outgoing row to same nickname returns success before comparing requested configuration. | Caller believes configuration changed when it did not; Ranked deletion staged earlier is not saved. | `CreateDuelInvitation.cs` | Include configuration in identity or expose update/replace semantics. |
 | Group participant can equal itself | Group create does not reject equal user ids; acceptance always takes User1 branch. | Two messages to one user and a row that cannot reach both accepted flags. | `CreateGroupDuelInvitation.cs`, `AcceptGroupDuelInvitation.cs` | Require distinct participants and add validator/test. |
@@ -23,7 +21,6 @@ below was fixed as part of this documentation change.
 | --- | --- | --- | --- | --- |
 | Concurrent tournament synchronization | Snapshot duplicate check has no lock/unique key. | Duplicate pending matches and invitations. | `SyncActiveTournaments.cs` | Transactional candidate identity/claim and DB uniqueness. |
 | Draw in single elimination | Strategy advances only a non-null winner. | Tournament can remain InProgress forever after a draw. | `SingleEliminationBracketMatchmakingStrategy.cs` | Tie-break/rematch/explicit draw advancement rule. |
-| Missing attachment after duel commit | Tournament link is second save. | Same pair may be considered unplayed and scheduled again. | `TryCreateDuel.cs`, tournament strategies | Make attachment atomic or reconcile orphan tournament duels. |
 | Silent progress/reset | No Tournament cancel/reset/progress/finish message exists. | Client state remains stale until polling/refetch. | Tournament handlers/messages | Add durable events or explicitly require polling. |
 
 ## WebSocket and notifications
@@ -64,12 +61,11 @@ below was fixed as part of this documentation change.
   cancellation, replacement, old/new race, multiple tabs, and multi-instance behavior.
 - No `OutboxJob` tests for PostgreSQL locking, reclaim timing, expiration, retries,
   crash-after-send, or whole-batch rollback.
-- No concurrent tests for pending creation, maker, tournament sync, finish, rate
-  limits, status cursors, or anti-cheat scoring.
-- Most application tests use EF InMemory, so they do not exercise PostgreSQL
-  constraints, isolation, `FOR UPDATE`, or explicit transaction behavior.
+- No concurrent tests for pending creation, tournament sync, finish, rate limits,
+  status cursors, or anti-cheat scoring. Maker concurrency has SQLite coverage.
+- Most application tests use EF InMemory. Matchmaking rollback and concurrent
+  ticks have SQLite coverage, but PostgreSQL `FOR UPDATE` behavior is not covered locally.
 - No tests for combined Ranked + outgoing Friendly repeat start.
-- No tests for surviving pending states after one pair becomes active.
 - No tests for equal Group participants or membership removal before acceptance.
 - No tests for code-run duel/task authorization because the checks do not exist.
 - No tests for Analyzer failure after earlier items in the same batch succeeded.
@@ -79,7 +75,7 @@ below was fixed as part of this documentation change.
 
 ## Decision order
 
-The highest-impact decisions are: enforce one active duel per user; make pair
-claim/activation atomic; make socket replacement generation-aware; define
+The highest-impact decisions are: decide whether to add a database active-user
+invariant; make socket replacement generation-aware; define
 notification durability; and define timeouts/idempotency for external testing.
 Those choices constrain most remaining cleanup and retry requirements.

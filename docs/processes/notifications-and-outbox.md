@@ -64,7 +64,7 @@ messages remains owned by its process document.
 
 | Type | Source/condition | Recipient | Purpose | Retry window | Process |
 | --- | --- | --- | --- | --- | --- |
-| `DuelStarted` | Pair converted; second creation save | Both participants | Open active duel | Duel deadline + 5 min | All duel types |
+| `DuelStarted` | Pair converted; atomic creation transaction | Both participants | Open active duel | Duel deadline + 5 min | All duel types |
 | `DuelFinished` | Finish transaction | Both participants | Fetch result | Duel deadline + 5 min | [Duel lifecycle](duel-lifecycle.md) |
 | `DuelChanged` | Accepted submission | Both participants | Refresh tasks/score | Duel deadline | [Submission](submission-and-testing.md) |
 | `OpponentSolutionUpdated` | Visible live solution update | Opponent | Update live code | Now + 5 min | [Duel lifecycle](duel-lifecycle.md) |
@@ -103,8 +103,9 @@ solution id, but downstream deduplication is not guaranteed here.
 ## 10. Transaction boundaries
 
 - Producer atomicity is process-specific: most state/message pairs share one
-  save; submission/code-run and finish use explicit transactions; duel start uses
-  a later save than active-duel creation.
+  save; submission/code-run, duel start, and finish use explicit transactions.
+  Duel start uses two saves inside one transaction so the generated duel id is
+  available to linkage and outbox payloads before commit.
 - Expiration, claim, and processing are three separate transactions.
 - External handler calls happen inside the processing transaction but cannot be
   rolled back with PostgreSQL.

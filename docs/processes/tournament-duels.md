@@ -67,7 +67,7 @@ the caller gets a Friendly cancellation message. It then sets the caller's
 positional Tournament flag. Both flags are required by `DuelManager`.
 Selected Tournament rows are deleted with the active duel. A later save attaches
 the duel to its bracket node or group-stage id list and records `DuelStarted` for
-both users.
+both users, but both saves are enclosed by one pair transaction and commit together.
 
 ### Reset and subsequent rounds
 
@@ -83,14 +83,14 @@ runs, which advance the structure and enqueue newly available matches.
 - `User1/User2 false -> true` on individual acceptance.
 - `This user's true -> false` on shared cancel/disconnect.
 - `TournamentPendingDuel(true, true) -> deleted; Duel(InProgress) created`.
-- `No referenced duel -> duel id attached` in the second creation save.
+- `No referenced duel -> duel id attached` before the creation transaction commits.
 - `InProgress -> Finished` when the strategy's completion condition is met.
 
 ## 7. Conflicting state cleanup
 
 | State | Synchronization | Tournament accept | Shared cancel/disconnect | Tournament duel creation |
 | --- | --- | --- | --- | --- |
-| Active duel | Candidate is skipped | Caller is rejected | Unchanged | Not re-checked |
+| Active duel | Candidate is skipped | Caller is rejected | Unchanged | Re-checked after locking both users |
 | Any existing pending type | Candidate is skipped | Ranked and caller's outgoing Friendly deleted; other rows unchanged | Type-specific shared cleanup | Only selected Tournament row deleted |
 | Other Tournament pair | Makes user busy for this run | Unchanged | Caller flag reset | Unchanged |
 
@@ -109,7 +109,7 @@ later HTTP handlers can create conflicting state.
 There is no Tournament acceptance, reset, cancellation, round-advanced, or
 tournament-finished client message. Pending creation and two invitation outbox
 rows commit together. Tournament attachment and `DuelStarted` share the second
-duel-creation save but not the first save that exposes the active duel.
+duel-creation save; the first and second saves become visible together at commit.
 
 ## 9. Idempotency
 
@@ -128,22 +128,22 @@ duel-creation save but not the first save that exposes the active duel.
 - A synchronization pass uses one final save for strategy state, every new
   Tournament row, and all invitation outbox rows.
 - Accept uses one save for acceptance plus Ranked/Friendly cleanup and message.
-- Duel creation first commits pending deletion and active duel. Tournament
-  attachment and both `DuelStarted` rows commit in a second save.
-- No transaction spans Taski task selection or successive job iterations.
+- Taski's catalog is fetched once per maker tick before pair transactions. Duel
+  creation uses one pair transaction around pending deletion and active-duel
+  insertion, followed by Tournament attachment and both `DuelStarted` rows.
 
 ## 11. Concurrency and race conditions
 
 - Concurrent sync jobs lack row claims/unique constraints and can duplicate
   Tournament rows and invitations.
 - Busy-user calculation can become stale before insertion.
-- Accept/reset/maker races mirror Group behavior: a maker can use acceptance
-  loaded before a disconnect reset.
+- Accept/reset/maker races serialize when the maker locks and reloads the selected
+  Tournament pending row; a committed reset prevents creation.
 - `AcceptTournamentDuelHandler` uses `SingleOrDefault` by tournament and user;
   duplicate or multiple simultaneous matches for one user can throw.
-- The maker can create a Tournament duel for a user who became active after sync/accept.
-- Failure after active duel creation but before strategy attachment means sync
-  may not recognize that pair as played and can enqueue it again.
+- The maker locks both users and re-checks active-duel state after sync/accept.
+- Failure after active duel insertion but before strategy attachment rolls the
+  pair transaction back, leaving the Tournament pending row available for retry.
 - Single-elimination draws leave a node without a winner, so the bracket cannot progress.
 - Multiple finished-duel/sync instances can update serialized strategy state
   without optimistic concurrency tokens.
@@ -155,8 +155,8 @@ duel-creation save but not the first save that exposes the active duel.
 - Analyzer/Taski are not called by synchronization; a database failure rolls
   back that pass's tournament changes, rows, and invitation messages.
 - Task selection failure leaves the accepted Tournament row pending.
-- A failed second duel-creation save leaves an active duel without tournament
-  linkage or `DuelStarted` messages.
+- A failed second duel-creation save rolls back the active duel, pending deletion,
+  Tournament linkage, and `DuelStarted` messages, then stops the tick.
 - Delivery failure does not roll back the scheduled Tournament row.
 
 ## 13. User-visible result
@@ -183,14 +183,15 @@ is the only push signal that an accepted match became active.
 
 Tests cover sequential duplicate suppression, both acceptance positions,
 Ranked/Friendly cleanup, bracket attachment, acceptance gating, and strategy
-progression. They do not cover concurrent synchronization or split-save failure.
+progression. Maker tests inject a failure between creation saves and verify
+rollback; concurrent tournament synchronization remains uncovered.
 
 ## 15. Open questions
 
 - What is the required outcome of a drawn single-elimination duel?
 - Should start reject `Finished` instead of returning success?
 - Should a tournament match remain pending indefinitely after repeated disconnects?
-- Must tournament linkage be atomic with duel creation?
+- Should synchronization and pending creation use a durable candidate key?
 - Should progress/finish/reset have client messages?
 - See [Open questions](open-questions.md).
 
@@ -198,6 +199,4 @@ progression. They do not cover concurrent synchronization or split-save failure.
 
 - Add a unique candidate identity and transactional scheduler claim.
 - Define draw/tie-break behavior for single elimination.
-- Re-check busy state and acceptance at active-duel insertion.
-- Commit tournament attachment and start notifications atomically with duel creation.
 - Define recovery and notification requirements for tournament progress and finish.

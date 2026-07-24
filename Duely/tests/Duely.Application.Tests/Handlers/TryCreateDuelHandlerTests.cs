@@ -9,8 +9,13 @@ using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Models.Tournaments;
 using Duely.Domain.Services.Duels;
 using Duely.Domain.Services.Tournaments;
+using Duely.Infrastructure.DataAccess.EntityFramework;
+using Duely.Infrastructure.Gateway.Tasks.Abstracts;
 using FluentAssertions;
+using FluentResults;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -98,13 +103,12 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var taskService = new Mock<ITaskService>();
         taskService.Setup(s => s.TryChooseTasks(
-                It.IsAny<User>(),
-                It.IsAny<User>(),
                 It.IsAny<DuelConfiguration>(),
                 It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                It.IsAny<IReadOnlySet<string>>(),
                 out It.Ref<Dictionary<char, DuelTask>>.IsAny))
             .Returns(true)
-            .Callback(new TryChooseTasksCallback((User _, User _, DuelConfiguration _, IReadOnlyCollection<DuelTask> _, out Dictionary<char, DuelTask> chosen) =>
+            .Callback(new TryChooseTasksCallback((DuelConfiguration _, IReadOnlyCollection<DuelTask> _, IReadOnlySet<string> _, out Dictionary<char, DuelTask> chosen) =>
             {
                 chosen = new Dictionary<char, DuelTask>
                 {
@@ -204,13 +208,12 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var taskService = new Mock<ITaskService>();
         taskService.Setup(s => s.TryChooseTasks(
-                It.IsAny<User>(),
-                It.IsAny<User>(),
                 It.IsAny<DuelConfiguration>(),
                 It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                It.IsAny<IReadOnlySet<string>>(),
                 out It.Ref<Dictionary<char, DuelTask>>.IsAny))
             .Returns(true)
-            .Callback(new TryChooseTasksCallback((User _, User _, DuelConfiguration _, IReadOnlyCollection<DuelTask> _, out Dictionary<char, DuelTask> chosen) =>
+            .Callback(new TryChooseTasksCallback((DuelConfiguration _, IReadOnlyCollection<DuelTask> _, IReadOnlySet<string> _, out Dictionary<char, DuelTask> chosen) =>
             {
                 chosen = new Dictionary<char, DuelTask>
                 {
@@ -290,13 +293,12 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var taskService = new Mock<ITaskService>();
         taskService.Setup(s => s.TryChooseTasks(
-                It.IsAny<User>(),
-                It.IsAny<User>(),
                 It.IsAny<DuelConfiguration>(),
                 It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                It.IsAny<IReadOnlySet<string>>(),
                 out It.Ref<Dictionary<char, DuelTask>>.IsAny))
             .Returns(true)
-            .Callback(new TryChooseTasksCallback((User _, User _, DuelConfiguration _, IReadOnlyCollection<DuelTask> _, out Dictionary<char, DuelTask> chosen) =>
+            .Callback(new TryChooseTasksCallback((DuelConfiguration _, IReadOnlyCollection<DuelTask> _, IReadOnlySet<string> _, out Dictionary<char, DuelTask> chosen) =>
             {
                 chosen = new Dictionary<char, DuelTask>
                 {
@@ -330,6 +332,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var duel = await ctx.Duels.SingleAsync();
         var updatedTournament = await ctx.Tournaments
             .OfType<SingleEliminationBracketTournament>()
+            .AsNoTracking()
             .SingleAsync();
         updatedTournament.Nodes[0]!.DuelId.Should().Be(duel.Id);
     }
@@ -432,13 +435,12 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var taski = new TaskiClientSuccessFake(["TASK-1"]);
         var taskService = new Mock<ITaskService>();
         taskService.Setup(s => s.TryChooseTasks(
-                It.IsAny<User>(),
-                It.IsAny<User>(),
                 It.IsAny<DuelConfiguration>(),
                 It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                It.IsAny<IReadOnlySet<string>>(),
                 out It.Ref<Dictionary<char, DuelTask>>.IsAny))
             .Returns(true)
-            .Callback(new TryChooseTasksCallback((User _, User _, DuelConfiguration _, IReadOnlyCollection<DuelTask> _, out Dictionary<char, DuelTask> chosen) =>
+            .Callback(new TryChooseTasksCallback((DuelConfiguration _, IReadOnlyCollection<DuelTask> _, IReadOnlySet<string> _, out Dictionary<char, DuelTask> chosen) =>
             {
                 chosen = new Dictionary<char, DuelTask>
                 {
@@ -472,7 +474,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Creates_parallel_tournament_duels_with_distinct_tasks_when_possible()
+    public async Task Creates_parallel_tournament_duels_with_reused_catalog_task()
     {
         var ctx = Context;
 
@@ -548,9 +550,10 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             RatingToTaskLevelMapping = []
         });
 
+        var taski = new TaskiClientSuccessFake(["TASK-1"]);
         var handler = new TryCreateDuelHandler(
             new DuelManager(),
-            new TaskiClientSuccessFake(["TASK-1", "TASK-2", "TASK-3"]),
+            taski,
             options,
             ratingManager.Object,
             new TaskService(),
@@ -566,8 +569,8 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
             .Select(d => d.Tasks['A'].Id)
             .ToListAsync();
         taskIds.Should().HaveCount(3);
-        taskIds.Should().OnlyHaveUniqueItems();
-        taskIds.Should().BeEquivalentTo("TASK-1", "TASK-2", "TASK-3");
+        taskIds.Should().OnlyContain(taskId => taskId == "TASK-1");
+        taski.GetTasksListCalls.Should().Be(1);
     }
 
     [Fact]
@@ -653,10 +656,9 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
 
         var taskService = new Mock<ITaskService>();
         taskService.Setup(s => s.TryChooseTasks(
-                It.IsAny<User>(),
-                It.IsAny<User>(),
                 It.IsAny<DuelConfiguration>(),
                 It.IsAny<IReadOnlyCollection<DuelTask>>(),
+                It.IsAny<IReadOnlySet<string>>(),
                 out It.Ref<Dictionary<char, DuelTask>>.IsAny))
             .Returns(false);
 
@@ -684,10 +686,313 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         (await ctx.Duels.AsNoTracking().ToListAsync()).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Continues_with_other_pairs_when_one_pair_cannot_select_tasks()
+    {
+        var users = Enumerable.Range(1, 4)
+            .Select(id => EntityFactory.MakeUser(id, $"u{id}"))
+            .ToArray();
+        var impossibleConfiguration = new DuelConfiguration
+        {
+            Id = 50,
+            Owner = users[0],
+            MaxDurationMinutes = 30,
+            IsRated = false,
+            ShouldShowOpponentSolution = true,
+            TasksCount = 2,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new() { Level = 1, Topics = [] },
+                ['B'] = new() { Level = 1, Topics = [] }
+            }
+        };
+        Context.Users.AddRange(users);
+        Context.DuelConfigurations.Add(impossibleConfiguration);
+        Context.PendingDuels.AddRange(
+            new FriendlyPendingDuel
+            {
+                Type = PendingDuelType.Friendly,
+                User1 = users[0],
+                User2 = users[1],
+                Configuration = impossibleConfiguration,
+                IsAccepted = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new FriendlyPendingDuel
+            {
+                Type = PendingDuelType.Friendly,
+                User1 = users[2],
+                User2 = users[3],
+                Configuration = null,
+                IsAccepted = true,
+                CreatedAt = DateTime.UtcNow
+            });
+        await Context.SaveChangesAsync();
+
+        var taski = new TaskiClientSuccessFake(["TASK-1"]);
+        var handler = CreateHandler(Context, taski);
+
+        var result = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        result.IsFailed.Should().BeTrue();
+        taski.GetTasksListCalls.Should().Be(1);
+        var duel = await Context.Duels
+            .AsNoTracking()
+            .Include(d => d.User1)
+            .Include(d => d.User2)
+            .SingleAsync();
+        new[] { duel.User1.Id, duel.User2.Id }.Should().BeEquivalentTo([users[2].Id, users[3].Id]);
+        var remaining = await Context.PendingDuels
+            .OfType<FriendlyPendingDuel>()
+            .AsNoTracking()
+            .Include(pending => pending.User1)
+            .Include(pending => pending.User2)
+            .SingleAsync();
+        new[] { remaining.User1.Id, remaining.User2.Id }.Should().BeEquivalentTo([users[0].Id, users[1].Id]);
+    }
+
+    [Fact]
+    public async Task Keeps_pending_pair_when_taski_catalog_fails()
+    {
+        var user1 = EntityFactory.MakeUser(1, "u1");
+        var user2 = EntityFactory.MakeUser(2, "u2");
+        Context.Users.AddRange(user1, user2);
+        Context.PendingDuels.AddRange(
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = user1,
+                Rating = user1.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            },
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = user2,
+                Rating = user2.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            });
+        await Context.SaveChangesAsync();
+
+        var taski = new Mock<ITaskiClient>();
+        taski.Setup(client => client.GetTasksListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Fail<TaskListResponse>("catalog unavailable"));
+        var handler = CreateHandler(Context, taski.Object);
+
+        var result = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        result.IsFailed.Should().BeTrue();
+        (await Context.PendingDuels.AsNoTracking().CountAsync()).Should().Be(2);
+        (await Context.Duels.AsNoTracking().CountAsync()).Should().Be(0);
+        (await Context.OutboxMessages.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Keeps_pending_pair_when_a_user_already_has_an_active_duel()
+    {
+        var user1 = EntityFactory.MakeUser(1, "u1");
+        var user2 = EntityFactory.MakeUser(2, "u2");
+        var activeDuel = EntityFactory.MakeDuel(10, user1, user2);
+        Context.Users.AddRange(user1, user2);
+        Context.Duels.Add(activeDuel);
+        Context.PendingDuels.Add(new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = user1,
+            User2 = user2,
+            Configuration = null,
+            IsAccepted = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await Context.SaveChangesAsync();
+
+        var taski = new TaskiClientSuccessFake(["TASK-2"]);
+        var handler = CreateHandler(Context, taski);
+
+        var result = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        (await Context.Duels.AsNoTracking().CountAsync()).Should().Be(1);
+        (await Context.PendingDuels.AsNoTracking().CountAsync()).Should().Be(1);
+        (await Context.OutboxMessages.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Rolls_back_duel_link_and_outbox_and_stops_tick_when_second_save_fails()
+    {
+        var interceptor = new FailOnArmedSaveChangesInterceptor(2);
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<Context>()
+            .UseSqlite(connection)
+            .AddInterceptors(interceptor)
+            .Options;
+        await using var context = new Context(options);
+        await context.Database.EnsureCreatedAsync();
+
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var user1 = EntityFactory.MakeUser(2, "u1");
+        var user2 = EntityFactory.MakeUser(3, "u2");
+        var user3 = EntityFactory.MakeUser(4, "u3");
+        var user4 = EntityFactory.MakeUser(5, "u4");
+        var group = EntityFactory.MakeGroup(1, "group");
+        context.Users.AddRange(creator, user1, user2, user3, user4);
+        context.Groups.Add(group);
+        context.PendingDuels.AddRange(
+            new GroupPendingDuel
+            {
+                Type = PendingDuelType.Group,
+                Group = group,
+                CreatedBy = creator,
+                User1 = user1,
+                User2 = user2,
+                Configuration = null,
+                IsAcceptedByUser1 = true,
+                IsAcceptedByUser2 = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new GroupPendingDuel
+            {
+                Type = PendingDuelType.Group,
+                Group = group,
+                CreatedBy = creator,
+                User1 = user3,
+                User2 = user4,
+                Configuration = null,
+                IsAcceptedByUser1 = true,
+                IsAcceptedByUser2 = true,
+                CreatedAt = DateTime.UtcNow.AddSeconds(1)
+            });
+        await context.SaveChangesAsync();
+        interceptor.Arm();
+
+        var handler = CreateHandler(context, new TaskiClientSuccessFake(["TASK-1"]));
+        var result = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        result.IsFailed.Should().BeTrue();
+        (await context.Duels.AsNoTracking().CountAsync()).Should().Be(0);
+        (await context.GroupDuels.AsNoTracking().CountAsync()).Should().Be(0);
+        (await context.OutboxMessages.AsNoTracking().CountAsync()).Should().Be(0);
+        (await context.PendingDuels.OfType<GroupPendingDuel>().AsNoTracking().CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Concurrent_ticks_create_only_one_duel_for_the_same_pair()
+    {
+        var connectionString = $"Data Source=duel-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+        using var keepAliveConnection = new SqliteConnection(connectionString);
+        await keepAliveConnection.OpenAsync();
+        var options = new DbContextOptionsBuilder<Context>()
+            .UseSqlite(connectionString)
+            .Options;
+        await using var setupContext = new Context(options);
+        await setupContext.Database.EnsureCreatedAsync();
+
+        var user1 = EntityFactory.MakeUser(1, "u1");
+        var user2 = EntityFactory.MakeUser(2, "u2");
+        setupContext.Users.AddRange(user1, user2);
+        setupContext.PendingDuels.Add(new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = user1,
+            User2 = user2,
+            Configuration = null,
+            IsAccepted = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await setupContext.SaveChangesAsync();
+
+        var bothTicksLoadedPair = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var catalogCalls = 0;
+        var taski = new Mock<ITaskiClient>();
+        taski.Setup(client => client.GetTasksListAsync(It.IsAny<CancellationToken>()))
+            .Returns(async (CancellationToken cancellationToken) =>
+            {
+                if (Interlocked.Increment(ref catalogCalls) == 2)
+                {
+                    bothTicksLoadedPair.SetResult();
+                }
+
+                await bothTicksLoadedPair.Task.WaitAsync(cancellationToken);
+                return Result.Ok(new TaskListResponse
+                {
+                    Tasks =
+                    [
+                        new TaskResponse
+                        {
+                            Id = "TASK-1",
+                            Level = 1,
+                            Topics = []
+                        }
+                    ]
+                });
+            });
+
+        await using var context1 = new Context(options);
+        await using var context2 = new Context(options);
+        var handler1 = CreateHandler(context1, taski.Object);
+        var handler2 = CreateHandler(context2, taski.Object);
+
+        await Task.WhenAll(
+            handler1.Handle(new TryCreateDuelCommand(), CancellationToken.None),
+            handler2.Handle(new TryCreateDuelCommand(), CancellationToken.None));
+
+        (await setupContext.Duels.AsNoTracking().CountAsync()).Should().Be(1);
+        (await setupContext.PendingDuels.AsNoTracking().CountAsync()).Should().Be(0);
+        (await setupContext.OutboxMessages.AsNoTracking().CountAsync()).Should().Be(2);
+    }
+
+    private static TryCreateDuelHandler CreateHandler(
+        Context context,
+        ITaskiClient taskiClient)
+    {
+        var ratingManager = new Mock<IRatingManager>();
+        ratingManager.Setup(manager => manager.GetTaskLevel(It.IsAny<int>())).Returns(1);
+
+        return new TryCreateDuelHandler(
+            new DuelManager(),
+            taskiClient,
+            Options.Create(new DuelOptions
+            {
+                DefaultMaxDurationMinutes = 30,
+                RatingToTaskLevelMapping = []
+            }),
+            ratingManager.Object,
+            new TaskService(),
+            CreateTournamentStrategyResolver(),
+            context,
+            NullLogger<TryCreateDuelHandler>.Instance);
+    }
+
+    private sealed class FailOnArmedSaveChangesInterceptor(int failOnCall) : SaveChangesInterceptor
+    {
+        private bool _armed;
+        private int _saveCalls;
+
+        public void Arm()
+        {
+            _saveCalls = 0;
+            _armed = true;
+        }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (_armed && Interlocked.Increment(ref _saveCalls) == failOnCall)
+            {
+                throw new InvalidOperationException("Injected failure between duel creation steps.");
+            }
+
+            return ValueTask.FromResult(result);
+        }
+    }
+
     private delegate void TryChooseTasksCallback(
-        User user1,
-        User user2,
         DuelConfiguration configuration,
         IReadOnlyCollection<DuelTask> tasks,
+        IReadOnlySet<string> excludedTaskIds,
         out Dictionary<char, DuelTask> chosenTasks);
 }

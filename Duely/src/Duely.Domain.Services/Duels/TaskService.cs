@@ -12,6 +12,11 @@ public interface ITaskService
         DuelConfiguration configuration,
         IReadOnlyCollection<DuelTask> tasks,
         out Dictionary<char, DuelTask> chosenTasks);
+    bool TryChooseTasks(
+        DuelConfiguration configuration,
+        IReadOnlyCollection<DuelTask> tasks,
+        IReadOnlySet<string> excludedTaskIds,
+        out Dictionary<char, DuelTask> chosenTasks);
     IReadOnlyDictionary<char, DuelTask> GetVisibleTasks(Duel duel, int userId);
     bool IsTaskVisible(Duel duel, int userId, char taskKey);
     IReadOnlyDictionary<char, int> GetSolvedTaskWinners(Duel duel);
@@ -48,14 +53,26 @@ public sealed class TaskService : ITaskService
         IReadOnlyCollection<DuelTask> tasks,
         out Dictionary<char, DuelTask> chosenTasks)
     {
+        return TryChooseTasks(
+            configuration,
+            tasks,
+            GetSolvedTaskIds(user1, user2),
+            out chosenTasks);
+    }
+
+    public bool TryChooseTasks(
+        DuelConfiguration configuration,
+        IReadOnlyCollection<DuelTask> tasks,
+        IReadOnlySet<string> excludedTaskIds,
+        out Dictionary<char, DuelTask> chosenTasks)
+    {
         chosenTasks = new Dictionary<char, DuelTask>();
         if (tasks.Count == 0 || configuration.TasksConfigurations.Count == 0)
         {
             return false;
         }
 
-        var solvedTasks = GetSolvedTaskIds(user1, user2);
-        var availableTasks = tasks.ExceptBy(solvedTasks, task => task.Id).ToList();
+        var availableTasks = tasks.ExceptBy(excludedTaskIds, task => task.Id).ToList();
         if (availableTasks.Count == 0)
         {
             availableTasks = tasks.ToList();

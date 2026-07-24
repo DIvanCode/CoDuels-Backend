@@ -67,7 +67,8 @@ The staged Friendly deletion and cancellation messages are discarded.
 
 `TryCreateDuelHandler` obtains tasks from Taski, creates a rated, one-task,
 sequential default configuration, removes the two selected Ranked rows, creates
-an `InProgress` duel, and later records `DuelStarted` for both users. Pairing uses
+an `InProgress` duel, and records `DuelStarted` for both users in the same
+transaction. Pairing uses
 the stored queue ratings, but task level and duel initial ratings use the users'
 **current** ratings at creation time.
 
@@ -97,7 +98,7 @@ Group and Tournament acceptance flags. See
 | Incoming Friendly | Unchanged, including accepted | Unchanged | Keep row; set `IsAccepted = false` |
 | Group | Unchanged, including accepted | Unchanged | Keep row; reset only this user's flag |
 | Tournament | Unchanged, including accepted | Unchanged | Keep row; reset only this user's flag |
-| Active duel | Start is rejected if already visible | Not checked by pairing | Unchanged |
+| Active duel | Start is rejected if already visible | Re-checked after locking both users; pair is skipped | Unchanged |
 
 No general cleanup runs when a Ranked pair is converted to a duel. Other
 pending rows for those users can survive and be paired in a later job run.
@@ -112,8 +113,8 @@ pending rows for those users can survive and be paired in a later job run.
 
 No "search started", "search canceled", or "opponent found" message exists.
 All rows above are outbox rows. The cancellation rows commit with the new Ranked
-row in one save. `DuelStarted` commits separately from the duel's first creation
-save. WebSocket delivery can be lost while still being marked successful; retry
+row in one save. `DuelStarted` commits atomically with the active duel and
+pending deletion. WebSocket delivery can be lost while still being marked successful; retry
 and duplicate rules are detailed in [Notifications and outbox](notifications-and-outbox.md).
 
 ## 9. Idempotency
@@ -123,45 +124,48 @@ and duplicate rules are detailed in [Notifications and outbox](notifications-and
 - Concurrent starts are not idempotent: both can observe no row and insert two.
 - Repeating shared cancellation succeeds and emits no message once all outgoing
   Friendly rows are gone.
-- Pair creation has no durable idempotency key. It relies on deleting pending
-  rows, without a lock covering read, selection, task lookup, and insert.
+- Pair creation has no request key, but the maker locks both user rows and both
+  Ranked rows, then reloads readiness before insertion. A concurrent tick that
+  selected the same snapshot observes consumed pending rows after waiting.
 
 ## 10. Transaction boundaries
 
 - A normal start uses one `SaveChangesAsync`: Friendly deletion, its two outbox
   rows, and Ranked insertion are atomic.
 - The already-ranked early return executes no save.
-- Pair conversion first saves selected pending deletions plus the new duel.
-- `DuelStarted` rows are added and saved afterward. No explicit transaction
-  spans these saves or the preceding Taski call.
+- Taski is read once per maker tick before pair processing. Pair conversion has
+  one explicit transaction around both saves: selected pending deletions plus
+  the new duel, followed by both `DuelStarted` rows, then commit.
 - Outbox dispatch is asynchronous and outside both business transactions.
 
 ## 11. Concurrency and race conditions
 
 - Two starts can create duplicate Ranked rows; later `SingleOrDefaultAsync`
   queries may throw instead of returning a business result.
-- Start can pass the active-duel check while another job creates a duel.
+- Start can pass its HTTP-time active-duel check, but the maker re-checks active
+  state while holding both user locks.
 - Cancel/disconnect can race after the maker loads accepted rows. The maker can
   still use its stale in-memory acceptance, or its delete can conflict with the
   cleanup delete. There is no row lock or version column.
 - If duel creation commits before cleanup reads, cleanup sees no selected Ranked
   row and cannot undo the duel.
-- An accepted Friendly/Group/Tournament pair wins priority for this iteration,
-  but the user's Ranked row remains. It can create a second duel on a later run
-  because `TryCreateDuelHandler` does not filter active users.
-- Multiple making-job instances can select the same rows. No unique active-duel
-  constraint or claim state prevents competing creation.
+- An accepted Friendly/Group/Tournament pair can leave the user's Ranked row,
+  but later maker runs skip it while the user has an active duel.
+- Multiple making-job instances can select the same rows; stable user locks,
+  pending-row locks, and transactional revalidation prevent competing creation.
 
 ## 12. Failure handling
 
 - Missing user: not-found result; no durable changes.
 - Active duel observed by start: already-exists result; no durable changes.
-- Taski task-list or task-selection failure: command fails; current pair remains
-  pending, while pairs committed earlier in the same loop remain committed.
+- Taski catalog failure happens before pair transactions and leaves the entire
+  tick pending. Task-selection failure leaves that pair pending, is logged, and
+  does not stop later pairs.
 - Cancellation token before save: EF/external call may throw; there is no
   compensating action.
-- Failure after duel creation save but before notification save leaves an active
-  duel with pending rows removed and no `DuelStarted` outbox rows.
+- Failure after the first duel-creation save rolls the pair transaction back, so
+  no active duel is exposed without its pending rows and `DuelStarted` outbox.
+  The persistence failure stops later pairs in that tick.
 - Failed WebSocket delivery does not necessarily cause an outbox retry.
 
 ## 13. User-visible result
@@ -202,10 +206,8 @@ window/fallback matching, one Ranked pair per call, selected-row removal, and
 
 ## 16. Proposed requirements
 
-- Define and enforce a database invariant for at most one Ranked row per user
-  and at most one active duel per user.
-- Claim pending pairs transactionally and re-check active/acceptance state before
-  duel insertion.
+- Define and enforce a database invariant for at most one Ranked row per user;
+  consider a database active-user invariant in addition to maker row locks.
 - Make start's Friendly cleanup and repeat semantics explicit and tested for the
   combined Ranked+Friendly state.
 - Decide whether successful pairing must atomically record `DuelStarted` and all
