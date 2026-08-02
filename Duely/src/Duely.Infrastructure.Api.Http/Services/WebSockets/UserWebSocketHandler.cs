@@ -35,14 +35,7 @@ public sealed class UserWebSocketHandler(
         logger.LogInformation("WebSocket connected user {UserId}", userId);
 
         using var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
-        var existingConnection = webSocketConnections.GetConnection(userId);
-        if (existingConnection is not null)
-        {
-            webSocketConnections.RemoveConnection(userId);
-            await CloseExistingConnectionAsync(existingConnection, webSocketOptions.Value.CloseTimeoutMs);
-        }
-
-        webSocketConnections.AddConnection(userId, webSocket);
+        var connectionId = webSocketConnections.AddConnection(userId, webSocket);
 
         try
         {
@@ -76,60 +69,48 @@ public sealed class UserWebSocketHandler(
                 TimeSpan.FromMilliseconds(webSocketOptions.Value.CloseTimeoutMs));
             var closeToken = closeTokenSource.Token;
 
-            if (webSocket.State == WebSocketState.Open)
+            try
             {
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", closeToken);
+                if (webSocket.State == WebSocketState.Open)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", closeToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to close WebSocket for user {UserId}", userId);
+                try
+                {
+                    webSocket.Abort();
+                }
+                catch (Exception abortException)
+                {
+                    logger.LogWarning(abortException, "Failed to abort WebSocket for user {UserId}", userId);
+                }
             }
 
-            webSocketConnections.RemoveConnection(userId);
+            webSocketConnections.RemoveConnection(connectionId);
 
-            using (var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+            using var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var cleanupToken = cleanupTokenSource.Token;
+
+            await Task.Delay(TimeSpan.FromSeconds(10), cleanupToken);
+
+            if (!webSocketConnections.HasSockets(userId))
             {
-                var cleanupToken = cleanupTokenSource.Token;
-
-                var cancelResult = await mediator.Send(new CancelPendingDuelsCommand
-                {
-                    UserId = userId
-                }, cleanupToken);
+                var cancelResult = await mediator.Send(new CancelPendingDuelsCommand { UserId = userId }, cleanupToken);
                 if (cancelResult.IsFailed)
                 {
                     logger.LogWarning(
                         "WebSocket cleanup failed to cancel search for user {UserId}: {Error}",
                         userId, string.Join(", ", cancelResult.Errors));
                 }
-
             }
 
             logger.LogInformation("WebSocket disconnected user {UserId}", userId);
         }
 
         return new EmptyResult();
-    }
-
-    private static async Task CloseExistingConnectionAsync(WebSocket socket, int closeTimeoutMs)
-    {
-        if (socket.State == WebSocketState.Open || socket.State == WebSocketState.CloseReceived)
-        {
-            using var closeTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(closeTimeoutMs));
-            try
-            {
-                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Replaced by new connection", closeTokenSource.Token);
-                return;
-            }
-            catch
-            {
-                // fall through to abort
-            }
-        }
-
-        try
-        {
-            socket.Abort();
-        }
-        catch
-        {
-            // ignored
-        }
     }
 
     private static async Task<string> ReadTextMessageAsync(

@@ -14,20 +14,32 @@ public sealed class WebSocketMessageSender(
 {
     public async Task SendMessage(int userId, Message message, CancellationToken cancellationToken)
     {
-        var socket = connections.GetConnection(userId);
-        if (socket is null)
+        var sockets = connections.GetSockets(userId);
+        var payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
+        var sendTasks = new List<Task>();
+
+        foreach (var socket in sockets)
         {
-            return;
+            if (socket.State != WebSocketState.Open)
+            {
+                continue;
+            }
+
+            sendTasks.Add(SendMessageAsync(socket, payload, message, userId, cancellationToken));
         }
 
-        if (socket.State != WebSocketState.Open)
-        {
-            return;
-        }
+        await Task.WhenAll(sendTasks);
+    }
 
+    private async Task SendMessageAsync(
+        WebSocket socket,
+        byte[] payload,
+        Message message,
+        int userId,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            var payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
             await socket.SendAsync(payload, WebSocketMessageType.Text, true, cancellationToken);
         }
         catch (Exception ex)
