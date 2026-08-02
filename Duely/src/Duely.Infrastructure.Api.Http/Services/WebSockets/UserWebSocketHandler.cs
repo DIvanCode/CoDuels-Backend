@@ -89,32 +89,21 @@ public sealed class UserWebSocketHandler(
                 }
             }
 
-            var disconnectToken = webSocketConnections.RemoveConnection(connectionId);
-            if (disconnectToken is not null)
+            webSocketConnections.RemoveConnection(connectionId);
+
+            using var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var cleanupToken = cleanupTokenSource.Token;
+
+            await Task.Delay(TimeSpan.FromSeconds(10), cleanupToken);
+
+            if (!webSocketConnections.HasSockets(userId))
             {
-                using var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                var cleanupToken = cleanupTokenSource.Token;
-
-                try
+                var cancelResult = await mediator.Send(new CancelPendingDuelsCommand { UserId = userId }, cleanupToken);
+                if (cancelResult.IsFailed)
                 {
-                    await Task.Delay(
-                        TimeSpan.FromMilliseconds(webSocketOptions.Value.ReconnectGracePeriodMs),
-                        cleanupToken);
-
-                    if (webSocketConnections.IsDisconnected(userId, disconnectToken.Value))
-                    {
-                        var cancelResult = await mediator.Send(new CancelPendingDuelsCommand { UserId = userId }, cleanupToken);
-                        if (cancelResult.IsFailed)
-                        {
-                            logger.LogWarning(
-                                "WebSocket cleanup failed to cancel search for user {UserId}: {Error}",
-                                userId, string.Join(", ", cancelResult.Errors));
-                        }
-                    }
-                }
-                finally
-                {
-                    webSocketConnections.CompleteDisconnectCleanup(userId, disconnectToken.Value);
+                    logger.LogWarning(
+                        "WebSocket cleanup failed to cancel search for user {UserId}: {Error}",
+                        userId, string.Join(", ", cancelResult.Errors));
                 }
             }
 

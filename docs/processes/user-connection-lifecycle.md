@@ -5,7 +5,7 @@
 Authenticate a WebSocket with an intended single-use ticket, maintain every
 registered socket per user in a Duely process, relay client events to each open
 socket, and attempt pending-duel cleanup only after the final local connection
-has stayed disconnected through a reconnect grace period.
+is absent when a reconnect grace period expires.
 
 ## 2. Participants
 
@@ -61,12 +61,10 @@ the current socket still reports `Open`, it attempts a normal close; a close
 failure is logged and followed by `Abort` so the registration cleanup still
 runs. It removes only its own `connectionId` from the connection manager.
 
-Only the handler that removes the final local socket receives a disconnect
-token. It waits the configured 10-second reconnect grace period with a separate
-30-second cleanup token, then sends `CancelPendingDuelsCommand` only if the
-same token still marks the user as disconnected. A reconnect invalidates that
-token; a later last disconnect receives a new token, so an older timer cannot
-shorten the later grace period. That command:
+Every connection handler waits 10 seconds with a separate 30-second cleanup
+token after removing its own registration. It then sends
+`CancelPendingDuelsCommand` only if `HasSockets(userId)` reports no remaining
+local socket. That command:
 
 - deletes all Ranked rows for the user;
 - deletes all outgoing Friendly rows and records cancellation for both sides;
@@ -77,8 +75,9 @@ No persistent online/offline property is changed. Physical close, removal from
 the process map, and business cleanup are three distinct effects, even though
 the code does not model them as separate states.
 
-If the current socket's `CloseAsync` throws in `finally`, there is no catch around
-that call; map removal and business cleanup below it can be skipped.
+If the current socket's `CloseAsync` throws in `finally`, the handler logs the
+failure and attempts `Abort`; map removal and the business-cleanup decision then
+continue even if abort also fails.
 
 ## 6. State transitions
 
@@ -87,13 +86,13 @@ that call; map removal and business cleanup below it can be skipped.
 - `No registered socket -> user id maps to one connection id and socket`.
 - `One or more registered sockets -> another connection id and socket is added`.
 - `Handler ends -> only its connection id is removed`.
-- `Final connection removed -> disconnect token -> 10-second grace -> pending
-  transitions below, unless the token is invalidated by a reconnect`.
+- `Handler removes its connection -> 10-second grace -> pending transitions
+  below, if no connection is registered when the grace period expires`.
 - There is no durable `Online -> Offline` transition.
 
 ## 7. Conflicting state cleanup
 
-| State | Cleanup after the final local connection stays absent for the grace period |
+| State | Cleanup when no local connection is registered after the grace period |
 | --- | --- |
 | Ranked | Delete all; no message |
 | Outgoing Friendly | Delete all; cancellation to sender and each invitee |
@@ -102,10 +101,10 @@ that call; map removal and business cleanup below it can be skipped.
 | Tournament | Preserve; reset only disconnected user's acceptance; no message |
 | Active duel, submissions, code runs | Unchanged |
 
-The same broad cleanup is attempted only after normal close, network failure,
-request cancellation, or an exception has removed the last local socket and no
-reconnect invalidates its token during the grace period. A close failure does
-not skip map removal or the grace-period decision.
+The same broad cleanup is attempted after normal close, network failure, request
+cancellation, or an exception has removed a local socket, waited for the grace
+period, and then finds no local socket. A close failure does not skip map
+removal or the grace-period decision.
 
 ## 8. Emitted messages
 
@@ -129,8 +128,6 @@ causes silent successful delivery from the outbox's perspective.
   emitted only for rows present in that invocation.
 - `RemoveConnection(connectionId)` is identity-aware. Repeating it is a no-op,
   and an old handler cannot remove a sibling connection.
-- Each final removal creates one cleanup token. Reconnect invalidates it, while
-  cleanup completion removes it only when it is still current.
 - Reconnecting always replaces the stored ticket, but adds another registered
   socket rather than replacing one.
 
@@ -139,16 +136,16 @@ causes silent successful delivery from the outbox's perspective.
 - Ticket generation/replace is one save; ticket consume is a separate save.
 - WebSocket accept/registration is in memory and outside PostgreSQL.
 - Disconnect cleanup uses one save for all pending state and its Friendly outbox rows.
-- Physical close and cleanup are not atomic. A reconnect between the final
-  removal and grace-period check invalidates cleanup; a reconnect after the
-  check can still race with the database command.
+- Physical close and cleanup are not atomic. A reconnect before the grace-period
+  check avoids cleanup; a reconnect after the check can still race with the
+  database command.
 
 ## 11. Concurrency and race conditions
 
 - An old handler can remove only its own registration; it cannot remove a newer
   or sibling socket.
-- Multiple tabs are deliberately retained. Only the final local disconnect
-  starts cleanup; reconnect/new-last-disconnect cycles use distinct tokens.
+- Multiple tabs are deliberately retained. Each disconnect starts a grace
+  period, but cleanup runs only when no local socket remains after that wait.
 - Two simultaneous connects can both see/consume the same ticket or both manipulate
   the same dictionary entry without a compare-and-remove operation.
 - In a multi-instance deployment, each instance can hold a socket for the same
@@ -164,8 +161,7 @@ causes silent successful delivery from the outbox's perspective.
 - Invalid/unknown frames: logged and ignored without closing.
 - Receive/send cancellation or network failure reaches `finally`, unless process termination prevents it.
 - Current-socket close failure is logged and aborted before registration cleanup.
-- Cleanup failure is logged, and its disconnect token is removed when that
-  cleanup attempt ends.
+- Cleanup failure is logged.
 - `WebSocketMessageSender` swallows send exceptions and skips absence/non-open
   sockets while continuing delivery to open siblings.
 
@@ -191,9 +187,9 @@ disconnection are not replayed.
 - [WebSocketServicesTests.cs](../../Duely/tests/Duely.Infrastructure.Api.Http.Tests/WebSocketServicesTests.cs)
 
 Ticket and cleanup handlers have focused tests. The WebSocket service tests
-cover retaining/removing sibling registrations, invalidating stale disconnect
-cleanup, and fan-out to every open socket. Handler-level integration coverage
-for close failure and the grace-period timer is still absent.
+cover retaining/removing sibling registrations and fan-out to every open socket.
+Handler-level integration coverage for close failure and the grace-period timer
+is still absent.
 
 ## 15. Open questions
 

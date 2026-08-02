@@ -11,7 +11,7 @@ namespace Duely.Infrastructure.Api.Http.Tests;
 public sealed class WebSocketServicesTests
 {
     [Fact]
-    public void RemoveConnection_RemovesOnlyTheClosedSocketAndStartsCleanupAfterTheLastSocket()
+    public void RemoveConnection_RemovesOnlyTheClosedSocket()
     {
         var manager = new WebSocketConnectionManager();
         var firstSocket = new Mock<WebSocket>().Object;
@@ -20,30 +20,12 @@ public sealed class WebSocketServicesTests
         var firstConnectionId = manager.AddConnection(42, firstSocket);
         var secondConnectionId = manager.AddConnection(42, secondSocket);
 
-        manager.RemoveConnection(firstConnectionId).Should().BeNull();
+        manager.RemoveConnection(firstConnectionId);
         manager.GetSockets(42).Should().ContainSingle().Which.Should().BeSameAs(secondSocket);
 
-        var disconnectToken = manager.RemoveConnection(secondConnectionId);
+        manager.RemoveConnection(secondConnectionId);
 
-        disconnectToken.Should().NotBeNull();
-        manager.IsDisconnected(42, disconnectToken!.Value).Should().BeTrue();
-
-        manager.CompleteDisconnectCleanup(42, disconnectToken.Value);
-
-        manager.IsDisconnected(42, disconnectToken.Value).Should().BeFalse();
-    }
-
-    [Fact]
-    public void AddConnection_InvalidatesAnEarlierDisconnectCleanup()
-    {
-        var manager = new WebSocketConnectionManager();
-        var firstConnectionId = manager.AddConnection(42, new Mock<WebSocket>().Object);
-        var disconnectToken = manager.RemoveConnection(firstConnectionId);
-
-        manager.AddConnection(42, new Mock<WebSocket>().Object);
-
-        disconnectToken.Should().NotBeNull();
-        manager.IsDisconnected(42, disconnectToken!.Value).Should().BeFalse();
+        manager.HasSockets(42).Should().BeFalse();
     }
 
     [Fact]
