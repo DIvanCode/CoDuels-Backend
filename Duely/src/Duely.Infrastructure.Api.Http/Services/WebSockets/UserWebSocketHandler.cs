@@ -69,26 +69,52 @@ public sealed class UserWebSocketHandler(
                 TimeSpan.FromMilliseconds(webSocketOptions.Value.CloseTimeoutMs));
             var closeToken = closeTokenSource.Token;
 
-            if (webSocket.State == WebSocketState.Open)
+            try
             {
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", closeToken);
+                if (webSocket.State == WebSocketState.Open)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", closeToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to close WebSocket for user {UserId}", userId);
+                try
+                {
+                    webSocket.Abort();
+                }
+                catch (Exception abortException)
+                {
+                    logger.LogWarning(abortException, "Failed to abort WebSocket for user {UserId}", userId);
+                }
             }
 
-            webSocketConnections.RemoveConnection(connectionId);
-            
-            using var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var cleanupToken = cleanupTokenSource.Token;
-
-            await Task.Delay(TimeSpan.FromSeconds(10), cleanupToken);
-            
-            if (!webSocketConnections.HasSockets(userId))
+            var disconnectToken = webSocketConnections.RemoveConnection(connectionId);
+            if (disconnectToken is not null)
             {
-                var cancelResult = await mediator.Send(new CancelPendingDuelsCommand { UserId = userId }, cleanupToken);
-                if (cancelResult.IsFailed)
+                using var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var cleanupToken = cleanupTokenSource.Token;
+
+                try
                 {
-                    logger.LogWarning(
-                        "WebSocket cleanup failed to cancel search for user {UserId}: {Error}",
-                        userId, string.Join(", ", cancelResult.Errors));
+                    await Task.Delay(
+                        TimeSpan.FromMilliseconds(webSocketOptions.Value.ReconnectGracePeriodMs),
+                        cleanupToken);
+
+                    if (webSocketConnections.IsDisconnected(userId, disconnectToken.Value))
+                    {
+                        var cancelResult = await mediator.Send(new CancelPendingDuelsCommand { UserId = userId }, cleanupToken);
+                        if (cancelResult.IsFailed)
+                        {
+                            logger.LogWarning(
+                                "WebSocket cleanup failed to cancel search for user {UserId}: {Error}",
+                                userId, string.Join(", ", cancelResult.Errors));
+                        }
+                    }
+                }
+                finally
+                {
+                    webSocketConnections.CompleteDisconnectCleanup(userId, disconnectToken.Value);
                 }
             }
 

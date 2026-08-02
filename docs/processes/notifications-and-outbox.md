@@ -37,9 +37,9 @@ An exception rolls back the whole processing batch, including successful-row del
 
 `TestSolutionHandler` and `RunCodeOutboxHandler` propagate gateway failures.
 `SendMessageOutboxHandler` always returns success after awaiting the sender.
-The sender itself returns normally when no socket exists or it is not open, and
-catches/logs send exceptions. Therefore those user messages are deleted rather
-than retried.
+The sender snapshots every locally registered socket, skips non-open sockets,
+and starts sends to open siblings independently; it catches/logs send
+exceptions. Therefore those user messages are deleted rather than retried.
 
 ## 6. State transitions
 
@@ -69,7 +69,7 @@ messages remains owned by its process document.
 | `DuelChanged` | Accepted submission | Both participants | Refresh tasks/score | Duel deadline | [Submission](submission-and-testing.md) |
 | `OpponentSolutionUpdated` | Visible live solution update | Opponent | Update live code | Now + 5 min | [Duel lifecycle](duel-lifecycle.md) |
 | `DuelInvitation` | New Friendly invitation | Invitee | Show invitation | Now + 5 min | [Friendly](friendly-duel-invitations.md) |
-| `DuelInvitationCanceled` | Friendly sender cancel/replacement, Ranked start, shared outgoing cleanup | Sender and invitee | Close both invitation views | Now + 5 min | Friendly/Ranked/connection |
+| `DuelInvitationCanceled` | Friendly sender cancel, Ranked start, shared outgoing cleanup after final disconnect | Sender and invitee | Close both invitation views | Now + 5 min | Friendly/Ranked/connection |
 | `DuelInvitationCanceled` | Accept Friendly/Group/Tournament removes acceptor's separate outgoing invitation | Acceptor only | Close acceptor's outgoing view | Now + 5 min | Friendly/Group/Tournament |
 | `DuelInvitationDenied` | Friendly deny | Original sender | Report refusal | Now + 5 min | Friendly |
 | `SubmissionStatusUpdated` | First handling of submission event while not Done | Submitter | Update progress/verdict | 10 s nonterminal; 5 min with verdict | Submission |

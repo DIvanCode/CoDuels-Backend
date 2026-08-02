@@ -5,9 +5,13 @@ namespace Duely.Infrastructure.Api.Http.Services.WebSockets;
 public interface IWebSocketConnectionManager
 {
     Guid AddConnection(int userId, WebSocket socket);
-    void RemoveConnection(Guid connectionId);
+    /// <summary>
+    /// Removes a connection and returns a cleanup token only when it was the user's last connection.
+    /// </summary>
+    Guid? RemoveConnection(Guid connectionId);
     List<WebSocket> GetSockets(int userId);
-    bool HasSockets(int userId);
+    bool IsDisconnected(int userId, Guid disconnectToken);
+    void CompleteDisconnectCleanup(int userId, Guid disconnectToken);
 }
 
 public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
@@ -15,6 +19,7 @@ public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
     private readonly object _lock = new();
     private readonly Dictionary<Guid, int> _users = new();
     private readonly Dictionary<int, List<Guid>> _connections = new();
+    private readonly Dictionary<int, Guid> _pendingDisconnects = new();
     private readonly Dictionary<Guid, WebSocket> _sockets = new();
 
     public Guid AddConnection(int userId, WebSocket socket)
@@ -22,6 +27,7 @@ public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
         lock (_lock)
         {
             var connectionId = Guid.NewGuid();
+            _pendingDisconnects.Remove(userId);
             _sockets[connectionId] = socket;
             _users[connectionId] = userId;
 
@@ -33,26 +39,28 @@ public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
         }
     }
 
-    public void RemoveConnection(Guid connectionId)
+    public Guid? RemoveConnection(Guid connectionId)
     {
         lock (_lock)
         {
-            if (_users.Remove(connectionId, out var userId) &&
-                _connections.TryGetValue(userId, out var connections))
+            if (!_users.Remove(connectionId, out var userId) ||
+                !_connections.TryGetValue(userId, out var connections))
             {
-                connections.Remove(connectionId);
-
-                if (connections.Count == 0)
-                {
-                    _connections.Remove(userId);
-                }
-                else
-                {
-                    _connections[userId] = connections;
-                }
+                return null;
             }
 
             _sockets.Remove(connectionId);
+            connections.Remove(connectionId);
+
+            if (connections.Count > 0)
+            {
+                return null;
+            }
+
+            _connections.Remove(userId);
+            var disconnectToken = Guid.NewGuid();
+            _pendingDisconnects[userId] = disconnectToken;
+            return disconnectToken;
         }
     }
 
@@ -78,11 +86,25 @@ public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
         }
     }
 
-    public bool HasSockets(int userId)
+    public bool IsDisconnected(int userId, Guid disconnectToken)
     {
         lock (_lock)
         {
-            return _connections.ContainsKey(userId);
+            return !_connections.ContainsKey(userId) &&
+                   _pendingDisconnects.TryGetValue(userId, out var currentToken) &&
+                   currentToken == disconnectToken;
+        }
+    }
+
+    public void CompleteDisconnectCleanup(int userId, Guid disconnectToken)
+    {
+        lock (_lock)
+        {
+            if (_pendingDisconnects.TryGetValue(userId, out var currentToken) &&
+                currentToken == disconnectToken)
+            {
+                _pendingDisconnects.Remove(userId);
+            }
         }
     }
 }

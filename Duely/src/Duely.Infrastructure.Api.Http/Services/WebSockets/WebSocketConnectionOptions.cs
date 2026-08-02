@@ -6,4 +6,5 @@ public sealed class WebSocketConnectionOptions
 
     public int KeepAliveIntervalMs { get; init; } = 15000;
     public int CloseTimeoutMs { get; init; } = 3000;
+    public int ReconnectGracePeriodMs { get; init; } = 10000;
 }
