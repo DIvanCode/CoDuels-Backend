@@ -45,6 +45,35 @@ public class DuelManagerTests
     }
 
     [Fact]
+    public void Does_not_match_a_user_with_themself_when_ranked_queue_contains_duplicates()
+    {
+        var manager = new DuelManager();
+        var user = MakeUser(1, 1500);
+
+        var pending = new List<PendingDuel>
+        {
+            new RankedPendingDuel
+            {
+                Id = 1,
+                Type = PendingDuelType.Ranked,
+                User = user,
+                Rating = user.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            },
+            new RankedPendingDuel
+            {
+                Id = 2,
+                Type = PendingDuelType.Ranked,
+                User = user,
+                Rating = user.Rating,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-2)
+            }
+        };
+
+        manager.GetPairs(pending).Should().BeEmpty();
+    }
+
+    [Fact]
     public void Picks_two_users_when_exactly_two_in_queue()
     {
         var manager = new DuelManager();

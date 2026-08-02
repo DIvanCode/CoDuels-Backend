@@ -715,7 +715,9 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("\"Type\" = 'Ranked'");
 
                     b.HasDiscriminator().HasValue("Ranked");
                 });

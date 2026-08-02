@@ -14,6 +14,10 @@ public sealed class RankedPendingDuelsConfiguration : IEntityTypeConfiguration<R
             .WithMany()
             .HasForeignKey(UserIdShadowKey)
             .IsRequired();
+
+        builder.HasIndex(UserIdShadowKey)
+            .IsUnique()
+            .HasFilter("\"Type\" = 'Ranked'");
         
         builder.Property(d => d.Rating)
             .HasColumnName("Rating")

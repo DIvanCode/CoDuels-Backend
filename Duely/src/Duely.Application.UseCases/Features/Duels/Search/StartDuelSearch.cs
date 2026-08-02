@@ -21,7 +21,12 @@ public sealed class StartDuelSearchHandler(Context context) : IRequestHandler<St
 {
     public async Task<Result> Handle(StartDuelSearchCommand command, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        var user = await context.Users
+            .Where(u => u.Id == command.UserId)
+            .ForUpdate()
+            .SingleOrDefaultAsync(cancellationToken);
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
@@ -95,6 +100,7 @@ public sealed class StartDuelSearchHandler(Context context) : IRequestHandler<St
         context.PendingDuels.Add(rankedPendingDuel);
 
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result.Ok();
     }

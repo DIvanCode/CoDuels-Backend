@@ -105,6 +105,11 @@ public sealed class DuelManager : IDuelManager
         var candidates = pendingDuels
             .OfType<RankedPendingDuel>()
             .Where(p => !usedUsers.Contains(p.User.Id))
+            .GroupBy(p => p.User.Id)
+            .Select(group => group
+                .OrderBy(p => p.CreatedAt)
+                .ThenBy(p => p.Id)
+                .First())
             .ToList();
         var pair = TryGetRatedDuelPair(candidates, DateTime.UtcNow);
         if (pair is null)

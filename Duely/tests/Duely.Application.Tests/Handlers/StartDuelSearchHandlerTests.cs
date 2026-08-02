@@ -6,7 +6,9 @@ using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Models.Duels.Pending;
+using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.Tests.Handlers;
@@ -57,6 +59,40 @@ public class StartDuelSearchHandlerTests : ContextBasedTest
         ctx.PendingDuels.OfType<RankedPendingDuel>()
             .Count(p => p.User.Id == u1.Id)
             .Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Ranked_pending_duels_are_unique_per_user()
+    {
+        await using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<Context>()
+            .UseSqlite(connection)
+            .Options;
+        await using var context = new Context(options);
+        await context.Database.EnsureCreatedAsync();
+
+        var user = EntityFactory.MakeUser(1, "u1");
+        context.Users.Add(user);
+        context.PendingDuels.Add(new RankedPendingDuel
+        {
+            Type = PendingDuelType.Ranked,
+            User = user,
+            Rating = user.Rating,
+            CreatedAt = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+
+        context.PendingDuels.Add(new RankedPendingDuel
+        {
+            Type = PendingDuelType.Ranked,
+            User = user,
+            Rating = user.Rating,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await context.Invoking(ctx => ctx.SaveChangesAsync())
+            .Should().ThrowAsync<DbUpdateException>();
     }
 
     [Fact]
