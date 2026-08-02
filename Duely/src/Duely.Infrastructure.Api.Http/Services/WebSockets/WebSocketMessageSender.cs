@@ -14,26 +14,24 @@ public sealed class WebSocketMessageSender(
 {
     public async Task SendMessage(int userId, Message message, CancellationToken cancellationToken)
     {
-        var socket = connections.GetConnection(userId);
-        if (socket is null)
+        var sockets = connections.GetSockets(userId);
+        foreach (var socket in sockets)
         {
-            return;
-        }
+            if (socket.State != WebSocketState.Open)
+            {
+                return;
+            }
 
-        if (socket.State != WebSocketState.Open)
-        {
-            return;
-        }
-
-        try
-        {
-            var payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
-            await socket.SendAsync(payload, WebSocketMessageType.Text, true, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning("Failed to send message {MessageType} to user {UserId}: {Error}",
-                message.GetType().Name, userId, ex.Message);
+            try
+            {
+                var payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
+                await socket.SendAsync(payload, WebSocketMessageType.Text, true, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning("Failed to send message {MessageType} to user {UserId}: {Error}",
+                    message.GetType().Name, userId, ex.Message);
+            }   
         }
     }
 }
