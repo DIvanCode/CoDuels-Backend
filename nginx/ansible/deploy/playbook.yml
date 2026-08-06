@@ -31,7 +31,7 @@
         mode: "0644"
     - name: Upload Caddyfile
       copy:
-        src: ../../Caddyfile
+        src: Caddyfile
         dest: /opt/coduels/caddy/conf/Caddyfile
         mode: "0644"
     - name: Pull Nginx image
