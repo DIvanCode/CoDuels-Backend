@@ -64,7 +64,6 @@
           - /opt/coduels/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
         networks:
           - name: coduels
-        purge_networks: yes
     - name: Run Caddy container
       docker_container:
         name: caddy
@@ -81,4 +80,3 @@
           - /opt/coduels/caddy/config:/config
         networks:
           - name: coduels
-        purge_networks: yes
