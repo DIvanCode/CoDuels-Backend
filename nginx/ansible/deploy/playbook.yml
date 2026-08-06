@@ -1,25 +1,74 @@
-- name: Deploy nginx
+- name: Deploy backend reverse proxy
   hosts: Production
   remote_user: root
+  vars:
+    caddy_image: "caddy:2-alpine"
+    nginx_image: "nginx:1.29.2"
   tasks:
-    - name: Ensure network exists
+    - name: Ensure coduels network exists
       docker_network:
         name: coduels
         state: present
-    - name: Ensure nginx config directory exists
+    - name: Ensure Nginx config directory exists
       file:
         path: /opt/coduels/nginx
         state: directory
         mode: "0755"
-    - name: Upload nginx config
+    - name: Ensure Caddy directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - /opt/coduels/caddy
+        - /opt/coduels/caddy/conf
+        - /opt/coduels/caddy/data
+        - /opt/coduels/caddy/config
+    - name: Upload Nginx config
       copy:
         src: ../../nginx.conf
         dest: /opt/coduels/nginx/nginx.conf
         mode: "0644"
-    - name: Run nginx container
+    - name: Upload Caddyfile
+      copy:
+        src: ../../Caddyfile
+        dest: /opt/coduels/caddy/conf/Caddyfile
+        mode: "0644"
+    - name: Pull Nginx image
+      docker_image:
+        name: "{{ nginx_image }}"
+        source: pull
+        force_source: true
+    - name: Pull Caddy image
+      docker_image:
+        name: "{{ caddy_image }}"
+        source: pull
+        force_source: true
+    - name: Validate Caddy configuration
+      command: >
+        docker run --rm
+        -v /opt/coduels/caddy/conf:/etc/caddy:ro
+        {{ caddy_image }}
+        caddy validate
+        --config /etc/caddy/Caddyfile
+        --adapter caddyfile
+      changed_when: false
+    - name: Run backend Nginx container
       docker_container:
         name: nginx
-        image: nginx:1.29.2
+        image: "{{ nginx_image }}"
+        recreate: yes
+        restart: yes
+        restart_policy: unless-stopped
+        volumes:
+          - /opt/coduels/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        networks:
+          - name: coduels
+        purge_networks: yes
+    - name: Run Caddy container
+      docker_container:
+        name: caddy
+        image: "{{ caddy_image }}"
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
@@ -27,6 +76,9 @@
           - "80:80"
           - "443:443"
         volumes:
-          - /opt/coduels/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+          - /opt/coduels/caddy/conf:/etc/caddy:ro
+          - /opt/coduels/caddy/data:/data
+          - /opt/coduels/caddy/config:/config
         networks:
           - name: coduels
+        purge_networks: yes
