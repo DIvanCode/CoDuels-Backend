@@ -1,6 +1,7 @@
 using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Application.UseCases.Features.Duels.Search;
+using Duely.Domain.Services.Duels;
 using Duely.Infrastructure.Api.Http.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -13,8 +14,15 @@ namespace Duely.Infrastructure.Api.Http.Controllers;
 [Authorize]
 public sealed class DuelsController(
     IMediator mediator,
-    IUserContext userContext) : ControllerBase
+    IUserContext userContext,
+    IRatingManager ratingManager) : ControllerBase
 {
+    [HttpGet("task-level-rating-ranges")]
+    public ActionResult<IReadOnlyDictionary<int, string>> GetTaskLevelRatingRanges()
+    {
+        return Ok(ratingManager.GetTaskLevelRatingRanges());
+    }
+
     [HttpGet("{duelId:int}")]
     public async Task<ActionResult<DuelDto>> GetAsync(
         [FromRoute] int duelId,

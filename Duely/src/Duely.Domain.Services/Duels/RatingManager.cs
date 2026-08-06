@@ -7,6 +7,7 @@ public interface IRatingManager
     void UpdateRatings(Duel duel);
     Dictionary<DuelResult, int> GetRatingChanges(Duel duel, int rating, int anotherRating);
     int GetTaskLevel(int rating);
+    IReadOnlyDictionary<int, string> GetTaskLevelRatingRanges();
 }
 public sealed class RatingManager(IOptions<DuelOptions> options) : IRatingManager
 {
@@ -76,6 +77,12 @@ public sealed class RatingManager(IOptions<DuelOptions> options) : IRatingManage
             .Select(item => item.Level)
             .SingleOrDefault();
         return bestLevel == default ? 1 : bestLevel;
+    }
+
+    public IReadOnlyDictionary<int, string> GetTaskLevelRatingRanges()
+    {
+        return options.Value.RatingToTaskLevelMapping
+            .ToDictionary(item => item.Level, item => item.Rating);
     }
     
     private static int GetK(int rating)
