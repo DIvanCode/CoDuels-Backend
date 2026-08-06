@@ -203,6 +203,27 @@ public class RatingManagerTests
     }
 
     [Fact]
+    public void GetTaskLevelRatingRanges_Returns_level_to_rating_mapping_from_options()
+    {
+        var ratingManager = new RatingManager(
+            Options.Create(new DuelOptions
+            {
+                DefaultMaxDurationMinutes = 30,
+                RatingToTaskLevelMapping =
+                [
+                    new RatingToTaskLevelMappingItem { Rating = "0-999", Level = 1 },
+                    new RatingToTaskLevelMappingItem { Rating = "1000-1999", Level = 2 }
+                ]
+            }));
+
+        ratingManager.GetTaskLevelRatingRanges().Should().BeEquivalentTo(new Dictionary<int, string>
+        {
+            [1] = "0-999",
+            [2] = "1000-1999"
+        });
+    }
+
+    [Fact]
     public void GetRatingChanges_Uses_correct_k_for_rating_boundaries()
     {
         var user1 = CreateUser(1, 1600);
