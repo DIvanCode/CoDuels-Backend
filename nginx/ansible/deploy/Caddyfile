@@ -1,0 +1,3 @@
+api.coduels.pro {
+    reverse_proxy nginx:80
+}
