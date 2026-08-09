@@ -8,6 +8,7 @@ namespace Duely.Infrastructure.Api.Http.Services;
 public interface IUserContext
 {
     int UserId { get; }
+    bool IsAdmin();
 }
 
 public sealed class UserContext : IUserContext
@@ -30,5 +31,11 @@ public sealed class UserContext : IUserContext
             var value = _userClaims.Single(claim => claim.Type == _jwtTokenOptions.IdClaim).Value;
             return int.Parse(value);
         }
-    } 
+    }
+
+    public bool IsAdmin()
+    {
+        var value = _userClaims.SingleOrDefault(claim => claim.Type == UserClaims.IsAdmin)?.Value;
+        return bool.TryParse(value, out var isAdmin) && isAdmin;
+    }
 }

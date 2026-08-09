@@ -12,6 +12,7 @@ public sealed class User
     public required string PasswordSalt { get; init; }
     public string? RefreshToken { get; set; }
     public string? AuthTicket { get; set; }
+    public bool IsAdmin { get; set; }
     public required int Rating { get; set; }
     public required DateTime CreatedAt { get; init; }
 

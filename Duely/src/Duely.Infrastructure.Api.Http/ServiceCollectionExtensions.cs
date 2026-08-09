@@ -1,4 +1,5 @@
-﻿using Duely.Infrastructure.Api.Http.Services;
+﻿using Duely.Domain.Services.Users;
+using Duely.Infrastructure.Api.Http.Services;
 using Duely.Infrastructure.Api.Http.Services.WebSockets;
 using Duely.Infrastructure.Gateway.Client.Abstracts;
 using FluentValidation;
@@ -30,7 +31,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMessageSender, WebSocketMessageSender>();
         services.AddScoped<IUserWebSocketHandler, UserWebSocketHandler>();
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(
+                AuthorizationPolicies.OnlyAdmin,
+                policy => policy
+                    .RequireAuthenticatedUser()
+                    .RequireClaim(UserClaims.IsAdmin, bool.TrueString));
+        });
 
         services.AddCors(options =>
         {
