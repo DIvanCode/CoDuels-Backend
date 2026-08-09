@@ -12,6 +12,9 @@ public static class ServiceCollectionExtensions
 
         services.Configure<DuelEndWatcherJobOptions>(configuration.GetSection(DuelEndWatcherJobOptions.SectionName));
         services.AddHostedService<DuelEndWatcherJob>();
+        
+        services.Configure<RankedDuelBotsJobOptions>(configuration.GetSection(RankedDuelBotsJobOptions.SectionName));
+        services.AddHostedService<RankedDuelBotsJob>();
 
         services.Configure<AnticheatBackgroundServiceOptions>(
             configuration.GetSection(AnticheatBackgroundServiceOptions.SectionName));

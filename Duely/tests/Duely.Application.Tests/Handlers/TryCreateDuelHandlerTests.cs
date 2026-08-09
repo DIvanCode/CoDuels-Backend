@@ -86,14 +86,14 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
                 Type = PendingDuelType.Ranked,
                 User = u1,
                 Rating = u1.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-13)
             },
             new RankedPendingDuel
             {
                 Type = PendingDuelType.Ranked,
                 User = u2,
                 Rating = u2.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-13)
             });
         await ctx.SaveChangesAsync();
 
@@ -424,14 +424,14 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
                 Type = PendingDuelType.Ranked,
                 User = u1,
                 Rating = u1.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-13)
             },
             new RankedPendingDuel
             {
                 Type = PendingDuelType.Ranked,
                 User = u2,
                 Rating = u2.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-13)
             });
         await ctx.SaveChangesAsync();
 
@@ -644,14 +644,14 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
                 Type = PendingDuelType.Ranked,
                 User = u1,
                 Rating = u1.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-13)
             },
             new RankedPendingDuel
             {
                 Type = PendingDuelType.Ranked,
                 User = u2,
                 Rating = u2.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-13)
             });
         await ctx.SaveChangesAsync();
 
@@ -769,14 +769,14 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
                 Type = PendingDuelType.Ranked,
                 User = user1,
                 Rating = user1.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-13)
             },
             new RankedPendingDuel
             {
                 Type = PendingDuelType.Ranked,
                 User = user2,
                 Rating = user2.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-13)
             });
         await Context.SaveChangesAsync();
 

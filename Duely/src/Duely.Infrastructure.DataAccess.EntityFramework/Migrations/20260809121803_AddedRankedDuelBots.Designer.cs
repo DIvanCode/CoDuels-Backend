@@ -3,6 +3,7 @@ using System;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
 {
     [DbContext(typeof(Context))]
-    partial class UnitOfWorkModelSnapshot : ModelSnapshot
+    [Migration("20260809121803_AddedRankedDuelBots")]
+    partial class AddedRankedDuelBots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -545,12 +548,6 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("IsBot");
-
-                    b.Property<bool>("IsAdmin")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("IsAdmin");
 
                     b.Property<string>("Nickname")
                         .IsRequired()

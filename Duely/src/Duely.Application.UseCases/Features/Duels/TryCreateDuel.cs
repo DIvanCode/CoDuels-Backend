@@ -140,7 +140,7 @@ public sealed class TryCreateDuelHandler(
 
                 var configuration = ResolveDuelConfiguration(pair);
                 var previouslyUsedTaskIds = await LoadPreviouslyUsedTaskIdsAsync(
-                    userIds, cancellationToken);
+                    users.Where(u => !u.IsBot).Select(u => u.Id).ToArray(), cancellationToken);
                 var tasksResult = ChooseTasks(
                     configuration,
                     previouslyUsedTaskIds,

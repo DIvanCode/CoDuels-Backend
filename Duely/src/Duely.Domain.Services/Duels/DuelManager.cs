@@ -18,10 +18,7 @@ public sealed record DuelPair(
 
 public sealed class DuelManager : IDuelManager
 {
-    private const int BaseWindow = 50;
-    private const int GrowPerSecond = 5;
-
-    private const int FallbackAfterSeconds = 120;
+    private const int MaxWaitSeconds = 20;
 
     public IEnumerable<DuelPair> GetPairs(List<PendingDuel> pendingDuels)
     {
@@ -106,14 +103,36 @@ public sealed class DuelManager : IDuelManager
             .OfType<RankedPendingDuel>()
             .Where(p => !usedUsers.Contains(p.User.Id))
             .ToList();
-        var pair = TryGetRatedDuelPair(candidates, DateTime.UtcNow);
+        var lateCandidates = candidates
+            .Where(p => !p.User.IsBot && (DateTime.UtcNow - p.CreatedAt).TotalSeconds > MaxWaitSeconds)
+            .ToList();
+        (RankedPendingDuel A, RankedPendingDuel B)? pair = null;
+        if (lateCandidates.Count != 0)
+        {
+            var user = lateCandidates
+                .OrderBy(p => p.CreatedAt)
+                .First();
+            var bot = candidates
+                .Where(p => p.User.IsBot)
+                .OrderBy(p => Math.Abs(user.Rating - p.User.Rating))
+                .FirstOrDefault();
+            if (bot is not null)
+            {
+                pair = (user, bot);
+            }
+        }
+        else
+        {
+            candidates = candidates.Where(d => !d.User.IsBot).ToList();
+            pair = TryGetRatedDuelPair(candidates, DateTime.UtcNow);
+        }
+
         if (pair is null)
         {
             return pairs;
         }
 
         var (a, b) = pair.Value;
-
         pairs.Add(new DuelPair(
             a.User,
             b.User,
@@ -131,52 +150,41 @@ public sealed class DuelManager : IDuelManager
         List<RankedPendingDuel> candidates,
         DateTime now)
     {
-        if (candidates.Count < 2)
-        {
-            return null;
-        }
-
-        var sorted = candidates
+        candidates = candidates
             .OrderBy(u => u.Rating)
             .ThenBy(u => u.CreatedAt)
             .ToList();
 
-        RankedPendingDuel? bestA = null;
-        RankedPendingDuel? bestB = null;
-        var bestDiff = int.MaxValue;
-        for (var i = 0; i < sorted.Count - 1; i++)
+        RankedPendingDuel? bestA = null, bestB = null;
+        for (var i = 0; i < candidates.Count - 1; i++)
         {
-            var a = sorted[i];
-            var b = sorted[i + 1];
+            var a = candidates[i];
+            var b = candidates[i + 1];
             var diff = Math.Abs(a.Rating - b.Rating);
-            var allowed = Math.Min(GetWindowFor(a, now), GetWindowFor(b, now));
+            var allowed = Math.Max(GetWindowFor(a, now), GetWindowFor(b, now));
 
             if (diff > allowed)
             {
                 continue;
             }
 
-            if (diff < bestDiff)
+            if (bestA is null || bestB is null)
             {
-                bestDiff = diff;
                 bestA = a;
                 bestB = b;
+                continue;
             }
-            else if (diff == bestDiff && bestA is not null && bestB is not null)
+            
+            var prevMaxWait = Math.Max(
+                (now - bestA.CreatedAt).TotalSeconds,
+                (now - bestB.CreatedAt).TotalSeconds);
+            var newMaxWait = Math.Max(
+                (now - a.CreatedAt).TotalSeconds,
+                (now - b.CreatedAt).TotalSeconds);
+            if (newMaxWait > prevMaxWait)
             {
-                var prevMinWait = Math.Min(
-                    (now - bestA.CreatedAt).TotalSeconds,
-                    (now - bestB.CreatedAt).TotalSeconds);
-
-                var newMinWait = Math.Min(
-                    (now - a.CreatedAt).TotalSeconds,
-                    (now - b.CreatedAt).TotalSeconds);
-
-                if (newMinWait > prevMinWait)
-                {
-                    bestA = a;
-                    bestB = b;
-                }
+                bestA = a;
+                bestB = b;
             }
         }
 
@@ -185,52 +193,12 @@ public sealed class DuelManager : IDuelManager
             return (bestA, bestB);
         }
 
-        var oldestWaitingUser = sorted.MinBy(u => u.CreatedAt);
-        var oldestWaitSeconds = (now - oldestWaitingUser!.CreatedAt).TotalSeconds;
-        if (oldestWaitSeconds < FallbackAfterSeconds)
-        {
-            return null;
-        }
-
-        RankedPendingDuel? fbA = null;
-        RankedPendingDuel? fbB = null;
-        var fbBestDiff = int.MaxValue;
-        for (var i = 0; i < sorted.Count - 1; i++)
-        {
-            var a = sorted[i];
-            var b = sorted[i + 1];
-            var diff = Math.Abs(a.Rating - b.Rating);
-
-            if (diff < fbBestDiff)
-            {
-                fbBestDiff = diff;
-                fbA = a;
-                fbB = b;
-            }
-            else if (diff == fbBestDiff && fbA is not null && fbB is not null)
-            {
-                var prevMinWait = Math.Min(
-                    (now - fbA.CreatedAt).TotalSeconds,
-                    (now - fbB.CreatedAt).TotalSeconds);
-
-                var newMinWait = Math.Min(
-                    (now - a.CreatedAt).TotalSeconds,
-                    (now - b.CreatedAt).TotalSeconds);
-
-                if (newMinWait > prevMinWait)
-                {
-                    fbA = a;
-                    fbB = b;
-                }
-            }
-        }
-
-        return fbA is null || fbB is null ? null : (fbA, fbB);
+        return null;
     }
 
     private static int GetWindowFor(RankedPendingDuel user, DateTime now)
     {
         var seconds = (now - user.CreatedAt).TotalSeconds;
-        return BaseWindow + (int)(seconds * GrowPerSecond);
+        return (int)(15 * seconds);
     }
 }

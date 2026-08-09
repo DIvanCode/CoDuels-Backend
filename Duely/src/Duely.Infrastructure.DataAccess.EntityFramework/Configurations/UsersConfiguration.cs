@@ -58,5 +58,10 @@ public sealed class UsersConfiguration : IEntityTypeConfiguration<User>
             .HasColumnType("timestamp")
             .IsRequired();
         
+        builder.Property(u => u.IsBot)
+            .HasColumnName("IsBot")
+            .HasColumnType("boolean")
+            .IsRequired()
+            .HasDefaultValue(false);
     }
 }
