@@ -91,4 +91,26 @@ public sealed class GetGroupUsersHandlerTests : ContextBasedTest
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is ForbiddenError);
     }
+
+    [Fact]
+    public async Task Returns_users_for_admin_without_membership()
+    {
+        var member = EntityFactory.MakeUser(1, "member");
+        var group = EntityFactory.MakeGroup(1, "Alpha");
+        group.Users.Add(EntityFactory.MakeGroupMembership(member, group, GroupRole.Member));
+        Context.Users.Add(member);
+        Context.Groups.Add(group);
+        await Context.SaveChangesAsync();
+
+        var handler = new GetGroupUsersHandler(Context, new GroupPermissionsService());
+        var res = await handler.Handle(new GetGroupUsersQuery
+        {
+            UserId = 999,
+            GroupId = group.Id,
+            IsAdmin = true
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Should().ContainSingle(user => user.User.Id == member.Id);
+    }
 }

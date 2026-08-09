@@ -87,4 +87,23 @@ public sealed class GetGroupTournamentsHandlerTests : ContextBasedTest
         result.IsFailed.Should().BeTrue();
         result.Errors.Should().ContainSingle(e => e is ForbiddenError);
     }
+
+    [Fact]
+    public async Task Returns_tournaments_for_admin_without_membership()
+    {
+        var group = EntityFactory.MakeGroup(1, "Alpha");
+        Context.Groups.Add(group);
+        await Context.SaveChangesAsync();
+
+        var handler = new GetGroupTournamentsHandler(Context, new GroupPermissionsService());
+        var result = await handler.Handle(new GetGroupTournamentsQuery
+        {
+            UserId = 999,
+            GroupId = group.Id,
+            IsAdmin = true
+        }, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEmpty();
+    }
 }

@@ -91,6 +91,32 @@ public class GetUserSubmissionsHandlerTests : ContextBasedTest
     }
 
     [Fact]
+    public async Task Returns_both_users_submissions_for_admin_without_duel_access()
+    {
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK");
+        Context.Users.AddRange(u1, u2);
+        Context.Duels.Add(duel);
+        Context.Submissions.Add(EntityFactory.MakeSubmission(1, duel, u1, taskKey: 'A'));
+        Context.Submissions.Add(EntityFactory.MakeSubmission(2, duel, u2, taskKey: 'A'));
+        await Context.SaveChangesAsync();
+
+        var handler = new GetUserSubmissionsHandler(Context, new GroupPermissionsService());
+        var res = await handler.Handle(new GetUserSubmissionsQuery
+        {
+            UserId = 999,
+            DuelId = duel.Id,
+            TaskKey = 'A',
+            IsAdmin = true
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Select(submission => submission.SubmissionId).Should().Equal(1, 2);
+        res.Value.Select(submission => submission.Author.Id).Should().Equal(u1.Id, u2.Id);
+    }
+
+    [Fact]
     public async Task Returns_both_users_submissions_for_group_duel_viewer()
     {
         var ctx = Context;

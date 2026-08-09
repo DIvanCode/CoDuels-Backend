@@ -13,6 +13,7 @@ public sealed class GetSubmissionQuery : IRequest<Result<SubmissionDto>>
     public required int SubmissionId { get; init; }
     public required int UserId { get; init; }
     public required int DuelId { get; init; }
+    public bool IsAdmin { get; init; }
 }
 
 public sealed class GetSubmissionHandler(Context context)
@@ -30,15 +31,15 @@ public sealed class GetSubmissionHandler(Context context)
             return new EntityNotFoundError(nameof(Submission), nameof(Submission.Id), query.SubmissionId);
         }
 
-        var isOwner = submission.User.Id == query.UserId;
+        var canViewDetails = submission.User.Id == query.UserId || query.IsAdmin;
         return new SubmissionDto
         {
             SubmissionId = submission.Id,
-            Solution = isOwner ? submission.Solution : string.Empty,
+            Solution = canViewDetails ? submission.Solution : string.Empty,
             Language = submission.Language,
             Status = submission.Status,
             CreatedAt = submission.SubmitTime,
-            Message = isOwner ? submission.Message : null,
+            Message = canViewDetails ? submission.Message : null,
             Verdict = submission.Verdict,
             IsUpsolving = submission.IsUpsolving
         };

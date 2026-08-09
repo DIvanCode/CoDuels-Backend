@@ -15,6 +15,15 @@ namespace Duely.Infrastructure.Api.Http.Controllers;
 [Authorize]
 public sealed class GroupsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
+    [HttpGet("admin/all")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<GroupListItemDto>>> GetAllForAdminAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetAllGroupsQuery(), cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpPost]
     public async Task<ActionResult<GroupDto>> CreateAsync(
         [FromBody] CreateGroupRequest request,
@@ -38,7 +47,8 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         var query = new GetGroupQuery
         {
             UserId = userContext.UserId,
-            GroupId = id
+            GroupId = id,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);
@@ -82,7 +92,8 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         var query = new GetGroupUsersQuery
         {
             UserId = userContext.UserId,
-            GroupId = id
+            GroupId = id,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);
@@ -147,7 +158,8 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         var query = new GetGroupDuelsQuery
         {
             UserId = userContext.UserId,
-            GroupId = id
+            GroupId = id,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);
@@ -162,7 +174,8 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         var query = new GetGroupTournamentsQuery
         {
             UserId = userContext.UserId,
-            GroupId = id
+            GroupId = id,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);

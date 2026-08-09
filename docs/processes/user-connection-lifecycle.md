@@ -18,6 +18,7 @@ is absent when a reconnect grace period expires.
 
 - `POST /users/ticket`: generate/replace the user's ticket.
 - WebSocket upgrade at `GET /users/connect?ticket=...`.
+- Admin `GET /users/admin/active`: list users connected to this Duely instance.
 - Text `SolutionUpdated` frames.
 - Client close frame, network failure, request cancellation, or server shutdown.
 
@@ -46,6 +47,16 @@ Several local sockets may be registered for the same user; a new tab/reconnect
 does not close or replace an existing tab. The connection manager keeps the
 `connectionId` to user and socket mappings under one lock and returns a snapshot
 of all sockets when sending a notification.
+
+### Admin active-user view
+
+`GET /users/admin/active` reads the connection manager of the Duely process that
+serves the request and returns each locally connected user once. It does not
+aggregate presence from other Duely instances. The production Ansible playbook
+currently deploys one container named `duely`, so the local snapshot is the
+complete production snapshot only while that single-instance topology remains
+in effect. A future multi-instance deployment must introduce distributed
+presence before this endpoint can be treated as platform-wide.
 
 ### Receive loop
 
@@ -171,11 +182,13 @@ Every currently open tab connected to the same Duely instance should receive a
 notification. There is no backend online/offline event and no cross-instance
 socket routing. The Frontend must obtain a new ticket to reconnect and recover
 active/invitation/submission state through HTTP because messages during
-disconnection are not replayed.
+disconnection are not replayed. The admin active-user endpoint exposes only the
+same process-local presence snapshot.
 
 ## 14. Implementation references
 
 - [UsersController.cs](../../Duely/src/Duely.Infrastructure.Api.Http/Controllers/UsersController.cs)
+- [Duely production playbook](../../Duely/ansible/deploy/playbook.yml)
 - [CreateTicket.cs](../../Duely/src/Duely.Application.UseCases/Features/Users/CreateTicket.cs)
 - [GetByTicket.cs](../../Duely/src/Duely.Application.UseCases/Features/Users/GetByTicket.cs)
 - [UserWebSocketHandler.cs](../../Duely/src/Duely.Infrastructure.Api.Http/Services/WebSockets/UserWebSocketHandler.cs)
@@ -188,6 +201,8 @@ disconnection are not replayed.
 
 Ticket and cleanup handlers have focused tests. The WebSocket service tests
 cover retaining/removing sibling registrations and fan-out to every open socket.
+They also prove that separate connection-manager instances keep independent
+presence snapshots.
 Handler-level integration coverage for close failure and the grace-period timer
 is still absent.
 

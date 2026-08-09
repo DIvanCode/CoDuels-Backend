@@ -13,6 +13,7 @@ public sealed class GetGroupQuery : IRequest<Result<GroupDto>>
 {
     public required int UserId { get; init; }
     public required int GroupId { get; init; }
+    public bool IsAdmin { get; init; }
 }
 
 public sealed class GetGroupHandler(Context context, IGroupPermissionsService groupPermissionsService)
@@ -34,7 +35,7 @@ public sealed class GetGroupHandler(Context context, IGroupPermissionsService gr
             .AsNoTracking()
             .Where(m => m.Group.Id == group.Id && m.User.Id == query.UserId)
             .SingleOrDefaultAsync(cancellationToken);
-        if (membership is null || !groupPermissionsService.CanViewGroup(membership))
+        if (!query.IsAdmin && (membership is null || !groupPermissionsService.CanViewGroup(membership)))
         {
             return new ForbiddenError(nameof(Group), Operation, nameof(Group.Id), query.GroupId);
         }
@@ -43,7 +44,7 @@ public sealed class GetGroupHandler(Context context, IGroupPermissionsService gr
         {
             Id = group.Id,
             Name = group.Name,
-            UserRole = membership.Role
+            UserRole = membership?.Role
         };
     }
 }

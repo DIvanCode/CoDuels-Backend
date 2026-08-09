@@ -143,4 +143,27 @@ public sealed class GetGroupDuelsHandlerTests : ContextBasedTest
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is ForbiddenError);
     }
+
+    [Fact]
+    public async Task Returns_duels_for_admin_without_membership()
+    {
+        var group = EntityFactory.MakeGroup(1, "Alpha");
+        Context.Groups.Add(group);
+        await Context.SaveChangesAsync();
+
+        var handler = new GetGroupDuelsHandler(
+            Context,
+            new GroupPermissionsService(),
+            Mock.Of<IRatingManager>(),
+            new TaskService());
+        var res = await handler.Handle(new GetGroupDuelsQuery
+        {
+            UserId = 999,
+            GroupId = group.Id,
+            IsAdmin = true
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Should().BeEmpty();
+    }
 }

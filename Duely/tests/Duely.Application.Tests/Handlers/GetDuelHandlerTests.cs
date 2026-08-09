@@ -459,5 +459,43 @@ public class GetDuelHandlerTests : ContextBasedTest
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is ForbiddenError);
     }
+
+    [Fact]
+    public async Task Returns_any_duel_with_all_tasks_and_solutions_for_admin()
+    {
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK-10");
+        duel.Configuration.ShouldShowOpponentSolution = false;
+        duel.User1Solutions['A'].Solution = "print('u1')";
+        duel.User2Solutions['A'].Solution = "print('u2')";
+        Context.Users.AddRange(u1, u2);
+        Context.Duels.Add(duel);
+        await Context.SaveChangesAsync();
+
+        var ratingManager = new Mock<IRatingManager>();
+        ratingManager.Setup(m => m.GetRatingChanges(It.IsAny<Duel>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(new Dictionary<DuelResult, int>
+            {
+                [DuelResult.Win] = 10,
+                [DuelResult.Draw] = 0,
+                [DuelResult.Lose] = -10
+            });
+
+        var handler = CreateHandler(Context, ratingManager.Object);
+        var res = await handler.Handle(new GetDuelQuery
+        {
+            UserId = 999,
+            DuelId = duel.Id,
+            IsAdmin = true
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Tasks['A'].Id.Should().Be("TASK-10");
+        res.Value.ShouldShowOpponentSolution.Should().BeTrue();
+        res.Value.Solutions['A'].Solution.Should().Be("print('u1')");
+        res.Value.OpponentSolutions.Should().NotBeNull();
+        res.Value.OpponentSolutions!['A'].Solution.Should().Be("print('u2')");
+    }
 }
 

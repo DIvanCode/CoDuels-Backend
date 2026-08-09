@@ -13,6 +13,25 @@ namespace Duely.Infrastructure.Api.Http.Controllers;
 [Authorize]
 public sealed class SubmissionsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
+    [HttpGet("~/duels/admin/submissions/testing")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<AdminSubmissionListItemDto>>> GetTestingForAdminAsync(
+        CancellationToken cancellationToken)
+    {
+        var query = new GetAllSubmissionsQuery { OnlyTesting = true };
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpGet("~/duels/admin/submissions/all")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<AdminSubmissionListItemDto>>> GetAllForAdminAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetAllSubmissionsQuery(), cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpPost]
     public async Task<ActionResult<SubmissionDto>> SendSubmissionAsync(
         [FromRoute] int duelId,
@@ -42,7 +61,8 @@ public sealed class SubmissionsController(IMediator mediator, IUserContext userC
         {
             DuelId = duelId,
             UserId = userContext.UserId,
-            TaskKey = taskKey
+            TaskKey = taskKey,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);
@@ -59,7 +79,8 @@ public sealed class SubmissionsController(IMediator mediator, IUserContext userC
         {
             UserId = userContext.UserId,
             DuelId = duelId,
-            SubmissionId = submissionId
+            SubmissionId = submissionId,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);

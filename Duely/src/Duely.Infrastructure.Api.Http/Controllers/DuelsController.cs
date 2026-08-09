@@ -2,6 +2,7 @@ using Duely.Application.UseCases.Dtos;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Application.UseCases.Features.Duels.Search;
 using Duely.Domain.Services.Duels;
+using Duely.Domain.Models.Duels;
 using Duely.Infrastructure.Api.Http.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -17,6 +18,44 @@ public sealed class DuelsController(
     IUserContext userContext,
     IRatingManager ratingManager) : ControllerBase
 {
+    [HttpGet("admin/pending")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<PendingDuelDto>>> GetPendingForAdminAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetPendingDuelsQuery(), cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpGet("admin/ranked-searchers")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<RankedDuelSearcherDto>>> GetRankedSearchersForAdminAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetRankedDuelSearchersQuery(), cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpGet("admin/active")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<DuelDto>>> GetAllActiveForAdminAsync(
+        CancellationToken cancellationToken)
+    {
+        var query = new GetDuelsByStatusQuery { Status = DuelStatus.InProgress };
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpGet("admin/finished")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<DuelDto>>> GetAllFinishedForAdminAsync(
+        CancellationToken cancellationToken)
+    {
+        var query = new GetDuelsByStatusQuery { Status = DuelStatus.Finished };
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpGet("task-level-rating-ranges")]
     public ActionResult<IReadOnlyDictionary<int, string>> GetTaskLevelRatingRanges()
     {
@@ -31,7 +70,8 @@ public sealed class DuelsController(
         var query = new GetDuelQuery
         {
             UserId = userContext.UserId,
-            DuelId = duelId
+            DuelId = duelId,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);
