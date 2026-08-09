@@ -50,9 +50,12 @@ deadline (duel deadline + five minutes, or now + five minutes if already past).
 Submission detail lookup is not restricted to a duel participant: any
 authenticated caller who knows the duel/submission ids receives status,
 language, verdict, and timestamps, while only the submission owner receives the
-solution and diagnostic message. Submission-list lookup gives a participant
-only their own rows; a nonparticipant can see all authors' rows for a Group duel
-only when their current group role has `CanViewDuel` permission.
+solution and diagnostic message. An administrator receives the full solution
+and diagnostic message for any submission. Submission-list lookup gives a
+non-admin participant only their own rows; a nonparticipant can see all authors'
+rows for a Group duel only when their current group role has `CanViewDuel`
+permission. An administrator can list both participants' submissions for any
+duel and task.
 
 ### Submission status
 
@@ -161,9 +164,10 @@ external success if the outbox transaction does not delete the row.
   behavior; a consumer exception terminates its internal loop after logging.
 - Missing submission/run produces not found. Delivery failures do not roll back
   status already committed.
-- Submission detail intentionally redacts solution/message for a nonowner but
-  does not otherwise require duel access; list access applies the participant or
-  Group permission rule. Code-run detail rejects a nonowner.
+- Submission detail intentionally redacts solution/message for a nonowner who is
+  not an administrator but does not otherwise require duel access; list access
+  applies the participant or Group permission rule unless the caller is an
+  administrator. Code-run detail rejects a nonowner.
 - Expired outbox rows are deleted without marking submission/run failed.
 
 ## 13. User-visible result

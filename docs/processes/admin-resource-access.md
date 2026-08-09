@@ -19,10 +19,15 @@ An administrator can:
 
 - open any duel and see all task identifiers and both participants' current
   solutions;
-- open any submission and see its solution and testing message;
+- list both participants' submissions for any duel task and open any submission
+  with its solution and testing message;
 - open any group, its users, its duels, and its tournaments without being a
   member;
 - open any tournament without belonging to its group.
+
+Administrative submission-list rows include the owning `duel_id` and `task_key`
+so clients can deep-link from operational lists to the corresponding submission
+detail inside the duel page.
 
 For an administrator who is not a group member, `GroupDto.user_role` is `null`.
 This distinguishes system-level read access from a group role and prevents the

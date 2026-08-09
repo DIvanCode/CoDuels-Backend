@@ -33,17 +33,25 @@ public sealed class AdminReadAccessControllerTests
     }
 
     [Fact]
-    public async Task Submission_details_pass_admin_claim_to_query()
+    public async Task Submission_reads_pass_admin_claim_to_queries()
     {
         var mediator = new Mock<IMediator>();
+        mediator
+            .Setup(m => m.Send(It.IsAny<GetUserSubmissionsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Ok(new List<SubmissionListItemDto>()));
         mediator
             .Setup(m => m.Send(It.IsAny<GetSubmissionQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Ok<SubmissionDto>(null!));
         var userContext = CreateAdminContext();
         var controller = new SubmissionsController(mediator.Object, userContext.Object);
 
+        await controller.GetUserSubmissionsAsync(10, 'A', CancellationToken.None);
         await controller.GetSubmissionAsync(10, 20, CancellationToken.None);
 
+        mediator.Verify(m => m.Send(
+            It.Is<GetUserSubmissionsQuery>(q =>
+                q.UserId == 42 && q.DuelId == 10 && q.TaskKey == 'A' && q.IsAdmin),
+            It.IsAny<CancellationToken>()));
         mediator.Verify(m => m.Send(
             It.Is<GetSubmissionQuery>(q =>
                 q.UserId == 42 && q.DuelId == 10 && q.SubmissionId == 20 && q.IsAdmin),

@@ -15,6 +15,7 @@ public sealed class GetUserSubmissionsQuery : IRequest<Result<List<SubmissionLis
     public required int UserId { get; init; }
     public required int DuelId { get; init; }
     public required char TaskKey { get; init; }
+    public bool IsAdmin { get; init; }
 }
 
 public sealed class GetUserSubmissionsHandler(
@@ -36,7 +37,7 @@ public sealed class GetUserSubmissionsHandler(
         }
 
         var isParticipant = duel.User1.Id == query.UserId || duel.User2.Id == query.UserId;
-        if (!isParticipant)
+        if (!isParticipant && !query.IsAdmin)
         {
             var canViewDuel = await CanViewGroupDuel(query.UserId, query.DuelId, cancellationToken);
             if (!canViewDuel)
@@ -46,7 +47,7 @@ public sealed class GetUserSubmissionsHandler(
         }
 
         var submissionsQuery = context.Submissions.Where(s => s.Duel.Id == duel.Id && s.TaskKey == query.TaskKey);
-        if (isParticipant)
+        if (isParticipant && !query.IsAdmin)
         {
             submissionsQuery = submissionsQuery.Where(s => s.User.Id == query.UserId);
         }
