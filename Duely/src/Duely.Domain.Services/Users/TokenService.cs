@@ -23,6 +23,7 @@ public sealed class TokenService(IOptions<JwtTokenOptions> jwtTokenOptions) : IT
         var claims = new Claim[]
         {
             new(jwtTokenOptions.Value.IdClaim, user.Id.ToString()),
+            new(jwtTokenOptions.Value.IsAdminClaim, user.IsAdmin.ToString()),
         };
 
         var token = new JwtSecurityToken(

@@ -7,4 +7,5 @@ public sealed class JwtTokenOptions
     public required string SecretKey { get; init; }
     public int ExpiresHours { get; init; } = 1;
     public string IdClaim { get; init; } = "id";
+    public string IsAdminClaim { get; init; } = "is_admin";
 }

@@ -42,6 +42,12 @@ public sealed class UsersConfiguration : IEntityTypeConfiguration<User>
             .HasColumnType("text")
             .IsRequired(false);
 
+        builder.Property(u => u.IsAdmin)
+            .HasColumnName("IsAdmin")
+            .HasColumnType("boolean")
+            .HasDefaultValue(false)
+            .IsRequired();
+
         builder.Property(s => s.Rating)
             .HasColumnName("Rating")
             .HasColumnType("integer")

@@ -540,6 +540,12 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("timestamp")
                         .HasColumnName("CreatedAt");
 
+                    b.Property<bool>("IsAdmin")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("IsAdmin");
+
                     b.Property<string>("Nickname")
                         .IsRequired()
                         .HasColumnType("text")
