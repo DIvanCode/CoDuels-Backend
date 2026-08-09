@@ -193,6 +193,8 @@ public sealed class AdminListHandlersTests : ContextBasedTest
 
         testingResult.Value.Select(submission => submission.SubmissionId).Should().Equal(running.Id, queued.Id);
         allResult.Value.Select(submission => submission.SubmissionId).Should().Equal(done.Id, running.Id, queued.Id);
+        allResult.Value.Should().OnlyContain(submission => submission.DuelId == duel.Id);
+        allResult.Value.Should().OnlyContain(submission => submission.TaskKey == 'A');
     }
 
     [Fact]

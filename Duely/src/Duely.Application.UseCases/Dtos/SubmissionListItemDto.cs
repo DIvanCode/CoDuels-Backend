@@ -4,7 +4,7 @@ using Duely.Domain.Models.Duels;
 
 namespace Duely.Application.UseCases.Dtos;
 
-public sealed class SubmissionListItemDto
+public class SubmissionListItemDto
 {
     [JsonPropertyName("submission_id")]
     public required int SubmissionId { get; init; }
@@ -26,4 +26,13 @@ public sealed class SubmissionListItemDto
 
     [JsonPropertyName("is_upsolving")]
     public required bool IsUpsolving { get; set; }
+}
+
+public sealed class AdminSubmissionListItemDto : SubmissionListItemDto
+{
+    [JsonPropertyName("duel_id")]
+    public required int DuelId { get; init; }
+
+    [JsonPropertyName("task_key")]
+    public required char TaskKey { get; init; }
 }

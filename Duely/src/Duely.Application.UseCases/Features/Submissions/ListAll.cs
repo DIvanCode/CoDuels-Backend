@@ -7,15 +7,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.Submissions;
 
-public sealed class GetAllSubmissionsQuery : IRequest<Result<List<SubmissionListItemDto>>>
+public sealed class GetAllSubmissionsQuery : IRequest<Result<List<AdminSubmissionListItemDto>>>
 {
     public bool OnlyTesting { get; init; }
 }
 
 public sealed class GetAllSubmissionsHandler(Context context)
-    : IRequestHandler<GetAllSubmissionsQuery, Result<List<SubmissionListItemDto>>>
+    : IRequestHandler<GetAllSubmissionsQuery, Result<List<AdminSubmissionListItemDto>>>
 {
-    public async Task<Result<List<SubmissionListItemDto>>> Handle(
+    public async Task<Result<List<AdminSubmissionListItemDto>>> Handle(
         GetAllSubmissionsQuery query,
         CancellationToken cancellationToken)
     {
@@ -27,9 +27,11 @@ public sealed class GetAllSubmissionsHandler(Context context)
 
         return await submissions
             .OrderByDescending(submission => submission.SubmitTime)
-            .Select(submission => new SubmissionListItemDto
+            .Select(submission => new AdminSubmissionListItemDto
             {
                 SubmissionId = submission.Id,
+                DuelId = submission.Duel.Id,
+                TaskKey = submission.TaskKey,
                 Status = submission.Status,
                 Language = submission.Language,
                 Author = new UserDto
