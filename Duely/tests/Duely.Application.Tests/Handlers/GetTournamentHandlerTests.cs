@@ -10,6 +10,17 @@ namespace Duely.Application.Tests.Handlers;
 
 public sealed class GetTournamentHandlerTests : ContextBasedTest
 {
+    private static GetTournamentHandler CreateHandler(Duely.Infrastructure.DataAccess.EntityFramework.Context context)
+    {
+        return new GetTournamentHandler(
+            context,
+            new GroupPermissionsService(),
+            new TournamentDetailsMapperResolver(new ITournamentDetailsMapper[]
+            {
+                new SingleEliminationBracketTournamentDetailsMapper()
+            }));
+    }
+
     [Fact]
     public async Task Returns_hydrated_single_elimination_bracket()
     {
@@ -43,13 +54,7 @@ public sealed class GetTournamentHandlerTests : ContextBasedTest
         Context.Tournaments.Add(tournament);
         await Context.SaveChangesAsync();
 
-        var handler = new GetTournamentHandler(
-            Context,
-            new GroupPermissionsService(),
-            new TournamentDetailsMapperResolver(new ITournamentDetailsMapper[]
-            {
-                new SingleEliminationBracketTournamentDetailsMapper()
-            }));
+        var handler = CreateHandler(Context);
         var result = await handler.Handle(new GetTournamentQuery
         {
             UserId = viewer.Id,
@@ -103,13 +108,7 @@ public sealed class GetTournamentHandlerTests : ContextBasedTest
         Context.Tournaments.Add(tournament);
         await Context.SaveChangesAsync();
 
-        var handler = new GetTournamentHandler(
-            Context,
-            new GroupPermissionsService(),
-            new TournamentDetailsMapperResolver(new ITournamentDetailsMapper[]
-            {
-                new SingleEliminationBracketTournamentDetailsMapper()
-            }));
+        var handler = CreateHandler(Context);
 
         var result = await handler.Handle(new GetTournamentQuery
         {
@@ -123,5 +122,45 @@ public sealed class GetTournamentHandlerTests : ContextBasedTest
         result.Value.SingleEliminationBracket.Nodes[1]!.RightIndex.Should().BeNull();
         result.Value.SingleEliminationBracket.Nodes[2]!.LeftIndex.Should().Be(5);
         result.Value.SingleEliminationBracket.Nodes[2]!.RightIndex.Should().Be(6);
+    }
+
+    [Fact]
+    public async Task Returns_tournament_for_admin_without_group_membership()
+    {
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var user1 = EntityFactory.MakeUser(2, "u1");
+        var user2 = EntityFactory.MakeUser(3, "u2");
+        var group = EntityFactory.MakeGroup(1, "Alpha");
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = group,
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket,
+            Nodes =
+            [
+                new SingleEliminationBracketNode(),
+                new SingleEliminationBracketNode { UserId = user1.Id, WinnerUserId = user1.Id },
+                new SingleEliminationBracketNode { UserId = user2.Id, WinnerUserId = user2.Id }
+            ]
+        };
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = user1, Seed = 1 });
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = user2, Seed = 2 });
+        Context.Users.AddRange(creator, user1, user2);
+        Context.Groups.Add(group);
+        Context.Tournaments.Add(tournament);
+        await Context.SaveChangesAsync();
+
+        var result = await CreateHandler(Context).Handle(new GetTournamentQuery
+        {
+            UserId = 999,
+            TournamentId = tournament.Id,
+            IsAdmin = true
+        }, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Tournament.Id.Should().Be(tournament.Id);
     }
 }

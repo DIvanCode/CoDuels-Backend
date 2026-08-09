@@ -15,6 +15,7 @@ public sealed class GetTournamentQuery : IRequest<Result<TournamentDetailsDto>>
 {
     public required int UserId { get; init; }
     public required int TournamentId { get; init; }
+    public bool IsAdmin { get; init; }
 }
 
 public sealed class GetTournamentHandler(
@@ -43,7 +44,7 @@ public sealed class GetTournamentHandler(
         }
 
         var membership = tournament.Group.Users.SingleOrDefault(m => m.User.Id == query.UserId);
-        if (membership is null || !groupPermissionsService.CanViewGroup(membership))
+        if (!query.IsAdmin && (membership is null || !groupPermissionsService.CanViewGroup(membership)))
         {
             return new ForbiddenError(nameof(Group), Operation, nameof(Group.Id), tournament.Group.Id);
         }

@@ -41,7 +41,8 @@ public sealed class TournamentsController(IMediator mediator, IUserContext userC
         var query = new GetTournamentQuery
         {
             UserId = userContext.UserId,
-            TournamentId = id
+            TournamentId = id,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);

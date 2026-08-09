@@ -11,20 +11,32 @@ namespace Duely.Infrastructure.Api.Http.Tests;
 public sealed class WebSocketServicesTests
 {
     [Fact]
-    public void GetConnectedUserIds_returns_each_user_until_their_last_connection_is_removed()
+    public void GetLocallyConnectedUserIds_returns_each_user_until_their_last_local_connection_is_removed()
     {
         var manager = new WebSocketConnectionManager();
         var firstUserConnection = manager.AddConnection(42, new Mock<WebSocket>().Object);
         var secondUserConnection = manager.AddConnection(42, new Mock<WebSocket>().Object);
         manager.AddConnection(7, new Mock<WebSocket>().Object);
 
-        manager.GetConnectedUserIds().Should().BeEquivalentTo([42, 7]);
+        manager.GetLocallyConnectedUserIds().Should().BeEquivalentTo([42, 7]);
 
         manager.RemoveConnection(firstUserConnection);
-        manager.GetConnectedUserIds().Should().BeEquivalentTo([42, 7]);
+        manager.GetLocallyConnectedUserIds().Should().BeEquivalentTo([42, 7]);
 
         manager.RemoveConnection(secondUserConnection);
-        manager.GetConnectedUserIds().Should().BeEquivalentTo([7]);
+        manager.GetLocallyConnectedUserIds().Should().BeEquivalentTo([7]);
+    }
+
+    [Fact]
+    public void Connection_managers_keep_presence_isolated_per_process_instance()
+    {
+        var firstInstance = new WebSocketConnectionManager();
+        var secondInstance = new WebSocketConnectionManager();
+        firstInstance.AddConnection(42, new Mock<WebSocket>().Object);
+        secondInstance.AddConnection(7, new Mock<WebSocket>().Object);
+
+        firstInstance.GetLocallyConnectedUserIds().Should().BeEquivalentTo([42]);
+        secondInstance.GetLocallyConnectedUserIds().Should().BeEquivalentTo([7]);
     }
 
     [Fact]

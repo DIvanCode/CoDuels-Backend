@@ -78,7 +78,8 @@ public sealed class SubmissionsController(IMediator mediator, IUserContext userC
         {
             UserId = userContext.UserId,
             DuelId = duelId,
-            SubmissionId = submissionId
+            SubmissionId = submissionId,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);

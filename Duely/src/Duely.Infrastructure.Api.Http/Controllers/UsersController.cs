@@ -32,7 +32,7 @@ public sealed class UsersController(
     {
         var query = new GetUsersQuery
         {
-            UserIds = webSocketConnectionManager.GetConnectedUserIds()
+            UserIds = webSocketConnectionManager.GetLocallyConnectedUserIds()
         };
 
         var result = await mediator.Send(query, cancellationToken);

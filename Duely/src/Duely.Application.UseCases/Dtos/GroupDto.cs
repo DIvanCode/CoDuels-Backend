@@ -12,5 +12,5 @@ public sealed class GroupDto
     public required string Name { get; init; }
 
     [JsonPropertyName("user_role"), JsonConverter(typeof(JsonStringEnumConverter))]
-    public required GroupRole UserRole { get; init; }
+    public GroupRole? UserRole { get; init; }
 }

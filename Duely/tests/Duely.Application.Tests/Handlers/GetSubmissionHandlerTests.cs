@@ -87,4 +87,30 @@ public class GetSubmissionHandlerTests : ContextBasedTest
         res.Value.Solution.Should().BeEmpty();
         res.Value.Message.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Returns_full_submission_for_admin_when_not_owner()
+    {
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK-10");
+        var sub = EntityFactory.MakeSubmission(100, duel, u1, message: "details");
+        Context.Users.AddRange(u1, u2);
+        Context.Duels.Add(duel);
+        Context.Submissions.Add(sub);
+        await Context.SaveChangesAsync();
+
+        var handler = new GetSubmissionHandler(Context);
+        var res = await handler.Handle(new GetSubmissionQuery
+        {
+            SubmissionId = sub.Id,
+            UserId = 999,
+            DuelId = duel.Id,
+            IsAdmin = true
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Solution.Should().Be(sub.Solution);
+        res.Value.Message.Should().Be("details");
+    }
 }

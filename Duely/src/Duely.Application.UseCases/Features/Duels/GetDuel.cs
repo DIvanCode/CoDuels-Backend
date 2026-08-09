@@ -16,6 +16,7 @@ public sealed class GetDuelQuery : IRequest<Result<DuelDto>>
 {
     public required int UserId { get; init; }
     public required int DuelId { get; init; }
+    public bool IsAdmin { get; init; }
 }
 
 public sealed class GetDuelHandler(
@@ -41,6 +42,11 @@ public sealed class GetDuelHandler(
         if (duel is null)
         {
             return new EntityNotFoundError(nameof(Duel), nameof(Duel.Id), query.DuelId);
+        }
+
+        if (query.IsAdmin)
+        {
+            return DuelDtoMapper.Map(duel, ratingManager, taskService);
         }
 
         var isParticipant = duel.User1.Id == query.UserId || duel.User2.Id == query.UserId;

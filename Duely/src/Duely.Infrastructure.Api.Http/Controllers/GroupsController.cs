@@ -47,7 +47,8 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         var query = new GetGroupQuery
         {
             UserId = userContext.UserId,
-            GroupId = id
+            GroupId = id,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);
@@ -91,7 +92,8 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         var query = new GetGroupUsersQuery
         {
             UserId = userContext.UserId,
-            GroupId = id
+            GroupId = id,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);
@@ -156,7 +158,8 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         var query = new GetGroupDuelsQuery
         {
             UserId = userContext.UserId,
-            GroupId = id
+            GroupId = id,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);
@@ -171,7 +174,8 @@ public sealed class GroupsController(IMediator mediator, IUserContext userContex
         var query = new GetGroupTournamentsQuery
         {
             UserId = userContext.UserId,
-            GroupId = id
+            GroupId = id,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);

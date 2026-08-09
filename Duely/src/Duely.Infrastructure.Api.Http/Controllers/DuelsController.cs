@@ -70,7 +70,8 @@ public sealed class DuelsController(
         var query = new GetDuelQuery
         {
             UserId = userContext.UserId,
-            DuelId = duelId
+            DuelId = duelId,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(query, cancellationToken);

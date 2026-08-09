@@ -55,6 +55,26 @@ public sealed class GetGroupHandlerTests : ContextBasedTest
     }
 
     [Fact]
+    public async Task Returns_group_for_admin_without_membership()
+    {
+        var group = EntityFactory.MakeGroup(1, "Alpha");
+        Context.Groups.Add(group);
+        await Context.SaveChangesAsync();
+
+        var handler = new GetGroupHandler(Context, new GroupPermissionsService());
+        var res = await handler.Handle(new GetGroupQuery
+        {
+            UserId = 999,
+            GroupId = group.Id,
+            IsAdmin = true
+        }, CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Id.Should().Be(group.Id);
+        res.Value.UserRole.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Returns_not_found_when_group_missing()
     {
         var handler = new GetGroupHandler(Context, new GroupPermissionsService());

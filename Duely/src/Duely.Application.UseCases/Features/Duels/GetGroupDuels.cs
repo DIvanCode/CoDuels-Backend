@@ -16,6 +16,7 @@ public sealed class GetGroupDuelsQuery : IRequest<Result<List<GroupDuelDto>>>
 {
     public required int UserId { get; init; }
     public required int GroupId { get; init; }
+    public bool IsAdmin { get; init; }
 }
 
 public sealed class GetGroupDuelsHandler(
@@ -41,7 +42,7 @@ public sealed class GetGroupDuelsHandler(
             .AsNoTracking()
             .Where(m => m.Group.Id == group.Id && m.User.Id == query.UserId)
             .SingleOrDefaultAsync(cancellationToken);
-        if (membership is null || !groupPermissionsService.CanViewGroup(membership))
+        if (!query.IsAdmin && (membership is null || !groupPermissionsService.CanViewGroup(membership)))
         {
             return new ForbiddenError(nameof(Group), Operation, nameof(Group.Id), query.GroupId);
         }
@@ -81,7 +82,9 @@ public sealed class GetGroupDuelsHandler(
                 groupDuel.Duel.StartTime,
                 Dto = new GroupDuelDto
                 {
-                    Duel = DuelDtoMapper.Map(groupDuel.Duel, query.UserId, ratingManager, taskService),
+                    Duel = query.IsAdmin
+                        ? DuelDtoMapper.Map(groupDuel.Duel, ratingManager, taskService)
+                        : DuelDtoMapper.Map(groupDuel.Duel, query.UserId, ratingManager, taskService),
                     User1 = new UserDto
                     {
                         Id = groupDuel.Duel.User1.Id,
