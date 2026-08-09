@@ -8,6 +8,7 @@ public interface IWebSocketConnectionManager
     void RemoveConnection(Guid connectionId);
     List<WebSocket> GetSockets(int userId);
     bool HasSockets(int userId);
+    IReadOnlyCollection<int> GetConnectedUserIds();
 }
 
 public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
@@ -79,6 +80,14 @@ public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
         lock (_lock)
         {
             return _connections.ContainsKey(userId);
+        }
+    }
+
+    public IReadOnlyCollection<int> GetConnectedUserIds()
+    {
+        lock (_lock)
+        {
+            return _connections.Keys.ToArray();
         }
     }
 }

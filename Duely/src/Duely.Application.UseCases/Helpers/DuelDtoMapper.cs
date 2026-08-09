@@ -8,7 +8,24 @@ public static class DuelDtoMapper
 {
     public static DuelDto Map(
         Duel duel,
+        IRatingManager ratingManager,
+        ITaskService taskService)
+    {
+        return Map(duel, null, ratingManager, taskService);
+    }
+
+    public static DuelDto Map(
+        Duel duel,
         int viewerId,
+        IRatingManager ratingManager,
+        ITaskService taskService)
+    {
+        return Map(duel, (int?)viewerId, ratingManager, taskService);
+    }
+
+    private static DuelDto Map(
+        Duel duel,
+        int? viewerId,
         IRatingManager ratingManager,
         ITaskService taskService)
     {
@@ -19,9 +36,10 @@ public static class DuelDtoMapper
             [duel.User2.Id] = ratingManager.GetRatingChanges(duel, duel.User2InitRating, duel.User1InitRating)
         };
 
-        var isParticipant = duel.User1.Id == viewerId || duel.User2.Id == viewerId;
+        var isParticipant = viewerId.HasValue &&
+                            (duel.User1.Id == viewerId.Value || duel.User2.Id == viewerId.Value);
         var visibleTasks = isParticipant
-            ? taskService.GetVisibleTasks(duel, viewerId)
+            ? taskService.GetVisibleTasks(duel, viewerId!.Value)
             : duel.Tasks;
 
         var tasks = MapTasks(duel.Tasks, visibleTasks);
@@ -30,12 +48,12 @@ public static class DuelDtoMapper
         if (isParticipant)
         {
             solutions = MapSolutions(
-                duel.User1.Id == viewerId ? duel.User1Solutions : duel.User2Solutions,
+                duel.User1.Id == viewerId!.Value ? duel.User1Solutions : duel.User2Solutions,
                 visibleTasks.Keys);
             if (duel.Configuration.ShouldShowOpponentSolution)
             {
                 opponentSolutions = MapSolutions(
-                    duel.User1.Id == viewerId ? duel.User2Solutions : duel.User1Solutions,
+                    duel.User1.Id == viewerId.Value ? duel.User2Solutions : duel.User1Solutions,
                     visibleTasks.Keys);
             }
         }

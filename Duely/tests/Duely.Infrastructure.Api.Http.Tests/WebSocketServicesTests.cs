@@ -11,6 +11,23 @@ namespace Duely.Infrastructure.Api.Http.Tests;
 public sealed class WebSocketServicesTests
 {
     [Fact]
+    public void GetConnectedUserIds_returns_each_user_until_their_last_connection_is_removed()
+    {
+        var manager = new WebSocketConnectionManager();
+        var firstUserConnection = manager.AddConnection(42, new Mock<WebSocket>().Object);
+        var secondUserConnection = manager.AddConnection(42, new Mock<WebSocket>().Object);
+        manager.AddConnection(7, new Mock<WebSocket>().Object);
+
+        manager.GetConnectedUserIds().Should().BeEquivalentTo([42, 7]);
+
+        manager.RemoveConnection(firstUserConnection);
+        manager.GetConnectedUserIds().Should().BeEquivalentTo([42, 7]);
+
+        manager.RemoveConnection(secondUserConnection);
+        manager.GetConnectedUserIds().Should().BeEquivalentTo([7]);
+    }
+
+    [Fact]
     public void RemoveConnection_RemovesOnlyTheClosedSocket()
     {
         var manager = new WebSocketConnectionManager();

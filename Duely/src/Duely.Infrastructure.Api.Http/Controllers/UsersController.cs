@@ -15,8 +15,30 @@ namespace Duely.Infrastructure.Api.Http.Controllers;
 public sealed class UsersController(
     IMediator mediator,
     IUserContext userContext,
-    IUserWebSocketHandler webSocketHandler) : ControllerBase
+    IUserWebSocketHandler webSocketHandler,
+    IWebSocketConnectionManager webSocketConnectionManager) : ControllerBase
 {
+    [HttpGet("admin/all")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<UserDto>>> GetAllForAdminAsync(CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetUsersQuery(), cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpGet("admin/active")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<UserDto>>> GetActiveForAdminAsync(CancellationToken cancellationToken)
+    {
+        var query = new GetUsersQuery
+        {
+            UserIds = webSocketConnectionManager.GetConnectedUserIds()
+        };
+
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpPost("register")]
     public async Task<IActionResult> RegisterAsync(
         [FromBody] RegisterRequest request,

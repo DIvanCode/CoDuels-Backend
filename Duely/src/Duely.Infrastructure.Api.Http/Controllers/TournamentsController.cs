@@ -13,6 +13,26 @@ namespace Duely.Infrastructure.Api.Http.Controllers;
 [Authorize]
 public sealed class TournamentsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
+    [HttpGet("admin/active")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<TournamentDto>>> GetActiveForAdminAsync(
+        CancellationToken cancellationToken)
+    {
+        var query = new GetTournamentsByStateQuery { Finished = false };
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpGet("admin/finished")]
+    [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
+    public async Task<ActionResult<List<TournamentDto>>> GetFinishedForAdminAsync(
+        CancellationToken cancellationToken)
+    {
+        var query = new GetTournamentsByStateQuery { Finished = true };
+        var result = await mediator.Send(query, cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<TournamentDetailsDto>> GetAsync(
         [FromRoute] int id,
