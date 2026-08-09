@@ -242,7 +242,12 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         res.IsSuccess.Should().BeTrue();
 
         var duel = await ctx.Duels.Include(d => d.Configuration).SingleAsync();
-        duel.Configuration.Id.Should().Be(configuration.Id);
+        duel.Configuration.IsRated.Should().Be(configuration.IsRated);
+        duel.Configuration.ShouldShowOpponentSolution.Should().Be(configuration.ShouldShowOpponentSolution);
+        duel.Configuration.MaxDurationMinutes.Should().Be(configuration.MaxDurationMinutes);
+        duel.Configuration.TasksCount.Should().Be(configuration.TasksCount);
+        duel.Configuration.TasksOrder.Should().Be(configuration.TasksOrder);
+        duel.Configuration.TasksConfigurations.Should().BeEquivalentTo(configuration.TasksConfigurations);
         duel.Tasks.Should().ContainKey('B');
     }
 

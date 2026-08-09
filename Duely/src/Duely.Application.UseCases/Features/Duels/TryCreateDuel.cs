@@ -104,7 +104,6 @@ public sealed class TryCreateDuelHandler(
                 }
 
                 var currentPendingDuels = await LoadPendingDuelsAsync(
-                    context,
                     candidate.UsedPendingDuels[0].Type,
                     pendingIds,
                     cancellationToken);
@@ -139,11 +138,9 @@ public sealed class TryCreateDuelHandler(
                     continue;
                 }
 
-                var configuration = pair.Configuration ?? CreateDefaultConfiguration(pair);
+                var configuration = ResolveDuelConfiguration(pair);
                 var previouslyUsedTaskIds = await LoadPreviouslyUsedTaskIdsAsync(
-                    context,
-                    userIds,
-                    cancellationToken);
+                    userIds, cancellationToken);
                 var tasksResult = ChooseTasks(
                     configuration,
                     previouslyUsedTaskIds,
@@ -183,8 +180,8 @@ public sealed class TryCreateDuelHandler(
                 context.Duels.Add(duel);
                 await context.SaveChangesAsync(cancellationToken);
 
-                AttachDuel(context, pair, duel);
-                AddDuelStartedMessages(context, duel);
+                AttachDuel(pair, duel);
+                AddDuelStartedMessages(duel);
                 await context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
@@ -253,7 +250,6 @@ public sealed class TryCreateDuelHandler(
     }
 
     private async Task<List<PendingDuel>> LoadPendingDuelsAsync(
-        Context context,
         PendingDuelType type,
         int[] pendingIds,
         CancellationToken cancellationToken)
@@ -298,29 +294,42 @@ public sealed class TryCreateDuelHandler(
         return result;
     }
 
-    private DuelConfiguration CreateDefaultConfiguration(DuelPair pair)
+    private DuelConfiguration ResolveDuelConfiguration(DuelPair pair)
     {
+        if (pair.Configuration is null)
+        {
+            return new DuelConfiguration
+            {
+                Owner = null,
+                IsRated = pair.IsRated,
+                ShouldShowOpponentSolution = true,
+                MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,
+                TasksCount = 1,
+                TasksOrder = DuelTasksOrder.Sequential,
+                TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+                {
+                    [DefaultTaskKey] = new()
+                    {
+                        Level = ratingManager.GetTaskLevel((pair.User1.Rating + pair.User2.Rating) / 2),
+                        Topics = []
+                    }
+                }
+            };
+        }
+
         return new DuelConfiguration
         {
             Owner = null,
-            IsRated = pair.IsRated,
-            ShouldShowOpponentSolution = true,
-            MaxDurationMinutes = duelOptions.Value.DefaultMaxDurationMinutes,
-            TasksCount = 1,
-            TasksOrder = DuelTasksOrder.Sequential,
-            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
-            {
-                [DefaultTaskKey] = new()
-                {
-                    Level = ratingManager.GetTaskLevel((pair.User1.Rating + pair.User2.Rating) / 2),
-                    Topics = []
-                }
-            }
+            IsRated = pair.Configuration.IsRated,
+            ShouldShowOpponentSolution = pair.Configuration.ShouldShowOpponentSolution,
+            MaxDurationMinutes = pair.Configuration.MaxDurationMinutes,
+            TasksCount = pair.Configuration.TasksCount,
+            TasksOrder = pair.Configuration.TasksOrder,
+            TasksConfigurations = pair.Configuration.TasksConfigurations
         };
     }
 
     private async Task<HashSet<string>> LoadPreviouslyUsedTaskIdsAsync(
-        Context context,
         int[] userIds,
         CancellationToken cancellationToken)
     {
@@ -355,7 +364,7 @@ public sealed class TryCreateDuelHandler(
         return chosenTasks;
     }
 
-    private void AttachDuel(Context context, DuelPair pair, Duel duel)
+    private void AttachDuel(DuelPair pair, Duel duel)
     {
         var groupPendingDuel = pair.UsedPendingDuels.OfType<GroupPendingDuel>().SingleOrDefault();
         if (groupPendingDuel is not null)
@@ -377,7 +386,7 @@ public sealed class TryCreateDuelHandler(
         }
     }
 
-    private static void AddDuelStartedMessages(Context context, Duel duel)
+    private void AddDuelStartedMessages(Duel duel)
     {
         var retryUntil = duel.DeadlineTime.AddMinutes(5);
         context.OutboxMessages.Add(CreateDuelStartedMessage(duel.User1.Id, duel.Id, retryUntil));
