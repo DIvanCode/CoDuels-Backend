@@ -15,9 +15,16 @@ public sealed class AuthorizationPoliciesTests
     [Fact]
     public async Task OnlyAdmin_RequiresTrueIsAdminClaim()
     {
+        const string isAdminClaim = "admin_flag";
         var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [$"{JwtTokenOptions.SectionName}:{nameof(JwtTokenOptions.IsAdminClaim)}"] = isAdminClaim
+            })
+            .Build();
         services.SetupApiHttp(
-            new ConfigurationBuilder().Build(),
+            configuration,
             new Mock<IWebHostEnvironment>().Object);
 
         await using var serviceProvider = services.BuildServiceProvider();
@@ -32,7 +39,7 @@ public sealed class AuthorizationPoliciesTests
             .Should()
             .ContainSingle()
             .Subject;
-        claimRequirement.ClaimType.Should().Be(UserClaims.IsAdmin);
+        claimRequirement.ClaimType.Should().Be(isAdminClaim);
         claimRequirement.AllowedValues.Should().Equal(bool.TrueString);
     }
 }

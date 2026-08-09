@@ -22,6 +22,8 @@ public static class ServiceCollectionExtensions
 {
     public static void SetupApiHttp(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
+        var jwtTokenOptions = configuration.GetSection(JwtTokenOptions.SectionName).Get<JwtTokenOptions>();
+        ArgumentNullException.ThrowIfNull(jwtTokenOptions, nameof(jwtTokenOptions));
 
         services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         services.AddScoped<IUserContext, UserContext>();
@@ -37,7 +39,7 @@ public static class ServiceCollectionExtensions
                 AuthorizationPolicies.OnlyAdmin,
                 policy => policy
                     .RequireAuthenticatedUser()
-                    .RequireClaim(UserClaims.IsAdmin, bool.TrueString));
+                    .RequireClaim(jwtTokenOptions.IsAdminClaim, bool.TrueString));
         });
 
         services.AddCors(options =>

@@ -12,11 +12,6 @@ public interface ITokenService
     (string AccessToken, string RefreshToken) GenerateTokens(User user);
 }
 
-public static class UserClaims
-{
-    public const string IsAdmin = nameof(User.IsAdmin);
-}
-
 public sealed class TokenService(IOptions<JwtTokenOptions> jwtTokenOptions) : ITokenService
 {
     public (string AccessToken, string RefreshToken) GenerateTokens(User user)
@@ -28,7 +23,7 @@ public sealed class TokenService(IOptions<JwtTokenOptions> jwtTokenOptions) : IT
         var claims = new Claim[]
         {
             new(jwtTokenOptions.Value.IdClaim, user.Id.ToString()),
-            new(UserClaims.IsAdmin, user.IsAdmin.ToString()),
+            new(jwtTokenOptions.Value.IsAdminClaim, user.IsAdmin.ToString()),
         };
 
         var token = new JwtSecurityToken(

@@ -35,7 +35,7 @@ public sealed class UserContext : IUserContext
 
     public bool IsAdmin()
     {
-        var value = _userClaims.SingleOrDefault(claim => claim.Type == UserClaims.IsAdmin)?.Value;
+        var value = _userClaims.SingleOrDefault(claim => claim.Type == _jwtTokenOptions.IsAdminClaim)?.Value;
         return bool.TryParse(value, out var isAdmin) && isAdmin;
     }
 }

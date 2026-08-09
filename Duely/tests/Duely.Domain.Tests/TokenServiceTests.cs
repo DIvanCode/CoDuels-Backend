@@ -14,6 +14,7 @@ public class TokenServiceTests
     {
         SecretKey = "test-secret-key-that-is-long-enough-for-hmac-sha256-algorithm",
         IdClaim = "user_id",
+        IsAdminClaim = "admin_flag",
         ExpiresHours = 24
     });
 
@@ -82,7 +83,7 @@ public class TokenServiceTests
         var token = handler.ReadJwtToken(accessToken);
 
         token.Claims.Should().Contain(c =>
-            c.Type == UserClaims.IsAdmin && c.Value == isAdmin.ToString());
+            c.Type == TestOptions.Value.IsAdminClaim && c.Value == isAdmin.ToString());
     }
 
     [Fact]

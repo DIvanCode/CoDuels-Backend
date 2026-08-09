@@ -13,7 +13,8 @@ public sealed class UserContextTests
     private static readonly IOptions<JwtTokenOptions> TestOptions = Options.Create(new JwtTokenOptions
     {
         SecretKey = "test-secret-key",
-        IdClaim = "user_id"
+        IdClaim = "user_id",
+        IsAdminClaim = "admin_flag"
     });
 
     [Theory]
@@ -22,7 +23,7 @@ public sealed class UserContextTests
     [InlineData("not-a-boolean", false)]
     public void IsAdmin_ReturnsExpectedValue(string claimValue, bool expected)
     {
-        var context = CreateUserContext(new Claim(UserClaims.IsAdmin, claimValue));
+        var context = CreateUserContext(new Claim(TestOptions.Value.IsAdminClaim, claimValue));
 
         context.IsAdmin().Should().Be(expected);
     }
