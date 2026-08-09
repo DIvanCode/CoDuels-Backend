@@ -27,16 +27,16 @@ public class DuelManagerAdditionalTests
     {
         var manager = new DuelManager();
         var u1 = MakeUser(1, 1000);
-        var u2 = MakeUser(2, 1010);
+        var u2 = MakeUser(2, 1000);
         var u3 = MakeUser(3, 2000);
-        var u4 = MakeUser(4, 2010);
+        var u4 = MakeUser(4, 2000);
 
         var pending = new List<PendingDuel>
         {
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u1, Rating = u1.Rating, CreatedAt = DateTime.UtcNow.AddMinutes(-3) },
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u2, Rating = u2.Rating, CreatedAt = DateTime.UtcNow.AddMinutes(-3) },
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u3, Rating = u3.Rating, CreatedAt = DateTime.UtcNow.AddMinutes(-3) },
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u4, Rating = u4.Rating, CreatedAt = DateTime.UtcNow.AddMinutes(-3) }
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u1, Rating = u1.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) },
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u2, Rating = u2.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) },
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u3, Rating = u3.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) },
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u4, Rating = u4.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) }
         };
 
         var pairs = manager.GetPairs(pending).ToList();

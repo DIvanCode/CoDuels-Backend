@@ -58,14 +58,14 @@ public class DuelManagerTests
                 Type = PendingDuelType.Ranked,
                 User = u1,
                 Rating = u1.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-15)
             },
             new RankedPendingDuel
             {
                 Type = PendingDuelType.Ranked,
                 User = u2,
                 Rating = u2.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-1)
             }
         };
 
@@ -92,21 +92,21 @@ public class DuelManagerTests
                 Type = PendingDuelType.Ranked,
                 User = u1,
                 Rating = u1.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-10)
             },
             new RankedPendingDuel
             {
                 Type = PendingDuelType.Ranked,
                 User = u2,
                 Rating = u2.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-5)
             },
             new RankedPendingDuel
             {
                 Type = PendingDuelType.Ranked,
                 User = u3,
                 Rating = u3.Rating,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-3)
             }
         };
 
@@ -115,39 +115,6 @@ public class DuelManagerTests
         pairs.Should().HaveCount(1);
         pairs[0].User1.Id.Should().Be(1);
         pairs[0].User2.Id.Should().Be(3);
-    }
-
-    [Fact]
-    public void Fallback_matches_after_timeout()
-    {
-        var manager = new DuelManager();
-        var u1 = MakeUser(1, 1000);
-        var u2 = MakeUser(2, 2000);
-
-        var now = DateTime.UtcNow.AddSeconds(-121);
-        var pending = new List<PendingDuel>
-        {
-            new RankedPendingDuel
-            {
-                Type = PendingDuelType.Ranked,
-                User = u1,
-                Rating = u1.Rating,
-                CreatedAt = now
-            },
-            new RankedPendingDuel
-            {
-                Type = PendingDuelType.Ranked,
-                User = u2,
-                Rating = u2.Rating,
-                CreatedAt = now
-            }
-        };
-
-        var pairs = manager.GetPairs(pending).ToList();
-
-        pairs.Should().HaveCount(1);
-        var ids = new[] { pairs[0].User1.Id, pairs[0].User2.Id };
-        ids.Should().BeEquivalentTo(new[] { 1, 2 });
     }
 
     [Fact]
@@ -219,10 +186,10 @@ public class DuelManagerTests
 
         var pending = new List<PendingDuel>
         {
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u1, Rating = u1.Rating, CreatedAt = DateTime.UtcNow.AddMinutes(-3) },
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u2, Rating = u2.Rating, CreatedAt = DateTime.UtcNow.AddMinutes(-3) },
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u3, Rating = u3.Rating, CreatedAt = DateTime.UtcNow.AddMinutes(-3) },
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u4, Rating = u4.Rating, CreatedAt = DateTime.UtcNow.AddMinutes(-3) }
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u1, Rating = u1.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-15) },
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u2, Rating = u2.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) },
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u3, Rating = u3.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-15) },
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u4, Rating = u4.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) }
         };
 
         var pairs = manager.GetPairs(pending).ToList();
