@@ -16,19 +16,11 @@ execute:
   download_task_endpoint: http://taski:5252
 event_consumer:
   mode: rest
-  brokers: []
-  topic: exesh.step-updates
-  group_id: taski-e2e
-  fetch_interval: 50ms
   rest_endpoint: http://coordinator:5253
   poll_interval: 100ms
   messages_count: 100
-  sasl_auth: false
 message_dispatcher:
   kafka_enabled: false
-  brokers: []
-  topic: taski.testing
-  sasl_auth: false
 metrics_collector:
   collect_interval: 5s
 task_topics: []

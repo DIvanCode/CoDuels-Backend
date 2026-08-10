@@ -52,10 +52,21 @@
           ASPNETCORE_ENVIRONMENT: "Production"
           DbConnection__ConnectionString: "{{ postgres_connection }}"
           JwtToken__SecretKey: "{{ jwt_secret_key }}"
+          WebSocketConnection__KeepAliveIntervalMs: "5000"
+          WebSocketConnection__CloseTimeoutMs: "1000"
+          TournamentSynchronizationJob__CheckIntervalMs: "1000"
+          AnticheatBackgroundService__CheckIntervalMs: "5000"
+          Outbox__CheckIntervalMs: "250"
+          Outbox__BatchSize: "200"
+          Outbox__MaxRetryDelayMs: "30000"
+          DuelEndWatcherJob__CheckIntervalMs: "1000"
+          DuelMakingJob__CheckPairIntervalMs: "1000"
+          RateLimiting__SubmissionsPerMinute: "10"
+          RateLimiting__RunsPerMinute: "30"
           Taski__BaseUrl: http://taski:5252
           Exesh__BaseUrl: http://coordinator:5253
+          Exesh__StatusUpdates__Count: "50"
+          Exesh__StatusUpdates__PollIntervalMs: "2000"
           Analyzer__BaseUrl: http://analyzer:8000
-          Kafka__SaslPassword: "{{ kafka_password }}"
-          Kafka__GroupId: taski.testing-group
         networks:
           - name: coduels

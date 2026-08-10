@@ -30,6 +30,3 @@ worker_pool:
   worker_die_after: 2s
 dispatcher:
   kafka_enabled: false
-  brokers: []
-  topic: exesh.step-updates
-  sasl_auth: false
