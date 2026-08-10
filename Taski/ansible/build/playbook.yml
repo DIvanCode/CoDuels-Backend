@@ -5,12 +5,14 @@
     - name: Build taski image
       command: >
         docker build --target taski -t divancode74/coduels-taski:{{ version }} ../../
-    - name: Build task uploader image
+    - name: Build uploader image
+      when: build_uploader | bool
       command: >
-        docker build --target uploader -t divancode74/coduels-task-uploader:{{ version }} ../../
+        docker build --target uploader -t divancode74/coduels-uploader:{{ version }} ../../
     - name: Push taski image
       command: >
         docker push divancode74/coduels-taski:{{ version }}
-    - name: Push task uploader image
+    - name: Push uploader image
+      when: build_uploader | bool
       command: >
-        docker push divancode74/coduels-task-uploader:{{ version }}
+        docker push divancode74/coduels-uploader:{{ version }}

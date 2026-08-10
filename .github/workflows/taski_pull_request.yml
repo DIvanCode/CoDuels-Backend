@@ -43,7 +43,7 @@ jobs:
         working-directory: Taski/ansible/build
         run: |
           ansible-playbook -i inventory playbook.yml \
-            --extra-vars="version=${{ github.sha }}"
+            --extra-vars="version=${{ github.sha }} build_uploader=false"
 
   deploy:
     needs: build
