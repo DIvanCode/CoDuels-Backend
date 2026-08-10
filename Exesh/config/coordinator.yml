@@ -29,3 +29,8 @@ worker_pool:
   worker_die_after: 1s
 dispatcher:
   kafka_enabled: false
+  brokers: []
+  topic: exesh.step-updates
+  sasl_auth: false
+  sasl_username: ""
+  sasl_password: ""

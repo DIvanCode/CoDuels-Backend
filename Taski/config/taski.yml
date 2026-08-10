@@ -16,11 +16,23 @@ execute:
   download_task_endpoint: http://localhost:5252
 event_consumer:
   mode: rest
-  rest_endpoint: http://localhost:5253
-  poll_interval: 250ms
-  messages_count: 100
+  rest_endpoint: http://localhost:5253 # mode: rest
+  poll_interval: 250ms # mode: rest
+  messages_count: 100 # mode: rest
+  brokers: [] # mode: kafka
+  topic: exesh.step-updates # mode: kafka
+  group_id: taski # mode: kafka
+  fetch_interval: 50ms # mode: kafka
+  sasl_auth: false # mode: kafka
+  sasl_username: "" # mode: kafka, sasl_auth: true
+  sasl_password: "" # mode: kafka, sasl_auth: true
 message_dispatcher:
   kafka_enabled: false
+  brokers: [] # kafka_enabled: true
+  topic: taski.testing # kafka_enabled: true
+  sasl_auth: false # kafka_enabled: true
+  sasl_username: "" # kafka_enabled: true, sasl_auth: true
+  sasl_password: "" # kafka_enabled: true, sasl_auth: true
 metrics_collector:
   collect_interval: 5s
 task_topics: []
