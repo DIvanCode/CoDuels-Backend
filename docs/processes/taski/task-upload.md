@@ -15,11 +15,24 @@ compiler/runtime processes, task upload use case, and filestorage.
 The operator runs the uploader CLI with format (default `polygon`), `src`, and
 level arguments/configuration.
 
+For the boxed distribution, the operator invokes `Box/upload-task.sh` with a
+Polygon ZIP archive and level. The wrapper runs the version-matched
+`coduels-task-uploader` image without network access, mounts the archive
+read-only, and mounts the complete local filestorage root read-write. The
+complete root is required because bucket publication renames a prepared
+directory from `tmp` to `storage` and both paths must be on one filesystem.
+
 ## Preconditions
 
 Source is non-empty, format is supported, level is `1..10`, filestorage is
 reachable, and the package contains parsable `problem.xml`, a usable testset,
 main solution, checker, and numbered inputs.
+
+The boxed uploader is an administrative tool for trusted Polygon packages.
+When expected outputs are missing, it can compile and execute the package's
+main solution inside its unprivileged container. The container has no network
+or Linux capabilities, but the solution still shares the uploader's write
+access to the mounted task storage.
 
 ## Current behavior
 
@@ -105,6 +118,11 @@ Concurrent imports of one ID race at bucket reservation; at most one can own
 the target. The task becomes readable only after commit, but temporary process
 execution and cleanup are process-local.
 
+The boxed wrapper serializes all local imports because filestorage locks are
+process-local and initialization clears the shared `tmp` directory. This also
+prevents imports of different task IDs from deleting each other's temporary
+state.
+
 ## Failure handling
 
 Invalid ZIP path, XML, language, checker, solution, input, compile, run, write,
@@ -134,6 +152,8 @@ package-size/resource metrics, or orphan-temporary-bucket dashboard.
 - `Taski/internal/usecase/task/usecase/upload/usecase.go`
 - `Taski/internal/storage/filestorage/task_storage.go`
 - `Taski/scripts/uploader_config.yml`
+- `Taski/Dockerfile` (`uploader` image target)
+- `CoDuels/Box/upload-task.sh`
 
 ## Test coverage
 
@@ -160,4 +180,3 @@ Define a versioned task identity/update policy; confine every path to package
 root; bound archive/process resources; generate outputs in isolation; validate
 the complete package before publication; and add upload audit/metrics and the
 contract/failure tests above.
-

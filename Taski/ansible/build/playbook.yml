@@ -4,7 +4,13 @@
   tasks:
     - name: Build taski image
       command: >
-        docker build -t divancode74/coduels-taski:{{ version }} ../../
+        docker build --target taski -t divancode74/coduels-taski:{{ version }} ../../
+    - name: Build task uploader image
+      command: >
+        docker build --target uploader -t divancode74/coduels-task-uploader:{{ version }} ../../
     - name: Push taski image
       command: >
         docker push divancode74/coduels-taski:{{ version }}
+    - name: Push task uploader image
+      command: >
+        docker push divancode74/coduels-task-uploader:{{ version }}
