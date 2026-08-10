@@ -21,15 +21,10 @@ RUN apt-get update && \
   apt-get install -y --no-install-recommends g++ python3 && \
   rm -rf /var/lib/apt/lists/*
 
-ENV CONFIG_PATH=/app/config/uploader.yml
-ENV FILESTORAGE_ROOT_DIR=/data/tasks
-ENV HOME=/tmp
-ENV GOCACHE=/tmp/go-cache
-
 WORKDIR /app
 
 COPY --from=build /app/bin/uploader /app/bin/uploader
-COPY ./scripts/uploader_config.yml /app/config/uploader.yml
+COPY ./config ./config
 
 ENTRYPOINT ["/app/bin/uploader"]
 
