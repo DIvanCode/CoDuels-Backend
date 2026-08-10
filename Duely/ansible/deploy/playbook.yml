@@ -68,10 +68,5 @@
           Exesh__StatusUpdates__Count: "50"
           Exesh__StatusUpdates__PollIntervalMs: "2000"
           Analyzer__BaseUrl: http://analyzer:8000
-          Kafka__BootstrapServers: 192.168.0.6:19092
-          Kafka__SaslAuth: "true"
-          Kafka__SaslUsername: duely
-          Kafka__SaslPassword: "{{ kafka_password }}"
-          Kafka__GroupId: taski.testing-group
         networks:
           - name: coduels
