@@ -10,6 +10,7 @@ import (
 
 type (
 	CoordinatorConfig struct {
+		InternalAuthKey    string                   `yaml:"internal_auth_key" env:"INTERNAL_AUTH_KEY"`
 		Env                string                   `yaml:"env" env:"ENV"`
 		HttpServer         HttpServerConfig         `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
 		Storage            StorageConfig            `yaml:"storage" env-prefix:"STORAGE_"`

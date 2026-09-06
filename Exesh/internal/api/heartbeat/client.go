@@ -14,12 +14,14 @@ import (
 )
 
 type Client struct {
-	endpoint string
+	endpoint        string
+	internalAuthKey string
 }
 
-func NewHeartbeatClient(endpoint string) *Client {
+func NewHeartbeatClient(endpoint, internalAuthKey string) *Client {
 	return &Client{
-		endpoint: endpoint,
+		endpoint:        endpoint,
+		internalAuthKey: internalAuthKey,
 	}
 }
 
@@ -53,6 +55,7 @@ func (c *Client) Heartbeat(
 		return nil, nil, fmt.Errorf("failed to create heartheat request: %w", err)
 	}
 
+	httpReq.Header.Set("internal-auth", c.internalAuthKey)
 	httpClient := http.Client{}
 	httpResp, err := httpClient.Do(httpReq)
 	if err != nil {

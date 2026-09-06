@@ -61,7 +61,7 @@ func main() {
 
 	executorFactory := setupExecutorFactory(log, sourceProvider, outputProvider)
 
-	worker.NewWorker(log, cfg.Worker, sourceProvider, executorFactory).Start(ctx)
+	worker.NewWorker(log, cfg.Worker, cfg.InternalAuthKey, sourceProvider, executorFactory).Start(ctx)
 
 	promRegistry := prometheus.NewRegistry()
 	promRegistry.MustRegister(

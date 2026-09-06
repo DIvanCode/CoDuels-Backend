@@ -30,8 +30,9 @@ reachable by the receiving worker.
    configured totals and free/available values after subtracting running and
    queued predicted memory/slots.
 2. The client creates a new default `http.Client` with no client timeout; the
-   root context is its only bound. Non-200, invalid JSON, or non-OK response is
-   an error.
+   root context is its only bound. Every request includes the `internal-auth`
+   header from the root `InternalAuthKey` configuration. Non-200, invalid JSON,
+   or non-OK response is an error.
 3. On error, the worker appends the sent results back to the end of `doneJobs`.
    Concurrently completed jobs may already precede them, so result order can
    change.
@@ -165,7 +166,8 @@ results tied to worker sessions and attempts? See [Open questions](open-question
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** none in Exesh.
+- **Heartbeat client tests:** configured authentication header, worker identity
+  and resource fields, successful response, and HTTP 401 error propagation.
 - **Missing scenarios:** JSON/errors, retry/reordering, partial batches,
   duplicate/unknown results, source failure, and same-ID concurrency.
 - **Required integration tests:** worker/coordinator HTTP exchange with multiple
