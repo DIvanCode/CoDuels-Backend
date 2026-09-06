@@ -50,7 +50,7 @@ func NewEventHandler(
 	}
 	switch mode {
 	case "rest":
-		processor = consumer.NewEventPoller(log, eventConsumerCfg, unitOfWork, solutionStorage, usecase)
+		processor = consumer.NewEventPoller(log, eventConsumerCfg, cfg.InternalAuthKey, unitOfWork, solutionStorage, usecase)
 	default:
 		processor = consumer.NewEventConsumer(log, eventConsumerCfg, usecase)
 	}

@@ -27,7 +27,9 @@ Each tick loads all Solutions with `finished_at IS NULL`, then visits them
 sequentially. For each, it starts at `HandledEventsCount + 1`, requests up to
 configured count (default 100), sorts the page by Message ID, processes each
 event transactionally with that ID, and paginates until an empty/short page.
-One Solution failure is logged and the loop continues to the next.
+One Solution failure is logged and the loop continues to the next. Each history
+request sends the `internal-auth` header from the root `InternalAuthKey` setting.
+A non-success HTTP response follows the existing per-Solution retry path.
 
 The HTTP client has no configured timeout. The response carries `status`, but
 the poller checks HTTP success and decodes events without validating that
@@ -131,8 +133,8 @@ multi-instance contention metrics.
 
 ## Test coverage
 
-- **Existing unit/integration tests:** none.
-- **Covered scenarios:** none are automated.
+- **HTTP client tests:** configured authentication header, unchanged cursor/count
+  query parameters, successful history response, and HTTP 401 propagation.
 - **Missing scenarios:** pagination, restart, multiple Solutions/instances,
   duplicate/gap/out-of-order IDs, status error, timeout, poison event, history
   loss, and missing finish.

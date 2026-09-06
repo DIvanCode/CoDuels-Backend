@@ -83,7 +83,7 @@ func main() {
 		return
 	}
 
-	executeClient := execute.NewExecuteClient(log, cfg.Execute.Endpoint)
+	executeClient := execute.NewExecuteClient(log, cfg.Execute.Endpoint, cfg.InternalAuthKey)
 
 	taskStorage := filestorage.NewTaskStorage(fileStorage)
 

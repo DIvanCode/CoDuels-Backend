@@ -17,8 +17,9 @@ import (
 )
 
 type EventPoller struct {
-	log *slog.Logger
-	cfg config.EventConsumerConfig
+	log             *slog.Logger
+	cfg             config.EventConsumerConfig
+	internalAuthKey string
 
 	httpClient      http.Client
 	unitOfWork      unitOfWork
@@ -49,13 +50,15 @@ type (
 func NewEventPoller(
 	log *slog.Logger,
 	cfg config.EventConsumerConfig,
+	internalAuthKey string,
 	unitOfWork unitOfWork,
 	solutionStorage restSolutionStorage,
 	usecase *update.UseCase,
 ) *EventPoller {
 	return &EventPoller{
-		log: log,
-		cfg: cfg,
+		log:             log,
+		cfg:             cfg,
+		internalAuthKey: internalAuthKey,
 
 		httpClient:      http.Client{},
 		unitOfWork:      unitOfWork,
@@ -179,6 +182,7 @@ func (c *EventPoller) fetchMessages(
 		return executionMessagesResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	httpReq.Header.Set("internal-auth", c.internalAuthKey)
 	httpResp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return executionMessagesResponse{}, fmt.Errorf("failed to send request: %w", err)

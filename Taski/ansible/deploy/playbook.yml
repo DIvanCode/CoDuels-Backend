@@ -6,6 +6,14 @@
     tasks_dir: "{{ ansible_env.HOME }}/tasks"
   remote_user: root
   tasks:
+    - name: Require internal auth key from credentials.yml
+      assert:
+        that:
+          - internal_auth_key is defined
+          - internal_auth_key | default('') | length > 0
+          - internal_auth_key != 'INTERNAL_AUTH_KEY_LOCAL_VALUE'
+        fail_msg: Add the shared internal_auth_key to encrypted credentials.yml before deployment.
+      no_log: true
     - name: Ensure network exists
       docker_network:
         name: coduels
@@ -33,6 +41,7 @@
           - "9077:9090"
         env:
           ENV: prod
+          INTERNAL_AUTH_KEY: "{{ internal_auth_key }}"
           CONFIG_PATH: /app/config/taski.yml
           HTTP_SERVER_ADDR: 0.0.0.0:5252
           DB_CONNECTION_STRING: "{{ postgres_connection }}"
