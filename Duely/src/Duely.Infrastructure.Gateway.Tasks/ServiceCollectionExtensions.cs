@@ -12,9 +12,10 @@ public static class ServiceCollectionExtensions
         services.Configure<TaskiOptions>(configuration.GetSection(TaskiOptions.SectionName));
 
         services.AddHttpClient<ITaskiClient, TaskiClient>((sp, client) =>
-        {  
+        {
             var options = sp.GetRequiredService<IOptions<TaskiOptions>>();
             client.BaseAddress = new Uri(options.Value.BaseUrl);
-        });
+            client.DefaultRequestHeaders.Add("internal-auth", configuration["InternalAuthKey"]);
+        }).RedactLoggedHeaders(["internal-auth"]);
     }
 }
