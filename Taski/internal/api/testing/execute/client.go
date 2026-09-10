@@ -13,14 +13,16 @@ import (
 )
 
 type ExecuteClient struct {
-	log      *slog.Logger
-	endpoint string
+	log             *slog.Logger
+	endpoint        string
+	internalAuthKey string
 }
 
-func NewExecuteClient(log *slog.Logger, endpoint string) *ExecuteClient {
+func NewExecuteClient(log *slog.Logger, endpoint, internalAuthKey string) *ExecuteClient {
 	return &ExecuteClient{
-		log:      log,
-		endpoint: endpoint,
+		log:             log,
+		endpoint:        endpoint,
+		internalAuthKey: internalAuthKey,
 	}
 }
 
@@ -45,6 +47,7 @@ func (c *ExecuteClient) Execute(
 		return
 	}
 
+	httpReq.Header.Set("internal-auth", c.internalAuthKey)
 	httpClient := http.Client{}
 	httpResp, err := httpClient.Do(httpReq)
 	if err != nil {

@@ -13,7 +13,8 @@ Coordinator/Workers, and filestorage/artifact transfer.
 ## Trigger
 
 A testing submission serializes the strategy's execution request and POSTs it
-to Exesh.
+to Exesh with the `internal-auth` header set to the root `InternalAuthKey`
+configuration value.
 
 ## Preconditions
 
@@ -130,9 +131,8 @@ correlation, artifact availability SLI, or Taski trace propagated end-to-end.
 
 ## Test coverage
 
-- **Existing unit/integration tests:** none in Taski; Exesh has no Go tests in
-  the examined package run either.
-- **Covered scenarios:** compilation/type checking only.
+- **HTTP client tests:** execution submission carries the configured
+  `internal-auth` header and reads the returned execution ID.
 - **Missing scenarios:** every strategy/language graph, invalid/duplicate/cyclic
   graph, missing artifact/file, status/name drift, rejection, and orphan.
 - **Required contract tests:** golden Taski payloads accepted by current Exesh,
