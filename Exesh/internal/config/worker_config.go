@@ -10,13 +10,14 @@ import (
 
 type (
 	WorkerConfig struct {
-		Env            string               `yaml:"env" env:"ENV"`
-		Runtime        string               `yaml:"runtime" env:"RUNTIME"`
-		HttpServer     HttpServerConfig     `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
-		FileStorage    FileStorageConfig    `yaml:"filestorage" env-prefix:"FILE_STORAGE_"`
-		SourceProvider SourceProviderConfig `yaml:"source_provider" env-prefix:"SOURCE_PROVIDER_"`
-		OutputProvider OutputProviderConfig `yaml:"output_provider" env-prefix:"OUTPUT_PROVIDER_"`
-		Worker         WorkConfig           `yaml:"worker" env-prefix:"WORKER_"`
+		Env             string               `yaml:"env" env:"ENV"`
+		Runtime         string               `yaml:"runtime" env:"RUNTIME"`
+		HttpServer      HttpServerConfig     `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
+		FileStorage     FileStorageConfig    `yaml:"filestorage" env-prefix:"FILE_STORAGE_"`
+		SourceProvider  SourceProviderConfig `yaml:"source_provider" env-prefix:"SOURCE_PROVIDER_"`
+		OutputProvider  OutputProviderConfig `yaml:"output_provider" env-prefix:"OUTPUT_PROVIDER_"`
+		Worker          WorkConfig           `yaml:"worker" env-prefix:"WORKER_"`
+		InternalAuthKey string               `yaml:"internal_auth_key" env:"INTERNAL_AUTH_KEY"`
 	}
 
 	SourceProviderConfig struct {

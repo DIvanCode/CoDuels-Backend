@@ -34,6 +34,7 @@
           - /app/bin/coordinator
         env:
           ENV: prod
+          INTERNAL_AUTH_KEY: "{{ internal_auth_key }}"
           CONFIG_PATH: /app/config/coordinator.yml
           STORAGE_CONNECTION_STRING: "{{ coordinator_postgres_connection }}"
           HTTP_SERVER_ADDR: 0.0.0.0:5253
@@ -56,6 +57,7 @@
         privileged: true
         env:
           ENV: prod
+          INTERNAL_AUTH_KEY: "{{ internal_auth_key }}"
           CONFIG_PATH: /app/config/worker.yml
           HTTP_SERVER_ADDR: 0.0.0.0:5254
           HTTP_SERVER_METRICS_ADDR: 0.0.0.0:9091
@@ -81,6 +83,7 @@
         privileged: true
         env:
           ENV: prod
+          INTERNAL_AUTH_KEY: "{{ internal_auth_key }}"
           CONFIG_PATH: /app/config/worker.yml
           HTTP_SERVER_ADDR: 0.0.0.0:5255
           HTTP_SERVER_METRICS_ADDR: 0.0.0.0:9092

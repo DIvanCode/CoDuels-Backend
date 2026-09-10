@@ -1,4 +1,5 @@
 env: docker
+internal_auth_key: INTERNAL_AUTH_KEY_LOCAL_VALUE
 runtime: isolate
 http_server:
   addr: 0.0.0.0:5254

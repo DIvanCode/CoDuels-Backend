@@ -34,3 +34,4 @@ dispatcher:
   sasl_auth: false
   sasl_username: ""
   sasl_password: ""
+internal_auth_key: INTERNAL_AUTH_KEY_LOCAL_VALUE

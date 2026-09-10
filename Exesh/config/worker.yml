@@ -21,3 +21,4 @@ worker:
   coordinator_endpoint: http://coordinator:5253
   heartbeat_delay: 100ms
   worker_delay: 10ms
+internal_auth_key: INTERNAL_AUTH_KEY_LOCAL_VALUE

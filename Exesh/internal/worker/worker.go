@@ -20,7 +20,7 @@ type (
 		log *slog.Logger
 		cfg config.WorkConfig
 
-	heartbeatClient heartbeatClient
+		heartbeatClient heartbeatClient
 		executorFactory *executor.ExecutorFactory
 
 		jobs                    queue.Queue[jobs.Job]
@@ -47,13 +47,14 @@ type (
 func NewWorker(
 	log *slog.Logger,
 	cfg config.WorkConfig,
+	internalAuthKey string,
 	sourceProvider sourceProvider,
 	executorFactory *executor.ExecutorFactory) *Worker {
 	return &Worker{
 		log: log,
 		cfg: cfg,
 
-		heartbeatClient: heartbeat.NewHeartbeatClient(cfg.CoordinatorEndpoint),
+		heartbeatClient: heartbeat.NewHeartbeatClient(cfg.CoordinatorEndpoint, internalAuthKey),
 		executorFactory: executorFactory,
 
 		jobs:                    *queue.NewQueue[jobs.Job](),
