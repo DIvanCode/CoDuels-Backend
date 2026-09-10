@@ -10,7 +10,6 @@ import (
 
 type (
 	WorkerConfig struct {
-		InternalAuthKey string               `yaml:"internal_auth_key" env:"INTERNAL_AUTH_KEY"`
 		Env             string               `yaml:"env" env:"ENV"`
 		Runtime         string               `yaml:"runtime" env:"RUNTIME"`
 		HttpServer      HttpServerConfig     `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
@@ -18,6 +17,7 @@ type (
 		SourceProvider  SourceProviderConfig `yaml:"source_provider" env-prefix:"SOURCE_PROVIDER_"`
 		OutputProvider  OutputProviderConfig `yaml:"output_provider" env-prefix:"OUTPUT_PROVIDER_"`
 		Worker          WorkConfig           `yaml:"worker" env-prefix:"WORKER_"`
+		InternalAuthKey string               `yaml:"internal_auth_key" env:"INTERNAL_AUTH_KEY"`
 	}
 
 	SourceProviderConfig struct {

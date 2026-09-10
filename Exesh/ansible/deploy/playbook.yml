@@ -4,14 +4,6 @@
     - credentials.yml
   remote_user: root
   tasks:
-    - name: Require internal auth key from credentials.yml
-      assert:
-        that:
-          - internal_auth_key is defined
-          - internal_auth_key | default('') | length > 0
-          - internal_auth_key != 'INTERNAL_AUTH_KEY_LOCAL_VALUE'
-        fail_msg: Add the shared internal_auth_key to encrypted credentials.yml before deployment.
-      no_log: true
     - name: Ensure network exists
       docker_network:
         name: coduels

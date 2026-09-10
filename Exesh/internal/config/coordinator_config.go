@@ -10,7 +10,6 @@ import (
 
 type (
 	CoordinatorConfig struct {
-		InternalAuthKey    string                   `yaml:"internal_auth_key" env:"INTERNAL_AUTH_KEY"`
 		Env                string                   `yaml:"env" env:"ENV"`
 		HttpServer         HttpServerConfig         `yaml:"http_server" env-prefix:"HTTP_SERVER_"`
 		Storage            StorageConfig            `yaml:"storage" env-prefix:"STORAGE_"`
@@ -20,6 +19,7 @@ type (
 		JobScheduler       JobSchedulerConfig       `yaml:"job_scheduler" env-prefix:"JOB_SCHEDULER_"`
 		WorkerPool         WorkerPoolConfig         `yaml:"worker_pool" env-prefix:"WORKER_POOL_"`
 		Dispatcher         DispatcherConfig         `yaml:"dispatcher" env-prefix:"DISPATCHER_"`
+		InternalAuthKey    string                   `yaml:"internal_auth_key" env:"INTERNAL_AUTH_KEY"`
 	}
 
 	StorageConfig struct {

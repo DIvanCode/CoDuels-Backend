@@ -1,5 +1,4 @@
 env: dev
-internal_auth_key: INTERNAL_AUTH_KEY_LOCAL_VALUE
 http_server:
   addr: 0.0.0.0:5253
   metrics_addr: 0.0.0.0:9090
@@ -35,3 +34,4 @@ dispatcher:
   sasl_auth: false
   sasl_username: ""
   sasl_password: ""
+internal_auth_key: INTERNAL_AUTH_KEY_LOCAL_VALUE
