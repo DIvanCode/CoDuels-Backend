@@ -26,6 +26,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Duely.Infrastructure.Api.Http\Duely.Infrastructure.Api.Http.csproj" />
+    <ProjectReference Include="..\..\src\Duely.Infrastructure.Gateway.Tasks\Duely.Infrastructure.Gateway.Tasks.csproj" />
+    <ProjectReference Include="..\..\src\Duely.Infrastructure.Gateway.Exesh\Duely.Infrastructure.Gateway.Exesh.csproj" />
+    <ProjectReference Include="..\..\src\Duely.Infrastructure.Gateway.Analyzer\Duely.Infrastructure.Gateway.Analyzer.csproj" />
   </ItemGroup>
 
 </Project>

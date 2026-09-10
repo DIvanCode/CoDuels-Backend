@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
         {
             var options = sp.GetRequiredService<IOptions<ExeshOptions>>();
             client.BaseAddress = new Uri(options.Value.BaseUrl);
-        });
+            client.DefaultRequestHeaders.Add("internal-auth", configuration["InternalAuthKey"]);
+        }).RedactLoggedHeaders(["internal-auth"]);
     }
 }

@@ -50,6 +50,7 @@
           - "5001:5001"
         env:
           ASPNETCORE_ENVIRONMENT: "Production"
+          InternalAuthKey: "{{ internal_auth_key }}"
           DbConnection__ConnectionString: "{{ postgres_connection }}"
           JwtToken__SecretKey: "{{ jwt_secret_key }}"
           WebSocketConnection__KeepAliveIntervalMs: "5000"
