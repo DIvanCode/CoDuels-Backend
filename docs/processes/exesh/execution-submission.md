@@ -19,20 +19,23 @@ An HTTP `POST /execute` request containing `sources` and `stages`.
 
 The JSON must decode through the polymorphic source, input, and job definition
 types. PostgreSQL and all tables initialized at coordinator startup must be
-available. No authentication or caller-supplied idempotency key is checked by
-Exesh.
+available. The request must contain exactly one `internal-auth` header equal to
+the coordinator's `InternalAuthKey`. No caller-supplied idempotency key is
+checked by Exesh.
 
 ## Current behavior
 
-1. The handler decodes JSON. Unknown polymorphic types or malformed JSON return
+1. Internal-auth middleware rejects missing, empty, duplicate, or mismatched
+   credentials with HTTP 401 before the handler decodes the body.
+2. The handler decodes JSON. Unknown polymorphic types or malformed JSON return
    HTTP 400 with `status: ERROR`.
-2. The use case rejects duplicate source names and duplicate stage names. It
+3. The use case rejects duplicate source names and duplicate stage names. It
    rejects duplicate job names only within the same stage.
-3. In one database transaction it loads category histograms, estimates every
+4. In one database transaction it loads category histograms, estimates every
    job, sums weight, constructs a UUID execution definition, and inserts it.
-4. The inserted definition has `tries = 0`, `status = new`, `created_at = now`,
+5. The inserted definition has `tries = 0`, `status = new`, `created_at = now`,
    and null scheduled/finished timestamps.
-5. After commit, HTTP 200 returns `status: OK` and `execution_id`.
+6. After commit, HTTP 200 returns `status: OK` and `execution_id`.
 
 The submission path does not validate empty graphs, cycles, undefined stage
 dependencies, cross-stage duplicate job names, limits, success statuses,
@@ -136,8 +139,9 @@ rows? See [Open questions](open-questions.md).
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** no committed Exesh tests; consumer
-  tests do not establish coordinator guarantees.
+- **Existing tests / covered scenarios:** internal-auth middleware acceptance
+  and rejection cases; consumer tests do not establish coordinator persistence
+  guarantees.
 - **Missing scenarios:** decoding, semantic validation, weight edges,
   concurrency, idempotency, and rollback.
 - **Required integration tests:** real PostgreSQL submission and response-after-

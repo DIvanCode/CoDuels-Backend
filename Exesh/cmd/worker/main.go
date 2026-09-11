@@ -48,7 +48,7 @@ func main() {
 
 	mux := chi.NewRouter()
 
-	fs, err := filestorage.New(log, cfg.FileStorage.ToExternal(), mux)
+	fs, err := filestorage.New(log, cfg.FileStorage.ToExternal(cfg.InternalAuthKey), mux)
 	if err != nil {
 		log.Error("failed to create filestorage", slog.String("error", err.Error()))
 		return

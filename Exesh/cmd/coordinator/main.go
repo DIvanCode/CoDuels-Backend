@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	internalAPI "exesh/internal/api"
 	executeAPI "exesh/internal/api/execute"
 	heartbeatAPI "exesh/internal/api/heartbeat"
 	messagesAPI "exesh/internal/api/messages"
@@ -57,7 +58,7 @@ func main() {
 	}
 	eventStorage.Start(ctx)
 
-	fs, err := filestorage.New(log, cfg.FileStorage.ToExternal(), mux)
+	fs, err := filestorage.New(log, cfg.FileStorage.ToExternal(cfg.InternalAuthKey), mux)
 	if err != nil {
 		log.Error("failed to create filestorage", slog.String("error", err.Error()))
 		return
@@ -94,14 +95,16 @@ func main() {
 
 	executionScheduler.Start(ctx)
 
+	internalMux := mux.With(internalAPI.RequireInternalAuth(cfg.InternalAuthKey))
+
 	executeUseCase := executeUC.NewUseCase(log, unitOfWork, executionStorage, calc)
-	executeAPI.NewHandler(log, executeUseCase).Register(mux)
+	executeAPI.NewHandler(log, executeUseCase).Register(internalMux)
 
 	heartbeatUseCase := heartbeatUC.NewUseCase(log, workerPool, jobScheduler)
-	heartbeatAPI.NewHandler(log, heartbeatUseCase).Register(mux)
+	heartbeatAPI.NewHandler(log, heartbeatUseCase).Register(internalMux)
 
 	messagesUseCase := messagesUC.NewUseCase(log, unitOfWork, messageStorage)
-	messagesAPI.NewHandler(log, messagesUseCase).Register(mux)
+	messagesAPI.NewHandler(log, messagesUseCase).Register(internalMux)
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 

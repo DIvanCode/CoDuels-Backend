@@ -77,6 +77,8 @@ func TestABSolutionAccepted(t *testing.T) {
 		t.Fatalf("Taski did not expose the A+B task: %v", err)
 	}
 
+	assertExeshInternalEndpointsRejectUnauthenticated(t, ctx, client, coordinatorURL)
+
 	solutionID, err := randomSolutionID()
 	if err != nil {
 		t.Fatalf("create random solution ID: %v", err)
@@ -110,6 +112,40 @@ func TestABSolutionAccepted(t *testing.T) {
 			formatMessage(last, testingMessage{Type: finish, Verdict: accepted}),
 			formatMessage(stableLast, stableMessage),
 		)
+	}
+}
+
+func assertExeshInternalEndpointsRejectUnauthenticated(
+	t *testing.T,
+	ctx context.Context,
+	client *http.Client,
+	coordinatorURL string,
+) {
+	t.Helper()
+	tests := []struct {
+		method string
+		url    string
+	}{
+		{method: http.MethodPost, url: coordinatorURL + "/execute"},
+		{method: http.MethodPost, url: coordinatorURL + "/heartbeat"},
+		{method: http.MethodGet, url: coordinatorURL + "/executions/00000000-0000-0000-0000-000000000000/messages?start_id=1&count=1"},
+	}
+
+	for _, tc := range tests {
+		req, err := http.NewRequestWithContext(ctx, tc.method, tc.url, nil)
+		if err != nil {
+			t.Fatalf("create unauthenticated request for %s: %v", tc.url, err)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("send unauthenticated request for %s: %v", tc.url, err)
+		}
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Fatalf("close unauthenticated response for %s: %v", tc.url, closeErr)
+		}
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("unauthenticated %s returned HTTP %d, want %d", tc.url, resp.StatusCode, http.StatusUnauthorized)
+		}
 	}
 }
 
