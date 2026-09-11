@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         working-directory: Analyzer
         run: python -m pip install -r requirements.txt
+      - name: Run unit tests
+        working-directory: Analyzer
+        run: python -m unittest discover -s tests -v
       - name: Check Python syntax
         working-directory: Analyzer
         run: python -m compileall -q .
@@ -70,8 +73,14 @@ jobs:
           sudo apt update
           sudo apt install -y python3-pip
           pip3 install ansible docker
+      - name: Create ansible vault password file
+        run: echo "${{ secrets.VAULT_PASSWORD }}" > ~/vault_pass.txt
       - name: Run ansible deploy playbook
         run: |
           cd Analyzer/ansible/deploy
           ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory playbook.yml \
-            --extra-vars="version=${{ github.sha }} ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}"
+            --extra-vars="version=${{ github.sha }} ansible_user=root ansible_password=${{ secrets.SSH_PASSWORD }}" \
+            --vault-password-file ~/vault_pass.txt
+      - name: Clean up
+        if: always()
+        run: rm -f ~/vault_pass.txt
