@@ -20,12 +20,15 @@ and language.
 
 The task bucket exists and is readable, request fields decode to supported task
 and language identifiers, strategy construction succeeds, and Exesh is
-reachable and accepts the graph.
+reachable and accepts the graph. The request must contain exactly one
+`internal-auth` header equal to Taski's `InternalAuthKey`.
 
 ## Current behavior
 
-The handler passes `ExternalSolutionID`, `TaskID`, solution text, and language
-to the test use case. One PostgreSQL unit-of-work transaction begins before the
+Internal-auth middleware rejects missing, empty, duplicate, or mismatched
+credentials with HTTP 401 before body decoding. The handler then passes
+`ExternalSolutionID`, `TaskID`, solution text, and language to the test use case.
+One PostgreSQL unit-of-work transaction begins before the
 task is loaded. Task storage takes a bucket read lock. While both the DB
 transaction and bucket lock remain held, the factory creates the concrete
 strategy, stages, jobs, sources, and inputs, then the Exesh client posts the
@@ -50,7 +53,7 @@ sequenceDiagram
     participant F as filestorage
     participant S as strategy factory
     participant E as Exesh
-    D->>T: POST /test (ExternalSolutionID, TaskID, solution, language)
+    D->>T: POST /test + internal-auth (ExternalSolutionID, TaskID, solution, language)
     T->>P: begin unit of work
     T->>F: Get task + acquire read lock
     T->>S: build strategy, stages, sources
@@ -172,4 +175,3 @@ Define an idempotent submission key and unique cardinality; avoid holding local
 transactions across external calls; persist an intent before dispatch; provide
 bounded HTTP/cancellation and a reconciliation/compensation process; return a
 correlation ID; and test every crash point.
-

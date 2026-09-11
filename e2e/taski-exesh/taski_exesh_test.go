@@ -21,6 +21,7 @@ const (
 	aPlusBTaskID = "7d971f50363cf0aebbd87d971f50363cf0aebbd8"
 	accepted     = "Accepted"
 	finish       = "finish"
+	internalAuth = "INTERNAL_AUTH_KEY_LOCAL_VALUE"
 )
 
 var aPlusBSolution = strings.TrimSpace(`
@@ -77,7 +78,7 @@ func TestABSolutionAccepted(t *testing.T) {
 		t.Fatalf("Taski did not expose the A+B task: %v", err)
 	}
 
-	assertExeshInternalEndpointsRejectUnauthenticated(t, ctx, client, coordinatorURL)
+	assertInternalEndpointsRejectUnauthenticated(t, ctx, client, taskiURL, coordinatorURL)
 
 	solutionID, err := randomSolutionID()
 	if err != nil {
@@ -115,10 +116,11 @@ func TestABSolutionAccepted(t *testing.T) {
 	}
 }
 
-func assertExeshInternalEndpointsRejectUnauthenticated(
+func assertInternalEndpointsRejectUnauthenticated(
 	t *testing.T,
 	ctx context.Context,
 	client *http.Client,
+	taskiURL string,
 	coordinatorURL string,
 ) {
 	t.Helper()
@@ -126,6 +128,8 @@ func assertExeshInternalEndpointsRejectUnauthenticated(
 		method string
 		url    string
 	}{
+		{method: http.MethodPost, url: taskiURL + "/test"},
+		{method: http.MethodGet, url: taskiURL + "/solutions/unknown/messages?start_id=1&count=1"},
 		{method: http.MethodPost, url: coordinatorURL + "/execute"},
 		{method: http.MethodPost, url: coordinatorURL + "/heartbeat"},
 		{method: http.MethodGet, url: coordinatorURL + "/executions/00000000-0000-0000-0000-000000000000/messages?start_id=1&count=1"},
@@ -172,6 +176,7 @@ func submitSolution(ctx context.Context, client *http.Client, taskiURL, solution
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("internal-auth", internalAuth)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -251,6 +256,7 @@ func fetchLastMessage(
 	if err != nil {
 		return storedMessage{}, testingMessage{}, fmt.Errorf("create messages request: %w", err)
 	}
+	req.Header.Set("internal-auth", internalAuth)
 
 	resp, err := client.Do(req)
 	if err != nil {

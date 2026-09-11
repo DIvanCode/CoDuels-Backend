@@ -97,3 +97,9 @@ func MustLoadWithDefault(defaultPath string) (cfg *Config) {
 
 	return
 }
+
+func (c Config) ToFilestorageConfig() filestorage.Config {
+	fileStorageConfig := c.FileStorage
+	fileStorageConfig.InternalAuthKey = c.InternalAuthKey
+	return fileStorageConfig
+}

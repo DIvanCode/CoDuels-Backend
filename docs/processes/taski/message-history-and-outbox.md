@@ -19,6 +19,8 @@ history; or the producer ticker retries the oldest outbox row.
 
 An external Solution ID maps to a Solution row. Kafka mode additionally needs
 enabled dispatcher/broker/topic. Production has Kafka dispatcher disabled.
+REST history requests must contain exactly one `internal-auth` header equal to
+Taski's `InternalAuthKey`.
 
 ## Current behavior
 
@@ -26,7 +28,9 @@ Message creation locks all Solution rows with the external ID, computes
 `max(message_id)+1`, and inserts history keyed by
 `(solution_id,message_id)`. With Kafka enabled, the dispatcher also inserts a
 serialized outbox row in the same UoW. With Kafka disabled it stores history
-only. The REST API returns messages for an external ID with inclusive
+only. Internal-auth middleware rejects missing, empty, duplicate, or mismatched
+credentials with HTTP 401 before the REST handler runs. The REST API returns
+messages for an external ID with inclusive
 `start_id`, requested count, and ascending IDs; there is no retention limit.
 
 The outbox producer repeatedly selects the oldest row `FOR UPDATE` without
