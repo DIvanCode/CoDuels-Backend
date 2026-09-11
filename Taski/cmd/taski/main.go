@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	internalAPI "taski/internal/api"
 	getFileAPI "taski/internal/api/task/file"
 	getAPI "taski/internal/api/task/get"
 	listAPI "taski/internal/api/task/list"
@@ -70,7 +71,7 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	fileStorage, err := fs.New(log, cfg.FileStorage, mux)
+	fileStorage, err := fs.New(log, cfg.ToFilestorageConfig(), mux)
 	if err != nil {
 		log.Error("failed to create filestorage", slog.String("error", err.Error()))
 		return
@@ -102,11 +103,13 @@ func main() {
 	getTaskFileUseCase := getFileUC.NewUseCase(log, taskStorage)
 	getFileAPI.NewHandler(log, getTaskFileUseCase).Register(mux)
 
+	internalMux := mux.With(internalAPI.RequireInternalAuth(cfg.InternalAuthKey))
+
 	testUseCase := testUC.NewUseCase(log, taskStorage, unitOfWork, solutionStorage, executeClient, cfg.Execute.DownloadTaskEndpoint)
-	testAPI.NewHandler(log, testUseCase).Register(mux)
+	testAPI.NewHandler(log, testUseCase).Register(internalMux)
 
 	messagesUseCase := messagesUC.NewUseCase(log, unitOfWork, messageStorage)
-	messagesAPI.NewHandler(log, messagesUseCase).Register(mux)
+	messagesAPI.NewHandler(log, messagesUseCase).Register(internalMux)
 
 	messageDispatcher := dispatcher.NewMessageDispatcher(log, cfg.MessageDispatcher, unitOfWork, outboxStorage, messageStorage)
 	messageDispatcher.Start(ctx)
