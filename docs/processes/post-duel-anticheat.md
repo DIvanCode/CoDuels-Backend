@@ -26,6 +26,8 @@ and optionally delete raw actions after scoring.
 - The save handler does not verify that the user participates in that duel or
   that the task key exists.
 - A score is created only for a distinct participant/task with a Done/Accepted submission.
+- Duely's Analyzer request contains exactly one `internal-auth` header equal to
+  Analyzer's configured `InternalAuthKey`.
 
 ## 5. Current behavior
 
@@ -41,7 +43,9 @@ winner, and finish outbox rows.
 
 The background handler loads at most 20 null scores ordered by duel/user/task.
 For each, it loads actions ordered by `SequenceId`, selects the user's initial
-duel rating, calls Analyzer, and stages the returned score. If configured
+duel rating, calls Analyzer, and stages the returned score. Analyzer rejects a
+missing, empty, duplicate, or mismatched internal credential with HTTP 401
+before prediction. If configured
 `ShouldCleanupUserActions` (true in base/production settings), that stream is
 staged for deletion. One save occurs only after the whole batch succeeds.
 
