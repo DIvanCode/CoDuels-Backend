@@ -15,9 +15,10 @@ type (
 	}
 )
 
-func (c FileStorageConfig) ToExternal() filestorage.Config {
+func (c FileStorageConfig) ToExternal(internalAuthKey string) filestorage.Config {
 	return filestorage.Config{
-		RootDir: c.RootDir,
+		InternalAuthKey: internalAuthKey,
+		RootDir:         c.RootDir,
 		Trasher: filestorage.TrasherConfig{
 			Workers:                  c.Trasher.Workers,
 			CollectorIterationsDelay: c.Trasher.CollectorIterationsDelay,

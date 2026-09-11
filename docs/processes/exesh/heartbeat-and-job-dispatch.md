@@ -21,8 +21,9 @@ start another heartbeat until the prior call returns.
 
 Worker ID and coordinator endpoint must be configured. Completed results must
 serialize, and output-bearing results are assumed to carry non-null artifact
-trash timestamps. Coordinator and any source worker HTTP endpoints must be
-reachable by the receiving worker.
+trash timestamps. The request must contain exactly one `internal-auth` header
+equal to the coordinator's `InternalAuthKey`. Coordinator and any source worker
+HTTP endpoints must be reachable by the receiving worker.
 
 ## Current behavior
 
@@ -36,21 +37,23 @@ reachable by the receiving worker.
 3. On error, the worker appends the sent results back to the end of `doneJobs`.
    Concurrently completed jobs may already precede them, so result order can
    change.
-4. The handler decodes JSON. A decode error renders an ERROR response without
+4. Coordinator middleware validates the same header before decoding. Missing,
+   empty, duplicate, or mismatched credentials return HTTP 401.
+5. The handler decodes JSON. A decode error renders an ERROR response without
    setting an HTTP status, so it normally remains HTTP 200; the client then sees
    the application error.
-5. The use case normalizes totals as `max(total, free/available)`, registers or
+6. The use case normalizes totals as `max(total, free/available)`, registers or
    refreshes the worker, and processes reported results in request order.
-6. For every output-bearing normal result, and every output-bearing inner chain
+7. For every output-bearing normal result, and every output-bearing inner chain
    result, it dereferences `artifact_trash_time` and calls `PutArtifact` before
    `DoneJob`. There is no validation or per-result error response.
-7. `DoneJob` accepts only IDs found in the process-local `startedJobs`; unknown
+8. `DoneJob` accepts only IDs found in the process-local `startedJobs`; unknown
    or duplicate results are silently ignored. A recognized result is removed
    before its execution callback performs database work.
-8. After the entire batch, the job scheduler returns up to reported free slots
+9. After the entire batch, the job scheduler returns up to reported free slots
    of jobs plus a flattened list of source descriptors. The response does not
    map each source to a job explicitly; jobs refer to source IDs.
-9. On an OK response, the worker considers all sent results acknowledged. It
+10. On an OK response, the worker considers all sent results acknowledged. It
    attempts to save every returned source; errors are logged but do not prevent
    enqueueing every returned job.
 
@@ -166,8 +169,9 @@ results tied to worker sessions and attempts? See [Open questions](open-question
 
 ## Test coverage
 
-- **Heartbeat client tests:** configured authentication header, worker identity
-  and resource fields, successful response, and HTTP 401 error propagation.
+- **Authentication tests:** configured client header, middleware acceptance and
+  rejection cases, worker identity and resource fields, successful response,
+  and HTTP 401 error propagation.
 - **Missing scenarios:** JSON/errors, retry/reordering, partial batches,
   duplicate/unknown results, source failure, and same-ID concurrency.
 - **Required integration tests:** worker/coordinator HTTP exchange with multiple

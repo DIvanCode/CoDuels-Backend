@@ -27,6 +27,9 @@ func TestInternalAuthKeyConfiguration(t *testing.T) {
 			if cfg.InternalAuthKey != expected {
 				t.Error("incorrect internal auth key")
 			}
+			if cfg.ToFilestorageConfig().InternalAuthKey != expected {
+				t.Error("internal auth key was not propagated to filestorage")
+			}
 		})
 	}
 }

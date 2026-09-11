@@ -1,5 +1,7 @@
 - name: Deploy
   hosts: Production
+  vars_files:
+    - credentials.yml
   remote_user: root
   tasks:
     - name: Ensure network exists
@@ -20,6 +22,7 @@
         restart: yes
         restart_policy: unless-stopped
         env:
+          INTERNAL_AUTH_KEY: "{{ internal_auth_key }}"
           ANALYZER_PROD_MODEL_PATH: /app/artifacts/prod_random_forest.pkl
           ANALYZER_BASELINE_MODEL_PATH: /app/artifacts/baseline_logreg.pkl
         ports:

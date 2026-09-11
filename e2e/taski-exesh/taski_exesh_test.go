@@ -21,6 +21,7 @@ const (
 	aPlusBTaskID = "7d971f50363cf0aebbd87d971f50363cf0aebbd8"
 	accepted     = "Accepted"
 	finish       = "finish"
+	internalAuth = "INTERNAL_AUTH_KEY_LOCAL_VALUE"
 )
 
 var aPlusBSolution = strings.TrimSpace(`
@@ -77,6 +78,8 @@ func TestABSolutionAccepted(t *testing.T) {
 		t.Fatalf("Taski did not expose the A+B task: %v", err)
 	}
 
+	assertInternalEndpointsRejectUnauthenticated(t, ctx, client, taskiURL, coordinatorURL)
+
 	solutionID, err := randomSolutionID()
 	if err != nil {
 		t.Fatalf("create random solution ID: %v", err)
@@ -113,6 +116,43 @@ func TestABSolutionAccepted(t *testing.T) {
 	}
 }
 
+func assertInternalEndpointsRejectUnauthenticated(
+	t *testing.T,
+	ctx context.Context,
+	client *http.Client,
+	taskiURL string,
+	coordinatorURL string,
+) {
+	t.Helper()
+	tests := []struct {
+		method string
+		url    string
+	}{
+		{method: http.MethodPost, url: taskiURL + "/test"},
+		{method: http.MethodGet, url: taskiURL + "/solutions/unknown/messages?start_id=1&count=1"},
+		{method: http.MethodPost, url: coordinatorURL + "/execute"},
+		{method: http.MethodPost, url: coordinatorURL + "/heartbeat"},
+		{method: http.MethodGet, url: coordinatorURL + "/executions/00000000-0000-0000-0000-000000000000/messages?start_id=1&count=1"},
+	}
+
+	for _, tc := range tests {
+		req, err := http.NewRequestWithContext(ctx, tc.method, tc.url, nil)
+		if err != nil {
+			t.Fatalf("create unauthenticated request for %s: %v", tc.url, err)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("send unauthenticated request for %s: %v", tc.url, err)
+		}
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Fatalf("close unauthenticated response for %s: %v", tc.url, closeErr)
+		}
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("unauthenticated %s returned HTTP %d, want %d", tc.url, resp.StatusCode, http.StatusUnauthorized)
+		}
+	}
+}
+
 func submitSolution(ctx context.Context, client *http.Client, taskiURL, solutionID string) error {
 	payload := struct {
 		SolutionID string `json:"solution_id"`
@@ -136,6 +176,7 @@ func submitSolution(ctx context.Context, client *http.Client, taskiURL, solution
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("internal-auth", internalAuth)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -215,6 +256,7 @@ func fetchLastMessage(
 	if err != nil {
 		return storedMessage{}, testingMessage{}, fmt.Errorf("create messages request: %w", err)
 	}
+	req.Header.Set("internal-auth", internalAuth)
 
 	resp, err := client.Do(req)
 	if err != nil {
