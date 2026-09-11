@@ -24,7 +24,8 @@ enabled, or the next outbox polling/retry iteration.
 Every message must have a known polymorphic type and execution ID. `Send` must
 run with a transaction-bearing context because storages unconditionally extract
 `*sql.Tx`. Kafka publication additionally requires enabled config, brokers/topic,
-and optional SASL credentials.
+and optional SASL credentials. REST history requests must contain exactly one
+`internal-auth` header equal to the coordinator's `InternalAuthKey`.
 
 ## Current behavior
 
@@ -52,7 +53,9 @@ and optional SASL credentials.
 8. If Kafka accepts the record but outbox deletion or transaction commit fails,
    the row remains and is published again. The key can help an external consumer
    deduplicate, but Exesh provides no exactly-once guarantee.
-9. REST validates UUID, `start_id >= 1`, and `count >= 1`, then reads ordered
+9. REST middleware first rejects missing, empty, duplicate, or mismatched
+   internal credentials with HTTP 401.
+10. REST validates UUID, `start_id >= 1`, and `count >= 1`, then reads ordered
    rows `message_id >= start_id LIMIT count` in a transaction. There is no upper
    count bound and an unknown execution simply yields an empty list.
 
