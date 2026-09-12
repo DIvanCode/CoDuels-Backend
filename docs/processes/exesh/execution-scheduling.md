@@ -10,7 +10,7 @@ and persist final completion.
 
 Execution scheduler, PostgreSQL execution storage and unit of work, execution
 factory, coordinator filestorage, message dispatcher, job scheduler, worker
-pool, category histograms, and scheduler event recorder.
+pool, and category histograms.
 
 ## Trigger
 
@@ -35,11 +35,11 @@ factory materialization must succeed.
    rows. A permanently oversized oldest row blocks all following rows.
 4. The factory rebuilds the entire execution. The scheduler stores it in an
    in-memory map, calls `SetScheduled` (incrementing `tries`), increments
-   `nowWeight`, records a best-effort `started` event, inserts the durable
-   history/outbox `start`, and enqueues graph roots.
+   `nowWeight`, inserts the durable history/outbox `start`, and enqueues graph
+   roots.
 5. The updated definition is saved and the transaction commits. Start history,
-   optional outbox, and status are atomic with this commit; scheduler events and
-   filesystem downloads are not.
+   optional outbox, and status are atomic with this commit; filesystem downloads
+   and in-memory mutations are not.
 6. Each accepted job completion runs another transaction. It updates category
    histograms, inserts job messages, mutates the process-local graph, loads the
    durable row `FOR UPDATE`, calls `SetScheduled` again, and saves it. This
@@ -74,7 +74,6 @@ active object even when earlier callbacks still reference the previous one.
 | Capacity usage | execution scheduler | atomic `nowWeight` | No | Current process counter |
 | Started/promise/worker state | job scheduler/worker pool | Process memory | No | Respective maps/slice |
 | History/outbox | dispatcher | PostgreSQL | Yes | `Messages` / `Outbox` |
-| Scheduler events | recorder | Async PostgreSQL tables | Yes after insert | Best-effort telemetry |
 
 ## Persistence and transaction boundaries
 
@@ -117,18 +116,14 @@ is the implicit recovery. There is no maximum tries or terminal poison status.
 | Message/event | Condition | Durable | Delivery |
 | --- | --- | --- | --- |
 | `start` history/outbox | Scheduling attempt reaches dispatcher | Yes on commit | REST history; Kafka if enabled |
-| `started` scheduler event | Before start send | Best effort | Async event table |
-| `picked_candidate` scheduler event | Active execution exposes queue head | Best effort | Async event table |
 | `finish` history/outbox | Terminal transaction | Yes on commit | Can repeat after replay/race |
-| `finished` scheduler event | Before terminal transaction | Best effort | Can exist even if transaction fails |
 
 ## Observability
 
 The only custom Prometheus metric is
 `coduels_exesh_coordinator_now_weight`. Logs cover scheduling, capacity skips,
-jobs, and finish. Scheduler event tables capture candidate priority/progress and
-finish status/duration with seven-day retention. They can be dropped when the
-10,000-item channel is full and are not transactionally aligned with state.
+jobs, and finish. Candidate priority/progress and finish duration are no longer
+collected for dashboard charts.
 
 ## Implementation references
 

@@ -69,12 +69,6 @@ start the job when doing so does not delay existing promises.
 A conceptual job whose stage is active and whose artifact dependencies have
 completed successfully. It sits in a per-execution process-local FIFO.
 
-## Scheduler event
-
-Best-effort observability data asynchronously inserted into
-`exesh_execution_events`, `exesh_job_events`, or `exesh_worker_events`. It is
-not the message history and is retained for seven days.
-
 ## Source
 
 An inline value or filestorage file required as job input. The coordinator
