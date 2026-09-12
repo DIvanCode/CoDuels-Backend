@@ -14,12 +14,6 @@
         tag: "{{ version }}"
         source: pull
         force_source: true
-    - name: Pull dashboard image
-      docker_image:
-        name: divancode74/coduels-exesh-dashboard
-        tag: "{{ version }}"
-        source: pull
-        force_source: true
     - name: Run coordinator container
       docker_container:
         name: coordinator
@@ -92,18 +86,5 @@
           WORKER_FREE_SLOTS: "4"
           WORKER_AVAILABLE_MEMORY_MB: "2048"
           WORKER_COORDINATOR_ENDPOINT: http://coordinator:5253
-        networks:
-          - name: coduels
-    - name: Run dashboard container
-      docker_container:
-        name: dashboard
-        image: "divancode74/coduels-exesh-dashboard:{{ version }}"
-        recreate: yes
-        restart: yes
-        restart_policy: unless-stopped
-        ports:
-          - "9000:9000"
-        env:
-          EXESH_DASHBOARD_DB_CONNECTION_STRING: "{{ dashboard_postgres_connection }}"
         networks:
           - name: coduels

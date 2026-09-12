@@ -10,8 +10,7 @@ operation fails.
 
 Coordinator API/schedulers/worker pool/dispatcher, workers and runtimes,
 PostgreSQL, coordinator and worker filestorage, heartbeat network, Kafka,
-external source endpoints and consumers, container supervisor, and scheduler
-telemetry.
+external source endpoints and consumers, and container supervisor.
 
 ## Trigger
 
@@ -82,7 +81,6 @@ pending again` on failure/commit uncertainty. None represent a durable job retry
 | Artifact locations | coordinator | Heap | No | Cannot rediscover automatically |
 | Source/artifact files | local filestorage | Container filesystem | Only if filesystem survives/TTL | Local scan not integrated with scheduler |
 | History/outbox/histograms | PostgreSQL | Tables | Yes | Durable rows |
-| Scheduler events | async recorder | Tables after write | Partial | Diagnostic only |
 
 ## Persistence and transaction boundaries
 
@@ -133,17 +131,17 @@ The matrix records current outcomes, not desired guarantees.
 
 ## Emitted messages/events
 
-| Failure class | Business message | Scheduler event/log |
+| Failure class | Business message | Scheduler log |
 | --- | --- | --- |
-| Internal job/source error | `finish` with `error` if finish commits | Job/finish logs/events |
-| Domain CE/RE/TL/ML/WA | Job status then `finish` without internal error | Finished events |
-| Worker removal | None | `removed` worker event/log |
-| Coordinator restart/stale replay | New `start` and later repeated job/finish messages | New started/picked events |
+| Internal job/source error | `finish` with `error` if finish commits | Job/finish logs |
+| Domain CE/RE/TL/ML/WA | Job status then `finish` without internal error | Job/finish logs |
+| Worker removal | None | Worker removal log |
+| Coordinator restart/stale replay | New `start` and later repeated job/finish messages | New scheduling logs |
 | Kafka failure | History already committed | Dispatcher error log only |
 
 ## Observability
 
-Logs and best-effort seven-day scheduler tables are the primary diagnostics.
+Logs are the primary diagnostics.
 The only custom metric is `now_weight`; it can itself leak or go negative after
 races/errors. There are no recovery, retry-attempt, stuck-job, missing-worker,
 artifact-loss, ignored-result, outbox-depth, or shutdown-drain metrics/alerts.

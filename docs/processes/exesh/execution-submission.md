@@ -67,8 +67,7 @@ The complete inventory is in
 Histogram reads and `INSERT INTO Executions` use the transaction placed in the
 context by `UnitOfWork.Do`. A load or insert failure rolls back and no ID is
 returned. There is no external call in this transaction. Table initialization
-also happens at startup in a transaction, while scheduler event tables are
-initialized separately through `sql.DB`.
+and legacy schema cleanup also happen at startup in one transaction.
 
 ## Idempotency and duplicate handling
 

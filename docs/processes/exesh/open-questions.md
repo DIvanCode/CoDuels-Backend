@@ -114,7 +114,7 @@ progress cannot roll back, and the result cannot be reapplied.
 ### Questions
 
 - Which data is required for accepting a result?
-- Are histograms/telemetry allowed to fail the execution?
+- Are histogram updates allowed to fail the execution?
 
 ### Possible options
 

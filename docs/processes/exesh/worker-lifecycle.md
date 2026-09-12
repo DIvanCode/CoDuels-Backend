@@ -36,7 +36,7 @@ coordinator and between workers is required for artifact transfer.
    worker's actual job list.
 4. The observer wakes every `worker_die_after`. If
    `LastHeartbeat + worker_die_after < now`, it deletes the worker registry
-   entry and records `removed`.
+   entry and logs the removal.
 5. Deletion also discards that worker's advertised artifact locations and
    predicted running map. It does not inspect or modify job scheduler
    `startedJobs` or `promisedJobs`, does not fail executions, and does not send a
@@ -70,9 +70,8 @@ dead, or recovered state.
 
 ## Persistence and transaction boundaries
 
-Lifecycle state never enters PostgreSQL. Worker/scheduler events are queued
-asynchronously to PostgreSQL but cannot restore control state. Registration and
-removal are mutex-protected map operations. Container restart recreates worker
+Lifecycle state never enters PostgreSQL. Registration and removal are
+mutex-protected map operations. Container restart recreates worker
 heap; coordinator restart forgets every worker until the next heartbeat.
 
 ## Idempotency and duplicate handling
@@ -105,25 +104,20 @@ result delivery.
 
 | Event | Condition | Durable | Notes |
 | --- | --- | --- | --- |
-| `registered` worker event | Unknown ID heartbeat | Best effort | Initial totals |
-| `heartbeat` worker event | Every heartbeat | Best effort | Coordinator-predicted free values |
-| `removed` worker event | Missed-heartbeat observer | Best effort | Not recovery |
-| `job_placed` / `job_removed` | Scheduler accounting | Best effort | Predicted, process-local |
 | Business message | None for lifecycle | N/A | No worker-death message |
 
 ## Observability
 
-Coordinator logs registration/removal and writes high-volume heartbeat events.
+Coordinator logs registration/removal.
 Worker logs heartbeat errors and job start/done at debug level. No custom worker
 metrics expose queue, running jobs, results pending, artifact count, last
-successful heartbeat, or graceful drain. Event retention is seven days.
+successful heartbeat, or graceful drain.
 
 ## Implementation references
 
 - `Exesh/cmd/{worker,coordinator}/main.go`
 - `Exesh/internal/worker/worker.go`
 - `Exesh/internal/scheduler/worker_pool.go`
-- `Exesh/internal/storage/postgres/scheduler_event_storage.go`
 - `Exesh/config/worker.yml` and `coordinator.yml`
 - `Exesh/ansible/deploy/playbook.yml`
 
@@ -151,7 +145,9 @@ required? Is one-second death detection safe under storage latency? See
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** none in Exesh.
+- **Existing tests / covered scenarios:** scheduler regressions in
+  `Exesh/internal/scheduler/job_scheduler_test.go`; see
+  [Dashboard retirement](dashboard-retirement.md#verification) for coverage.
 - **Missing scenarios:** registration/capacity, missed heartbeat, removal races,
   re-registration/ID collision, restart, and graceful shutdown.
 - **Required integration tests:** real coordinator plus workers through register,
