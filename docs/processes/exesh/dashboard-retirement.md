@@ -33,8 +33,10 @@ and application logs remain available.
 ## Upgrade behavior
 
 Coordinator storage initialization calls `postgres.Migrate` inside its normal
-initialization transaction, before creating the retained tables. It executes
-`DROP TABLE IF EXISTS` for the three legacy event tables without `CASCADE`.
+initialization transaction. The same `migrations.go` file defines the retained
+tables, indexes, historical `Executions` columns, and `DROP TABLE IF EXISTS` for
+the three legacy event tables without `CASCADE`. Storage constructors perform
+no schema changes.
 Existing chart history is permanently discarded. Fresh installations and later
 restarts safely repeat the cleanup. Retained table contents are unaffected.
 An unexpected dependent object or insufficient database ownership fails storage
@@ -57,10 +59,11 @@ restore discarded chart history.
 - Scheduler regression tests cover resource release before callbacks, concurrent
   result redelivery, unknown results, promised job dispatch, source failure, and
   replacement/repeated removal accounting.
-- `TestMigrateRetiresOnlyDashboardTables` runs against PostgreSQL when
-  `EXESH_TEST_POSTGRES_DSN` is set. It checks populated legacy tables, retained
-  rows, repeat cleanup, dependency refusal, and transactional rollback in an
-  isolated schema. The Exesh PR test job supplies an isolated PostgreSQL service.
+- The migration tests run against PostgreSQL when `EXESH_TEST_POSTGRES_DSN`
+  is set. They check fresh schema creation, populated legacy tables, retained
+  rows, repeat cleanup, legacy `Executions` upgrades, dependency refusal, and
+  transactional rollback in isolated schemas. The Exesh PR test job supplies
+  an isolated PostgreSQL service.
 - The existing Taski-Exesh e2e remains the acceptance check for public messages,
   task execution and isolation. Its Compose/config/fixture contracts are
   unaffected by dashboard removal.

@@ -25,7 +25,7 @@ jobs:
         ports:
           - 5432/tcp
         options: >-
-          --health-cmd "pg_isready -U coordinator -d exesh_test"
+          --health-cmd "pg_isready -h 127.0.0.1 -U coordinator -d exesh_test"
           --health-interval 1s --health-timeout 3s --health-retries 60
     env:
       EXESH_TEST_POSTGRES_DSN: postgres://coordinator:test@localhost:${{ job.services.postgres.ports[5432] }}/exesh_test?sslmode=disable

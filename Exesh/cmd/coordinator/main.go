@@ -175,23 +175,14 @@ func setupStorage(log *slog.Logger, cfg config.StorageConfig) (
 		return unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, err
 	}
 
-	err = unitOfWork.Do(ctx, func(ctx context.Context) error {
-		if err = postgres.Migrate(ctx); err != nil {
-			return err
-		}
-		if executionStorage, err = postgres.NewExecutionStorage(ctx, log); err != nil {
-			return fmt.Errorf("failed to create execution storage: %w", err)
-		}
-		if outboxStorage, err = postgres.NewOutboxStorage(ctx, log); err != nil {
-			return fmt.Errorf("failed to create outbox storage: %w", err)
-		}
-		if messageStorage, err = postgres.NewMessageStorage(ctx, log); err != nil {
-			return fmt.Errorf("failed to create message storage: %w", err)
-		}
-		if categoryHistogramStorage, err = postgres.NewCategoryHistogramStorage(ctx, log); err != nil {
-			return fmt.Errorf("failed to create category histogram storage: %w", err)
-		}
-		return nil
-	})
-	return unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, err
+	err = unitOfWork.Do(ctx, postgres.Migrate)
+	if err != nil {
+		return unitOfWork, nil, nil, nil, nil, err
+	}
+
+	executionStorage = postgres.NewExecutionStorage(log)
+	outboxStorage = postgres.NewOutboxStorage(log)
+	messageStorage = postgres.NewMessageStorage(log)
+	categoryHistogramStorage = postgres.NewCategoryHistogramStorage(log)
+	return unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, nil
 }

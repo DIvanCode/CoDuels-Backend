@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: exesh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U coordinator -d exesh"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U coordinator -d exesh"]
       interval: 1s
       timeout: 3s
       retries: 60
@@ -20,7 +20,7 @@ services:
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: taski
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U taski -d taski"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U taski -d taski"]
       interval: 1s
       timeout: 3s
       retries: 60

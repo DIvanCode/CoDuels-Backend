@@ -19,6 +19,10 @@ Run it from the Backend repository:
 ./e2e/taski-exesh/run.sh
 ```
 
+PostgreSQL healthchecks use TCP so they only pass after the final server starts;
+the temporary Unix-socket server used during database initialization is not
+ready for the coordinator or Taski.
+
 The Compose project uses no host ports or fixed container names, so it can run
 alongside the regular local CoDuels stack. Containers, networks, and volumes
 created by the test are removed when it finishes.
