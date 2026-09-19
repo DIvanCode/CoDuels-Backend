@@ -9,7 +9,7 @@ public job messages, unlock graph successors, and mark the execution finished.
 
 Worker/done-results heartbeat, heartbeat use case, worker pool, job scheduler,
 execution scheduler and graph, category histogram storage, execution storage,
-message factory/dispatcher, scheduler event recorder, REST/Kafka consumers.
+message factory/dispatcher, REST/Kafka consumers.
 
 ## Trigger
 
@@ -27,8 +27,7 @@ execution row.
 ## Current behavior
 
 1. Job scheduler removes the recognized `startedJobs` entry and the worker-pool
-   predicted allocation, records a best-effort `finished` event, then invokes
-   the completion callback outside its mutex.
+   predicted allocation, then invokes the completion callback outside its mutex.
 2. A result with `GetError() != nil` increments expected progress and immediately
    calls `finishExecution(error)`. It does not update the graph, category
    histograms, or emit a job-type business message.
@@ -47,9 +46,8 @@ execution row.
    `finishExecution(nil)` is called. A non-success job status cancels dependent
    jobs/stages but is not an execution error; completion eventually emits a
    successful empty-error `finish` message.
-7. `finishExecution` first records a best-effort finish event, defers weight
-   decrement, sets force-failed (also used as a terminal guard), and deletes the
-   active map entry. Then one transaction creates a successful/error `finish`
+7. `finishExecution` defers weight decrement, sets force-failed (also used as a
+   terminal guard), and deletes the active map entry. Then one transaction creates a successful/error `finish`
    history/outbox message, mutates the in-memory definition to `finished`, and
    saves it.
 
@@ -76,16 +74,16 @@ cancel successors but normally end the execution with finish message error empty
 | Execution status/tries/time | execution storage | PostgreSQL | Yes | `Executions` |
 | Category samples | histogram storage | PostgreSQL | Yes | Histogram tables |
 | Job/finish history and outbox | dispatcher | PostgreSQL | Yes | `Messages` / `Outbox` |
-| Completion events/weight | event recorder/scheduler | Async DB / heap | Partly | Telemetry / atomic counter |
+| Capacity weight | execution scheduler | Coordinator heap | No | Atomic counter |
 
 ## Persistence and transaction boundaries
 
 For non-error results, histogram increments, all job messages, and execution
 timestamp save share one transaction. The graph mutation is in-memory inside the
 callback and not rollback-safe. Successor enqueue is after commit. Finish uses a
-separate transaction. Active-map deletion, force flag, event emission, and
-weight decrement are outside/before finish commit; a failure leaves a durable
-scheduled row that later replays.
+separate transaction. Active-map deletion, force flag, and weight decrement are
+outside/before finish commit; a failure leaves a durable scheduled row that later
+replays.
 
 ## Idempotency and duplicate handling
 
@@ -122,15 +120,14 @@ job requeue or durable dead-letter status exists.
 | `run` | execution ID, job name, status, optional output | Each executed run result | History; optional outbox |
 | `check` | execution ID, job name, status | Each executed check result | History; optional outbox |
 | `finish` | execution ID, optional internal error | Terminal path | History; optional outbox |
-| `finished` job/execution event | estimates/actuals or finish status | Before callbacks/commit | Best effort telemetry |
 
 `start` is emitted by scheduling, not completion. A chain can emit several job
 messages in one transaction but only for inner results actually executed.
 
 ## Observability
 
-Logs identify job/execution IDs and internal errors. Scheduler events capture
-actual duration and finish progress/status. History exposes product results.
+Logs identify job/execution IDs and internal errors. History exposes product
+results.
 There are no counters for ignored/duplicate results, canceled jobs, persistence-
 induced failure, double finish, or retry attempt identity.
 
@@ -152,7 +149,7 @@ computation or completion across failure/restart.
 
 ## Open questions
 
-Should telemetry/history/storage failure change a verdict into execution error?
+Should histogram/history/storage failure change a verdict into execution error?
 Should a domain failure finish successfully? Which inner chain messages are
 contractually required? How is terminal idempotency defined? See
 [Open questions](open-questions.md).
@@ -168,9 +165,11 @@ contractually required? How is terminal idempotency defined? See
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** none in Exesh.
-- **Missing scenarios:** recognition, graph unlock/cancel, chains, atomicity,
-  duplicates, concurrent finish, and status/message consistency.
+- **Existing tests / covered scenarios:** scheduler regressions in
+  `Exesh/internal/scheduler/job_scheduler_test.go`; see
+  [Dashboard retirement](dashboard-retirement.md#verification) for coverage.
+- **Missing scenarios:** graph unlock/cancel, chains, database atomicity,
+  duplicates across restart, concurrent finish, and status/message consistency.
 - **Required integration tests:** real PostgreSQL result batches and graph
   progress through every verdict and successful/error finish.
 - **Required failure-injection tests:** fail histogram/message/save/commit at

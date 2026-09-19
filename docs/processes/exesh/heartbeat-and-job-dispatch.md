@@ -105,7 +105,7 @@ Different workers and even manually concurrent requests for the same ID can be
 handled concurrently. Pool/job mutexes protect individual structures, not the
 whole batch. Worker removal can race between registration and `PutArtifact`.
 Concurrent results for the same job race to remove one started entry; only one
-gets a callback, but worker identity is not checked against the stored owner.
+gets a callback, but worker identity is not checked against an assignment owner.
 Callbacks for different jobs can race on execution progress and terminal state.
 
 ## Failure handling
@@ -122,8 +122,6 @@ already marked them started.
 
 | Output | Condition | Durable | Notes |
 | --- | --- | --- | --- |
-| Worker `heartbeat` event | Request registers/refreshes | Best effort | Uses coordinator predictions |
-| Job `finished` event | Recognized result | Best effort | Before completion callback |
 | Job business messages | Callback succeeds | Yes on transaction commit | One per normal/inner result |
 | HTTP jobs/sources | Work available | No | No dispatch acknowledgement |
 | Logs | Batch has completions/errors | Log dependent | No per-result ack outcome |
@@ -131,10 +129,9 @@ already marked them started.
 ## Observability
 
 Coordinator logs batches with completed count and reported free resources.
-Worker logs heartbeat and source-save errors. Scheduler tables provide
-heartbeat/job-finish events but no request ID, round-trip duration, payload
-size, unknown-result count, duplicate count, acknowledgement status, or jobs
-lost with a response.
+Worker logs heartbeat and source-save errors. There are no metrics for request
+ID, round-trip duration, payload size, unknown-result count, duplicate count,
+acknowledgement status, or jobs lost with a response.
 
 ## Implementation references
 

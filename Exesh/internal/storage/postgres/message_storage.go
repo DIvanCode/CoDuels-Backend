@@ -15,17 +15,6 @@ type MessageStorage struct {
 }
 
 const (
-	createMessageTableQuery = `
-		CREATE TABLE IF NOT EXISTS Messages(
-			execution_id varchar(36) NOT NULL,
-			message_id bigint NOT NULL,
-			message jsonb NOT NULL,
-			created_at timestamp NOT NULL,
-			PRIMARY KEY (execution_id, message_id),
-			FOREIGN KEY (execution_id) REFERENCES Executions(id) ON DELETE CASCADE
-		);
-	`
-
 	insertMessageQuery = `
 		WITH execution_lock AS (
 			SELECT id FROM Executions
@@ -50,14 +39,8 @@ const (
 	`
 )
 
-func NewMessageStorage(ctx context.Context, log *slog.Logger) (*MessageStorage, error) {
-	tx := extractTx(ctx)
-
-	if _, err := tx.ExecContext(ctx, createMessageTableQuery); err != nil {
-		return nil, fmt.Errorf("failed to create messages table: %w", err)
-	}
-
-	return &MessageStorage{log: log}, nil
+func NewMessageStorage(log *slog.Logger) *MessageStorage {
+	return &MessageStorage{log: log}
 }
 
 func (s *MessageStorage) CreateMessage(

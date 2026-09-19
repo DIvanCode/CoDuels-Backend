@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"context"
-	"exesh/internal/domain/execution"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/domain/execution/source/sources"
@@ -11,7 +10,6 @@ import (
 type (
 	Job struct {
 		jobs.Job
-		ExecutionID execution.ID
 
 		Sources sourcesCallback
 		OnStart startCallback

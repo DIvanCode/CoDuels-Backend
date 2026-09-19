@@ -14,16 +14,6 @@ type OutboxStorage struct {
 }
 
 const (
-	createOutboxTableQuery = `
-		CREATE TABLE IF NOT EXISTS Outbox(
-		    id BIGSERIAL PRIMARY KEY,
-			message text,
-			created_at timestamp,
-			failed_at timestamp NULL,
-			failed_tries integer
-		);
-	`
-
 	insertOutboxQuery = `
 		INSERT INTO Outbox(message, created_at, failed_at, failed_tries)
 		VALUES ($1, $2, $3, $4);
@@ -47,14 +37,8 @@ const (
 	`
 )
 
-func NewOutboxStorage(ctx context.Context, log *slog.Logger) (*OutboxStorage, error) {
-	tx := extractTx(ctx)
-
-	if _, err := tx.ExecContext(ctx, createOutboxTableQuery); err != nil {
-		return nil, fmt.Errorf("failed to create outbox table: %w", err)
-	}
-
-	return &OutboxStorage{log: log}, nil
+func NewOutboxStorage(log *slog.Logger) *OutboxStorage {
+	return &OutboxStorage{log: log}
 }
 
 func (s *OutboxStorage) CreateOutbox(ctx context.Context, ox outbox.Outbox) error {

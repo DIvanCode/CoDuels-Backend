@@ -15,30 +15,6 @@ type ExecutionStorage struct {
 }
 
 const (
-	createExecutionTableQuery = `
-		CREATE TABLE IF NOT EXISTS Executions(
-			id varchar(36) PRIMARY KEY,
-			stages jsonb,
-		    sources jsonb,
-			weight bigint NOT NULL DEFAULT 0,
-			tries integer NOT NULL DEFAULT 0,
-			status varchar(32),
-			created_at timestamp,
-			scheduled_at timestamp NULL,
-			finished_at timestamp NULL
-		);
-	`
-
-	addWeightToExecutionTableQuery = `
-		ALTER TABLE Executions
-		ADD COLUMN IF NOT EXISTS weight bigint NOT NULL DEFAULT 0;
-	`
-
-	addTriesToExecutionTableQuery = `
-		ALTER TABLE Executions
-		ADD COLUMN IF NOT EXISTS tries integer NOT NULL DEFAULT 0;
-	`
-
 	insertExecutionQuery = `
 		INSERT INTO Executions(id, stages, sources, weight, tries, status, created_at, scheduled_at, finished_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
@@ -64,20 +40,8 @@ const (
 	`
 )
 
-func NewExecutionStorage(ctx context.Context, log *slog.Logger) (*ExecutionStorage, error) {
-	tx := extractTx(ctx)
-
-	if _, err := tx.ExecContext(ctx, createExecutionTableQuery); err != nil {
-		return nil, fmt.Errorf("failed to create execution table: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, addWeightToExecutionTableQuery); err != nil {
-		return nil, fmt.Errorf("failed to add weight to execution table: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, addTriesToExecutionTableQuery); err != nil {
-		return nil, fmt.Errorf("failed to add tries to execution table: %w", err)
-	}
-
-	return &ExecutionStorage{log: log}, nil
+func NewExecutionStorage(log *slog.Logger) *ExecutionStorage {
+	return &ExecutionStorage{log: log}
 }
 
 func (s *ExecutionStorage) CreateExecution(ctx context.Context, ex execution.Definition) error {

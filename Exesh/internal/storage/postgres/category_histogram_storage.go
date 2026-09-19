@@ -12,38 +12,6 @@ type CategoryHistogramStorage struct {
 }
 
 const (
-	createCategoryTimeHistogramTableQuery = `
-		CREATE TABLE IF NOT EXISTS category_time_histogram(
-			category_name text NOT NULL,
-			time_bucket_ms integer NOT NULL,
-			cnt bigint NOT NULL DEFAULT 0,
-			PRIMARY KEY (category_name, time_bucket_ms),
-			CONSTRAINT category_time_histogram_bucket_non_negative CHECK (time_bucket_ms >= 0),
-			CONSTRAINT category_time_histogram_cnt_non_negative CHECK (cnt >= 0)
-		);
-	`
-
-	createCategoryMemoryHistogramTableQuery = `
-		CREATE TABLE IF NOT EXISTS category_memory_histogram(
-			category_name text NOT NULL,
-			memory_bucket_mb integer NOT NULL,
-			cnt bigint NOT NULL DEFAULT 0,
-			PRIMARY KEY (category_name, memory_bucket_mb),
-			CONSTRAINT category_memory_histogram_bucket_non_negative CHECK (memory_bucket_mb >= 0),
-			CONSTRAINT category_memory_histogram_cnt_non_negative CHECK (cnt >= 0)
-		);
-	`
-
-	createCategoryTimeHistogramCategoryIdxQuery = `
-		CREATE INDEX IF NOT EXISTS idx_category_time_histogram_category
-		ON category_time_histogram(category_name);
-	`
-
-	createCategoryMemoryHistogramCategoryIdxQuery = `
-		CREATE INDEX IF NOT EXISTS idx_category_memory_histogram_category
-		ON category_memory_histogram(category_name);
-	`
-
 	upsertCategoryTimeHistogramQuery = `
 		INSERT INTO category_time_histogram(category_name, time_bucket_ms, cnt)
 		VALUES ($1, $2, 1)
@@ -116,23 +84,8 @@ const (
 	`
 )
 
-func NewCategoryHistogramStorage(ctx context.Context, log *slog.Logger) (*CategoryHistogramStorage, error) {
-	tx := extractTx(ctx)
-
-	if _, err := tx.ExecContext(ctx, createCategoryTimeHistogramTableQuery); err != nil {
-		return nil, fmt.Errorf("failed to create category_time_histogram table: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, createCategoryMemoryHistogramTableQuery); err != nil {
-		return nil, fmt.Errorf("failed to create category_memory_histogram table: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, createCategoryTimeHistogramCategoryIdxQuery); err != nil {
-		return nil, fmt.Errorf("failed to create category_time_histogram index: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, createCategoryMemoryHistogramCategoryIdxQuery); err != nil {
-		return nil, fmt.Errorf("failed to create category_memory_histogram index: %w", err)
-	}
-
-	return &CategoryHistogramStorage{log: log}, nil
+func NewCategoryHistogramStorage(log *slog.Logger) *CategoryHistogramStorage {
+	return &CategoryHistogramStorage{log: log}
 }
 
 func (s *CategoryHistogramStorage) UpdateCategoryHistogram(

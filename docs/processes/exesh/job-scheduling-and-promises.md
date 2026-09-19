@@ -8,7 +8,7 @@ protecting predicted start times of a bounded set of waiting jobs.
 ## Participants
 
 Heartbeat use case, job scheduler, execution scheduler, worker pool, ready-job
-queues, source callbacks, scheduler event recorder, and the requesting worker.
+queues, source callbacks, and the requesting worker.
 
 ## Trigger
 
@@ -66,7 +66,7 @@ started by another worker. On source-resolution failure:
 | --- | --- | --- | --- | --- |
 | Ready FIFO heads | execution wrapper | Coordinator heap | No | Per-execution queue |
 | Promise list and predicted times | job scheduler | Coordinator heap | No | `promisedJobs` |
-| Started job/callback/worker | job scheduler | Coordinator heap | No | `startedJobs[jobID]` |
+| Started job/callback | job scheduler | Coordinator heap | No | `startedJobs[jobID]` |
 | Predicted worker allocations | worker pool | Coordinator heap | No | `RunningJobs` map |
 | Actual local queue/running capacity | worker | Worker heap | No | Worker counters/queue |
 | Job limits/estimates | materialized job | Coordinator and response JSON | No | Current job object |
@@ -109,16 +109,11 @@ coordinator state still says started while the worker never received the job.
 
 | Event | Condition | Durable | Notes |
 | --- | --- | --- | --- |
-| `promised` job event | Candidate reserved | Best effort | Predicted worker/start |
-| `started` job event | Ready job starts | Best effort | Predicted memory interval |
-| `promised_started` job event | Promise starts | Best effort | Actual requesting worker |
-| `job_placed` worker event | Pool allocation | Best effort | Predicted totals |
 | Business message | None at placement | N/A | Emitted only on recognized result |
 
 ## Observability
 
-Events expose expected duration/memory, promise latency, worker, and memory
-offset. There are no durable queue/promise inspection endpoints or metrics for
+There are no durable queue/promise inspection endpoints or metrics for
 queue length, promise age, starvation, source-resolution failure, or dispatch
 loss. Logs report inability to find a promise worker.
 
@@ -154,7 +149,9 @@ than every worker handled? What recovers orphan promises and started jobs? See
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** none in Exesh.
+- **Existing tests / covered scenarios:** scheduler regressions in
+  `Exesh/internal/scheduler/job_scheduler_test.go`; see
+  [Dashboard retirement](dashboard-retirement.md#verification) for coverage.
 - **Missing scenarios:** scanline/equal-time placement, promise protection and
   rescheduling, impossible jobs, reported-memory divergence, and duplicates.
 - **Required integration tests:** several heartbeat-driven workers with

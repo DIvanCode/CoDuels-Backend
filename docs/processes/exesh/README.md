@@ -94,9 +94,10 @@ poll message history over REST.
 
 ## Most important boundaries
 
-- `Executions`, `Messages`, `Outbox`, category histograms, and scheduler event
-  tables are PostgreSQL-backed. Scheduler events are asynchronous telemetry,
-  not part of business transactions.
+- `Executions`, `Messages`, `Outbox`, and category histograms are PostgreSQL-backed.
+  Category histograms feed scheduling estimates and remain part of result
+  transactions. The former dashboard event tables are removed at startup; see
+  [Dashboard retirement](dashboard-retirement.md).
 - Coordinator and worker filestorage roots are local filesystem state. The
   production playbook does not mount durable volumes for those roots.
 - Execution retry is whole-definition replay. It is not a persisted job retry

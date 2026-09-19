@@ -8,8 +8,7 @@ from each active execution for worker placement.
 ## Participants
 
 Calculator, category histogram storage, execute use case, execution factory,
-execution scheduler wrapper, job scheduler, worker pool, and scheduler event
-storage.
+execution scheduler wrapper, job scheduler, and worker pool.
 
 ## Trigger
 
@@ -72,7 +71,7 @@ Priority is a derived instantaneous value, not state.
 | Per-job estimates | materialized job | Coordinator heap | No | Recomputed from current histograms |
 | Total/done expected time | scheduler wrapper | Coordinator heap | No | Wrapper counters |
 | Tries | execution definition | PostgreSQL and copied heap value | Durable value yes | PostgreSQL; live copy can lag |
-| Candidate priority | execution scheduler | Temporary map/event | Event may persist | Current calculation |
+| Candidate priority | execution scheduler | Temporary map | No | Current calculation |
 
 ## Persistence and transaction boundaries
 
@@ -80,19 +79,19 @@ Submission reads histograms and saves weight in one transaction. Scheduling
 loads histograms again while claiming the row, so per-job estimates can differ
 from those that produced the persisted weight. Histogram increments occur in
 the same transaction as job history and scheduled timestamp refresh. Candidate
-priority events are asynchronous and outside that transaction.
+priorities are calculated only in memory.
 
 ## Idempotency and duplicate handling
 
 Histogram increments are not idempotent by job/attempt; replayed or duplicate
 accepted results add samples again. Whole-execution replay loads the latest
 histograms and can change placement estimates while retaining old persisted
-weight. Candidate events repeat for every worker request.
+weight.
 
 ## Concurrency and races
 
-Histogram upserts are safe PostgreSQL increments. Wrapper priority/progress
-methods lock its mutex, but completion increments
+Histogram upserts are safe PostgreSQL increments. The wrapper priority
+method locks its mutex, but completion increments
 `TotalDoneJobsExpectedTime` without that mutex. Concurrent completion and
 priority reads are therefore a data race in Go terms. Multiple coordinators use
 shared histograms but independent capacity, progress, and active attempts.
@@ -109,15 +108,12 @@ used when PostgreSQL is unavailable.
 
 | Output | Condition | Durable | Notes |
 | --- | --- | --- | --- |
-| `picked_candidate` | Queue head examined | Best effort | Includes priority/progress |
-| Job event expected resources | promise/start/finish | Best effort | Estimated, not limits |
 | Prometheus `now_weight` | Scrape | No | Admission weight, not actual usage |
 | Business history | Not emitted by priority | N/A | Job result path emits it |
 
 ## Observability
 
-Scheduler events record estimates, priority, progress, predicted finish, and
-latency. There are no metrics for histogram sample counts, prediction error,
+There are no metrics for histogram sample counts, prediction error,
 queue age, heavy-row blocking, NaN priority, or capacity rejection. Worker
 Prometheus exposes only default Go/process metrics.
 
@@ -138,7 +134,7 @@ the placement scan.
 ## Open questions
 
 Are category names intentionally user/task-specific, limiting sample reuse?
-Should estimates ever exceed limits? Is replayed telemetry a valid new sample?
+Should estimates ever exceed limits? Is a replayed result a valid new sample?
 Should priority use attempt count, completed-job count, or age? See
 [Open questions](open-questions.md).
 
@@ -155,7 +151,7 @@ Should priority use attempt count, completed-job count, or age? See
 - **Existing tests / covered scenarios:** none in Exesh.
 - **Missing scenarios:** histogram SQL/buckets, clamp edges, exact formula,
   sorting, zero totals, duplicate samples/names, and concurrent progress reads.
-- **Required integration tests:** seed PostgreSQL histograms and assert admission,
-  priority order, and scheduler event values.
+- **Required integration tests:** seed PostgreSQL histograms and assert admission
+  and priority order.
 - **Required failure-injection tests:** unavailable histogram storage, malformed
   limits, repeated results, and concurrency under the race detector.

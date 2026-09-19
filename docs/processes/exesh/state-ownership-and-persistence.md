@@ -26,10 +26,9 @@ durable volumes to coordinator/worker filestorage containers.
 
 The durable execution aggregate is only a definition and coarse status row.
 Every actionable job/stage/worker state is reconstructed in memory. PostgreSQL
-persists public messages, optional outbox intents, category statistics, and
-best-effort telemetry, but none of those tables is read to restore graph or job
-progress. Local filestorage can retain bytes until TTL/deletion, yet Exesh also
-needs process-local source and artifact maps that are not reconstructed by
+persists public messages, optional outbox intents, and category statistics,
+but none of those tables is read to restore graph or job progress. Local
+filestorage can retain bytes until TTL/deletion, yet Exesh also needs process-local source and artifact maps that are not reconstructed by
 scanning those bytes.
 
 ## State transitions
@@ -51,7 +50,7 @@ structures and disappear on owner restart.
 | Execution graph/dependency/cancellation counters | domain graph | Coordinator heap | No | Graph maps under mutex |
 | Ready jobs | graph/scheduler wrapper | `toPick` and FIFO | No | Current queues |
 | Promised jobs/start predictions | job scheduler | Slice | No | `promisedJobs` |
-| Started jobs/callbacks/worker assignment | job scheduler | Map by job ID | No | `startedJobs` |
+| Started jobs/callbacks | job scheduler | Map by job ID | No | `startedJobs` |
 | Coordinator capacity usage | execution scheduler | Atomic `nowWeight` | No | Current process counter |
 | Worker registry and last heartbeat | worker pool | Map | No | Current coordinator heap |
 | Worker predicted running jobs/resources | worker pool | Per-worker maps/counter | No | Coordinator predictions |
@@ -71,8 +70,6 @@ structures and disappear on owner restart.
 | Kafka records | Kafka | Broker log | Broker retention dependent | Kafka |
 | Consumer message cursor | Duely/Taski | Consumer-owned persistence | Consumer dependent | Consumer DB/state |
 | Category estimates' samples | histogram storage | PostgreSQL histogram tables | Yes | PostgreSQL |
-| Scheduler events | event recorder | Async channel then PostgreSQL event tables | Only after successful async insert | Best-effort telemetry |
-| Event channel/backpressure | event recorder | Coordinator heap | No | In-memory channel |
 | Dispatcher backoff | dispatcher | Loop local variables | No | Current process |
 
 ## Persistence and transaction boundaries
@@ -80,9 +77,9 @@ structures and disappear on owner restart.
 | Unit of work | PostgreSQL operations committed together | Important non-transactional side effects |
 | --- | --- | --- |
 | Submission | Histogram read; execution insert | HTTP response after commit |
-| Schedule claim | Row claim; start history; optional outbox; scheduled save | Source downloads, active map, queues, event, weight |
-| Successful result | Row lock; histogram increments; job messages/outbox; scheduled refresh | Started removal, artifact ad, graph progress, events |
-| Finish | Finish history/outbox; finished save | Event, force flag, map delete, weight decrement |
+| Schedule claim | Row claim; start history; optional outbox; scheduled save | Source downloads, active map, queues, weight |
+| Successful result | Row lock; histogram increments; job messages/outbox; scheduled refresh | Started removal, artifact ad, graph progress |
+| Finish | Finish history/outbox; finished save | Force flag, map delete, weight decrement |
 | Outbox dispatch | Row select; delete or intended failure update | Kafka broker write |
 | REST history read | Ordered select | Consumer applies after response |
 
@@ -109,27 +106,26 @@ divergence, and global capacity overcommit remain possible.
 
 ## Failure handling
 
-Only PostgreSQL-backed definitions/status/history/outbox/histograms and already
-inserted events are naturally available after process restart. Stale replay is
+Only PostgreSQL-backed definitions/status/history/outbox/histograms are
+naturally available after process restart. Stale replay is
 the only execution recovery mechanism. It cannot identify completed jobs or
 locate artifacts, so it repeats all work. Local files may remain orphaned until
 TTL. See [Failure and recovery](failure-and-recovery.md) for the full matrix.
 
 ## Emitted messages/events
 
-| State change | Public history/outbox | Scheduler telemetry |
-| --- | --- | --- |
-| Execution accepted `new` | None | None |
-| Scheduling begins | `start` | `started` |
-| Candidate/placement/promise | None | `picked_candidate`, `promised`, `started`, worker events |
-| Job result | Compile/run/check if non-error | `finished` job event |
-| Worker expires | None | `removed` worker event |
-| Execution terminates | `finish` | `finished` execution event |
+| State change | Public history/outbox |
+| --- | --- |
+| Execution accepted `new` | None |
+| Scheduling begins | `start` |
+| Candidate/placement/promise | None |
+| Job result | Compile/run/check if non-error |
+| Worker expires | None |
+| Execution terminates | `finish` |
 
 ## Observability
 
-Public history is durable application output; scheduler event tables are
-best-effort diagnostics with seven-day retention; logs are process output; the
+Public history is durable application output; logs are process output; the
 custom Prometheus surface is only coordinator `now_weight`. None is a control-
 plane source for recovery.
 
@@ -153,7 +149,7 @@ source-provider maps, or artifact location maps from persistent data.
 ## Open questions
 
 Which rows form the authoritative job/attempt ledger? Which file state must be
-durable? May telemetry ever drive recovery? What consistency should callers see
+durable? What consistency should callers see
 between finish history and status? See [Open questions](open-questions.md).
 
 ## Proposed requirements
@@ -166,8 +162,10 @@ between finish history and status? See [Open questions](open-questions.md).
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** no Exesh state/persistence tests;
-  filestorage tests cover only its filesystem subsystem.
+- **Existing tests / covered scenarios:** PostgreSQL migration isolation,
+  repeat cleanup, dependency failure, and preservation of retained rows;
+  filestorage tests cover its filesystem subsystem. See
+  [Dashboard retirement](dashboard-retirement.md#verification).
 - **Missing scenarios:** schemas, transaction composition, locks, restart,
   volatile-state loss, and heap/database divergence.
 - **Required integration tests:** persist every table/file state, restart each

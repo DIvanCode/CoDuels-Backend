@@ -61,7 +61,7 @@ and optional SASL credentials. REST history requests must contain exactly one
 
 History, outbox, and Kafka are deliberately distinct: durable history is the
 polling contract; outbox is a pending publication intent; Kafka is a delivery
-attempt that may duplicate. Scheduler events are separate telemetry tables.
+attempt that may duplicate.
 
 ## State transitions
 
@@ -80,7 +80,6 @@ consumer, not Exesh.
 | Consecutive failure backoff | dispatcher | Coordinator heap | No | Loop variable |
 | Kafka accepted record | Kafka | Broker | Broker policy | Kafka |
 | REST consumer cursor | Duely/Taski | Consumer persistence | Consumer-defined | Consumer DB |
-| Scheduler events | event recorder | Separate PostgreSQL tables | Yes after async insert | Telemetry only |
 
 ## Persistence and transaction boundaries
 
@@ -88,7 +87,6 @@ History and optional outbox insert use the scheduler's surrounding transaction,
 so they roll back with its execution/status/histogram changes. Kafka I/O and
 outbox delete occur in a later transaction and cannot be atomic with the broker.
 Outbox selection locks a row for the duration. REST reads use a read transaction.
-Scheduler events bypass unit-of-work transactions and use `sql.DB` asynchronously.
 
 ## Idempotency and duplicate handling
 
@@ -104,8 +102,7 @@ commit uncertainty still duplicates.
 Locking the execution row serializes message ID allocation per execution.
 Outbox dispatchers across coordinator instances contend on the global oldest
 row because there is no `SKIP LOCKED`. Scheduler creation of newer outbox rows
-can continue. REST readers see committed rows only. Async scheduler-event order
-can lag or drop and must not be joined as exact business chronology.
+can continue. REST readers see committed rows only.
 
 ## Failure handling
 
@@ -134,8 +131,7 @@ without `error`.
 
 Dispatcher logs send attempts and errors. There are no outbox depth/age,
 publication latency, duplicate, dead-letter, REST lag, or consumer metrics.
-Database tables can be inspected operationally. Scheduler events are not a
-substitute for public message history.
+Database tables can be inspected operationally.
 
 ## Implementation references
 

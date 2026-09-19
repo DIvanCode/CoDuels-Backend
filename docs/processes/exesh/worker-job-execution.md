@@ -124,8 +124,8 @@ Output-save failure is logged but not converted to a result error or
 ## Observability
 
 Worker logs job IDs, command outcomes, and errors. Only default Go/process
-metrics are exposed; elapsed time and used memory become scheduler events and
-histograms only after coordinator recognition. There is no runtime/isolate,
+metrics are exposed; elapsed time and used memory feed category histograms
+only after coordinator recognition. There is no runtime/isolate,
 queue, verdict, output-save, or sandbox violation metric.
 
 ## Implementation references
