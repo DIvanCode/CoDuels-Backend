@@ -28,9 +28,6 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "5252:5252"
-          - "9077:9090"
         env:
           ENV: prod
           INTERNAL_AUTH_KEY: "{{ internal_auth_key }}"
@@ -45,3 +42,24 @@
           - "{{ tasks_dir }}/storage:/app/file_storage/storage"
         networks:
           - name: coduels
+    - name: Inspect Taski container for readiness
+      community.docker.docker_container_info:
+        name: taski
+      register: taski_container
+      no_log: true
+    - name: Wait for Taski API listener
+      ansible.builtin.wait_for:
+        host: "{{ taski_container.container.NetworkSettings.Networks.coduels.IPAddress }}"
+        port: 5252
+        state: started
+        timeout: 60
+    - name: Wait for Taski metrics endpoint
+      ansible.builtin.uri:
+        url: "http://{{ taski_container.container.NetworkSettings.Networks.coduels.IPAddress }}:9090/"
+        status_code: 200
+        timeout: 5
+        use_proxy: false
+      register: taski_metrics_readiness
+      until: taski_metrics_readiness.status == 200
+      retries: 30
+      delay: 2

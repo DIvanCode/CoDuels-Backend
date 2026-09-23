@@ -14,7 +14,7 @@ services:
     networks:
       - coduels
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     environment:
       POSTGRES_USER: taski
       POSTGRES_PASSWORD: secret
@@ -33,8 +33,8 @@ services:
     networks:
       - coduels
     ports:
-      - "5252:5252"
-      - "9077:9090"
+      - "127.0.0.1:5252:5252"
+      - "127.0.0.1:9077:9090"
     environment:
       CONFIG_PATH: /config/taski.yml
       ENV: docker
