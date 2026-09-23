@@ -25,7 +25,20 @@
           INTERNAL_AUTH_KEY: "{{ internal_auth_key }}"
           ANALYZER_PROD_MODEL_PATH: /app/artifacts/prod_random_forest.pkl
           ANALYZER_BASELINE_MODEL_PATH: /app/artifacts/baseline_logreg.pkl
-        ports:
-          - "8000:8000"
         networks:
           - name: coduels
+    - name: Inspect Analyzer container for readiness
+      community.docker.docker_container_info:
+        name: analyzer
+      register: analyzer_container
+      no_log: true
+    - name: Wait for Analyzer health endpoint
+      ansible.builtin.uri:
+        url: "http://{{ analyzer_container.container.NetworkSettings.Networks.coduels.IPAddress }}:8000/health"
+        status_code: 200
+        timeout: 5
+        use_proxy: false
+      register: analyzer_readiness
+      until: analyzer_readiness.status == 200
+      retries: 30
+      delay: 2

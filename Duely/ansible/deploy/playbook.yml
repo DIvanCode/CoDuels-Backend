@@ -46,8 +46,6 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "5001:5001"
         env:
           ASPNETCORE_ENVIRONMENT: "Production"
           InternalAuthKey: "{{ internal_auth_key }}"
@@ -71,3 +69,18 @@
           Analyzer__BaseUrl: http://analyzer:8000
         networks:
           - name: coduels
+    - name: Inspect Duely container for readiness
+      community.docker.docker_container_info:
+        name: duely
+      register: duely_container
+      no_log: true
+    - name: Wait for Duely metrics endpoint
+      ansible.builtin.uri:
+        url: "http://{{ duely_container.container.NetworkSettings.Networks.coduels.IPAddress }}:5001/metrics"
+        status_code: 200
+        timeout: 5
+        use_proxy: false
+      register: duely_readiness
+      until: duely_readiness.status == 200
+      retries: 30
+      delay: 2

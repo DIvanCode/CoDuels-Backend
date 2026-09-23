@@ -14,7 +14,7 @@ services:
     networks:
       - coduels
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: duely
       POSTGRES_USER: duely
@@ -55,7 +55,7 @@ services:
     networks:
       - coduels
     ports:
-      - "5001:5001"
+      - "127.0.0.1:5001:5001"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       DbConnection__ConnectionString: Server=duely_postgres:5432;Database=duely;Username=duely;Password=secret

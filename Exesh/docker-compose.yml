@@ -14,7 +14,7 @@ services:
     networks:
       - coduels
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_USER: coordinator
       POSTGRES_PASSWORD: secret
@@ -37,8 +37,8 @@ services:
     networks:
       - coduels
     ports:
-      - "5253:5253"
-      - "9080:9090"
+      - "127.0.0.1:5253:5253"
+      - "127.0.0.1:9080:9090"
     environment:
       CONFIG_PATH: /config/coordinator.yml
       ENV: docker
@@ -61,8 +61,8 @@ services:
     networks:
       - coduels
     ports:
-      - "5254:5254"
-      - "9081:9091"
+      - "127.0.0.1:5254:5254"
+      - "127.0.0.1:9081:9091"
     environment:
       CONFIG_PATH: /config/worker.yml
       ENV: docker
@@ -87,8 +87,8 @@ services:
     networks:
       - coduels
     ports:
-      - "5255:5255"
-      - "9082:9092"
+      - "127.0.0.1:5255:5255"
+      - "127.0.0.1:9082:9092"
     environment:
       CONFIG_PATH: /config/worker.yml
       ENV: docker
