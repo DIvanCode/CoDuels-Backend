@@ -81,5 +81,6 @@ public sealed class CodeRunsConfiguration : IEntityTypeConfiguration<CodeRun>
             .IsRequired();
 
         builder.HasIndex(r => new { r.DuelId, r.TaskKey });
+        builder.HasIndex(r => new { r.Status, r.CreatedAt });
     }
 }

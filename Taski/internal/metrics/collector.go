@@ -24,8 +24,11 @@ type (
 		unitOfWork      unitOfWork
 		solutionStorage solutionStorage
 
-		tasksGauge     *prometheus.GaugeVec
-		solutionsGauge *prometheus.GaugeVec
+		tasksGauge      *prometheus.GaugeVec
+		solutionsGauge  *prometheus.GaugeVec
+		inProgressGauge prometheus.Gauge
+		staleGauge      prometheus.Gauge
+		oldestAgeGauge  prometheus.Gauge
 	}
 
 	taskStorage interface {
@@ -116,6 +119,18 @@ func NewMetricsCollector(
 				string(solutionTaskIdLabel),
 				string(solutionLanguageLabel),
 			}),
+		inProgressGauge: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "solutions_in_progress",
+			Help: "Unfinished solutions in Taski",
+		}),
+		staleGauge: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "solutions_in_progress_older_than_10m",
+			Help: "Unfinished solutions created more than ten minutes ago",
+		}),
+		oldestAgeGauge: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "solutions_oldest_in_progress_age_seconds",
+			Help: "Age of the oldest unfinished solution",
+		}),
 	}
 }
 
@@ -123,6 +138,9 @@ func (c *Collector) RegisterMetrics(r prometheus.Registerer) error {
 	return errors.Join(
 		r.Register(c.tasksGauge),
 		r.Register(c.solutionsGauge),
+		r.Register(c.inProgressGauge),
+		r.Register(c.staleGauge),
+		r.Register(c.oldestAgeGauge),
 	)
 }
 
@@ -190,7 +208,21 @@ func (c *Collector) collectSolutions(ctx context.Context) error {
 
 		groupsTotalDuration := make(map[solutionLabelsKey]time.Duration)
 		groupsCountSubmissions := make(map[solutionLabelsKey]int)
+		inProgress := 0
+		stale := 0
+		oldestAge := 0.0
+		now := time.Now()
 		for _, s := range solutions {
+			if s.FinishedAt == nil {
+				inProgress++
+				age := now.Sub(s.CreatedAt).Seconds()
+				if age >= 600 {
+					stale++
+				}
+				if age > oldestAge {
+					oldestAge = age
+				}
+			}
 			if s.StartedAt == nil || s.FinishedAt == nil {
 				continue
 			}
@@ -224,6 +256,9 @@ func (c *Collector) collectSolutions(ctx context.Context) error {
 			cnt := groupsCountSubmissions[key]
 			c.solutionsGauge.WithLabelValues(key.values()...).Set(dur.Seconds() / float64(cnt))
 		}
+		c.inProgressGauge.Set(float64(inProgress))
+		c.staleGauge.Set(float64(stale))
+		c.oldestAgeGauge.Set(oldestAge)
 
 		return nil
 	})

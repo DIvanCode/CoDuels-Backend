@@ -108,10 +108,11 @@ result delivery.
 
 ## Observability
 
-Coordinator logs registration/removal.
-Worker logs heartbeat errors and job start/done at debug level. No custom worker
-metrics expose queue, running jobs, results pending, artifact count, last
-successful heartbeat, or graceful drain.
+Coordinator logs registration/removal and exports counts of registered workers,
+their advertised slots, and predicted occupied slots. Worker logs heartbeat
+errors and job start/done at debug level. Worker process metrics still do not
+expose local queue, results pending, artifact count, last successful heartbeat,
+or graceful drain.
 
 ## Implementation references
 

@@ -8,6 +8,8 @@ import (
 	"taski/internal/consumer"
 	"taski/internal/domain/testing"
 	"taski/internal/usecase/testing/usecase/update"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type (
@@ -65,6 +67,15 @@ func NewEventHandler(
 func (h *EventHandler) Start(ctx context.Context) {
 	h.log.Info("event handler started", slog.String("mode", h.mode()))
 	h.processor.Start(ctx)
+}
+
+func (h *EventHandler) RegisterMetrics(r prometheus.Registerer) error {
+	if collector, ok := h.processor.(interface {
+		RegisterMetrics(prometheus.Registerer) error
+	}); ok {
+		return collector.RegisterMetrics(r)
+	}
+	return nil
 }
 
 func (h *EventHandler) Close() error {

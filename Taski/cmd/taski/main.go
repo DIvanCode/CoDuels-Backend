@@ -61,6 +61,8 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	mux := chi.NewRouter()
+	httpMetrics := metrics.NewHTTPMetrics()
+	mux.Use(httpMetrics.Middleware)
 	mux.Use(middleware.Logger)
 	mux.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
@@ -125,6 +127,14 @@ func main() {
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
 	promRegisterer := prometheus.WrapRegistererWithPrefix("coduels_taski_", promRegistry)
+	if err = httpMetrics.Register(promRegistry); err != nil {
+		log.Error("could not register HTTP metrics", slog.Any("err", err))
+		return
+	}
+	if err = eventHandler.RegisterMetrics(promRegisterer); err != nil {
+		log.Error("could not register event poller metrics", slog.Any("err", err))
+		return
+	}
 
 	metricsCollector := metrics.NewMetricsCollector(log, cfg.MetricsCollector, taskStorage, unitOfWork, solutionStorage)
 	err = metricsCollector.RegisterMetrics(promRegisterer)
@@ -179,7 +189,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 	case "docker":
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	case "prod":
-		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	default:
 		err = fmt.Errorf("failed setup logger for env %s", env)
 	}

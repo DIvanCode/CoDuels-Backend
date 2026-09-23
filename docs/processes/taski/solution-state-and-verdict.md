@@ -123,9 +123,10 @@ recompute, migration, timeout, or reconciliation path exists.
 ## Observability
 
 Rows and public history reveal timestamps, cursor, serialized strategy, and
-messages. Average completed duration is measured per task/language. No metric
-reports state distribution, verdict distribution, oldest in-progress, cursor
-lag, duplicate linkage, unreadable strategy, or finish-without-start.
+messages. Average completed duration is measured per task/language. The metrics
+collector also reports unfinished Solution count, count older than ten minutes,
+and oldest unfinished age. There are no verdict-distribution, cursor-lag,
+duplicate-linkage, unreadable-strategy, or finish-without-start metrics.
 
 ## Implementation references
 
@@ -159,4 +160,3 @@ verdict vocabulary, and strategy migration policy are unspecified.
 Define/enforce one state machine and one-to-one IDs; version/migrate strategies;
 persist/query terminal outcome explicitly; define ordering/timeout/recompute;
 and test every verdict, transition, restart, duplicate, and rollback path.
-

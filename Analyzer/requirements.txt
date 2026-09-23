@@ -13,6 +13,7 @@ numpy==2.2.6
 pandas==2.3.3
 pydantic==2.13.0
 pydantic_core==2.46.0
+prometheus-client==0.26.0
 scikit-learn==1.7.2
 starlette==1.0.0
 typing-inspection==0.4.2

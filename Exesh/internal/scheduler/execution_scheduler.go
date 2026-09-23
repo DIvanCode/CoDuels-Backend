@@ -120,6 +120,34 @@ func NewExecutionScheduler(
 func (s *ExecutionScheduler) RegisterMetrics(r prometheus.Registerer) error {
 	return errors.Join(
 		r.Register(s.nowWeightGauge),
+		r.Register(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name: "capacity_weight",
+			Help: "Configured execution scheduler capacity weight",
+		}, func() float64 { return float64(s.cfg.Capacity) })),
+		r.Register(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name: "active_executions",
+			Help: "Executions currently held in coordinator memory",
+		}, func() float64 {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			return float64(len(s.executions))
+		})),
+		r.Register(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name: "ready_jobs",
+			Help: "Jobs ready to be scheduled in coordinator memory",
+		}, func() float64 {
+			s.mu.Lock()
+			executions := make([]*Execution, 0, len(s.executions))
+			for _, ex := range s.executions {
+				executions = append(executions, ex)
+			}
+			s.mu.Unlock()
+			count := 0
+			for _, ex := range executions {
+				count += ex.ReadyJobsCount()
+			}
+			return float64(count)
+		})),
 	)
 }
 

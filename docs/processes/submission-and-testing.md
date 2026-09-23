@@ -91,6 +91,8 @@ the owner fetches the run DTO for output.
 
 - `No Submission -> Submission(Queued, HandledStatusCount = 0)`.
 - `Queued -> Running -> Done`; direct `Queued -> Done` is possible.
+- The first `Done` update stores `CompletedAt`; replay of a terminal update keeps
+  the original completion time. Older completed rows have a null value.
 - `Finished duel submission -> IsUpsolving = true`.
 - `No CodeRun -> CodeRun(Queued, ExecutionId = null)`.
 - `ExecutionId null -> external execution id` after Exesh accepts work.
@@ -177,6 +179,13 @@ GET endpoints are recovery. Accepted submission also prompts both users to
 refresh duel state. Code-run push omits output, so the owner must GET the run.
 If dispatch expires, the persisted row can remain Queued indefinitely because no
 failure state or compensating notification is written.
+
+The telemetry collector reports queued submissions and code runs older than ten
+minutes, their oldest age, recent `Testing Failed` verdicts by `CompletedAt`, and
+pending dispatch outbox rows by type/status. Each REST status poller reports the
+Unix time of its last fully successful cycle; a failure for any item prevents
+that cycle from advancing the timestamp. These measurements do not change the
+state or retry policy.
 
 ## 14. Implementation references
 

@@ -11,6 +11,7 @@ import (
 	"exesh/internal/config"
 	"exesh/internal/dispatcher"
 	"exesh/internal/factory"
+	"exesh/internal/metrics"
 	"exesh/internal/provider/adapter"
 	schedule "exesh/internal/scheduler"
 	"exesh/internal/storage/postgres"
@@ -50,6 +51,8 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	mux := chi.NewRouter()
+	httpMetrics := metrics.NewHTTPMetrics()
+	mux.Use(httpMetrics.Middleware)
 
 	unitOfWork, executionStorage, outboxStorage, messageStorage, categoryHistogramStorage, err := setupStorage(log, cfg.Storage)
 	if err != nil {
@@ -80,6 +83,10 @@ func main() {
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
+	if err = httpMetrics.Register(promRegistry); err != nil {
+		log.Error("could not register HTTP metrics", slog.Any("err", err))
+		return
+	}
 	promCoordinatorRegistry := prometheus.WrapRegistererWithPrefix("coduels_exesh_coordinator_", promRegistry)
 
 	executionScheduler := schedule.NewExecutionScheduler(log, cfg.ExecutionScheduler,
@@ -89,6 +96,14 @@ func main() {
 
 	if err = executionScheduler.RegisterMetrics(promCoordinatorRegistry); err != nil {
 		log.Error("could not register metrics from execution scheduler", slog.Any("err", err))
+		return
+	}
+	if err = jobScheduler.RegisterMetrics(promCoordinatorRegistry); err != nil {
+		log.Error("could not register job scheduler metrics", slog.Any("err", err))
+		return
+	}
+	if err = workerPool.RegisterMetrics(promCoordinatorRegistry); err != nil {
+		log.Error("could not register worker pool metrics", slog.Any("err", err))
 		return
 	}
 
@@ -150,7 +165,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 	case "docker":
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	case "prod":
-		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	default:
 		err = fmt.Errorf("failed setup logger for env %s", env)
 	}

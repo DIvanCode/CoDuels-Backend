@@ -15,6 +15,11 @@ using Duely.Infrastructure.Telemetry;
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsProduction())
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddJsonConsole();
+}
 
 // Application
 builder.Services.SetupApplicationServices(builder.Configuration);

@@ -16,12 +16,14 @@ public static class ServiceCollectionExtensions
         var options = optionsSection.Get<OtelOptions>();
         EnsureArg.IsNotNull(options, nameof(options));
 
+        services.AddSingleton<MetricsSnapshot>();
+
         if (!options.IsEnabled)
         {
             return;
         }
-        services.AddSingleton<MetricsSnapshot>();
         services.AddSingleton<DuelyMetrics>();
+        services.AddHostedService<DuelyMetricsHostedService>();
         services.AddHostedService<MetricsCollector>();
         
         services.AddOpenTelemetry()

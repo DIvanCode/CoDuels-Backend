@@ -98,6 +98,11 @@ public sealed class UpdateSubmissionStatusHandler(Context context)
             submission.Message = command.Message;
         }
 
+        if (submission.Status == SubmissionStatus.Done)
+        {
+            submission.CompletedAt = DateTime.UtcNow;
+        }
+
         var statusUpdatedRetryUntil = DateTime.UtcNow.AddSeconds(10);
         if (!string.IsNullOrEmpty(submission.Verdict))
         {
