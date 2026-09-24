@@ -46,8 +46,6 @@
         restart: yes
         restart_policy: unless-stopped
         command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
-        ports:
-          - "12345:12345"
         volumes:
           - "/opt/coduels/alloy/config.alloy:/etc/alloy/config.alloy:ro"
           - "/var/lib/coduels/alloy:/var/lib/alloy/data"
@@ -57,3 +55,18 @@
           - "/:/host/root:ro"
         networks:
           - name: coduels
+    - name: Inspect Alloy container for readiness
+      community.docker.docker_container_info:
+        name: alloy
+      register: alloy_container
+      no_log: true
+    - name: Wait for Alloy configuration to load
+      ansible.builtin.uri:
+        url: "http://{{ alloy_container.container.NetworkSettings.Networks.coduels.IPAddress }}:12345/-/ready"
+        status_code: 200
+        timeout: 5
+        use_proxy: false
+      register: alloy_readiness
+      until: alloy_readiness.status == 200
+      retries: 30
+      delay: 2

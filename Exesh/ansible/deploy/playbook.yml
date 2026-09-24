@@ -21,9 +21,6 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "5253:5253"
-          - "9080:9090"
         command:
           - /app/bin/coordinator
         env:
@@ -36,6 +33,27 @@
           JOB_FACTORY_FILESTORAGE_ENDPOINT: http://coordinator:5253
         networks:
           - name: coduels
+    - name: Inspect coordinator container for readiness
+      community.docker.docker_container_info:
+        name: coordinator
+      register: coordinator_container
+      no_log: true
+    - name: Wait for coordinator API listener
+      ansible.builtin.wait_for:
+        host: "{{ coordinator_container.container.NetworkSettings.Networks.coduels.IPAddress }}"
+        port: 5253
+        state: started
+        timeout: 60
+    - name: Wait for coordinator metrics endpoint
+      ansible.builtin.uri:
+        url: "http://{{ coordinator_container.container.NetworkSettings.Networks.coduels.IPAddress }}:9090/"
+        status_code: 200
+        timeout: 5
+        use_proxy: false
+      register: coordinator_metrics_readiness
+      until: coordinator_metrics_readiness.status == 200
+      retries: 30
+      delay: 2
     - name: Run worker-1 container
       docker_container:
         name: worker-1
@@ -43,9 +61,6 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "5254:5254"
-          - "9081:9091"
         command:
           - /app/bin/worker
         privileged: true
@@ -62,6 +77,27 @@
           WORKER_COORDINATOR_ENDPOINT: http://coordinator:5253
         networks:
           - name: coduels
+    - name: Inspect worker-1 container for readiness
+      community.docker.docker_container_info:
+        name: worker-1
+      register: worker_1_container
+      no_log: true
+    - name: Wait for worker-1 API listener
+      ansible.builtin.wait_for:
+        host: "{{ worker_1_container.container.NetworkSettings.Networks.coduels.IPAddress }}"
+        port: 5254
+        state: started
+        timeout: 60
+    - name: Wait for worker-1 metrics endpoint
+      ansible.builtin.uri:
+        url: "http://{{ worker_1_container.container.NetworkSettings.Networks.coduels.IPAddress }}:9091/"
+        status_code: 200
+        timeout: 5
+        use_proxy: false
+      register: worker_1_metrics_readiness
+      until: worker_1_metrics_readiness.status == 200
+      retries: 30
+      delay: 2
     - name: Run worker-2 container
       docker_container:
         name: worker-2
@@ -69,9 +105,6 @@
         recreate: yes
         restart: yes
         restart_policy: unless-stopped
-        ports:
-          - "5255:5255"
-          - "9082:9092"
         command:
           - /app/bin/worker
         privileged: true
@@ -88,3 +121,24 @@
           WORKER_COORDINATOR_ENDPOINT: http://coordinator:5253
         networks:
           - name: coduels
+    - name: Inspect worker-2 container for readiness
+      community.docker.docker_container_info:
+        name: worker-2
+      register: worker_2_container
+      no_log: true
+    - name: Wait for worker-2 API listener
+      ansible.builtin.wait_for:
+        host: "{{ worker_2_container.container.NetworkSettings.Networks.coduels.IPAddress }}"
+        port: 5255
+        state: started
+        timeout: 60
+    - name: Wait for worker-2 metrics endpoint
+      ansible.builtin.uri:
+        url: "http://{{ worker_2_container.container.NetworkSettings.Networks.coduels.IPAddress }}:9092/"
+        status_code: 200
+        timeout: 5
+        use_proxy: false
+      register: worker_2_metrics_readiness
+      until: worker_2_metrics_readiness.status == 200
+      retries: 30
+      delay: 2
