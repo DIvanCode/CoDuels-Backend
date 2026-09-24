@@ -52,6 +52,14 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
             .HasColumnName("Verdict")
             .HasColumnType("text")
             .IsRequired(false);
+
+        builder.Property(s => s.CompletedAt)
+            .HasColumnName("CompletedAt")
+            .HasColumnType("timestamp")
+            .IsRequired(false);
+
+        builder.HasIndex(s => new { s.Status, s.SubmitTime });
+        builder.HasIndex(s => new { s.Verdict, s.CompletedAt });
         
         builder.Property(s => s.Message)
             .HasColumnName("Message")

@@ -28,6 +28,7 @@ Supporting material:
 - [Glossary](glossary.md) defines duel, pending, connection, message, and status terms.
 - [Open questions](open-questions.md) consolidates ambiguous behavior, likely defects, races, and test gaps.
 - [Production network](../deployment-network.md) documents the service network and public ingress.
+- [Grafana dashboards and alerts](../observability-grafana.md) lists the production metrics, log queries, and alert expressions.
 
 ## End-to-end overview
 

@@ -7,6 +7,7 @@ import (
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/executor"
 	"exesh/internal/executor/executors"
+	"exesh/internal/metrics"
 	"exesh/internal/provider"
 	"exesh/internal/provider/adapter"
 	"exesh/internal/runtime"
@@ -47,6 +48,8 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	mux := chi.NewRouter()
+	httpMetrics := metrics.NewHTTPMetrics()
+	mux.Use(httpMetrics.Middleware)
 
 	fs, err := filestorage.New(log, cfg.FileStorage.ToExternal(cfg.InternalAuthKey), mux)
 	if err != nil {
@@ -68,6 +71,10 @@ func main() {
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
+	if err = httpMetrics.Register(promRegistry); err != nil {
+		log.Error("could not register HTTP metrics", slog.Any("err", err))
+		return
+	}
 
 	log.Info("starting server", slog.String("address", cfg.HttpServer.Addr))
 
@@ -114,7 +121,7 @@ func setupLogger(env string) (log *slog.Logger, err error) {
 	case "docker":
 		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	case "prod":
-		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	default:
 		err = fmt.Errorf("failed setup logger for env %s", env)
 	}

@@ -120,10 +120,11 @@ is the implicit recovery. There is no maximum tries or terminal poison status.
 
 ## Observability
 
-The only custom Prometheus metric is
-`coduels_exesh_coordinator_now_weight`. Logs cover scheduling, capacity skips,
-jobs, and finish. Candidate priority/progress and finish duration are no longer
-collected for dashboard charts.
+Prometheus reports `coduels_exesh_coordinator_now_weight`, configured capacity,
+process-local active Executions, and ready Jobs. These gauges reset to the
+coordinator's actual in-memory state after a restart. Logs cover scheduling,
+capacity skips, jobs, and finish. Candidate priority/progress and finish
+duration are not collected for dashboard charts.
 
 ## Implementation references
 

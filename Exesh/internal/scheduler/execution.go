@@ -50,6 +50,13 @@ func (ex *Execution) EnqueueJob(jb *Job) {
 	ex.scheduledJobs.Enqueue(jb)
 }
 
+func (ex *Execution) ReadyJobsCount() int {
+	ex.mu.Lock()
+	defer ex.mu.Unlock()
+
+	return ex.scheduledJobs.Size()
+}
+
 func (ex *Execution) GetPeekJob() *Job {
 	ex.mu.Lock()
 	defer ex.mu.Unlock()

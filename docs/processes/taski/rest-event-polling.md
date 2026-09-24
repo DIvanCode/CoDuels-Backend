@@ -117,9 +117,11 @@ permanent in-progress row.
 
 ## Observability
 
-Logs identify per-Solution fetch/update failures. There are no poll duration,
-history lag, cursor, page count, HTTP latency, stuck-row, missing-finish, gap, or
-multi-instance contention metrics.
+Logs identify per-Solution fetch/update failures. REST mode reports the Unix time
+of the last cycle in which every Solution poll succeeded and a counter of failed
+cycles. A per-Solution error makes the cycle fail without stopping the next
+Solution. Taski also reports unfinished Solution count and age. There are no
+cursor-lag, page-count, gap, or multi-instance contention metrics.
 
 ## Implementation references
 

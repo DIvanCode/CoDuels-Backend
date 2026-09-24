@@ -21,18 +21,21 @@ prometheus.scrape "production_apps" {
       "__metrics_path__" = "/metrics",
       "env"              = "prod",
       "service"          = "duely",
+      "instance"         = "duely",
     },
     {
       "__address__"      = "taski:9090",
       "__metrics_path__" = "/",
       "env"              = "prod",
       "service"          = "taski",
+      "instance"         = "taski",
     },
     {
       "__address__"      = "coordinator:9090",
       "__metrics_path__" = "/",
       "env"              = "prod",
       "service"          = "exesh-coordinator",
+      "instance"         = "coordinator",
     },
     {
       "__address__"      = "worker-1:9091",
@@ -48,9 +51,53 @@ prometheus.scrape "production_apps" {
       "service"          = "exesh-worker",
       "instance"         = "worker-2",
     },
+    {
+      "__address__"      = "analyzer:8001",
+      "__metrics_path__" = "/",
+      "env"              = "prod",
+      "service"          = "analyzer",
+      "instance"         = "analyzer",
+    },
+    {
+      "__address__"      = "alloy:12345",
+      "__metrics_path__" = "/metrics",
+      "env"              = "prod",
+      "service"          = "alloy",
+      "instance"         = "alloy",
+    },
   ]
 
   scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.exporter.unix "host" {
+  procfs_path   = "/host/proc"
+  sysfs_path    = "/host/sys"
+  rootfs_path   = "/host/root"
+  set_collectors = ["cpu", "meminfo", "filesystem"]
+}
+
+discovery.relabel "host_metrics" {
+  targets = prometheus.exporter.unix.host.targets
+
+  rule {
+    target_label = "env"
+    replacement  = "prod"
+  }
+  rule {
+    target_label = "service"
+    replacement  = "host"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = "api.coduels.pro"
+  }
+}
+
+prometheus.scrape "production_host" {
+  targets         = discovery.relabel.host_metrics.output
+  scrape_interval = "30s"
   forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
 }
 
@@ -76,6 +123,19 @@ discovery.relabel "docker_logs" {
   rule {
     source_labels = ["__meta_docker_container_name"]
     regex         = "/(.*)"
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(coordinator|worker-[0-9]+)"
+    replacement   = "exesh"
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
     target_label  = "container"
   }
 
@@ -93,7 +153,71 @@ loki.source.docker "docker" {
     "platform" = "docker",
   }
   relabel_rules = discovery.relabel.docker_logs.rules
-  forward_to    = [loki.write.grafana_cloud.receiver]
+  forward_to    = [loki.process.normalize.receiver]
+}
+
+loki.process "normalize" {
+  forward_to = [loki.write.grafana_cloud.receiver]
+
+  stage.match {
+    selector = "{service_name=~\"taski|coordinator|worker-[0-9]+\"}"
+    stage.json {
+      expressions = { level = "level" }
+    }
+    stage.labels {
+      values = { level = "level" }
+    }
+  }
+
+  stage.match {
+    selector = "{service_name=\"duely\"}"
+    stage.json {
+      expressions = { level = "LogLevel" }
+    }
+    stage.labels {
+      values = { level = "level" }
+    }
+  }
+
+  stage.match {
+    selector = "{service_name=\"analyzer\"}"
+    stage.regex {
+      expression = "^(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL):"
+    }
+    stage.labels {
+      values = { level = "level" }
+    }
+  }
+
+  stage.match {
+    selector = "{service_name=\"nginx\"}"
+    stage.regex {
+      expression = "\\[(?P<level>error|crit|alert|emerg)\\]"
+    }
+    stage.labels {
+      values = { level = "level" }
+    }
+  }
+
+  stage.match {
+    selector = "{service_name=\"caddy\"}"
+    stage.json {
+      expressions = { level = "level" }
+    }
+    stage.labels {
+      values = { level = "level" }
+    }
+  }
+
+  stage.match {
+    selector = "{service_name=\"alloy\"}"
+    stage.regex {
+      expression = "level=(?P<level>error|warn|info|debug)"
+    }
+    stage.labels {
+      values = { level = "level" }
+    }
+  }
 }
 
 loki.write "grafana_cloud" {

@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,6 +15,8 @@ import (
 	"taski/internal/domain/testing/event/events"
 	"taski/internal/usecase/testing/usecase/update"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type EventPoller struct {
@@ -21,10 +24,12 @@ type EventPoller struct {
 	cfg             config.EventConsumerConfig
 	internalAuthKey string
 
-	httpClient      http.Client
-	unitOfWork      unitOfWork
-	solutionStorage restSolutionStorage
-	usecase         *update.UseCase
+	httpClient         http.Client
+	unitOfWork         unitOfWork
+	solutionStorage    restSolutionStorage
+	usecase            *update.UseCase
+	lastSuccessfulPoll prometheus.Gauge
+	pollFailures       prometheus.Counter
 }
 
 type (
@@ -64,7 +69,19 @@ func NewEventPoller(
 		unitOfWork:      unitOfWork,
 		solutionStorage: solutionStorage,
 		usecase:         usecase,
+		lastSuccessfulPoll: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "rest_poller_last_success_timestamp_seconds",
+			Help: "Unix timestamp of the last fully successful Exesh message poll",
+		}),
+		pollFailures: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "rest_poller_failures_total",
+			Help: "Number of Exesh message polling cycles with a failure",
+		}),
 	}
+}
+
+func (c *EventPoller) RegisterMetrics(r prometheus.Registerer) error {
+	return errors.Join(r.Register(c.lastSuccessfulPoll), r.Register(c.pollFailures))
 }
 
 func (c *EventPoller) Start(ctx context.Context) {
@@ -91,7 +108,10 @@ func (c *EventPoller) runPoller(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			if err := c.pollAll(ctx); err != nil {
+				c.pollFailures.Inc()
 				c.log.Error("failed to poll execution messages", slog.Any("error", err))
+			} else {
+				c.lastSuccessfulPoll.SetToCurrentTime()
 			}
 		case <-ctx.Done():
 			return
@@ -112,14 +132,19 @@ func (c *EventPoller) pollAll(ctx context.Context) error {
 		return err
 	}
 
+	hadFailure := false
 	for _, sol := range solutions {
 		if err := c.pollSolution(ctx, sol); err != nil {
+			hadFailure = true
 			c.log.Error(
 				"failed to poll solution messages",
 				slog.String("execution_id", string(sol.ExecutionID)),
 				slog.Any("error", err),
 			)
 		}
+	}
+	if hadFailure {
+		return errors.New("one or more solution polls failed")
 	}
 
 	return nil

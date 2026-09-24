@@ -13,6 +13,8 @@ import (
 	//"exesh/internal/lib/queue"
 	"log/slog"
 	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type (
@@ -68,6 +70,27 @@ func NewJobScheduler(
 		startedJobs:  make(map[job.ID]*Job),
 	}
 	return s
+}
+
+func (s *JobScheduler) RegisterMetrics(r prometheus.Registerer) error {
+	if err := r.Register(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "promised_jobs",
+		Help: "Jobs with a scheduler promise",
+	}, func() float64 {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return float64(len(s.promisedJobs))
+	})); err != nil {
+		return err
+	}
+	return r.Register(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "started_jobs",
+		Help: "Jobs dispatched by the coordinator and awaiting results",
+	}, func() float64 {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return float64(len(s.startedJobs))
+	}))
 }
 
 func (s *JobScheduler) PickJobs(ctx context.Context, workerID string, slots, memory int) ([]jobs.Job, []sources.Source) {

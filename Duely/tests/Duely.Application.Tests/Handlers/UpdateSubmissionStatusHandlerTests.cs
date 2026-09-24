@@ -28,6 +28,7 @@ public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         (await ctx.Submissions.AsNoTracking().SingleAsync(s => s.Id == 100)).Status.Should().Be(SubmissionStatus.Running);
+        (await ctx.Submissions.AsNoTracking().SingleAsync(s => s.Id == 100)).CompletedAt.Should().BeNull();
         var outboxMessages = await ctx.OutboxMessages.AsNoTracking()
             .Where(m => m.Type == OutboxType.SendMessage)
             .ToListAsync();
@@ -82,6 +83,7 @@ public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
         var s = await ctx.Submissions.AsNoTracking().SingleAsync(x => x.Id == 100);
         s.Status.Should().Be(SubmissionStatus.Done);
         s.Verdict.Should().Be("Accepted");
+        s.CompletedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
         s.Message.Should().BeNull();
 
         var outboxMessages = await ctx.OutboxMessages.AsNoTracking()
@@ -128,6 +130,7 @@ public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
         var s = await ctx.Submissions.AsNoTracking().SingleAsync(x => x.Id == 100);
         s.Status.Should().Be(SubmissionStatus.Done);
         s.Verdict.Should().Be("Technical error");
+        s.CompletedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
         s.Message.Should().BeNull();
         var outboxMessages = await ctx.OutboxMessages.AsNoTracking()
             .Where(m => m.Type == OutboxType.SendMessage)
@@ -136,5 +139,28 @@ public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
         var payload = (SendMessagePayload)outboxMessages[0].Payload;
         payload.Message.Should().BeOfType<SubmissionStatusUpdatedMessage>()
             .Which.Verdict.Should().Be("Technical error");
+    }
+
+    [Fact]
+    public async Task Keeps_first_completion_time_when_finished_status_is_replayed()
+    {
+        var ctx = Context;
+        var u1 = EntityFactory.MakeUser(1, "u1");
+        var u2 = EntityFactory.MakeUser(2, "u2");
+        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK");
+        var sub = EntityFactory.MakeSubmission(100, duel, u1, status: SubmissionStatus.Queued);
+        ctx.AddRange(u1, u2, duel, sub);
+        await ctx.SaveChangesAsync();
+
+        var handler = new UpdateSubmissionStatusHandler(ctx);
+        await handler.Handle(new UpdateSubmissionStatusCommand {
+            SubmissionId = 100, Type = "finish", Verdict = "Testing Failed" }, CancellationToken.None);
+        var firstCompletion = (await ctx.Submissions.AsNoTracking().SingleAsync(s => s.Id == 100)).CompletedAt;
+
+        await handler.Handle(new UpdateSubmissionStatusCommand {
+            SubmissionId = 100, Type = "finish", Verdict = "Testing Failed" }, CancellationToken.None);
+        var finished = await ctx.Submissions.AsNoTracking().SingleAsync(s => s.Id == 100);
+        finished.CompletedAt.Should().Be(firstCompletion);
+        finished.Verdict.Should().Be("Testing Failed");
     }
 }

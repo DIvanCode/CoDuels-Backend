@@ -2,6 +2,7 @@ using Duely.Application.UseCases.Features.CodeRuns;
 using Duely.Domain.Models;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using Duely.Infrastructure.Gateway.Exesh.Abstracts;
+using Duely.Infrastructure.Telemetry;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,12 +15,14 @@ namespace Duely.Infrastructure.BackgroundJobs;
 public sealed class ExeshSubmissionStatusRestPoller(
     IServiceScopeFactory scopeFactory,
     IOptions<ExeshStatusPollingOptions> pollingOptions,
+    MetricsSnapshot metrics,
     ILogger<ExeshSubmissionStatusRestPoller> logger)
     : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
     private readonly ExeshStatusPollingOptions _options = pollingOptions.Value;
     private readonly ILogger<ExeshSubmissionStatusRestPoller> _logger = logger;
+    private readonly MetricsSnapshot _metrics = metrics;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -30,12 +33,16 @@ public sealed class ExeshSubmissionStatusRestPoller(
             "Exesh REST status poller started. Count={Count}, PollIntervalMs={PollIntervalMs}",
             count,
             pollIntervalMs);
+        _metrics.RegisterPoller("exesh");
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await PollOnceAsync(count, stoppingToken);
+                if (await PollOnceAsync(count, stoppingToken))
+                {
+                    _metrics.SetPollerLastSuccess("exesh", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                }
                 await Task.Delay(pollIntervalMs, stoppingToken);
             }
             catch (OperationCanceledException)
@@ -50,7 +57,7 @@ public sealed class ExeshSubmissionStatusRestPoller(
         }
     }
 
-    private async Task PollOnceAsync(int count, CancellationToken cancellationToken)
+    private async Task<bool> PollOnceAsync(int count, CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<Context>();
@@ -62,6 +69,7 @@ public sealed class ExeshSubmissionStatusRestPoller(
             .Where(r => r.ExecutionId != null && r.Status != UserCodeRunStatus.Done)
             .Select(r => new { ExecutionId = r.ExecutionId!, r.HandledStatusCount })
             .ToListAsync(cancellationToken);
+        var successful = true;
 
         foreach (var codeRun in pendingRuns)
         {
@@ -74,6 +82,7 @@ public sealed class ExeshSubmissionStatusRestPoller(
 
             if (eventsResult.IsFailed)
             {
+                successful = false;
                 _logger.LogWarning(
                     "Exesh REST messages fetch failed. ExecutionId={ExecutionId}, StartId={StartId}",
                     codeRun.ExecutionId,
@@ -94,6 +103,7 @@ public sealed class ExeshSubmissionStatusRestPoller(
 
                 if (updateResult.IsFailed)
                 {
+                    successful = false;
                     _logger.LogWarning(
                         "Exesh status update failed. ExecutionId={ExecutionId}, StartId={StartId}",
                         codeRun.ExecutionId,
@@ -102,5 +112,6 @@ public sealed class ExeshSubmissionStatusRestPoller(
                 }
             }
         }
+        return successful;
     }
 }

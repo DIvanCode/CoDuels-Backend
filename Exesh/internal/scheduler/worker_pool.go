@@ -9,6 +9,8 @@ import (
 	"math/rand/v2"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type (
@@ -45,6 +47,47 @@ func NewWorkerPool(log *slog.Logger, cfg config.WorkerPoolConfig) *WorkerPool {
 		mu:      sync.Mutex{},
 		workers: make(map[string]*worker),
 	}
+}
+
+func (p *WorkerPool) RegisterMetrics(r prometheus.Registerer) error {
+	metrics := []struct {
+		name  string
+		help  string
+		value func() float64
+	}{
+		{"workers", "Workers currently registered with the coordinator", func() float64 {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			return float64(len(p.workers))
+		}},
+		{"worker_slots_total", "Total slots advertised by registered workers", func() float64 {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			total := 0
+			for _, w := range p.workers {
+				total += w.Slots
+			}
+			return float64(total)
+		}},
+		{"worker_slots_used", "Slots occupied in coordinator predictions", func() float64 {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			total := 0
+			for _, w := range p.workers {
+				total += len(w.RunningJobs)
+			}
+			return float64(total)
+		}},
+	}
+	for _, metric := range metrics {
+		if err := r.Register(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name: metric.name,
+			Help: metric.help,
+		}, metric.value)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *WorkerPool) StartObserver(ctx context.Context) {

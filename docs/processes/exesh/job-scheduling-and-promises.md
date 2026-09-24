@@ -113,9 +113,10 @@ coordinator state still says started while the worker never received the job.
 
 ## Observability
 
-There are no durable queue/promise inspection endpoints or metrics for
-queue length, promise age, starvation, source-resolution failure, or dispatch
-loss. Logs report inability to find a promise worker.
+The coordinator exports process-local counts of ready, promised, and started
+Jobs. There are no durable queue/promise inspection endpoints or metrics for
+promise age, starvation, source-resolution failure, or dispatch loss. Logs
+report inability to find a promise worker.
 
 ## Implementation references
 
