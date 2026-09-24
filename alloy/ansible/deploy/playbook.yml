@@ -24,19 +24,43 @@
         state: directory
         mode: "0755"
 
-    - name: Upload Alloy config
-      template:
-        src: ../../config.alloy.j2
-        dest: /opt/coduels/alloy/config.alloy
-        mode: "0600"
-      no_log: true
-
     - name: Pull Alloy image
       docker_image:
         name: grafana/alloy
         tag: latest
         source: pull
         force_source: true
+
+    - name: Validate and install Alloy config
+      block:
+        - name: Render candidate Alloy config
+          template:
+            src: ../../config.alloy.j2
+            dest: /opt/coduels/alloy/config.alloy.candidate
+            mode: "0600"
+          no_log: true
+
+        - name: Validate candidate Alloy config
+          ansible.builtin.command: >
+            docker run --rm
+            -v /opt/coduels/alloy/config.alloy.candidate:/etc/alloy/config.alloy:ro
+            grafana/alloy:latest validate /etc/alloy/config.alloy
+          changed_when: false
+          no_log: true
+
+        - name: Install validated Alloy config
+          ansible.builtin.copy:
+            src: /opt/coduels/alloy/config.alloy.candidate
+            dest: /opt/coduels/alloy/config.alloy
+            remote_src: true
+            mode: "0600"
+          no_log: true
+      always:
+        - name: Remove candidate Alloy config
+          ansible.builtin.file:
+            path: /opt/coduels/alloy/config.alloy.candidate
+            state: absent
+          no_log: true
 
     - name: Run Alloy container
       docker_container:
@@ -60,6 +84,12 @@
         name: alloy
       register: alloy_container
       no_log: true
+    - name: Ensure Alloy has a Docker network address
+      ansible.builtin.assert:
+        that:
+          - alloy_container.container.State.Running
+          - alloy_container.container.NetworkSettings.Networks.coduels.IPAddress | length > 0
+        fail_msg: "Alloy is not running on the coduels network; inspect its container logs before retrying."
     - name: Wait for Alloy configuration to load
       ansible.builtin.uri:
         url: "http://{{ alloy_container.container.NetworkSettings.Networks.coduels.IPAddress }}:12345/-/ready"
