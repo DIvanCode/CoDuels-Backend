@@ -89,6 +89,10 @@ discovery.relabel "host_metrics" {
     target_label = "service"
     replacement  = "host"
   }
+  rule {
+    target_label = "instance"
+    replacement  = "api.coduels.pro"
+  }
 }
 
 prometheus.scrape "production_host" {
