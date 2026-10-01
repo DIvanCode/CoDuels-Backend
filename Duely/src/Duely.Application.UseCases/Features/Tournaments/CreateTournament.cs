@@ -104,8 +104,8 @@ public sealed class CreateTournamentCommandValidator : AbstractValidator<CreateT
             .IsInEnum().WithMessage("matchmaking type has invalid value");
 
         RuleFor(r => r.Participants)
-            .Must(p => p.Count >= 2).WithMessage("at least two participants are required")
-            .Must(p => p.Distinct(StringComparer.Ordinal).Count() == p.Count)
+            .Must(p => p is not null && p.Count >= 2).WithMessage("at least two participants are required")
+            .Must(p => p is not null && p.Distinct(StringComparer.Ordinal).Count() == p.Count)
             .WithMessage("participants must be unique");
 
         RuleForEach(r => r.Participants)

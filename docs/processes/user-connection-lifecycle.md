@@ -62,8 +62,11 @@ presence before this endpoint can be treated as platform-wide.
 
 While the request token is not canceled and the socket is open, close frames
 break the loop, non-text frames are ignored, and fragmented text is reassembled.
-Invalid/unknown JSON is logged and ignored. A valid `SolutionUpdated` invokes a
-use case; business failure is logged and no acknowledgment is sent.
+Invalid/unknown JSON is logged and ignored. A `SolutionUpdated` with an empty
+solution is valid and clears the saved live solution. Other validation failures
+are logged and ignored without closing the socket or sending an acknowledgment.
+A valid `SolutionUpdated` invokes a use case; business failure is logged and no
+acknowledgment is sent.
 
 ### `finally` cleanup
 

@@ -1,5 +1,6 @@
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Infrastructure.Api.Http.Events;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -181,11 +182,19 @@ public sealed class UserWebSocketHandler(
             Language = request.Language
         };
 
-        var result = await mediator.Send(command, cancellationToken);
-        if (result.IsFailed)
+        try
         {
-            logger.LogWarning("Failed to update duel task solution for user {UserId}: {Error}",
-                userId, string.Join(", ", result.Errors));
+            var result = await mediator.Send(command, cancellationToken);
+            if (result.IsFailed)
+            {
+                logger.LogWarning("Failed to update duel task solution for user {UserId}: {Error}",
+                    userId, string.Join(", ", result.Errors));
+            }
+        }
+        catch (ValidationException exception)
+        {
+            logger.LogWarning("WebSocket message ignored: invalid solution update for user {UserId}: {Errors}",
+                userId, string.Join(", ", exception.Errors.Select(error => error.ErrorMessage)));
         }
     }
 

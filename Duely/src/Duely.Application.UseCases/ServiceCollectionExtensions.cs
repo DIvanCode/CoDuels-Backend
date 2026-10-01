@@ -1,4 +1,5 @@
 using System.Reflection;
+using Duely.Application.UseCases.Behaviors;
 using Duely.Application.UseCases.Helpers;
 using FluentValidation;
 using MediatR;
@@ -11,7 +12,11 @@ public static class ServiceCollectionExtensions
 {
     public static void SetupUseCases(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddMediatR(config => config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+        services.AddMediatR(config =>
+        {
+            config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
+            config.AddOpenBehavior(typeof(ValidationBehavior<,>));
+        });
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         foreach (var mapperType in GetConcreteTypes<ITournamentDetailsMapper>(typeof(ServiceCollectionExtensions).Assembly))
         {

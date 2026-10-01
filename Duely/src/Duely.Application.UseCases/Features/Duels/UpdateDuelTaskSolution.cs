@@ -125,7 +125,7 @@ public sealed class UpdateDuelTaskSolutionCommandValidator : AbstractValidator<U
         RuleFor(x => x.UserId).GreaterThan(0);
         RuleFor(x => x.DuelId).GreaterThan(0);
         RuleFor(x => x.TaskKey).NotEmpty();
-        RuleFor(x => x.Solution).NotEmpty();
+        RuleFor(x => x.Solution).NotNull();
         RuleFor(x => x.Language).IsInEnum();
     }
 }
