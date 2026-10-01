@@ -1,7 +1,9 @@
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases;
+using Duely.Application.UseCases.Features.Duels;
 using Duely.Application.UseCases.Features.UserActions;
 using Duely.Application.UseCases.Features.Users;
+using Duely.Domain.Models.Duels;
 using FluentAssertions;
 using FluentValidation;
 using MediatR;
@@ -12,6 +14,22 @@ namespace Duely.Application.Tests.Validators;
 
 public class ValidationPipelineTests : ContextBasedTest
 {
+    [Fact]
+    public void Live_solution_validator_allows_clearing_the_editor()
+    {
+        var validator = new UpdateDuelTaskSolutionCommandValidator();
+        var result = validator.Validate(new UpdateDuelTaskSolutionCommand
+        {
+            UserId = 1,
+            DuelId = 2,
+            TaskKey = 'A',
+            Solution = string.Empty,
+            Language = Language.Python
+        });
+
+        result.IsValid.Should().BeTrue();
+    }
+
     [Fact]
     public async Task Mediator_runs_registered_validators_before_the_handler()
     {

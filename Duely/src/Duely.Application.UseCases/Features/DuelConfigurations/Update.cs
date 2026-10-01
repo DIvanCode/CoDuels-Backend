@@ -85,18 +85,21 @@ public sealed class UpdateDuelConfigurationCommandValidator : AbstractValidator<
             .NotEmpty().WithMessage("configuration for each task is required");
 
         RuleFor(r => r)
-            .Must(r => r.TasksCount == r.TasksConfigurations.Count)
+            .Must(r => r.TasksConfigurations is not null && r.TasksCount == r.TasksConfigurations.Count)
             .WithMessage("tasks count must match tasks configurations length")
-            .Must(r => r.TasksConfigurations.Keys.Distinct().Count() == r.TasksCount)
+            .Must(r => r.TasksConfigurations is not null && r.TasksConfigurations.Keys.Distinct().Count() == r.TasksCount)
             .WithMessage("tasks configurations must have unique keys")
-            .Must(r => HasSequentialAlphabeticKeys(r.TasksConfigurations, r.TasksCount))
+            .Must(r => r.TasksConfigurations is not null && HasSequentialAlphabeticKeys(r.TasksConfigurations, r.TasksCount))
             .WithMessage("tasks configurations must use sequential A.. keys");
 
         RuleForEach(r => r.TasksConfigurations).ChildRules(configuration =>
         {
+            configuration.RuleFor(c => c.Value)
+                .NotNull().WithMessage("task configuration is required");
             configuration.RuleFor(c => c.Value.Level)
                 .GreaterThanOrEqualTo(1).WithMessage("task level must be greater than or equal to 1")
-                .LessThanOrEqualTo(10).WithMessage("task level must be less than or equal to 10");
+                .LessThanOrEqualTo(10).WithMessage("task level must be less than or equal to 10")
+                .When(c => c.Value is not null);
         });
     }
 

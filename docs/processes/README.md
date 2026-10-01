@@ -12,6 +12,7 @@ automatically treated as an approved product rule.
 
 | Process | Document | Main owner |
 | --- | --- | --- |
+| MediatR request validation | [Validation pipeline audit](validation-pipeline.md) | Use-case validators and HTTP/WebSocket transports |
 | Administrative read access | [Admin resource access](admin-resource-access.md) | Read-query handlers and HTTP controllers |
 | Rating search and automatic pairing | [Ranked matchmaking](ranked-matchmaking.md) | `StartDuelSearchHandler`, `DuelManager`, `DuelMakingJob` |
 | Direct user-to-user invitations | [Friendly duel invitations](friendly-duel-invitations.md) | Friendly invitation handlers |

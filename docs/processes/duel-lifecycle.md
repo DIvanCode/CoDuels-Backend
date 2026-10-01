@@ -63,7 +63,8 @@ but neither save is externally visible before the transaction commits.
 ### Live solution state
 
 The WebSocket accepts `SolutionUpdated` with duel id, one-character task key,
-language, and solution. A participant's JSON solution dictionary is replaced
+language, and solution. The solution may be empty when the editor is cleared.
+A participant's JSON solution dictionary is replaced
 with an updated copy. If `ShouldShowOpponentSolution`, an
 `OpponentSolutionUpdated` outbox row is recorded for the opponent in the same
 save. The handler checks participant and task existence, but not duel status or
