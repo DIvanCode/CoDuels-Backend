@@ -195,28 +195,30 @@ func (ts *WriteCodeTaskTestingStrategy) UpdateJobStatus(name job.Name, status jo
 			return
 		}
 
-		if ts.previousTestsChecked(testID) {
-			failedTestID, failedTestStatus := ts.findFirstFailedTest()
-			verdict := ts.verdictForStatus(failedTestStatus, failedTestID)
+	}
+
+	ts.CalculateVerdict()
+}
+
+func (ts *WriteCodeTaskTestingStrategy) CalculateVerdict() {
+	if ts.Verdict != nil || ts.TestsCount == 0 {
+		return
+	}
+
+	for testID := 1; testID <= ts.TestsCount; testID++ {
+		status, ok := ts.TestStatus[testID]
+		if !ok {
+			return
+		}
+		if status != job.StatusOK {
+			verdict := ts.verdictForStatus(status, testID)
 			ts.Verdict = &verdict
 			return
 		}
 	}
 
-	if !ts.allTestsChecked() {
-		return
-	}
-
-	if ts.allTestsPassed() {
-		verdict := strategy.AcceptedVerdict
-		ts.Verdict = &verdict
-		return
-	}
-
-	failedTestID, failedTestStatus := ts.findFirstFailedTest()
-	verdict := ts.verdictForStatus(failedTestStatus, failedTestID)
+	verdict := strategy.AcceptedVerdict
 	ts.Verdict = &verdict
-	return
 }
 
 func (ts *WriteCodeTaskTestingStrategy) GetTestingStatus() string {
@@ -245,51 +247,6 @@ func (ts *WriteCodeTaskTestingStrategy) isRunJob(name job.Name) bool {
 
 func (ts *WriteCodeTaskTestingStrategy) isCheckJob(name job.Name) bool {
 	return checkJobRegex.MatchString(strings.ToLower(string(name)))
-}
-
-func (ts *WriteCodeTaskTestingStrategy) previousTestsChecked(testID int) bool {
-	if testID <= 1 {
-		return true
-	}
-
-	for previousTestID := 1; previousTestID < testID; previousTestID++ {
-		_, ok := ts.TestStatus[previousTestID]
-		if !ok {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (ts *WriteCodeTaskTestingStrategy) allTestsChecked() bool {
-	for testID := 1; testID <= ts.TestsCount; testID++ {
-		_, ok := ts.TestStatus[testID]
-		if !ok {
-			return false
-		}
-	}
-	return true
-}
-
-func (ts *WriteCodeTaskTestingStrategy) allTestsPassed() bool {
-	for testID := 1; testID <= ts.TestsCount; testID++ {
-		status, ok := ts.TestStatus[testID]
-		if !ok || status != job.StatusOK {
-			return false
-		}
-	}
-	return true
-}
-
-func (ts *WriteCodeTaskTestingStrategy) findFirstFailedTest() (int, job.Status) {
-	for testID := 1; testID <= ts.TestsCount; testID++ {
-		status := ts.TestStatus[testID]
-		if status != job.StatusOK {
-			return testID, status
-		}
-	}
-	return 0, job.StatusOK
 }
 
 func (ts *WriteCodeTaskTestingStrategy) findMostPassedPrefix() int {

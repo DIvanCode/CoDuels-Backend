@@ -56,9 +56,8 @@ compatibility and unfinished-Solution analysis.
 
 ## Evidence and test limitation
 
-Taski currently contains no `*_test.go` files. The documents therefore derive
-current behavior from production code, storage DDL embedded in storage types,
-configuration, and the corresponding Exesh/Duely consumers. None of the
-failure, concurrency, contract, or restart guarantees described as desirable
-are presently demonstrated by Taski automated tests.
-
+Taski has focused tests for several components, including WriteCode verdict
+ordering and finish-time recalculation. The broader process descriptions derive
+from production code, storage DDL embedded in storage types, configuration, and
+the corresponding Exesh/Duely consumers. Most failure, concurrency, contract,
+and restart scenarios described as desirable are not yet covered by Taski tests.

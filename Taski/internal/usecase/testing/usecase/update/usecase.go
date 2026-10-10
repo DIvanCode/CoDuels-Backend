@@ -109,12 +109,13 @@ func (uc *UseCase) handleExecutionEvent(sol *testing.Solution, evt events.Event,
 		typedEvent := evt.AsFinishExecutionEvent()
 
 		sol.FinishedAt = &now
-		verdict := sol.TestingStrategy.GetVerdict()
-
-		if typedEvent.Error != nil {
+		if typedEvent.Error != nil && *typedEvent.Error != "" {
+			verdict := sol.TestingStrategy.GetVerdict()
 			return messages.NewFinishTestingMessageWithError(sol.ExternalID, verdict, *typedEvent.Error), true, nil
 		}
 
+		sol.TestingStrategy.CalculateVerdict()
+		verdict := sol.TestingStrategy.GetVerdict()
 		msg := sol.TestingStrategy.GetMessage()
 		if msg != nil {
 			return messages.NewFinishTestingMessageWithMessage(sol.ExternalID, verdict, *msg), true, nil

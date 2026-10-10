@@ -29,16 +29,19 @@ foreign key, unique ID index, cancellation, timeout, or strategy version.
 
 Creation persists no start/finish/status. Start sets `StartedAt` once. Job events
 mutate `JobSuccess`, task-specific status, verdict, and message. Equal
-intermediate status is not re-emitted. Finish sets `FinishedAt` once and emits
-strategy verdict; if none, `GetVerdict` returns `Testing Failed`. Exesh error is
-sent as finish error. Events after finish do not change verdict/state, although
-their count can advance.
+intermediate status is not re-emitted. Finish sets `FinishedAt` once. Without a
+nonempty Exesh error, it recalculates the strategy verdict from recorded
+outcomes and emits it; if none can be determined, `GetVerdict` returns `Testing
+Failed`. A nonempty Exesh error skips recalculation and sends the existing
+verdict or `Testing Failed` if the strategy has none. Events after finish do not
+change verdict/state, although their count can advance.
 
 WriteCode identifies jobs by regex/name. Suspect compile failure maps to
 `Compilation Error`; suspect run/check failures map to the corresponding user
 verdict/test, while checker/infrastructure failure maps to `Testing Failed`.
-The earliest parsed failed test determines progress/final outcome; all expected
-successes yield `Accepted`.
+The earliest parsed failed test determines progress/final outcome once all
+earlier tests have outcomes; later tests need not finish. All expected successes
+yield `Accepted`.
 
 FindTest accepts when reference and submitted-counterexample behavior reaches
 the `[suspect] check` expected `Wrong Answer`; a non-differing check yields
@@ -139,8 +142,10 @@ duplicate-linkage, unreadable-strategy, or finish-without-start metrics.
 
 ## Test coverage
 
-- **Existing unit/integration tests:** none in Taski.
-- **Covered scenarios:** none are automated.
+- **Existing unit/integration tests:** focused strategy and finish-event tests.
+- **Covered scenarios:** WriteCode first-failure ordering, a missing preceding
+  result, all-pass calculation, immutable verdict, finish-time recalculation,
+  and error-finish preservation or fallback of a verdict.
 - **Missing scenarios:** state/timestamp transitions, full verdict matrix, first
   failed test, duplicate/out-of-order/unknown/post-finish events, row locking,
   restart/JSON compatibility, stuck row, and duplicate IDs.

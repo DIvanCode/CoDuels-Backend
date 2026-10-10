@@ -36,7 +36,12 @@ consumes task input/correct output and run artifact. Within a batch jobs can run
 in parallel; every later batch depends on all earlier stage names, making
 batches sequential. First parsed failing test drives status/verdict; suspect
 compile/run/check failure maps to user verdict, while infrastructure-named
-failures map to `Testing Failed`.
+failures map to `Testing Failed`. After each job event, WriteCode scans known
+test outcomes in test-number order. A failed test becomes the verdict as soon as
+all earlier tests are known, even when later tests remain untested. The finish
+event repeats this calculation from persisted strategy state before reading the
+verdict when Exesh reported no error; a gap before a known failure still yields
+`Testing Failed`.
 
 ```mermaid
 flowchart LR
@@ -91,7 +96,8 @@ outside it. Runtime HTTP/client objects are not serialized.
 Per-job boolean state makes repeated identical job success/failure mostly
 convergent, but event processing can still increment the cursor and emit
 duplicate start/finish-related effects. Unknown job names are ignored. No event
-ID is stored in Kafka mode. A set verdict suppresses later job mutation.
+ID is stored in Kafka mode. Verdict calculation is idempotent, and a set verdict
+suppresses later job mutation.
 
 ## Ordering assumptions
 
@@ -138,11 +144,12 @@ as dedicated series.
 
 ## Test coverage
 
-- **Existing unit/integration tests:** none.
-- **Covered scenarios:** none are automated.
-- **Missing scenarios:** all graph variants/languages, batch boundaries, first
-  failure, unexpected/out-of-order/duplicate events, verdict immutability,
-  restart deserialization, and old JSON/job names.
+- **Existing unit/integration tests:** focused WriteCode verdict tests.
+- **Covered scenarios:** a later failed test arriving before an earlier passed
+  test, first-failure precedence, missing earlier outcome, all tests passed,
+  verdict immutability, and finish-time recalculation.
+- **Missing scenarios:** full graph variants/languages, batch boundaries,
+  unexpected/unknown events, and old JSON/job names.
 - **Required contract tests:** exact stages/dependencies/job/source/input names,
   types, statuses, limits, graph acceptance by Exesh, and full verdict tables.
 - **Required failure-injection tests:** corrupt/old strategy JSON, unknown job,
@@ -160,4 +167,3 @@ Version serialized strategies and graph naming; validate task tests and graph
 references before dispatch; formalize per-task verdict tables and event-order
 policy; preserve compatibility through migrations; and add exhaustive graph,
 verdict, restart, duplicate, and failure tests.
-
