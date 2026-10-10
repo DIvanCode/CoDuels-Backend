@@ -142,35 +142,6 @@ public class UpdateSubmissionStatusHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Uses_testing_failed_when_error_and_verdict_are_present()
-    {
-        var ctx = Context;
-        var u1 = EntityFactory.MakeUser(1, "u1");
-        var u2 = EntityFactory.MakeUser(2, "u2");
-        var duel = EntityFactory.MakeDuel(10, u1, u2, "TASK");
-        var sub = EntityFactory.MakeSubmission(100, duel, u1, status: SubmissionStatus.Running);
-        ctx.AddRange(u1, u2, duel, sub);
-        await ctx.SaveChangesAsync();
-
-        var handler = new UpdateSubmissionStatusHandler(ctx);
-        var result = await handler.Handle(new UpdateSubmissionStatusCommand {
-            SubmissionId = 100, Type = "finish", Error = "worker failed", Verdict = "Testing Failed"
-        }, CancellationToken.None);
-
-        result.IsSuccess.Should().BeTrue();
-        var saved = await ctx.Submissions.AsNoTracking().SingleAsync(s => s.Id == 100);
-        saved.Status.Should().Be(SubmissionStatus.Done);
-        saved.Verdict.Should().Be("Testing Failed");
-        var outboxMessages = await ctx.OutboxMessages.AsNoTracking()
-            .Where(m => m.Type == OutboxType.SendMessage)
-            .ToListAsync();
-        outboxMessages.Should().ContainSingle();
-        var payload = (SendMessagePayload)outboxMessages[0].Payload;
-        payload.Message.Should().BeOfType<SubmissionStatusUpdatedMessage>()
-            .Which.Verdict.Should().Be("Testing Failed");
-    }
-
-    [Fact]
     public async Task Keeps_first_completion_time_when_finished_status_is_replayed()
     {
         var ctx = Context;

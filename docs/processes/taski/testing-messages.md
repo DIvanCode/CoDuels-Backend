@@ -132,8 +132,8 @@ duplicate, gap, backlog, consumer-count, or message-age metric.
 
 ## Test coverage
 
-- **Existing unit/integration tests:** focused Taski finish-message and Duely
-  status-mapping tests; no demonstrated cross-service contract suite.
+- **Existing unit/integration tests:** focused Taski finish-message tests;
+  no demonstrated cross-service contract suite.
 - **Covered scenarios:** error finishes preserve an already calculated verdict
   and use `Testing Failed` when no verdict exists.
 - **Missing scenarios:** exact payloads/order, duplicate start/status/finish,
