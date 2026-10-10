@@ -110,7 +110,8 @@ func (uc *UseCase) handleExecutionEvent(sol *testing.Solution, evt events.Event,
 
 		sol.FinishedAt = &now
 		if typedEvent.Error != nil && *typedEvent.Error != "" {
-			return messages.NewFinishTestingMessageWithError(sol.ExternalID, "", *typedEvent.Error), true, nil
+			verdict := sol.TestingStrategy.GetVerdict()
+			return messages.NewFinishTestingMessageWithError(sol.ExternalID, verdict, *typedEvent.Error), true, nil
 		}
 
 		sol.TestingStrategy.CalculateVerdict()

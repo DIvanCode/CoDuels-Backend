@@ -52,13 +52,14 @@ func TestFinishRecalculatesPersistedWriteCodeVerdict(t *testing.T) {
 	}
 }
 
-func TestFinishWithExecutionErrorDoesNotPublishVerdict(t *testing.T) {
+func TestFinishWithExecutionErrorUsesExistingOrFallbackVerdict(t *testing.T) {
 	for _, tc := range []struct {
-		name    string
-		verdict *string
+		name        string
+		verdict     *string
+		wantVerdict string
 	}{
-		{name: "not yet calculated"},
-		{name: "already calculated", verdict: ptr("Runtime Error on test 7")},
+		{name: "not yet calculated", wantVerdict: strategy.TestingFailedVerdict},
+		{name: "already calculated", verdict: ptr("Runtime Error on test 7"), wantVerdict: "Runtime Error on test 7"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ts := &strategies.WriteCodeTaskTestingStrategy{
@@ -83,8 +84,8 @@ func TestFinishWithExecutionErrorDoesNotPublishVerdict(t *testing.T) {
 				t.Fatalf("finish result: sent=%t, err=%v", sent, err)
 			}
 			got := msg.IMessage.(*messages.FinishTestingMessage)
-			if got.Verdict != "" || got.Error != executionError {
-				t.Fatalf("finish payload: verdict=%q, error=%q", got.Verdict, got.Error)
+			if got.Verdict != tc.wantVerdict || got.Error != executionError {
+				t.Fatalf("finish payload: verdict=%q, error=%q; want verdict=%q", got.Verdict, got.Error, tc.wantVerdict)
 			}
 			if sol.FinishedAt == nil {
 				t.Fatal("solution was not marked finished")

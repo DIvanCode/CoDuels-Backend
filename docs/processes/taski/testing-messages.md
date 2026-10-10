@@ -32,16 +32,17 @@ The `solution_id` is Taski `ExternalSolutionID`, not Taski's row ID or Exesh
 `ExecutionID`. Job events are not public. Start is emitted for every processed
 start duplicate; status only when its text differs from
 `LastTestingStatus`; finish is generated on the first processed finish and may
-contain a verdict or Exesh error. A nonempty Exesh error produces an empty
-`verdict` field, even if the strategy already has a user-code verdict, so Duely
-keeps `Technical error` as the terminal outcome.
+contain a verdict or Exesh error. A nonempty Exesh error does not trigger
+verdict recalculation: the finish message carries the strategy's existing
+verdict, or `Testing Failed` if none was set.
 
 Production disables Taski Kafka dispatch. Duely production polls
 `/solutions/{submissionId}/messages?start_id=HandledStatusCount+1&count=20`,
 validates response `status=OK`, orders by Taski Event ID, and applies each
 message. Duely increments its own `HandledStatusCount` for every applied
-message, sets Running for start/status, terminal Technical error for error, or
-Done/exact verdict for verdict, and emits its own WebSocket outbox messages.
+message, sets Running for start/status, then applies an error and any nonempty
+verdict in that order. Taski error finishes always carry a verdict, so Duely
+ends with that verdict. It also emits its own WebSocket outbox messages.
 
 **Current guarantees.** Taski message history and Solution mutation are atomic.
 Within one external ID, Taski allocates increasing IDs under Solution row locks
@@ -99,8 +100,8 @@ instances relies on its own DB behavior/count but has no explicit claim lease.
 Taski message insert failure rolls back the Solution event, causing source-mode
 retry. REST history errors leave Duely cursor unchanged for later retry. Duely
 breaks on update failure. Kafka producer success followed by outbox transaction
-failure duplicates. Missing finish leaves Duely nonterminal; an error finish
-becomes `Technical error`.
+failure duplicates. Missing finish leaves Duely nonterminal; an Exesh error
+finish becomes the preserved strategy verdict or `Testing Failed`.
 
 ## Emitted messages
 
@@ -109,7 +110,7 @@ becomes `Technical error`.
 | Execution starts | `start` | Taski history; Kafka if enabled | external ID/type | History + optional Outbox | Event/outbox mode |
 | Progress text changes | `status` | same | external ID/type/status | same | same |
 | Execution finishes | `finish` | same | external ID/type/verdict/optional message | same | same |
-| Execution errors | `finish` | same | external ID/type/empty verdict/error | same | same |
+| Execution errors | `finish` | same | external ID/type/existing verdict or `Testing Failed`/error | same | same |
 | Duely applies message | `SubmissionStatusUpdatedMessage` | submitting user WebSocket outbox | Duely submission view | Duely outbox | Duely policy |
 | Accepted finish | `DuelChangedMessage` | both duel users | duel ID | Duely outbox | Duely policy |
 
@@ -131,10 +132,10 @@ duplicate, gap, backlog, consumer-count, or message-age metric.
 
 ## Test coverage
 
-- **Existing unit/integration tests:** focused Taski finish-message tests; no
-  demonstrated cross-service contract suite.
-- **Covered scenarios:** error finishes omit a verdict whether or not the
-  strategy has already calculated one.
+- **Existing unit/integration tests:** focused Taski finish-message and Duely
+  status-mapping tests; no demonstrated cross-service contract suite.
+- **Covered scenarios:** error finishes preserve an already calculated verdict
+  and use `Testing Failed` when no verdict exists.
 - **Missing scenarios:** exact payloads/order, duplicate start/status/finish,
   missing/early finish, history pagination, Duely restart/concurrency, duplicate
   external IDs, Kafka duplicate, and transactional rollback.

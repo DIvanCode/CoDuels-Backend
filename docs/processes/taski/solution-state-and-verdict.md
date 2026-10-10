@@ -32,9 +32,9 @@ mutate `JobSuccess`, task-specific status, verdict, and message. Equal
 intermediate status is not re-emitted. Finish sets `FinishedAt` once. Without a
 nonempty Exesh error, it recalculates the strategy verdict from recorded
 outcomes and emits it; if none can be determined, `GetVerdict` returns `Testing
-Failed`. A nonempty Exesh error is sent with an empty verdict so Duely keeps
-`Technical error`. Events after finish do not change verdict/state, although
-their count can advance.
+Failed`. A nonempty Exesh error skips recalculation and sends the existing
+verdict or `Testing Failed` if the strategy has none. Events after finish do not
+change verdict/state, although their count can advance.
 
 WriteCode identifies jobs by regex/name. Suspect compile failure maps to
 `Compilation Error`; suspect run/check failures map to the corresponding user
@@ -145,7 +145,7 @@ duplicate-linkage, unreadable-strategy, or finish-without-start metrics.
 - **Existing unit/integration tests:** focused strategy and finish-event tests.
 - **Covered scenarios:** WriteCode first-failure ordering, a missing preceding
   result, all-pass calculation, immutable verdict, finish-time recalculation,
-  and error-finish precedence over a calculated verdict.
+  and error-finish preservation or fallback of a verdict.
 - **Missing scenarios:** state/timestamp transitions, full verdict matrix, first
   failed test, duplicate/out-of-order/unknown/post-finish events, row locking,
   restart/JSON compatibility, stuck row, and duplicate IDs.
