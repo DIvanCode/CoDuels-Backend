@@ -146,7 +146,7 @@ or manual recovery API. An HTTP client without timeout can stall a loop/UoW.
 | Condition | Message type | Recipient/channel | Payload | Persistence | Retry |
 | --- | --- | --- | --- | --- | --- |
 | Recoverable event succeeds | Taski start/status/finish | history/outbox | derived progress | Durable | Source retry until commit |
-| Infrastructure finish | `finish` error/verdict | Duely | error or `Testing Failed` | Durable | History/outbox rules |
+| Infrastructure finish | `finish` error/empty verdict | Duely | nonempty error, no user-code verdict | Durable | History/outbox rules |
 | Internal recovery failure | log | operators | context/error | Logs only | Loop/request-specific |
 
 ## Observability

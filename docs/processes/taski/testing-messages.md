@@ -32,7 +32,9 @@ The `solution_id` is Taski `ExternalSolutionID`, not Taski's row ID or Exesh
 `ExecutionID`. Job events are not public. Start is emitted for every processed
 start duplicate; status only when its text differs from
 `LastTestingStatus`; finish is generated on the first processed finish and may
-contain a verdict or Exesh error.
+contain a verdict or Exesh error. A nonempty Exesh error produces an empty
+`verdict` field, even if the strategy already has a user-code verdict, so Duely
+keeps `Technical error` as the terminal outcome.
 
 Production disables Taski Kafka dispatch. Duely production polls
 `/solutions/{submissionId}/messages?start_id=HandledStatusCount+1&count=20`,
@@ -106,7 +108,8 @@ becomes `Technical error`.
 | --- | --- | --- | --- | --- | --- |
 | Execution starts | `start` | Taski history; Kafka if enabled | external ID/type | History + optional Outbox | Event/outbox mode |
 | Progress text changes | `status` | same | external ID/type/status | same | same |
-| Execution finishes/errors | `finish` | same | external ID/type/verdict/error/message | same | same |
+| Execution finishes | `finish` | same | external ID/type/verdict/optional message | same | same |
+| Execution errors | `finish` | same | external ID/type/empty verdict/error | same | same |
 | Duely applies message | `SubmissionStatusUpdatedMessage` | submitting user WebSocket outbox | Duely submission view | Duely outbox | Duely policy |
 | Accepted finish | `DuelChangedMessage` | both duel users | duel ID | Duely outbox | Duely policy |
 
@@ -128,9 +131,10 @@ duplicate, gap, backlog, consumer-count, or message-age metric.
 
 ## Test coverage
 
-- **Existing unit/integration tests:** no Taski tests; no demonstrated cross-
-  service contract suite.
-- **Covered scenarios:** none in Taski automation.
+- **Existing unit/integration tests:** focused Taski finish-message tests; no
+  demonstrated cross-service contract suite.
+- **Covered scenarios:** error finishes omit a verdict whether or not the
+  strategy has already calculated one.
 - **Missing scenarios:** exact payloads/order, duplicate start/status/finish,
   missing/early finish, history pagination, Duely restart/concurrency, duplicate
   external IDs, Kafka duplicate, and transactional rollback.
@@ -151,4 +155,3 @@ Version the public envelope; include a durable message/event identity in every
 transport; formalize order/gap/duplicate semantics and retention; enforce unique
 external linkage; observe end-to-end lag; and contract-test Taski with both
 Duely modes.
-

@@ -40,7 +40,8 @@ failures map to `Testing Failed`. After each job event, WriteCode scans known
 test outcomes in test-number order. A failed test becomes the verdict as soon as
 all earlier tests are known, even when later tests remain untested. The finish
 event repeats this calculation from persisted strategy state before reading the
-verdict; a gap before a known failure still yields `Testing Failed`.
+verdict when Exesh reported no error; a gap before a known failure still yields
+`Testing Failed`.
 
 ```mermaid
 flowchart LR
