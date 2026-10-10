@@ -18,6 +18,7 @@ type (
 		GetTaskType() task.Type
 		GetStages() execution.Stages
 		GetSources() sources.Sources
+		CalculateVerdict()
 		GetVerdict() string
 		GetMessage() *string
 		UpdateJobStatus(name job.Name, status job.Status, msg *string)
@@ -145,11 +146,21 @@ func (ts *Details) UpdateJobStatus(name job.Name, status job.Status, msg *string
 		return
 	}
 
-	if ts.AllJobsDone() {
-		verdict := AcceptedVerdict
-		ts.Verdict = &verdict
+	ts.CalculateVerdict()
+}
+
+func (ts *Details) CalculateVerdict() {
+	if ts.Verdict != nil || len(ts.JobSuccess) == 0 || !ts.AllJobsDone() {
 		return
 	}
+	for _, success := range ts.JobSuccess {
+		if !success {
+			return
+		}
+	}
+
+	verdict := AcceptedVerdict
+	ts.Verdict = &verdict
 }
 
 func (ts *Details) AllJobsDone() bool {

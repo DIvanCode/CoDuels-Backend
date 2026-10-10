@@ -108,6 +108,7 @@ func (uc *UseCase) handleExecutionEvent(sol *testing.Solution, evt events.Event,
 	case event.FinishExecution:
 		typedEvent := evt.AsFinishExecutionEvent()
 
+		sol.TestingStrategy.CalculateVerdict()
 		sol.FinishedAt = &now
 		verdict := sol.TestingStrategy.GetVerdict()
 

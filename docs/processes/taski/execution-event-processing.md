@@ -29,8 +29,9 @@ than or equal to `HandledEventsCount` is ignored. Otherwise:
 - `start` sets `StartedAt` if absent but emits `start` every time it is handled;
 - compile/run/check delegates the job name/status to the strategy, then emits a
   `status` only when it differs from `LastTestingStatus`;
-- `finish` sets `FinishedAt`, maps an Exesh error to a finish error, otherwise
-  uses strategy verdict/message (nil verdict becomes `Testing Failed`);
+- `finish` recalculates the strategy verdict from recorded job/test outcomes,
+  sets `FinishedAt`, maps an Exesh error to a finish error, otherwise uses the
+  strategy verdict/message (nil verdict becomes `Testing Failed`);
 - events after `FinishedAt` produce no message;
 - unknown job names are ignored by strategies, although an initial computed
   status can still be emitted.
@@ -133,8 +134,9 @@ rollback, cursor gaps, row-lock wait, stuck Solutions, or finish-before-start.
 
 ## Test coverage
 
-- **Existing unit/integration tests:** none.
-- **Covered scenarios:** none are automated.
+- **Existing unit/integration tests:** focused finish-time verdict test.
+- **Covered scenarios:** a finish event recovers a verdict from persisted
+  WriteCode outcomes even when no verdict was set by an earlier job event.
 - **Missing scenarios:** all event types, exact transitions, first failure,
   duplicate/out-of-order/missing/early/unknown/post-finish events, rollback,
   row locking, and message suppression.
@@ -154,4 +156,3 @@ and whether ignored events should advance the cursor are unspecified.
 Persist an event identity/last observed ID, validate monotonic order, define
 buffer/quarantine/reconciliation behavior, make execution linkage unique,
 observe lag/anomalies, and cover all transition/failure scenarios.
-
