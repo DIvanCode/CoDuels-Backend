@@ -39,7 +39,7 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
 
         builder.Property(s => s.SubmitTime)
             .HasColumnName("SubmitTime")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired();
 
         builder.Property(s => s.Status)
@@ -55,7 +55,7 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
 
         builder.Property(s => s.CompletedAt)
             .HasColumnName("CompletedAt")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired(false);
 
         builder.HasIndex(s => new { s.Status, s.SubmitTime });

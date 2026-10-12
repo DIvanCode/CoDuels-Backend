@@ -29,6 +29,13 @@ public sealed class Context : DbContext
     public Context(DbContextOptions<Context> options) : base(options)
     {
     }
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>()
+            .HaveConversion<UtcDateTimeConverter>()
+            .HaveColumnType("timestamp with time zone");
+    }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -77,7 +77,7 @@ public sealed class CodeRunsConfiguration : IEntityTypeConfiguration<CodeRun>
 
         builder.Property(u => u.CreatedAt)
             .HasColumnName("CreatedAt")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired();
 
         builder.HasIndex(r => new { r.DuelId, r.TaskKey });

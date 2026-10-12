@@ -27,7 +27,7 @@ public abstract class UserAction
     [JsonPropertyName("sequence_id"), Required]
     public required int SequenceId { get; init; }
 
-    [JsonPropertyName("timestamp"), Required]
+    [JsonPropertyName("timestamp"), JsonConverter(typeof(UtcDateTimeJsonConverter)), Required]
     public required DateTime Timestamp { get; init; }
 
     [JsonPropertyName("duel_id"), Required]

@@ -49,17 +49,17 @@ public sealed class DuelyConfiguration : IEntityTypeConfiguration<Duel>
 
         builder.Property(d => d.StartTime)
             .HasColumnName("StartTime")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired();
         
         builder.Property(d => d.DeadlineTime)
             .HasColumnName("DeadlineTime")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired();
 
         builder.Property(d => d.EndTime)
             .HasColumnName("EndTime")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired(false);
 
         builder.HasOne(d => d.User1)

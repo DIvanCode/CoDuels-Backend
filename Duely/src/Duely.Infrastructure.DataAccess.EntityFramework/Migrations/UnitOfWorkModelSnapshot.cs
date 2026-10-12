@@ -62,7 +62,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnName("Code");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("CreatedAt");
 
                     b.Property<int>("DuelId")
@@ -134,15 +134,15 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("DeadlineTime")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("DeadlineTime");
 
                     b.Property<DateTime?>("EndTime")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("EndTime");
 
                     b.Property<DateTime>("StartTime")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("StartTime");
 
                     b.Property<string>("Status")
@@ -258,7 +258,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("CreatedAt");
 
                     b.Property<string>("Type")
@@ -364,11 +364,11 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnName("Retries");
 
                     b.Property<DateTime?>("RetryAt")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("RetryAt");
 
                     b.Property<DateTime>("RetryUntil")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("RetryUntil");
 
                     b.Property<string>("Status")
@@ -396,7 +396,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("CompletedAt");
 
                     b.Property<int>("DuelId")
@@ -434,7 +434,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnName("Status");
 
                     b.Property<DateTime>("SubmitTime")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("SubmitTime");
 
                     b.Property<string>("TaskKey")
@@ -472,7 +472,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("CreatedAt");
 
                     b.Property<int>("CreatedById")
@@ -547,7 +547,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnName("AuthTicket");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("CreatedAt");
 
                     b.Property<bool>("IsAdmin")
@@ -621,7 +621,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasAnnotation("Relational:JsonPropertyName", "task_key");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("Timestamp")
                         .HasAnnotation("Relational:JsonPropertyName", "timestamp");
 

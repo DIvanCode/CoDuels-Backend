@@ -31,7 +31,7 @@ public sealed class UserActionsConfiguration : IEntityTypeConfiguration<UserActi
 
         builder.Property(e => e.Timestamp)
             .HasColumnName(nameof(UserAction.Timestamp))
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired();
 
         builder.Property(e => e.DuelId)

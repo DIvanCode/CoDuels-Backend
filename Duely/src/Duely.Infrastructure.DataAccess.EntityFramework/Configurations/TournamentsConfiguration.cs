@@ -40,7 +40,7 @@ public sealed class TournamentsConfiguration : IEntityTypeConfiguration<Tourname
 
         builder.Property(t => t.CreatedAt)
             .HasColumnName("CreatedAt")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired();
 
         builder.HasOne(t => t.Group)
