@@ -58,14 +58,14 @@ public class DuelManagerTests
                 Type = PendingDuelType.Ranked,
                 User = u1,
                 Rating = u1.Rating,
-                CreatedAt = DateTime.UtcNow.AddSeconds(-15)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-6)
             },
             new RankedPendingDuel
             {
                 Type = PendingDuelType.Ranked,
                 User = u2,
                 Rating = u2.Rating,
-                CreatedAt = DateTime.UtcNow.AddSeconds(-1)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-6)
             }
         };
 
@@ -92,14 +92,14 @@ public class DuelManagerTests
                 Type = PendingDuelType.Ranked,
                 User = u1,
                 Rating = u1.Rating,
-                CreatedAt = DateTime.UtcNow.AddSeconds(-10)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-3)
             },
             new RankedPendingDuel
             {
                 Type = PendingDuelType.Ranked,
                 User = u2,
                 Rating = u2.Rating,
-                CreatedAt = DateTime.UtcNow.AddSeconds(-5)
+                CreatedAt = DateTime.UtcNow.AddSeconds(-3)
             },
             new RankedPendingDuel
             {
@@ -186,9 +186,9 @@ public class DuelManagerTests
 
         var pending = new List<PendingDuel>
         {
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u1, Rating = u1.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-15) },
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u1, Rating = u1.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) },
             new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u2, Rating = u2.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) },
-            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u3, Rating = u3.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-15) },
+            new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u3, Rating = u3.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) },
             new RankedPendingDuel { Type = PendingDuelType.Ranked, User = u4, Rating = u4.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-3) }
         };
 
