@@ -23,6 +23,7 @@ automatically treated as an approved product rule.
 | Submission and custom-run execution | [Submission and testing](submission-and-testing.md) | Submission/code-run handlers, Taski/Exesh adapters |
 | Durable side effects and client notifications | [Notifications and outbox](notifications-and-outbox.md) | Outbox handlers and `OutboxJob` |
 | Action capture and suspicion scoring | [Post-duel anti-cheat](post-duel-anticheat.md) | Finish handler and anti-cheat background service |
+| Absolute time storage and API timestamps | [UTC timestamp contract](utc-timestamps.md) | Duely EF model, migrations, and public DTOs |
 
 Supporting material:
 

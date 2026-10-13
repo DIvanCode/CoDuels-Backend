@@ -55,7 +55,7 @@ public sealed class UsersConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.CreatedAt)
             .HasColumnName("CreatedAt")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired();
         
         builder.Property(u => u.IsBot)

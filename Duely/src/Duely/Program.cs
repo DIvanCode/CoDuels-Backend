@@ -12,8 +12,6 @@ using Duely.Infrastructure.BackgroundJobs;
 using Hellang.Middleware.ProblemDetails;
 using Duely.Infrastructure.Telemetry;
 
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Environment.IsProduction())
 {

@@ -31,7 +31,7 @@ public sealed class PendingDuelsConfiguration : IEntityTypeConfiguration<Pending
 
         builder.Property(d => d.CreatedAt)
             .HasColumnName("CreatedAt")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired();
 
         builder.UseTphMappingStrategy();
