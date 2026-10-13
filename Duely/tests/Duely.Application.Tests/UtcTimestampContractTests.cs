@@ -72,6 +72,10 @@ public sealed class UtcTimestampContractTests
         Action persistUnspecified = () => UtcDateTimeConverter.RequireUtc(DateTime.SpecifyKind(instant, DateTimeKind.Unspecified));
         persistLocal.Should().Throw<ArgumentException>();
         persistUnspecified.Should().Throw<ArgumentException>();
+        UtcDateTimeConverter.NormalizeRead(instant).Should().Be(instant);
+        UtcDateTimeConverter.NormalizeRead(instant.ToLocalTime()).Should().Be(instant);
+        UtcDateTimeConverter.NormalizeRead(
+            DateTime.SpecifyKind(instant, DateTimeKind.Unspecified)).Should().Be(instant);
 
         using var context = new Context(new DbContextOptionsBuilder<Context>()
             .UseNpgsql("Host=localhost;Database=unused")

@@ -4,7 +4,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework;
 
 public sealed class UtcDateTimeConverter() : ValueConverter<DateTime, DateTime>(
     value => RequireUtc(value),
-    value => DateTime.SpecifyKind(value, DateTimeKind.Utc))
+    value => NormalizeRead(value))
 {
     public static DateTime RequireUtc(DateTime value)
     {
@@ -15,4 +15,11 @@ public sealed class UtcDateTimeConverter() : ValueConverter<DateTime, DateTime>(
 
         return value;
     }
+
+    public static DateTime NormalizeRead(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+    };
 }

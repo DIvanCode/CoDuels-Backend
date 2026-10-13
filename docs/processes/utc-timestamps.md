@@ -13,7 +13,10 @@ date-only value or a local wall-clock schedule.
 
 All twelve persisted columns use PostgreSQL `timestamp with time zone`.
 Application code writes UTC `DateTime` values. EF's common converter rejects
-`Local` and `Unspecified` values, and materialized values have UTC kind.
+`Local` and `Unspecified` values. Npgsql's legacy timestamp switch is disabled,
+so native `timestamp with time zone` reads arrive as UTC. The converter also
+converts local-kind reads to UTC and interprets kindless provider reads as UTC
+wall-clock values; materialized values have UTC kind.
 Background jobs and deadline/rate-limit comparisons use `DateTime.UtcNow`.
 Public HTTP and WebSocket JSON serializes UTC `DateTime` values as ISO 8601
 with `Z`. Browser action timestamps must include `Z` or an explicit offset;
