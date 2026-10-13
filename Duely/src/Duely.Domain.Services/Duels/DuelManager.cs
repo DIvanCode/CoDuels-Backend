@@ -18,7 +18,7 @@ public sealed record DuelPair(
 
 public sealed class DuelManager : IDuelManager
 {
-    private const int MaxWaitSeconds = 20;
+    private const int MaxWaitSeconds = 7;
 
     public IEnumerable<DuelPair> GetPairs(List<PendingDuel> pendingDuels)
     {
@@ -199,6 +199,6 @@ public sealed class DuelManager : IDuelManager
     private static int GetWindowFor(RankedPendingDuel user, DateTime now)
     {
         var seconds = (now - user.CreatedAt).TotalSeconds;
-        return (int)(15 * seconds);
+        return (int)(28 * seconds);
     }
 }
