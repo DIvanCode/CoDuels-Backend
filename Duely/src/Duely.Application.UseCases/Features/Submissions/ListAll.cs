@@ -39,7 +39,8 @@ public sealed class GetAllSubmissionsHandler(Context context)
                     Id = submission.User.Id,
                     Nickname = submission.User.Nickname,
                     Rating = submission.User.Rating,
-                    CreatedAt = submission.User.CreatedAt
+                    CreatedAt = submission.User.CreatedAt,
+                    LastSeenAt = submission.User.LastSeenAt
                 },
                 CreatedAt = submission.SubmitTime,
                 Verdict = submission.Verdict,

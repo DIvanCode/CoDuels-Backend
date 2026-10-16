@@ -11,7 +11,23 @@ namespace Duely.Application.Tests;
 public sealed class UtcTimestampContractTests
 {
     [Fact]
-    public void Public_dto_serializes_utc_with_z_suffix()
+    public void User_dto_serializes_utc_timestamps_with_z_suffix()
+    {
+        var dto = new UserDto
+        {
+            Id = 1,
+            Nickname = "test",
+            Rating = 1500,
+            CreatedAt = new DateTime(2026, 3, 29, 0, 30, 0, DateTimeKind.Utc),
+            LastSeenAt = new DateTime(2026, 3, 29, 1, 30, 0, DateTimeKind.Utc)
+        };
+
+        JsonSerializer.Serialize(dto).Should().Contain("\"created_at\":\"2026-03-29T00:30:00Z\"");
+        JsonSerializer.Serialize(dto).Should().Contain("\"last_seen_at\":\"2026-03-29T01:30:00Z\"");
+    }
+
+    [Fact]
+    public void User_dto_serializes_null_last_seen()
     {
         var dto = new UserDto
         {
@@ -21,7 +37,7 @@ public sealed class UtcTimestampContractTests
             CreatedAt = new DateTime(2026, 3, 29, 0, 30, 0, DateTimeKind.Utc)
         };
 
-        JsonSerializer.Serialize(dto).Should().Contain("\"created_at\":\"2026-03-29T00:30:00Z\"");
+        JsonSerializer.Serialize(dto).Should().Contain("\"last_seen_at\":null");
     }
 
     [Theory]

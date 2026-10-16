@@ -55,7 +55,8 @@ public sealed class GetGroupUsersHandler(Context context, IGroupPermissionsServi
                     Id = m.User.Id,
                     Nickname = m.User.Nickname,
                     Rating = m.User.Rating,
-                    CreatedAt = m.User.CreatedAt
+                    CreatedAt = m.User.CreatedAt,
+                    LastSeenAt = m.User.LastSeenAt
                 },
                 Role = m.Role,
                 Status = m.InvitationPending ? GroupUserStatus.Pending : GroupUserStatus.Active,
@@ -66,7 +67,8 @@ public sealed class GetGroupUsersHandler(Context context, IGroupPermissionsServi
                         Id = m.InvitedBy.Id,
                         Nickname = m.InvitedBy.Nickname,
                         Rating = m.InvitedBy.Rating,
-                        CreatedAt = m.InvitedBy.CreatedAt
+                        CreatedAt = m.InvitedBy.CreatedAt,
+                        LastSeenAt = m.InvitedBy.LastSeenAt
                     }
             })
             .ToList();;

@@ -4,12 +4,14 @@ namespace Duely.Infrastructure.Api.Http.Services.WebSockets;
 
 public interface IWebSocketConnectionManager
 {
-    Guid AddConnection(int userId, WebSocket socket);
-    void RemoveConnection(Guid connectionId);
+    WebSocketRegistration AddConnection(int userId, WebSocket socket);
+    DateTime? RemoveConnection(Guid connectionId);
     List<WebSocket> GetSockets(int userId);
     bool HasSockets(int userId);
     IReadOnlyCollection<int> GetLocallyConnectedUserIds();
 }
+
+public readonly record struct WebSocketRegistration(Guid ConnectionId, DateTime RegisteredAt);
 
 public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
 {
@@ -18,7 +20,7 @@ public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
     private readonly Dictionary<int, List<Guid>> _connections = new();
     private readonly Dictionary<Guid, WebSocket> _sockets = new();
 
-    public Guid AddConnection(int userId, WebSocket socket)
+    public WebSocketRegistration AddConnection(int userId, WebSocket socket)
     {
         lock (_lock)
         {
@@ -30,14 +32,15 @@ public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
             connections.Add(connectionId);
             _connections[userId] = connections;
 
-            return connectionId;
+            return new WebSocketRegistration(connectionId, DateTime.UtcNow);
         }
     }
 
-    public void RemoveConnection(Guid connectionId)
+    public DateTime? RemoveConnection(Guid connectionId)
     {
         lock (_lock)
         {
+            DateTime? lastDisconnectedAt = null;
             if (_users.Remove(connectionId, out var userId) &&
                 _connections.TryGetValue(userId, out var connections))
             {
@@ -46,10 +49,12 @@ public sealed class WebSocketConnectionManager : IWebSocketConnectionManager
                 if (connections.Count == 0)
                 {
                     _connections.Remove(userId);
+                    lastDisconnectedAt = DateTime.UtcNow;
                 }
             }
 
             _sockets.Remove(connectionId);
+            return lastDisconnectedAt;
         }
     }
 

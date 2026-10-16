@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text;
 using Duely.Application.UseCases.Features.Duels;
+using Duely.Application.UseCases.Features.Users;
 using Duely.Infrastructure.Api.Http.Services.WebSockets;
 using FluentResults;
 using FluentValidation;
@@ -13,6 +14,7 @@ using Microsoft.Extensions.Options;
 using Duely.Domain.Models.Messages;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Xunit;
 
@@ -30,10 +32,10 @@ public sealed class WebSocketServicesTests
 
         manager.GetLocallyConnectedUserIds().Should().BeEquivalentTo([42, 7]);
 
-        manager.RemoveConnection(firstUserConnection);
+        manager.RemoveConnection(firstUserConnection.ConnectionId).Should().BeNull();
         manager.GetLocallyConnectedUserIds().Should().BeEquivalentTo([42, 7]);
 
-        manager.RemoveConnection(secondUserConnection);
+        manager.RemoveConnection(secondUserConnection.ConnectionId).Should().NotBeNull();
         manager.GetLocallyConnectedUserIds().Should().BeEquivalentTo([7]);
     }
 
@@ -59,12 +61,13 @@ public sealed class WebSocketServicesTests
         var firstConnectionId = manager.AddConnection(42, firstSocket);
         var secondConnectionId = manager.AddConnection(42, secondSocket);
 
-        manager.RemoveConnection(firstConnectionId);
+        manager.RemoveConnection(firstConnectionId.ConnectionId).Should().BeNull();
         manager.GetSockets(42).Should().ContainSingle().Which.Should().BeSameAs(secondSocket);
 
-        manager.RemoveConnection(secondConnectionId);
+        manager.RemoveConnection(secondConnectionId.ConnectionId).Should().NotBeNull();
 
         manager.HasSockets(42).Should().BeFalse();
+        manager.RemoveConnection(secondConnectionId.ConnectionId).Should().BeNull();
     }
 
     [Fact]
@@ -132,6 +135,9 @@ public sealed class WebSocketServicesTests
 
         var mediator = new Mock<IMediator>();
         mediator.Setup(value => value.Send(
+                It.IsAny<RecordUserPresenceCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Ok());
+        mediator.Setup(value => value.Send(
                 It.IsAny<UpdateDuelTaskSolutionCommand>(), It.IsAny<CancellationToken>()))
             .Returns<UpdateDuelTaskSolutionCommand, CancellationToken>((command, _) =>
                 command.DuelId == 0
@@ -144,7 +150,11 @@ public sealed class WebSocketServicesTests
         var handler = new UserWebSocketHandler(
             mediator.Object,
             connections,
-            Options.Create(new WebSocketConnectionOptions { CloseTimeoutMs = 100 }),
+            Options.Create(new WebSocketConnectionOptions
+            {
+                CloseTimeoutMs = 100,
+                DisconnectGracePeriodMs = 0
+            }),
             NullLogger<UserWebSocketHandler>.Instance);
 
         await handler.HandleConnectionAsync(httpContext, 42, CancellationToken.None);
@@ -152,6 +162,104 @@ public sealed class WebSocketServicesTests
         mediator.Verify(value => value.Send(
             It.Is<UpdateDuelTaskSolutionCommand>(command => command.DuelId == 7 && command.Solution == string.Empty),
             It.IsAny<CancellationToken>()), Times.Once);
+        mediator.Verify(value => value.Send(
+            It.IsAny<RecordUserPresenceCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Successful_connection_and_last_disconnect_record_presence()
+    {
+        var socket = new Mock<WebSocket>();
+        socket.SetupGet(value => value.State).Returns(WebSocketState.Open);
+        socket.Setup(value => value.ReceiveAsync(
+                It.IsAny<ArraySegment<byte>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WebSocketReceiveResult(0, WebSocketMessageType.Close, true));
+        socket.Setup(value => value.CloseAsync(
+                It.IsAny<WebSocketCloseStatus>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var feature = new Mock<IHttpWebSocketFeature>();
+        feature.SetupGet(value => value.IsWebSocketRequest).Returns(true);
+        feature.Setup(value => value.AcceptAsync(It.IsAny<WebSocketAcceptContext>()))
+            .ReturnsAsync(socket.Object);
+        var httpContext = new DefaultHttpContext();
+        httpContext.Features.Set(feature.Object);
+
+        var timestamps = new List<DateTime>();
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(value => value.Send(
+                It.IsAny<RecordUserPresenceCommand>(), It.IsAny<CancellationToken>()))
+            .Returns<RecordUserPresenceCommand, CancellationToken>((command, _) =>
+            {
+                timestamps.Add(command.OccurredAt);
+                return Task.FromResult(Result.Ok());
+            });
+        mediator.Setup(value => value.Send(
+                It.IsAny<CancelPendingDuelsCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Ok());
+
+        var connections = new WebSocketConnectionManager();
+        var handler = new UserWebSocketHandler(
+            mediator.Object,
+            connections,
+            Options.Create(new WebSocketConnectionOptions
+            {
+                CloseTimeoutMs = 100,
+                DisconnectGracePeriodMs = 0
+            }),
+            NullLogger<UserWebSocketHandler>.Instance);
+
+        await handler.HandleConnectionAsync(httpContext, 42, CancellationToken.None);
+
+        timestamps.Should().HaveCount(2).And.BeInAscendingOrder();
+        timestamps.Should().OnlyContain(timestamp => timestamp.Kind == DateTimeKind.Utc);
+        connections.HasSockets(42).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Non_websocket_request_does_not_record_presence()
+    {
+        var feature = new Mock<IHttpWebSocketFeature>();
+        feature.SetupGet(value => value.IsWebSocketRequest).Returns(false);
+        var httpContext = new DefaultHttpContext();
+        httpContext.Features.Set(feature.Object);
+        var mediator = new Mock<IMediator>();
+        var handler = new UserWebSocketHandler(
+            mediator.Object,
+            new WebSocketConnectionManager(),
+            Options.Create(new WebSocketConnectionOptions()),
+            NullLogger<UserWebSocketHandler>.Instance);
+
+        var result = await handler.HandleConnectionAsync(httpContext, 42, CancellationToken.None);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        mediator.Verify(value => value.Send(
+            It.IsAny<RecordUserPresenceCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Failed_websocket_accept_does_not_record_presence()
+    {
+        var feature = new Mock<IHttpWebSocketFeature>();
+        feature.SetupGet(value => value.IsWebSocketRequest).Returns(true);
+        feature.Setup(value => value.AcceptAsync(It.IsAny<WebSocketAcceptContext>()))
+            .ThrowsAsync(new WebSocketException());
+        var httpContext = new DefaultHttpContext();
+        httpContext.Features.Set(feature.Object);
+        var mediator = new Mock<IMediator>();
+        var connections = new WebSocketConnectionManager();
+        var handler = new UserWebSocketHandler(
+            mediator.Object,
+            connections,
+            Options.Create(new WebSocketConnectionOptions()),
+            NullLogger<UserWebSocketHandler>.Instance);
+
+        var connect = () => handler.HandleConnectionAsync(httpContext, 42, CancellationToken.None);
+
+        await connect.Should().ThrowAsync<WebSocketException>();
+        connections.HasSockets(42).Should().BeFalse();
+        mediator.Verify(value => value.Send(
+            It.IsAny<RecordUserPresenceCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static Mock<WebSocket> CreateOpenSocket()

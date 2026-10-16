@@ -22,6 +22,7 @@ public sealed class AdminListHandlersTests : ContextBasedTest
     {
         var older = MakeUser(1, "older", DateTime.UtcNow.AddDays(-2));
         var newer = MakeUser(2, "newer", DateTime.UtcNow.AddDays(-1));
+        newer.LastSeenAt = DateTime.UtcNow;
         var disconnected = MakeUser(3, "disconnected", DateTime.UtcNow);
         Context.Users.AddRange(older, newer, disconnected);
         await Context.SaveChangesAsync();
@@ -33,6 +34,8 @@ public sealed class AdminListHandlersTests : ContextBasedTest
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Select(user => user.Id).Should().Equal(newer.Id, older.Id);
+        result.Value[0].LastSeenAt.Should().Be(newer.LastSeenAt);
+        result.Value[1].LastSeenAt.Should().BeNull();
 
         var emptyResult = await handler.Handle(
             new GetUsersQuery { UserIds = [] },

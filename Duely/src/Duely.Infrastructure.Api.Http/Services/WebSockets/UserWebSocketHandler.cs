@@ -1,4 +1,5 @@
 using Duely.Application.UseCases.Features.Duels;
+using Duely.Application.UseCases.Features.Users;
 using Duely.Infrastructure.Api.Http.Events;
 using FluentValidation;
 using MediatR;
@@ -33,13 +34,13 @@ public sealed class UserWebSocketHandler(
             return new BadRequestObjectResult("WebSocket request expected.");
         }
 
-        logger.LogInformation("WebSocket connected user {UserId}", userId);
-
         using var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
-        var connectionId = webSocketConnections.AddConnection(userId, webSocket);
+        var registration = webSocketConnections.AddConnection(userId, webSocket);
+        logger.LogInformation("WebSocket connected user {UserId}", userId);
 
         try
         {
+            await RecordPresenceAsync(userId, registration.RegisteredAt);
             var buffer = new byte[4 * 1024];
 
             while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
@@ -90,12 +91,17 @@ public sealed class UserWebSocketHandler(
                 }
             }
 
-            webSocketConnections.RemoveConnection(connectionId);
+            var lastDisconnectedAt = webSocketConnections.RemoveConnection(registration.ConnectionId);
+            if (lastDisconnectedAt is { } disconnectedAt)
+            {
+                await RecordPresenceAsync(userId, disconnectedAt);
+            }
 
             using var cleanupTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var cleanupToken = cleanupTokenSource.Token;
 
-            await Task.Delay(TimeSpan.FromSeconds(10), cleanupToken);
+            await Task.Delay(
+                TimeSpan.FromMilliseconds(webSocketOptions.Value.DisconnectGracePeriodMs), cleanupToken);
 
             if (!webSocketConnections.HasSockets(userId))
             {
@@ -112,6 +118,28 @@ public sealed class UserWebSocketHandler(
         }
 
         return new EmptyResult();
+    }
+
+    private async Task RecordPresenceAsync(int userId, DateTime occurredAt)
+    {
+        using var recordTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        try
+        {
+            var result = await mediator.Send(new RecordUserPresenceCommand
+            {
+                UserId = userId,
+                OccurredAt = occurredAt
+            }, recordTokenSource.Token);
+            if (result.IsFailed)
+            {
+                logger.LogWarning("Failed to record presence for user {UserId}: {Error}",
+                    userId, string.Join(", ", result.Errors));
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to record presence for user {UserId}", userId);
+        }
     }
 
     private static async Task<string> ReadTextMessageAsync(

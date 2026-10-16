@@ -90,14 +90,16 @@ public sealed class GetGroupDuelsHandler(
                         Id = groupDuel.Duel.User1.Id,
                         Nickname = groupDuel.Duel.User1.Nickname,
                         Rating = groupDuel.Duel.User1InitRating,
-                        CreatedAt = groupDuel.Duel.User1.CreatedAt
+                        CreatedAt = groupDuel.Duel.User1.CreatedAt,
+                        LastSeenAt = groupDuel.Duel.User1.LastSeenAt
                     },
                     User2 = new UserDto
                     {
                         Id = groupDuel.Duel.User2.Id,
                         Nickname = groupDuel.Duel.User2.Nickname,
                         Rating = groupDuel.Duel.User2InitRating,
-                        CreatedAt = groupDuel.Duel.User2.CreatedAt
+                        CreatedAt = groupDuel.Duel.User2.CreatedAt,
+                        LastSeenAt = groupDuel.Duel.User2.LastSeenAt
                     },
                     IsAcceptedByUser1 = true,
                     IsAcceptedByUser2 = true,
@@ -106,7 +108,8 @@ public sealed class GetGroupDuelsHandler(
                         Id = groupDuel.CreatedBy.Id,
                         Nickname = groupDuel.CreatedBy.Nickname,
                         Rating = groupDuel.CreatedBy.Rating,
-                        CreatedAt = groupDuel.CreatedBy.CreatedAt
+                        CreatedAt = groupDuel.CreatedBy.CreatedAt,
+                        LastSeenAt = groupDuel.CreatedBy.LastSeenAt
                     },
                     CreatedAt = groupDuel.Duel.StartTime,
                     ConfigurationId = groupDuel.Duel.Configuration.Id
@@ -130,14 +133,16 @@ public sealed class GetGroupDuelsHandler(
                         Id = d.User1.Id,
                         Nickname = d.User1.Nickname,
                         Rating = d.User1.Rating,
-                        CreatedAt = d.User1.CreatedAt
+                        CreatedAt = d.User1.CreatedAt,
+                        LastSeenAt = d.User1.LastSeenAt
                     },
                     User2 = new UserDto
                     {
                         Id = d.User2.Id,
                         Nickname = d.User2.Nickname,
                         Rating = d.User2.Rating,
-                        CreatedAt = d.User2.CreatedAt
+                        CreatedAt = d.User2.CreatedAt,
+                        LastSeenAt = d.User2.LastSeenAt
                     },
                     IsAcceptedByUser1 = d.IsAcceptedByUser1,
                     IsAcceptedByUser2 = d.IsAcceptedByUser2,
@@ -146,7 +151,8 @@ public sealed class GetGroupDuelsHandler(
                         Id = d.CreatedBy.Id,
                         Nickname = d.CreatedBy.Nickname,
                         Rating = d.CreatedBy.Rating,
-                        CreatedAt = d.CreatedBy.CreatedAt
+                        CreatedAt = d.CreatedBy.CreatedAt,
+                        LastSeenAt = d.CreatedBy.LastSeenAt
                     },
                     CreatedAt = d.CreatedAt,
                     ConfigurationId = d.Configuration != null ? d.Configuration.Id : null

@@ -14,6 +14,7 @@ public class GetUserHandlerTests : ContextBasedTest
     public async Task Returns_UserDto_when_exists()
     {
         var user = EntityFactory.MakeUser(1, "neo");
+        user.LastSeenAt = DateTime.UtcNow;
         Context.Users.Add(user); await Context.SaveChangesAsync();
 
         var handler = new GetHandler(Context);
@@ -22,6 +23,7 @@ public class GetUserHandlerTests : ContextBasedTest
         res.IsSuccess.Should().BeTrue();
         res.Value.Id.Should().Be(1);
         res.Value.Nickname.Should().Be("neo");
+        res.Value.LastSeenAt.Should().Be(user.LastSeenAt);
     }
 
     [Fact]
