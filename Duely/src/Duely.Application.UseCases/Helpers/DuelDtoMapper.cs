@@ -76,14 +76,16 @@ public static class DuelDtoMapper
                     Id = duel.User1.Id,
                     Nickname = duel.User1.Nickname,
                     Rating = duel.User1InitRating,
-                    CreatedAt = duel.User1.CreatedAt
+                    CreatedAt = duel.User1.CreatedAt,
+                    LastSeenAt = duel.User1.LastSeenAt
                 },
                 new UserDto
                 {
                     Id = duel.User2.Id,
                     Nickname = duel.User2.Nickname,
                     Rating = duel.User2InitRating,
-                    CreatedAt = duel.User2.CreatedAt
+                    CreatedAt = duel.User2.CreatedAt,
+                    LastSeenAt = duel.User2.LastSeenAt
                 }
             ],
             WinnerId = winner,

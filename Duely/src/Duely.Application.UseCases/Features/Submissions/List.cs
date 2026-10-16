@@ -64,7 +64,8 @@ public sealed class GetUserSubmissionsHandler(
                     Id = s.User.Id,
                     Nickname = s.User.Nickname,
                     Rating = s.User.Rating,
-                    CreatedAt = s.User.CreatedAt
+                    CreatedAt = s.User.CreatedAt,
+                    LastSeenAt = s.User.LastSeenAt
                 },
                 CreatedAt = s.SubmitTime,
                 Verdict = s.Verdict,

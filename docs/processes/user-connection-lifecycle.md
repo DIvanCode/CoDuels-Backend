@@ -62,8 +62,8 @@ complete production snapshot only while that single-instance topology remains
 in effect. A future multi-instance deployment must introduce distributed
 presence before this endpoint can be treated as platform-wide.
 Both admin user lists include the persisted `last_seen_at`, even for a currently
-connected user. Ordinary user responses do not include it. Existing users with
-no recorded connection have `null`.
+connected user. The shared `UserDto` also exposes it in ordinary user and nested
+product responses. Existing users with no recorded connection have `null`.
 
 ### Receive loop
 
