@@ -6,6 +6,7 @@ using Duely.Domain.Models.Duels;
 using Duely.Infrastructure.Api.Http.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Duely.Infrastructure.Api.Http.Controllers;
@@ -88,6 +89,17 @@ public sealed class DuelsController(
 
         var result = await mediator.Send(query, cancellationToken);
         return this.HandleResult(result);
+    }
+
+    [HttpGet("active/id")]
+    [ProducesResponseType(typeof(ActiveDuelIdDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ActiveDuelIdDto>> GetActiveIdAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new GetActiveDuelIdQuery { UserId = userContext.UserId },
+            cancellationToken);
+        return Ok(result);
     }
 
     [HttpGet]
