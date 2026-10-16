@@ -22,6 +22,29 @@ public sealed class UtcTimestampContractTests
         };
 
         JsonSerializer.Serialize(dto).Should().Contain("\"created_at\":\"2026-03-29T00:30:00Z\"");
+        JsonSerializer.Serialize(dto).Should().NotContain("last_seen_at");
+    }
+
+    [Fact]
+    public void Admin_user_dto_serializes_nullable_utc_last_seen()
+    {
+        var dto = new AdminUserDto
+        {
+            Id = 1,
+            Nickname = "test",
+            Rating = 1500,
+            CreatedAt = new DateTime(2026, 3, 29, 0, 30, 0, DateTimeKind.Utc),
+            LastSeenAt = new DateTime(2026, 3, 29, 1, 30, 0, DateTimeKind.Utc)
+        };
+
+        JsonSerializer.Serialize(dto).Should().Contain("\"last_seen_at\":\"2026-03-29T01:30:00Z\"");
+        JsonSerializer.Serialize(new AdminUserDto
+        {
+            Id = dto.Id,
+            Nickname = dto.Nickname,
+            Rating = dto.Rating,
+            CreatedAt = dto.CreatedAt
+        }).Should().Contain("\"last_seen_at\":null");
     }
 
     [Theory]

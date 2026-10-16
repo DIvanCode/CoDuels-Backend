@@ -6,21 +6,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Duely.Application.UseCases.Features.Users;
 
-public sealed class GetUsersQuery : IRequest<Result<List<UserDto>>>
+public sealed class GetUsersQuery : IRequest<Result<List<AdminUserDto>>>
 {
     public IReadOnlyCollection<int>? UserIds { get; init; }
 }
 
 public sealed class GetUsersHandler(Context context)
-    : IRequestHandler<GetUsersQuery, Result<List<UserDto>>>
+    : IRequestHandler<GetUsersQuery, Result<List<AdminUserDto>>>
 {
-    public async Task<Result<List<UserDto>>> Handle(
+    public async Task<Result<List<AdminUserDto>>> Handle(
         GetUsersQuery query,
         CancellationToken cancellationToken)
     {
         if (query.UserIds is { Count: 0 })
         {
-            return new List<UserDto>();
+            return new List<AdminUserDto>();
         }
 
         var users = context.Users.AsNoTracking();
@@ -31,12 +31,13 @@ public sealed class GetUsersHandler(Context context)
 
         return await users
             .OrderByDescending(user => user.CreatedAt)
-            .Select(user => new UserDto
+            .Select(user => new AdminUserDto
             {
                 Id = user.Id,
                 Nickname = user.Nickname,
                 Rating = user.Rating,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                LastSeenAt = user.LastSeenAt
             })
             .ToListAsync(cancellationToken);
     }

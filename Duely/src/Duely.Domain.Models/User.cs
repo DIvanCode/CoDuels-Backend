@@ -15,6 +15,7 @@ public sealed class User
     public bool IsAdmin { get; set; }
     public required int Rating { get; set; }
     public required DateTime CreatedAt { get; init; }
+    public DateTime? LastSeenAt { get; set; }
     
     public bool IsBot { get; init; }
 

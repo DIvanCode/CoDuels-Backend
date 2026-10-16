@@ -562,6 +562,10 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("IsBot");
 
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("LastSeenAt");
+
                     b.Property<string>("Nickname")
                         .IsRequired()
                         .HasColumnType("text")

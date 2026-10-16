@@ -20,7 +20,7 @@ public sealed class UsersController(
 {
     [HttpGet("admin/all")]
     [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
-    public async Task<ActionResult<List<UserDto>>> GetAllForAdminAsync(CancellationToken cancellationToken)
+    public async Task<ActionResult<List<AdminUserDto>>> GetAllForAdminAsync(CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetUsersQuery(), cancellationToken);
         return this.HandleResult(result);
@@ -28,7 +28,7 @@ public sealed class UsersController(
 
     [HttpGet("admin/active")]
     [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
-    public async Task<ActionResult<List<UserDto>>> GetActiveForAdminAsync(CancellationToken cancellationToken)
+    public async Task<ActionResult<List<AdminUserDto>>> GetActiveForAdminAsync(CancellationToken cancellationToken)
     {
         var query = new GetUsersQuery
         {
