@@ -62,6 +62,15 @@ but neither save is externally visible before the transaction commits.
 
 ### Live solution state
 
+`GET /duels/active/id` returns HTTP 200 with `{ "duel_id": number | null }`
+for the authenticated user. Only `InProgress` duels are active. The query
+projects the ID without loading submissions, tasks, configuration, or users.
+If inconsistent data contains several active rows for one user, it selects the
+latest `StartTime`, then the highest ID. A user without an active duel receives
+`null`. The older `GET /duels/active` full-Duel response and its 404 remain
+temporarily available for existing clients. The regular `GET /duels/{id}`
+provides detail after the compact recovery query.
+
 The WebSocket accepts `SolutionUpdated` with duel id, one-character task key,
 language, and solution. The solution may be empty when the editor is cleared.
 A participant's JSON solution dictionary is replaced
