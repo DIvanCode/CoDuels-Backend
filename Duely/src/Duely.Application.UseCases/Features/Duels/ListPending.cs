@@ -29,14 +29,16 @@ public sealed class GetPendingDuelsHandler(Context context)
                     Id = duel.User1.Id,
                     Nickname = duel.User1.Nickname,
                     Rating = duel.User1.Rating,
-                    CreatedAt = duel.User1.CreatedAt
+                    CreatedAt = duel.User1.CreatedAt,
+                    LastSeenAt = duel.User1.LastSeenAt
                 },
                 User2 = new UserDto
                 {
                     Id = duel.User2.Id,
                     Nickname = duel.User2.Nickname,
                     Rating = duel.User2.Rating,
-                    CreatedAt = duel.User2.CreatedAt
+                    CreatedAt = duel.User2.CreatedAt,
+                    LastSeenAt = duel.User2.LastSeenAt
                 },
                 IsAcceptedByUser1 = true,
                 IsAcceptedByUser2 = duel.IsAccepted
@@ -56,14 +58,16 @@ public sealed class GetPendingDuelsHandler(Context context)
                     Id = duel.User1.Id,
                     Nickname = duel.User1.Nickname,
                     Rating = duel.User1.Rating,
-                    CreatedAt = duel.User1.CreatedAt
+                    CreatedAt = duel.User1.CreatedAt,
+                    LastSeenAt = duel.User1.LastSeenAt
                 },
                 User2 = new UserDto
                 {
                     Id = duel.User2.Id,
                     Nickname = duel.User2.Nickname,
                     Rating = duel.User2.Rating,
-                    CreatedAt = duel.User2.CreatedAt
+                    CreatedAt = duel.User2.CreatedAt,
+                    LastSeenAt = duel.User2.LastSeenAt
                 },
                 IsAcceptedByUser1 = duel.IsAcceptedByUser1,
                 IsAcceptedByUser2 = duel.IsAcceptedByUser2,
@@ -85,14 +89,16 @@ public sealed class GetPendingDuelsHandler(Context context)
                     Id = duel.User1.Id,
                     Nickname = duel.User1.Nickname,
                     Rating = duel.User1.Rating,
-                    CreatedAt = duel.User1.CreatedAt
+                    CreatedAt = duel.User1.CreatedAt,
+                    LastSeenAt = duel.User1.LastSeenAt
                 },
                 User2 = new UserDto
                 {
                     Id = duel.User2.Id,
                     Nickname = duel.User2.Nickname,
                     Rating = duel.User2.Rating,
-                    CreatedAt = duel.User2.CreatedAt
+                    CreatedAt = duel.User2.CreatedAt,
+                    LastSeenAt = duel.User2.LastSeenAt
                 },
                 IsAcceptedByUser1 = duel.IsAcceptedByUser1,
                 IsAcceptedByUser2 = duel.IsAcceptedByUser2,
@@ -131,7 +137,8 @@ public sealed class GetRankedDuelSearchersHandler(Context context)
                     Id = duel.User.Id,
                     Nickname = duel.User.Nickname,
                     Rating = duel.User.Rating,
-                    CreatedAt = duel.User.CreatedAt
+                    CreatedAt = duel.User.CreatedAt,
+                    LastSeenAt = duel.User.LastSeenAt
                 },
                 Rating = duel.Rating,
                 SearchStartedAt = duel.CreatedAt

@@ -33,7 +33,8 @@ public static class TournamentDtoMapper
             Id = user.Id,
             Nickname = user.Nickname,
             Rating = user.Rating,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
+            LastSeenAt = user.LastSeenAt
         };
     }
 

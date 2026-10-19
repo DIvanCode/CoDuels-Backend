@@ -20,6 +20,7 @@ public sealed class GetUserByNicknameHandlerTests : ContextBasedTest
         res.IsSuccess.Should().BeTrue();
         res.Value.Id.Should().Be(7);
         res.Value.Nickname.Should().Be("alice");
+        res.Value.LastSeenAt.Should().BeNull();
     }
 
     [Fact]

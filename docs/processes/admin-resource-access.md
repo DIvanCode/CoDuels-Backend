@@ -44,6 +44,9 @@ operations keep their existing participant, membership, and role rules.
 The admin active-user endpoint is intentionally process-local. Its topology and
 restart semantics are documented in
 [User connection lifecycle](user-connection-lifecycle.md#admin-active-user-view).
+Both `GET /users/admin/all` and `GET /users/admin/active` return the shared
+`UserDto` with nullable `last_seen_at`. Ordinary user and nested product
+responses use the same DTO and include the field as well.
 
 ## 6. Verification
 

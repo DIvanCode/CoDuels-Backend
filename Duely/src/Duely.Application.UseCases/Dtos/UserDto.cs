@@ -15,4 +15,7 @@ public sealed class UserDto
 
     [JsonPropertyName("created_at")]
     public required DateTime CreatedAt { get; init; }
+
+    [JsonPropertyName("last_seen_at")]
+    public DateTime? LastSeenAt { get; init; }
 }

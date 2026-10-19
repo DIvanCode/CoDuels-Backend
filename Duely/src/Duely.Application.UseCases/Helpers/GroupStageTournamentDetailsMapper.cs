@@ -127,7 +127,8 @@ public sealed class GroupStageTournamentDetailsMapper : ITournamentDetailsMapper
             Id = user.Id,
             Nickname = user.Nickname,
             Rating = user.Rating,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
+            LastSeenAt = user.LastSeenAt
         };
     }
 

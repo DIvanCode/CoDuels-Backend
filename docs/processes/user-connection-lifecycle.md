@@ -3,14 +3,15 @@
 ## 1. Purpose
 
 Authenticate a WebSocket with an intended single-use ticket, maintain every
-registered socket per user in a Duely process, relay client events to each open
-socket, and attempt pending-duel cleanup only after the final local connection
-is absent when a reconnect grace period expires.
+registered socket per user in a Duely process, persist the latest observed
+connection boundary, relay client events to each open socket, and attempt
+pending-duel cleanup only after the final local connection is absent when a
+reconnect grace period expires.
 
 ## 2. Participants
 
 - Authenticated user/Frontend and `UsersController`.
-- Ticket handlers, `UserWebSocketHandler`, and `WebSocketConnectionManager`.
+- Ticket and presence handlers, `UserWebSocketHandler`, and `WebSocketConnectionManager`.
 - `WebSocketMessageSender`, `CancelPendingDuelsHandler`, and all pending types.
 - ASP.NET request cancellation and the process-local in-memory connection map.
 
@@ -46,7 +47,10 @@ After accepting a socket, the handler registers it with a new `connectionId`.
 Several local sockets may be registered for the same user; a new tab/reconnect
 does not close or replace an existing tab. The connection manager keeps the
 `connectionId` to user and socket mappings under one lock and returns a snapshot
-of all sockets when sending a notification.
+of all sockets when sending a notification. It captures a UTC registration time
+under that lock. The handler saves that time to the user's nullable `LastSeenAt`.
+Registration does not occur for a rejected ticket, a non-WebSocket request, or a
+failed WebSocket accept.
 
 ### Admin active-user view
 
@@ -57,6 +61,9 @@ currently deploys one container named `duely`, so the local snapshot is the
 complete production snapshot only while that single-instance topology remains
 in effect. A future multi-instance deployment must introduce distributed
 presence before this endpoint can be treated as platform-wide.
+Both admin user lists include the persisted `last_seen_at`, even for a currently
+connected user. The shared `UserDto` also exposes it in ordinary user and nested
+product responses. Existing users with no recorded connection have `null`.
 
 ### Receive loop
 
@@ -73,7 +80,10 @@ acknowledgment is sent.
 On loop exit or exception, the handler creates an independent close token. If
 the current socket still reports `Open`, it attempts a normal close; a close
 failure is logged and followed by `Abort` so the registration cleanup still
-runs. It removes only its own `connectionId` from the connection manager.
+runs. It removes only its own `connectionId` from the connection manager. If
+this was the user's last local socket, the manager captures a UTC disconnect
+time under its lock and the handler saves it immediately. Removing one of
+several sockets does not save a disconnect time.
 
 Every connection handler waits 10 seconds with a separate 30-second cleanup
 token after removing its own registration. It then sends
@@ -85,9 +95,9 @@ local socket. That command:
 - keeps incoming Friendly rows but sets `IsAccepted = false`;
 - keeps every involving Group/Tournament row but resets only this user's flag.
 
-No persistent online/offline property is changed. Physical close, removal from
-the process map, and business cleanup are three distinct effects, even though
-the code does not model them as separate states.
+`LastSeenAt` is a durable timestamp, not a persistent online/offline property.
+Physical close, map removal, timestamp persistence, and business cleanup are
+distinct effects.
 
 If the current socket's `CloseAsync` throws in `finally`, the handler logs the
 failure and attempts `Abort`; map removal and the business-cleanup decision then
@@ -100,6 +110,9 @@ continue even if abort also fails.
 - `No registered socket -> user id maps to one connection id and socket`.
 - `One or more registered sockets -> another connection id and socket is added`.
 - `Handler ends -> only its connection id is removed`.
+- `LastSeenAt -> max(LastSeenAt, event time)` on registration and final local
+  socket removal. The database update is conditional, so delayed writes cannot
+  move the value backwards.
 - `Handler removes its connection -> 10-second grace -> pending transitions
   below, if no connection is registered when the grace period expires`.
 - There is no durable `Online -> Offline` transition.
@@ -149,6 +162,8 @@ causes silent successful delivery from the outbox's perspective.
 
 - Ticket generation/replace is one save; ticket consume is a separate save.
 - WebSocket accept/registration is in memory and outside PostgreSQL.
+- Presence persistence is a separate conditional database update, outside the
+  connection manager lock and without a transaction shared with the socket.
 - Disconnect cleanup uses one save for all pending state and its Friendly outbox rows.
 - Physical close and cleanup are not atomic. A reconnect before the grace-period
   check avoids cleanup; a reconnect after the check can still race with the
@@ -160,13 +175,13 @@ causes silent successful delivery from the outbox's perspective.
   or sibling socket.
 - Multiple tabs are deliberately retained. Each disconnect starts a grace
   period, but cleanup runs only when no local socket remains after that wait.
-- Two simultaneous connects can both see/consume the same ticket or both manipulate
-  the same dictionary entry without a compare-and-remove operation.
+- Two simultaneous connects can both see/consume the same ticket. Connection
+  registration and removal are serialized by the manager lock.
 - In a multi-instance deployment, each instance can hold a socket for the same
   user. An outbox row claimed by another instance sees no local socket and is deleted.
 - Disconnect and duel making can race; stale accepted rows can still produce a duel.
 - Request cancellation while the socket remains open can make `CloseAsync` time
-  out and prevent the cleanup statements below it.
+  out. The handler then aborts the socket and continues registration cleanup.
 
 ## 12. Failure handling
 
@@ -174,6 +189,8 @@ causes silent successful delivery from the outbox's perspective.
 - Non-WebSocket request: bad request after ticket has already been consumed.
 - Invalid/unknown frames: logged and ignored without closing.
 - Receive/send cancellation or network failure reaches `finally`, unless process termination prevents it.
+- Presence persistence failure is logged and does not stop the receive loop or
+  later cleanup. A process crash can leave the mark at the latest saved connect.
 - Current-socket close failure is logged and aborted before registration cleanup.
 - Cleanup failure is logged.
 - `WebSocketMessageSender` swallows send exceptions and skips absence/non-open
@@ -186,7 +203,8 @@ notification. There is no backend online/offline event and no cross-instance
 socket routing. The Frontend must obtain a new ticket to reconnect and recover
 active/invitation/submission state through HTTP because messages during
 disconnection are not replayed. The admin active-user endpoint exposes only the
-same process-local presence snapshot.
+same process-local presence snapshot. The saved time represents a connection
+boundary, not the last editor action or HTTP request.
 
 ## 14. Implementation references
 
@@ -194,6 +212,7 @@ same process-local presence snapshot.
 - [Duely production playbook](../../Duely/ansible/deploy/playbook.yml)
 - [CreateTicket.cs](../../Duely/src/Duely.Application.UseCases/Features/Users/CreateTicket.cs)
 - [GetByTicket.cs](../../Duely/src/Duely.Application.UseCases/Features/Users/GetByTicket.cs)
+- [RecordPresence.cs](../../Duely/src/Duely.Application.UseCases/Features/Users/RecordPresence.cs)
 - [UserWebSocketHandler.cs](../../Duely/src/Duely.Infrastructure.Api.Http/Services/WebSockets/UserWebSocketHandler.cs)
 - [WebSocketConnectionManager.cs](../../Duely/src/Duely.Infrastructure.Api.Http/Services/WebSockets/WebSocketConnectionManager.cs)
 - [WebSocketMessageSender.cs](../../Duely/src/Duely.Infrastructure.Api.Http/Services/WebSockets/WebSocketMessageSender.cs)
@@ -203,11 +222,11 @@ same process-local presence snapshot.
 - [WebSocketServicesTests.cs](../../Duely/tests/Duely.Infrastructure.Api.Http.Tests/WebSocketServicesTests.cs)
 
 Ticket and cleanup handlers have focused tests. The WebSocket service tests
-cover retaining/removing sibling registrations and fan-out to every open socket.
+cover registration timestamps, retaining/removing sibling registrations,
+normal handler disconnects, failed accepts, and fan-out to every open socket.
 They also prove that separate connection-manager instances keep independent
-presence snapshots.
-Handler-level integration coverage for close failure and the grace-period timer
-is still absent.
+presence snapshots. Handler-level integration coverage for close failure and
+grace-period reconnect races is still absent.
 
 ## 15. Open questions
 
@@ -220,5 +239,5 @@ is still absent.
 ## 16. Proposed requirements
 
 - Define multi-instance routing/replay and ticket-consumption atomicity.
-- Add integration tests for normal close, abort, cancellation, reconnect inside
-  and after the grace period, and multiple tabs.
+- Add integration tests for abort, cancellation, and reconnect inside and after
+  the grace period.

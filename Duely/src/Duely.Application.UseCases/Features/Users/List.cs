@@ -36,7 +36,8 @@ public sealed class GetUsersHandler(Context context)
                 Id = user.Id,
                 Nickname = user.Nickname,
                 Rating = user.Rating,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                LastSeenAt = user.LastSeenAt
             })
             .ToListAsync(cancellationToken);
     }
