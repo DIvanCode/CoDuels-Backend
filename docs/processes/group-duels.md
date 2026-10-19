@@ -27,10 +27,11 @@ after the active duel is created.
 - The actor exists, belongs to the group, and `CanCreateDuel`/`CanCancelDuel`
   permits the requested action.
 - Both nominated users exist and have memberships in the group when created.
-- Neither nominated user has an observed active duel at create time.
+- Neither nominated human user has an observed active duel at create time;
+  bots are eligible while active elsewhere.
 - Optional configuration exists. Configuration ownership is not checked.
 - Create does not reject `User1Id == User2Id`.
-- Accept checks only the caller's active duel and does not re-check membership.
+- Accept checks only a human caller's active duel and does not re-check membership.
 
 ## 5. Current behavior
 
@@ -131,9 +132,9 @@ after the active duel's first save but in the same transaction. General retry/du
   after locking the Group pending row.
 - Authorized cancel and the maker serialize on the Group pending row.
 - The active-duel checks at create/accept are not coupled to those HTTP saves,
-  but `TryCreateDuelHandler` locks both users and re-checks active duels.
+  but `TryCreateDuelHandler` locks both users and re-checks human active duels.
 - Another accepted pending type can leave the fully accepted Group row, but the
-  maker skips it while either participant has an active duel.
+  maker skips it while a human participant has an active duel.
 - If `User1 == User2`, create sends two messages to one user, but accept always
   takes the `User1` branch; `IsAcceptedByUser2` cannot be set through this handler.
 - Failure between the two duel-creation saves rolls the transaction back; the
@@ -143,7 +144,7 @@ after the active duel's first save but in the same transaction. General retry/du
 
 - Missing actor/group/user/membership/configuration: not found, except permission
   failures return forbidden.
-- Observed active duel for either nominee at create, or for caller at accept:
+- Observed active duel for either human nominee at create, or a human caller at accept:
   already exists.
 - Missing accept target: not found; missing cancel target: success.
 - Validation or cancellation before save leaves staged Ranked/Friendly cleanup unsaved.

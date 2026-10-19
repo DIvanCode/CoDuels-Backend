@@ -25,8 +25,9 @@ and WebSocket disconnect actually do to the user's other pending states.
 ## 4. Preconditions
 
 - The caller must exist.
-- The caller must not participate in a persisted `InProgress` duel at the time
-  the start handler checks.
+- A human caller must not participate in a persisted `InProgress` duel at the
+  time the start handler checks. Bots may retain or enter ranked search while
+  playing another duel.
 - There is no requirement for an active WebSocket, and no durable online state.
 - The database has no uniqueness constraint limiting a user to one Ranked row.
 
@@ -34,7 +35,7 @@ and WebSocket disconnect actually do to the user's other pending states.
 
 ### Start and repeat
 
-1. The handler loads the user and rejects an active duel.
+1. The handler loads the user and rejects an active duel for humans. Bots remain eligible.
 2. It looks for one outgoing `FriendlyPendingDuel` (`User1` is the caller). If
    found, it stages deletion and two `DuelInvitationCanceled` outbox rows: one
    for the former invitee and one for the caller.
@@ -47,13 +48,17 @@ The order in step 3 has an observable exception: when Ranked and outgoing
 Friendly rows already coexist, the early return occurs before `SaveChangesAsync`.
 The staged Friendly deletion and cancellation messages are discarded.
 
+The bot search job adds a missing Ranked row for each bot even when that bot
+already has one or more active duels; an existing Ranked row is left intact.
+
 ### Pair selection
 
 1. The making job loads every pending type and passes them together to
    `DuelManager`.
 2. Accepted Friendly pairs have first priority, accepted Group pairs second,
-   accepted Tournament pairs third. Their participants are excluded from Ranked
-   selection only for this one in-memory call.
+   accepted Tournament pairs third. Human participants are excluded from Ranked
+   selection only for this one in-memory call. A bot selected for a Tournament
+   pair remains available to a Ranked pair in the same tick.
 3. Ranked candidates are sorted by the **stored rating snapshot**, then wait
    time. Adjacent candidates are eligible when their difference is within both
    users' windows: `50 + 5 * whole waiting seconds`.
@@ -98,7 +103,7 @@ Group and Tournament acceptance flags. See
 | Incoming Friendly | Unchanged, including accepted | Unchanged | Keep row; set `IsAccepted = false` |
 | Group | Unchanged, including accepted | Unchanged | Keep row; reset only this user's flag |
 | Tournament | Unchanged, including accepted | Unchanged | Keep row; reset only this user's flag |
-| Active duel | Start is rejected if already visible | Re-checked after locking both users; pair is skipped | Unchanged |
+| Active duel | Human start is rejected; bot start is allowed | Re-checked after locking both users; human pair is skipped, bot is available | Unchanged |
 
 No general cleanup runs when a Ranked pair is converted to a duel. Other
 pending rows for those users can survive and be paired in a later job run.

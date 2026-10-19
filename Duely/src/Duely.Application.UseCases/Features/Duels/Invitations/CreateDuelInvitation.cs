@@ -32,13 +32,13 @@ public sealed class CreateDuelInvitationHandler(Context context)
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
 
-        var activeDuel = await context.Duels
+        var hasActiveDuel = await context.Duels
             .AsNoTracking()
-            .SingleOrDefaultAsync(
+            .AnyAsync(
                 d => d.Status == DuelStatus.InProgress &&
                      (d.User1.Id == command.UserId || d.User2.Id == command.UserId),
                 cancellationToken);
-        if (activeDuel is not null)
+        if (hasActiveDuel && !user.IsBot)
         {
             return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Id), command.UserId);
         }
@@ -106,13 +106,13 @@ public sealed class CreateDuelInvitationHandler(Context context)
             return new ForbiddenError(nameof(User), Operation, nameof(User.Id), user.Id);
         }
         
-        var opponentActiveDuel = await context.Duels
+        var opponentHasActiveDuel = await context.Duels
             .AsNoTracking()
-            .SingleOrDefaultAsync(d =>
+            .AnyAsync(d =>
                     d.Status == DuelStatus.InProgress &&
                     (d.User1.Nickname == command.OpponentNickname || d.User2.Nickname == command.OpponentNickname),
                 cancellationToken);
-        if (opponentActiveDuel is not null)
+        if (opponentHasActiveDuel && !opponent.IsBot)
         {
             return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Nickname), command.OpponentNickname);
         }

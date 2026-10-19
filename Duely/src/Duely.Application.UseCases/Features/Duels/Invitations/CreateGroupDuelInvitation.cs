@@ -76,24 +76,24 @@ public sealed class CreateGroupDuelInvitationHandler(Context context, IGroupPerm
             return new EntityNotFoundError(nameof(GroupMembership), nameof(User.Id), user2.Id);
         }
 
-        var user1ActiveDuel = await context.Duels
+        var user1HasActiveDuel = await context.Duels
             .AsNoTracking()
-            .SingleOrDefaultAsync(d =>
+            .AnyAsync(d =>
                     d.Status == DuelStatus.InProgress &&
                     (d.User1.Id == user1.Id || d.User2.Id == user1.Id),
                 cancellationToken);
-        if (user1ActiveDuel is not null)
+        if (user1HasActiveDuel && !user1.IsBot)
         {
             return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Id), user1.Id);
         }
         
-        var user2ActiveDuel = await context.Duels
+        var user2HasActiveDuel = await context.Duels
             .AsNoTracking()
-            .SingleOrDefaultAsync(d =>
+            .AnyAsync(d =>
                     d.Status == DuelStatus.InProgress &&
                     (d.User1.Id == user2.Id || d.User2.Id == user2.Id),
                 cancellationToken);
-        if (user2ActiveDuel is not null)
+        if (user2HasActiveDuel && !user2.IsBot)
         {
             return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Id), user2.Id);
         }

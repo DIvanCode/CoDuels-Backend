@@ -1,6 +1,5 @@
 using Duely.Application.Services.Errors;
 using Duely.Domain.Models;
-using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
@@ -31,22 +30,14 @@ public sealed class AcceptTournamentDuelHandler(Context context)
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
 
-        var activeDuel = await context.Duels
-            .AsNoTracking()
-            .SingleOrDefaultAsync(d =>
-                    d.Status == DuelStatus.InProgress &&
-                    (d.User1.Id == command.UserId || d.User2.Id == command.UserId),
-                cancellationToken);
-        if (activeDuel is not null)
+        if (!user.IsBot)
         {
-            return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Id), command.UserId);
-        }
-
-        var rankedPendingDuel = await context.PendingDuels.OfType<RankedPendingDuel>()
-            .SingleOrDefaultAsync(d => d.User.Id == command.UserId, cancellationToken);
-        if (rankedPendingDuel is not null)
-        {
-            context.PendingDuels.Remove(rankedPendingDuel);
+            var rankedPendingDuel = await context.PendingDuels.OfType<RankedPendingDuel>()
+                .SingleOrDefaultAsync(d => d.User.Id == command.UserId, cancellationToken);
+            if (rankedPendingDuel is not null)
+            {
+                context.PendingDuels.Remove(rankedPendingDuel);
+            }
         }
 
         var outgoingFriendlyPendingDuel = await context.PendingDuels.OfType<FriendlyPendingDuel>()

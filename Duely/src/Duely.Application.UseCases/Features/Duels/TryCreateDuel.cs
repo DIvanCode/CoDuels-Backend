@@ -120,12 +120,17 @@ public sealed class TryCreateDuelHandler(
                     continue;
                 }
 
-                var hasActiveDuel = await context.Duels
+                // Tournament matches may run alongside a participant's other duels.
+                // Bots remain available for ranked matches while playing a tournament match.
+                var usersRequiringFreeSlot = pair.UsedPendingDuels[0].Type == PendingDuelType.Tournament
+                    ? Array.Empty<int>()
+                    : users.Where(user => !user.IsBot).Select(user => user.Id).ToArray();
+                var hasActiveDuel = usersRequiringFreeSlot.Length != 0 && await context.Duels
                     .AsNoTracking()
                     .AnyAsync(duel =>
                             duel.Status == DuelStatus.InProgress &&
-                            (userIds.Contains(duel.User1.Id) ||
-                             userIds.Contains(duel.User2.Id)),
+                            (usersRequiringFreeSlot.Contains(duel.User1.Id) ||
+                             usersRequiringFreeSlot.Contains(duel.User2.Id)),
                         cancellationToken);
                 if (hasActiveDuel)
                 {
@@ -134,6 +139,19 @@ public sealed class TryCreateDuelHandler(
                         pair.User1.Id,
                         pair.User2.Id,
                         pendingIds);
+                    await transaction.RollbackAsync(cancellationToken);
+                    continue;
+                }
+
+                if (pair.UsedPendingDuels[0] is TournamentPendingDuel tournamentPending &&
+                    await HasActiveDuelInTournamentAsync(
+                        tournamentPending.Tournament.Id, userIds, cancellationToken))
+                {
+                    logger.LogInformation(
+                        "Tournament duel pair was skipped because a participant already has an active match in that tournament. TournamentId = {TournamentId}, User1Id = {User1Id}, User2Id = {User2Id}",
+                        tournamentPending.Tournament.Id,
+                        pair.User1.Id,
+                        pair.User2.Id);
                     await transaction.RollbackAsync(cancellationToken);
                     continue;
                 }
@@ -345,6 +363,31 @@ public sealed class TryCreateDuelHandler(
             .SelectMany(tasks => tasks.Values)
             .Select(task => task.Id)
             .ToHashSet();
+    }
+
+    private async Task<bool> HasActiveDuelInTournamentAsync(
+        int tournamentId,
+        int[] userIds,
+        CancellationToken cancellationToken)
+    {
+        var tournament = await context.Tournaments
+            .AsNoTracking()
+            .SingleAsync(t => t.Id == tournamentId, cancellationToken);
+        var referencedIds = tournamentMatchmakingStrategyResolver
+            .GetStrategy(tournament.MatchmakingType)
+            .GetReferencedDuelIds(tournament)
+            .ToArray();
+        if (referencedIds.Length == 0)
+        {
+            return false;
+        }
+
+        return await context.Duels
+            .AsNoTracking()
+            .AnyAsync(duel => referencedIds.Contains(duel.Id) &&
+                    duel.Status == DuelStatus.InProgress &&
+                    (userIds.Contains(duel.User1.Id) || userIds.Contains(duel.User2.Id)),
+                cancellationToken);
     }
 
     private Result<Dictionary<char, DuelTask>> ChooseTasks(

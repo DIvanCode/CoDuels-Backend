@@ -824,6 +824,80 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
     }
 
     [Fact]
+    public async Task Creates_tournament_duel_beside_active_duel_and_preserves_bot_ranked_search()
+    {
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var human = EntityFactory.MakeUser(2, "human");
+        var bot = EntityFactory.MakeBot(3, "bot");
+        var other = EntityFactory.MakeUser(4, "other");
+        var tournament = new GroupStageTournament
+        {
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "group"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.GroupStage
+        };
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = human, Seed = 1 });
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = bot, Seed = 2 });
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = other, Seed = 3 });
+        Context.Users.AddRange(creator, human, bot, other);
+        Context.Tournaments.Add(tournament);
+        Context.Duels.Add(EntityFactory.MakeDuel(10, human, other, "TASK-OLD"));
+        Context.PendingDuels.AddRange(
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = bot,
+                Rating = bot.Rating,
+                CreatedAt = DateTime.UtcNow
+            },
+            new TournamentPendingDuel
+            {
+                Type = PendingDuelType.Tournament,
+                Tournament = tournament,
+                User1 = human,
+                User2 = bot,
+                Configuration = null,
+                IsAcceptedByUser1 = true,
+                IsAcceptedByUser2 = true,
+                CreatedAt = DateTime.UtcNow
+            });
+        await Context.SaveChangesAsync();
+
+        var result = await CreateHandler(Context, new TaskiClientSuccessFake(["TASK-NEW"]))
+            .Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        (await Context.Duels.AsNoTracking().CountAsync()).Should().Be(2);
+        (await Context.PendingDuels.OfType<TournamentPendingDuel>().CountAsync()).Should().Be(0);
+        (await Context.PendingDuels.OfType<RankedPendingDuel>().CountAsync()).Should().Be(1);
+        tournament.DuelIds.Should().ContainSingle();
+        (await Context.OutboxMessages.AsNoTracking().CountAsync()).Should().Be(2);
+
+        Context.PendingDuels.Add(new TournamentPendingDuel
+        {
+            Type = PendingDuelType.Tournament,
+            Tournament = tournament,
+            User1 = bot,
+            User2 = other,
+            Configuration = null,
+            IsAcceptedByUser1 = true,
+            IsAcceptedByUser2 = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await Context.SaveChangesAsync();
+
+        var secondTick = await CreateHandler(Context, new TaskiClientSuccessFake(["TASK-NEW-2"]))
+            .Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        secondTick.IsSuccess.Should().BeTrue();
+        (await Context.Duels.AsNoTracking().CountAsync()).Should().Be(2);
+        (await Context.PendingDuels.OfType<TournamentPendingDuel>().CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
     public async Task Rolls_back_duel_link_and_outbox_and_stops_tick_when_second_save_fails()
     {
         var interceptor = new FailOnArmedSaveChangesInterceptor(2);

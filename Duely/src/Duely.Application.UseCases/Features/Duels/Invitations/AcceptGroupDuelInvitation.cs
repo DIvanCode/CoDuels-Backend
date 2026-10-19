@@ -33,13 +33,13 @@ public sealed class AcceptGroupDuelInvitationHandler(Context context)
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
         
-        var activeDuel = await context.Duels
+        var hasActiveDuel = await context.Duels
             .AsNoTracking()
-            .SingleOrDefaultAsync(d =>
+            .AnyAsync(d =>
                     d.Status == DuelStatus.InProgress &&
                     (d.User1.Id == command.UserId || d.User2.Id == command.UserId),
                 cancellationToken);
-        if (activeDuel is not null)
+        if (hasActiveDuel && !user.IsBot)
         {
             return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Id), command.UserId);
         }

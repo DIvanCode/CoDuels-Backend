@@ -48,10 +48,11 @@ public sealed class CheckDuelsForFinishHandler(
         if (AreAllTasksSolved(duel, taskWinners))
         {
             var winner = GetWinnerBySolvedTasks(duel, taskWinners);
-            await FinishDuelAsync(duel, winner, cancellationToken);
-
-            logger.LogInformation("Duel finished (all tasks solved). DuelId = {DuelId}, WinnerId = {Winner}",
-                duel.Id, duel.Winner?.Id);
+            if (await FinishDuelAsync(duel, winner, cancellationToken))
+            {
+                logger.LogInformation("Duel finished (all tasks solved). DuelId = {DuelId}, WinnerId = {Winner}",
+                    duel.Id, duel.Winner?.Id);
+            }
 
             return Result.Ok();
         }
@@ -66,9 +67,10 @@ public sealed class CheckDuelsForFinishHandler(
             }
 
             var winner = GetWinnerBySolvedTasks(duel, taskWinners);
-            await FinishDuelAsync(duel, winner, cancellationToken);
-            
-            logger.LogInformation("Duel finished (deadline). DuelId = {DuelId}", duel.Id);
+            if (await FinishDuelAsync(duel, winner, cancellationToken))
+            {
+                logger.LogInformation("Duel finished (deadline). DuelId = {DuelId}", duel.Id);
+            }
             
             return Result.Ok();
         }
@@ -76,9 +78,37 @@ public sealed class CheckDuelsForFinishHandler(
         return Result.Ok();
     }
 
-    private async Task FinishDuelAsync(Duel duel, User? winner, CancellationToken cancellationToken)
+    private async Task<bool> FinishDuelAsync(Duel duel, User? winner, CancellationToken cancellationToken)
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        // Serialize rating updates across different active duels sharing a user.
+        // The duel graph was loaded before this transaction and may hold stale
+        // user ratings, so refresh them after acquiring the row locks.
+        var userIds = new[] { duel.User1.Id, duel.User2.Id }
+            .Distinct()
+            .OrderBy(id => id)
+            .ToArray();
+        var currentRatings = await context.Users
+            .AsNoTracking()
+            .Where(user => userIds.Contains(user.Id))
+            .OrderBy(user => user.Id)
+            .ForUpdate()
+            .Select(user => new { user.Id, user.Rating })
+            .ToDictionaryAsync(user => user.Id, user => user.Rating, cancellationToken);
+        var persistedStatus = await context.Duels
+            .AsNoTracking()
+            .Where(current => current.Id == duel.Id)
+            .ForUpdate()
+            .Select(current => current.Status)
+            .SingleAsync(cancellationToken);
+        if (persistedStatus != DuelStatus.InProgress)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+        duel.User1.Rating = currentRatings[duel.User1.Id];
+        duel.User2.Rating = currentRatings[duel.User2.Id];
         
         duel.Status = DuelStatus.Finished;
         duel.EndTime = DateTime.UtcNow;
@@ -123,6 +153,7 @@ public sealed class CheckDuelsForFinishHandler(
         await context.SaveChangesAsync(cancellationToken);
         
         await transaction.CommitAsync(cancellationToken);
+        return true;
     }
 
     private async Task CreateAnticheatScores(Duel duel, CancellationToken cancellationToken)

@@ -116,12 +116,36 @@ public sealed class AcceptTournamentDuelHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task AlreadyExists_when_user_has_active_duel()
+    public async Task Accepts_when_user_has_multiple_active_duels()
     {
+        var creator = EntityFactory.MakeUser(4, "creator");
         var user1 = EntityFactory.MakeUser(1, "u1");
         var user2 = EntityFactory.MakeUser(2, "u2");
-        Context.Users.AddRange(user1, user2);
-        Context.Duels.Add(EntityFactory.MakeDuel(10, user1, user2));
+        var user3 = EntityFactory.MakeUser(3, "u3");
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Id = 1,
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "Alpha"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket
+        };
+        Context.Users.AddRange(creator, user1, user2, user3);
+        Context.Tournaments.Add(tournament);
+        Context.Duels.AddRange(
+            EntityFactory.MakeDuel(10, user1, user2),
+            EntityFactory.MakeDuel(11, user3, user1));
+        Context.PendingDuels.Add(new TournamentPendingDuel
+        {
+            Type = PendingDuelType.Tournament,
+            Tournament = tournament,
+            User1 = user1,
+            User2 = user3,
+            Configuration = null,
+            CreatedAt = DateTime.UtcNow
+        });
         await Context.SaveChangesAsync();
 
         var handler = new AcceptTournamentDuelHandler(Context);
@@ -132,8 +156,9 @@ public sealed class AcceptTournamentDuelHandlerTests : ContextBasedTest
             TournamentId = 1
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityAlreadyExistsError);
+        res.IsSuccess.Should().BeTrue();
+        (await Context.PendingDuels.OfType<TournamentPendingDuel>().SingleAsync())
+            .IsAcceptedByUser1.Should().BeTrue();
     }
 
     [Fact]
@@ -218,6 +243,53 @@ public sealed class AcceptTournamentDuelHandlerTests : ContextBasedTest
         res.IsSuccess.Should().BeTrue();
         Context.PendingDuels.OfType<RankedPendingDuel>().Should().BeEmpty();
         (await Context.OutboxMessages.AsNoTracking().ToListAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Bot_acceptance_preserves_ranked_search()
+    {
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var bot = EntityFactory.MakeBot(2, "bot");
+        var opponent = EntityFactory.MakeUser(3, "opponent");
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Id = 1,
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "Alpha"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket
+        };
+        Context.Users.AddRange(creator, bot, opponent);
+        Context.Tournaments.Add(tournament);
+        Context.PendingDuels.AddRange(
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = bot,
+                Rating = bot.Rating,
+                CreatedAt = DateTime.UtcNow
+            },
+            new TournamentPendingDuel
+            {
+                Type = PendingDuelType.Tournament,
+                Tournament = tournament,
+                User1 = bot,
+                User2 = opponent,
+                Configuration = null,
+                CreatedAt = DateTime.UtcNow
+            });
+        await Context.SaveChangesAsync();
+
+        var result = await new AcceptTournamentDuelHandler(Context).Handle(
+            new AcceptTournamentDuelCommand { UserId = bot.Id, TournamentId = tournament.Id },
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        (await Context.PendingDuels.OfType<RankedPendingDuel>().CountAsync()).Should().Be(1);
+        (await Context.PendingDuels.OfType<TournamentPendingDuel>().SingleAsync())
+            .IsAcceptedByUser1.Should().BeTrue();
     }
 
     [Fact]

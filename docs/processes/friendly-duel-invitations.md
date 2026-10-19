@@ -25,7 +25,7 @@ then accept, deny, cancel, replace, or implicitly reset that invitation.
 
 - Create: sender and opponent exist, differ, and neither has an observed active
   duel. Optional configuration must exist; ownership is not checked here.
-- Accept: invitee exists, has no observed active duel, the named sender exists,
+- Accept: invitee exists, a human invitee has no observed active duel, the named sender exists,
   and a directional row with matching configuration exists.
 - Deny/cancel: both users and the exact directional/configuration row must exist,
   except cancel treats a missing row as success.
@@ -146,7 +146,7 @@ outbox retry, while offline delivery is treated as success and cannot retry.
 ## 12. Failure handling
 
 - Missing users/configuration/invitation produce not-found results as described above.
-- Self-invitation is forbidden; observed active duel produces already-exists.
+- Self-invitation is forbidden; an observed active duel for a human produces already-exists.
 - A missing row on sender cancel is successful; a missing row on accept/deny is an error.
 - If validation of a replacement target fails, deletion/messages staged for the
   old invitation are not saved, so the old invitation remains.

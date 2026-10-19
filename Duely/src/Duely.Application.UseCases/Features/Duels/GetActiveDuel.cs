@@ -32,7 +32,9 @@ public sealed class GetActiveDuelHandler(Context context, IRatingManager ratingM
             .Include(duel => duel.Winner)
             .Include(d => d.Submissions)
             .ThenInclude(s => s.User)
-            .SingleOrDefaultAsync(cancellationToken);
+            .OrderByDescending(d => d.StartTime)
+            .ThenByDescending(d => d.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         if (duel is null)
         {
             return new EntityNotFoundError(nameof(Duel), nameof(User.Id), query.UserId);
