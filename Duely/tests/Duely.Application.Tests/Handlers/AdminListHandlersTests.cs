@@ -44,6 +44,47 @@ public sealed class AdminListHandlersTests : ContextBasedTest
     }
 
     [Fact]
+    public async Task GetUsers_unions_connected_and_recent_users_at_inclusive_cutoff()
+    {
+        var cutoff = new DateTime(2026, 10, 19, 10, 0, 0, DateTimeKind.Utc);
+        var connectedOld = MakeUser(10, "connected-old", cutoff.AddDays(-1));
+        connectedOld.LastSeenAt = cutoff.AddTicks(-1);
+        var connectedRecent = MakeUser(11, "connected-recent", cutoff.AddHours(-5));
+        connectedRecent.LastSeenAt = cutoff.AddTicks(1);
+        var exactlyAtCutoff = MakeUser(12, "at-cutoff", cutoff.AddHours(-4));
+        exactlyAtCutoff.LastSeenAt = cutoff;
+        var newer = MakeUser(13, "newer", cutoff.AddHours(-3));
+        newer.LastSeenAt = cutoff.AddTicks(1);
+        var tooOld = MakeUser(14, "too-old", cutoff.AddHours(-2));
+        tooOld.LastSeenAt = cutoff.AddTicks(-1);
+        var neverSeen = MakeUser(15, "never-seen", cutoff.AddHours(-1));
+        Context.Users.AddRange(connectedOld, connectedRecent, exactlyAtCutoff, newer, tooOld, neverSeen);
+        await Context.SaveChangesAsync();
+
+        var result = await new GetUsersHandler(Context).Handle(
+            new GetUsersQuery
+            {
+                UserIds = [connectedOld.Id, connectedRecent.Id],
+                LastSeenSince = cutoff
+            },
+            CancellationToken.None);
+
+        result.Value.Select(user => user.Id).Should().Equal(
+            newer.Id, exactlyAtCutoff.Id, connectedRecent.Id, connectedOld.Id);
+        result.Value.Select(user => user.Id).Should().OnlyHaveUniqueItems();
+
+        var withoutConnections = await new GetUsersHandler(Context).Handle(
+            new GetUsersQuery { UserIds = [], LastSeenSince = cutoff },
+            CancellationToken.None);
+        withoutConnections.Value.Select(user => user.Id).Should().Equal(
+            newer.Id, exactlyAtCutoff.Id, connectedRecent.Id);
+
+        var allUsers = await new GetUsersHandler(Context).Handle(
+            new GetUsersQuery(), CancellationToken.None);
+        allUsers.Value.Should().HaveCount(6);
+    }
+
+    [Fact]
     public async Task GetPendingDuels_returns_non_ranked_types_and_ranked_searchers_separately()
     {
         var user1 = MakeUser(1, "u1", DateTime.UtcNow.AddDays(-2));

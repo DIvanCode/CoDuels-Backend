@@ -3,9 +3,12 @@ using Duely.Application.UseCases.Features.Duels;
 using Duely.Application.UseCases.Features.Groups;
 using Duely.Application.UseCases.Features.Submissions;
 using Duely.Application.UseCases.Features.Tournaments;
+using Duely.Application.UseCases.Features.Users;
 using Duely.Domain.Services.Duels;
 using Duely.Infrastructure.Api.Http.Controllers;
 using Duely.Infrastructure.Api.Http.Services;
+using Duely.Infrastructure.Api.Http.Services.WebSockets;
+using FluentAssertions;
 using FluentResults;
 using MediatR;
 using Moq;
@@ -15,6 +18,37 @@ namespace Duely.Infrastructure.Api.Http.Tests;
 
 public sealed class AdminReadAccessControllerTests
 {
+    [Fact]
+    public async Task Active_users_query_includes_local_connections_and_two_minute_cutoff()
+    {
+        var mediator = new Mock<IMediator>();
+        GetUsersQuery? activeQuery = null;
+        mediator
+            .Setup(m => m.Send(It.IsAny<GetUsersQuery>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<Result<List<UserDto>>>, CancellationToken>((query, _) =>
+                activeQuery = (GetUsersQuery)query)
+            .ReturnsAsync(Result.Ok(new List<UserDto>()));
+        var connections = new Mock<IWebSocketConnectionManager>();
+        connections.Setup(manager => manager.GetLocallyConnectedUserIds()).Returns([4, 7]);
+        var controller = new UsersController(
+            mediator.Object,
+            CreateAdminContext().Object,
+            Mock.Of<IUserWebSocketHandler>(),
+            connections.Object);
+
+        var before = DateTime.UtcNow.AddMinutes(-2);
+        await controller.GetActiveForAdminAsync(CancellationToken.None);
+        var after = DateTime.UtcNow.AddMinutes(-2);
+
+        activeQuery.Should().NotBeNull();
+        activeQuery!.UserIds.Should().Equal(4, 7);
+        activeQuery.LastSeenSince.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
+
+        await controller.GetAllForAdminAsync(CancellationToken.None);
+        activeQuery!.UserIds.Should().BeNull();
+        activeQuery.LastSeenSince.Should().BeNull();
+    }
+
     [Fact]
     public async Task Duel_details_pass_admin_claim_to_query()
     {

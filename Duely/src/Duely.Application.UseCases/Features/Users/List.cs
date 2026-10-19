@@ -9,6 +9,7 @@ namespace Duely.Application.UseCases.Features.Users;
 public sealed class GetUsersQuery : IRequest<Result<List<UserDto>>>
 {
     public IReadOnlyCollection<int>? UserIds { get; init; }
+    public DateTime? LastSeenSince { get; init; }
 }
 
 public sealed class GetUsersHandler(Context context)
@@ -18,15 +19,23 @@ public sealed class GetUsersHandler(Context context)
         GetUsersQuery query,
         CancellationToken cancellationToken)
     {
-        if (query.UserIds is { Count: 0 })
+        if (query.UserIds is { Count: 0 } && query.LastSeenSince is null)
         {
             return new List<UserDto>();
         }
 
         var users = context.Users.AsNoTracking();
-        if (query.UserIds is not null)
+        if (query.UserIds is { Count: > 0 } userIds && query.LastSeenSince is { } lastSeenSince)
         {
-            users = users.Where(user => query.UserIds.Contains(user.Id));
+            users = users.Where(user => userIds.Contains(user.Id) || user.LastSeenAt >= lastSeenSince);
+        }
+        else if (query.UserIds is { Count: > 0 } connectedUserIds)
+        {
+            users = users.Where(user => connectedUserIds.Contains(user.Id));
+        }
+        else if (query.LastSeenSince is { } recentSince)
+        {
+            users = users.Where(user => user.LastSeenAt >= recentSince);
         }
 
         return await users

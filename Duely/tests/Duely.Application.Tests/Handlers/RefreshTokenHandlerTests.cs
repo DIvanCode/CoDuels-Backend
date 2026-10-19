@@ -59,6 +59,7 @@ public class RefreshTokenHandlerTests : ContextBasedTest
 
         var refreshed = await ctx.Users.AsNoTracking().SingleAsync(u => u.Id == 2);
         refreshed.RefreshToken.Should().Be("REFRESH2");
+        refreshed.LastSeenAt.Should().BeNull();
 
         tokenSvc.Verify(s => s.GenerateTokens(It.Is<User>(u => u.Id == 2)), Times.Once);
         tokenSvc.VerifyNoOtherCalls();

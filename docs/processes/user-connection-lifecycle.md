@@ -3,8 +3,8 @@
 ## 1. Purpose
 
 Authenticate a WebSocket with an intended single-use ticket, maintain every
-registered socket per user in a Duely process, persist the latest observed
-connection boundary, relay client events to each open socket, and attempt
+registered socket per user in a Duely process, persist the latest successful
+login or connection boundary, relay client events to each open socket, and attempt
 pending-duel cleanup only after the final local connection is absent when a
 reconnect grace period expires.
 
@@ -18,8 +18,9 @@ reconnect grace period expires.
 ## 3. Triggers
 
 - `POST /users/ticket`: generate/replace the user's ticket.
+- Successful `POST /users/login`: record the user's latest appearance.
 - WebSocket upgrade at `GET /users/connect?ticket=...`.
-- Admin `GET /users/admin/active`: list users connected to this Duely instance.
+- Admin `GET /users/admin/active`: list locally connected or recently seen users.
 - Text `SolutionUpdated` frames.
 - Client close frame, network failure, request cancellation, or server shutdown.
 
@@ -52,18 +53,28 @@ under that lock. The handler saves that time to the user's nullable `LastSeenAt`
 Registration does not occur for a rejected ticket, a non-WebSocket request, or a
 failed WebSocket accept.
 
+### Successful login
+
+After verifying the password, login saves the new refresh token and conditionally
+updates `LastSeenAt` to the current UTC time. The conditional update does not
+replace a later mark from another login or a WebSocket event. Missing users and
+incorrect passwords do not update it. Token refresh, WebSocket ticket creation,
+and ordinary HTTP requests do not extend the activity window.
+
 ### Admin active-user view
 
-`GET /users/admin/active` reads the connection manager of the Duely process that
-serves the request and returns each locally connected user once. It does not
-aggregate presence from other Duely instances. The production Ansible playbook
-currently deploys one container named `duely`, so the local snapshot is the
-complete production snapshot only while that single-instance topology remains
-in effect. A future multi-instance deployment must introduce distributed
-presence before this endpoint can be treated as platform-wide.
+`GET /users/admin/active` returns the union of users with a connection in the
+serving Duely process and users whose persisted `LastSeenAt` is at least the UTC
+request time minus two minutes. A user exactly at the cutoff is included; one
+older than the cutoff is included only while locally connected. A null timestamp
+alone does not qualify. Each user appears once, including one who satisfies both
+conditions. A successful login can therefore appear without a WebSocket.
+The connection snapshot remains process-local. Recent timestamps can have been
+written by another instance, but this is not a platform-wide live-connection
+view. The production Ansible playbook currently deploys one `duely` container.
 Both admin user lists include the persisted `last_seen_at`, even for a currently
 connected user. The shared `UserDto` also exposes it in ordinary user and nested
-product responses. Existing users with no recorded connection have `null`.
+product responses. Existing users with no recorded appearance have `null`.
 
 ### Receive loop
 
@@ -110,9 +121,9 @@ continue even if abort also fails.
 - `No registered socket -> user id maps to one connection id and socket`.
 - `One or more registered sockets -> another connection id and socket is added`.
 - `Handler ends -> only its connection id is removed`.
-- `LastSeenAt -> max(LastSeenAt, event time)` on registration and final local
-  socket removal. The database update is conditional, so delayed writes cannot
-  move the value backwards.
+- `LastSeenAt -> max(LastSeenAt, event time)` on successful login, registration,
+  and final local socket removal. The database update is conditional, so delayed
+  writes cannot move the value backwards.
 - `Handler removes its connection -> 10-second grace -> pending transitions
   below, if no connection is registered when the grace period expires`.
 - There is no durable `Online -> Offline` transition.
@@ -161,8 +172,10 @@ causes silent successful delivery from the outbox's perspective.
 ## 10. Transaction boundaries
 
 - Ticket generation/replace is one save; ticket consume is a separate save.
+- Login saves the refresh token, then conditionally updates `LastSeenAt` in a
+  separate database statement.
 - WebSocket accept/registration is in memory and outside PostgreSQL.
-- Presence persistence is a separate conditional database update, outside the
+- WebSocket presence persistence is a separate conditional database update, outside the
   connection manager lock and without a transaction shared with the socket.
 - Disconnect cleanup uses one save for all pending state and its Friendly outbox rows.
 - Physical close and cleanup are not atomic. A reconnect before the grace-period
@@ -202,9 +215,10 @@ Every currently open tab connected to the same Duely instance should receive a
 notification. There is no backend online/offline event and no cross-instance
 socket routing. The Frontend must obtain a new ticket to reconnect and recover
 active/invitation/submission state through HTTP because messages during
-disconnection are not replayed. The admin active-user endpoint exposes only the
-same process-local presence snapshot. The saved time represents a connection
-boundary, not the last editor action or HTTP request.
+disconnection are not replayed. The admin active-user endpoint combines the
+process-local connection snapshot with the persisted recent-appearance time.
+The saved time represents a successful login or connection boundary, not the
+last editor action or an ordinary HTTP request.
 
 ## 14. Implementation references
 
@@ -213,6 +227,7 @@ boundary, not the last editor action or HTTP request.
 - [CreateTicket.cs](../../Duely/src/Duely.Application.UseCases/Features/Users/CreateTicket.cs)
 - [GetByTicket.cs](../../Duely/src/Duely.Application.UseCases/Features/Users/GetByTicket.cs)
 - [RecordPresence.cs](../../Duely/src/Duely.Application.UseCases/Features/Users/RecordPresence.cs)
+- [Login.cs](../../Duely/src/Duely.Application.UseCases/Features/Users/Login.cs)
 - [UserWebSocketHandler.cs](../../Duely/src/Duely.Infrastructure.Api.Http/Services/WebSockets/UserWebSocketHandler.cs)
 - [WebSocketConnectionManager.cs](../../Duely/src/Duely.Infrastructure.Api.Http/Services/WebSockets/WebSocketConnectionManager.cs)
 - [WebSocketMessageSender.cs](../../Duely/src/Duely.Infrastructure.Api.Http/Services/WebSockets/WebSocketMessageSender.cs)
