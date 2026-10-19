@@ -36,6 +36,7 @@ public sealed class LoginHandler(Context context, ITokenService tokenService, IL
         user.RefreshToken = refreshToken;
 
         await context.SaveChangesAsync(cancellationToken);
+        await UserLastSeenUpdater.RecordAsync(context, user.Id, DateTime.UtcNow, cancellationToken);
 
         return new TokenDto
         {

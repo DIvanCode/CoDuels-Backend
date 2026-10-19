@@ -41,8 +41,11 @@ operations keep their existing participant, membership, and role rules.
 
 ## 5. Active-user scope
 
-The admin active-user endpoint is intentionally process-local. Its topology and
-restart semantics are documented in
+The admin active-user endpoint combines process-local WebSocket connections with
+users whose persisted `LastSeenAt` is within the last two minutes, including the
+exact cutoff. Recent appearance includes successful login, WebSocket registration,
+and final local disconnect. It returns each user once. Its topology and restart
+semantics are documented in
 [User connection lifecycle](user-connection-lifecycle.md#admin-active-user-view).
 Both `GET /users/admin/all` and `GET /users/admin/active` return the shared
 `UserDto` with nullable `last_seen_at`. Ordinary user and nested product
@@ -52,4 +55,5 @@ responses use the same DTO and include the field as well.
 
 Focused handler tests cover admin and non-admin reads for duels, submissions,
 groups, group users, group duels, group tournaments, and tournament details.
-WebSocket service tests cover the process-local active-user boundary.
+WebSocket service tests cover the process-local connection boundary. Admin list
+tests cover the recent-appearance cutoff and the union with local connections.

@@ -23,14 +23,7 @@ public sealed class RecordUserPresenceHandler(Context context)
             return Result.Fail("Presence time must be UTC.");
         }
 
-        // A single conditional UPDATE keeps delayed connect/disconnect writes from
-        // overwriting a newer event, including when requests run in other scopes.
-        await context.Users
-            .Where(user => user.Id == command.UserId &&
-                (user.LastSeenAt == null || user.LastSeenAt < command.OccurredAt))
-            .ExecuteUpdateAsync(
-                setters => setters.SetProperty(user => user.LastSeenAt, command.OccurredAt),
-                cancellationToken);
+        await UserLastSeenUpdater.RecordAsync(context, command.UserId, command.OccurredAt, cancellationToken);
 
         return Result.Ok();
     }

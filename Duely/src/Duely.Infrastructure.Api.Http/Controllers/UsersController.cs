@@ -32,7 +32,8 @@ public sealed class UsersController(
     {
         var query = new GetUsersQuery
         {
-            UserIds = webSocketConnectionManager.GetLocallyConnectedUserIds()
+            UserIds = webSocketConnectionManager.GetLocallyConnectedUserIds(),
+            LastSeenSince = DateTime.UtcNow.AddMinutes(-2)
         };
 
         var result = await mediator.Send(query, cancellationToken);
