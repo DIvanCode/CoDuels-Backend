@@ -14,7 +14,10 @@ public static class TournamentDtoMapper
             Id = tournament.Id,
             Name = tournament.Name,
             Status = tournament.Status,
-            GroupId = tournament.Group.Id,
+            GroupId = tournament.Group?.Id,
+            Kind = tournament.Group is null ? TournamentKind.Global : TournamentKind.Group,
+            Description = tournament.Description,
+            StartsAt = tournament.StartsAt,
             CreatedAt = tournament.CreatedAt,
             CreatedBy = MapUser(tournament.CreatedBy),
             Participants = tournament.Participants
@@ -26,7 +29,7 @@ public static class TournamentDtoMapper
         };
     }
 
-    private static UserDto MapUser(User user)
+    public static UserDto MapUser(User user)
     {
         return new UserDto
         {

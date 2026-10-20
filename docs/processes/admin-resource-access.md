@@ -35,9 +35,13 @@ client from treating the administrator as an owner or manager.
 
 ## 4. Mutation boundary
 
-The admin claim does not bypass checks for creating, updating, starting,
+The admin claim does not bypass group checks for creating, updating, starting,
 accepting, inviting, changing roles, excluding users, or leaving groups. Those
-operations keep their existing participant, membership, and role rules.
+operations keep their existing participant, membership, and role rules. Creating
+a global tournament is a separate system-admin operation; ordinary users can
+only view, register for, or leave one before its scheduled start. Viewing a
+global tournament does not grant access to another participant's duel; the
+administrator can still inspect every duel.
 
 ## 5. Active-user scope
 

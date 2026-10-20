@@ -97,7 +97,7 @@ public sealed class GetDuelHandler(
         var tournaments = await context.Tournaments
             .AsNoTracking()
             .Include(t => t.Group)
-            .Where(t => t.Status != Duely.Domain.Models.Tournaments.TournamentStatus.New)
+            .Where(t => t.Group != null && t.Status != Duely.Domain.Models.Tournaments.TournamentStatus.New)
             .ToListAsync(cancellationToken);
 
         var tournament = tournaments.FirstOrDefault(t =>
@@ -112,7 +112,7 @@ public sealed class GetDuelHandler(
 
         var membership = await context.GroupMemberships
             .AsNoTracking()
-            .Where(m => m.Group.Id == tournament.Group.Id && m.User.Id == userId)
+            .Where(m => m.Group.Id == tournament.Group!.Id && m.User.Id == userId)
             .SingleOrDefaultAsync(cancellationToken);
 
         return membership is not null && groupPermissionsService.CanViewDuel(membership);

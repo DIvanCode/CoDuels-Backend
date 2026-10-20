@@ -26,6 +26,20 @@ public sealed class TournamentsConfiguration : IEntityTypeConfiguration<Tourname
             .HasColumnType("text")
             .IsRequired();
 
+        builder.Property(t => t.Description)
+            .HasColumnName("Description")
+            .HasColumnType("text");
+
+        builder.Property(t => t.StartsAt)
+            .HasColumnName("StartsAt")
+            .HasColumnType("timestamp with time zone");
+
+        builder.Property(t => t.RegistrationRevision)
+            .HasColumnName("RegistrationRevision")
+            .HasColumnType("integer")
+            .IsConcurrencyToken()
+            .HasDefaultValue(0);
+
         builder.Property(t => t.Status)
             .HasColumnName("Status")
             .HasColumnType("text")
@@ -46,7 +60,8 @@ public sealed class TournamentsConfiguration : IEntityTypeConfiguration<Tourname
         builder.HasOne(t => t.Group)
             .WithMany(g => g.Tournaments)
             .HasForeignKey(GroupIdShadowKey)
-            .IsRequired();
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(t => t.CreatedBy)
             .WithMany()
@@ -60,7 +75,8 @@ public sealed class TournamentsConfiguration : IEntityTypeConfiguration<Tourname
 
         builder.HasDiscriminator(t => t.MatchmakingType)
             .HasValue<SingleEliminationBracketTournament>(TournamentMatchmakingType.SingleEliminationBracket)
-            .HasValue<GroupStageTournament>(TournamentMatchmakingType.GroupStage);
+            .HasValue<GroupStageTournament>(TournamentMatchmakingType.GroupStage)
+            .HasValue<SwissTournament>(TournamentMatchmakingType.Swiss);
 
         builder.UseTphMappingStrategy();
     }

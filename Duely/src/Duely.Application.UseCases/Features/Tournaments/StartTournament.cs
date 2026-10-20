@@ -26,7 +26,7 @@ public sealed class StartTournamentHandler(Context context, IGroupPermissionsSer
     {
         var tournament = await context.Tournaments
             .Include(t => t.Group)
-            .ThenInclude(g => g.Users)
+            .ThenInclude(g => g!.Users)
             .ThenInclude(m => m.User)
             .Include(t => t.CreatedBy)
             .Include(t => t.DuelConfiguration)
@@ -38,7 +38,12 @@ public sealed class StartTournamentHandler(Context context, IGroupPermissionsSer
             return new EntityNotFoundError(nameof(Tournament), nameof(Tournament.Id), command.TournamentId);
         }
 
-        var membership = tournament.Group.Users.SingleOrDefault(m => m.User.Id == command.UserId);
+        if (tournament is SwissTournament)
+        {
+            return new ForbiddenError(nameof(Tournament), "manually start global tournament", nameof(Tournament.Id), command.TournamentId);
+        }
+
+        var membership = tournament.Group!.Users.SingleOrDefault(m => m.User.Id == command.UserId);
         if (membership is null || !groupPermissionsService.CanStartTournament(membership))
         {
             return new ForbiddenError(nameof(Group), Operation, nameof(Group.Id), tournament.Group.Id);

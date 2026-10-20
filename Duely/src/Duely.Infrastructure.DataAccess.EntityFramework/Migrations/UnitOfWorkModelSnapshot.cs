@@ -478,10 +478,14 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.Property<int>("CreatedById")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("Description");
+
                     b.Property<int?>("DuelConfigurationId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("GroupId")
+                    b.Property<int?>("GroupId")
                         .HasColumnType("integer");
 
                     b.Property<string>("MatchmakingType")
@@ -493,6 +497,17 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("Name");
+
+                    b.Property<int>("RegistrationRevision")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("RegistrationRevision");
+
+                    b.Property<DateTime?>("StartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("StartsAt");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -817,6 +832,13 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnName("Nodes");
 
                     b.HasDiscriminator().HasValue("SingleEliminationBracket");
+                });
+
+            modelBuilder.Entity("Duely.Domain.Models.Tournaments.SwissTournament", b =>
+                {
+                    b.HasBaseType("Duely.Domain.Models.Tournaments.Tournament");
+
+                    b.HasDiscriminator().HasValue("Swiss");
                 });
 
             modelBuilder.Entity("Duely.Domain.Models.UserActions.ChooseLanguageUserAction", b =>
@@ -1148,8 +1170,7 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                     b.HasOne("Duely.Domain.Models.Groups.Group", "Group")
                         .WithMany("Tournaments")
                         .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("CreatedBy");
 

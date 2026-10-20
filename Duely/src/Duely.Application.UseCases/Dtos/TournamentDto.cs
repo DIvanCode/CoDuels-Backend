@@ -15,7 +15,16 @@ public sealed class TournamentDto
     public required TournamentStatus Status { get; init; }
 
     [JsonPropertyName("group_id")]
-    public required int GroupId { get; init; }
+    public required int? GroupId { get; init; }
+
+    [JsonPropertyName("kind")]
+    public required TournamentKind Kind { get; init; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+
+    [JsonPropertyName("starts_at")]
+    public DateTime? StartsAt { get; init; }
 
     [JsonPropertyName("created_at")]
     public required DateTime CreatedAt { get; init; }
@@ -31,4 +40,10 @@ public sealed class TournamentDto
 
     [JsonPropertyName("duel_configuration_id")]
     public required int? DuelConfigurationId { get; init; }
+}
+
+public enum TournamentKind
+{
+    Group = 1,
+    Global = 2
 }

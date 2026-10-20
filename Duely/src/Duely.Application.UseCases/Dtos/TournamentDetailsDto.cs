@@ -12,4 +12,7 @@ public sealed class TournamentDetailsDto
 
     [JsonPropertyName("group_stage")]
     public GroupStageDto? GroupStage { get; init; }
+
+    [JsonPropertyName("swiss")]
+    public SwissTournamentDetailsDto? Swiss { get; init; }
 }
