@@ -34,10 +34,6 @@ public sealed class SyncActiveTournamentsHandler(
             return Result.Ok();
         }
 
-        // Other active duels do not reserve participants for tournament play.
-        // Pending bots are likewise available, including bots in ranked search.
-        var busyUserIds = await GetPendingHumanUserIdsAsync(cancellationToken);
-
         var duelIds = tournaments
             .SelectMany(tournament => strategyResolver
                 .GetStrategy(tournament.MatchmakingType)
@@ -89,9 +85,7 @@ public sealed class SyncActiveTournamentsHandler(
                 }
 
                 if (tournamentBusyUserIds.Contains(user1.Id) ||
-                    tournamentBusyUserIds.Contains(user2.Id) ||
-                    (!user1.IsBot && busyUserIds.Contains(user1.Id)) ||
-                    (!user2.IsBot && busyUserIds.Contains(user2.Id)))
+                    tournamentBusyUserIds.Contains(user2.Id))
                 {
                     continue;
                 }
@@ -151,9 +145,6 @@ public sealed class SyncActiveTournamentsHandler(
                 });
                 tournamentBusyUserIds.Add(user1.Id);
                 tournamentBusyUserIds.Add(user2.Id);
-                if (!user1.IsBot) busyUserIds.Add(user1.Id);
-                if (!user2.IsBot) busyUserIds.Add(user2.Id);
-
                 logger.LogInformation(
                     "Tournament duel queued. TournamentId = {TournamentId}, Users = {User1}, {User2}",
                     tournament.Id,
@@ -166,57 +157,4 @@ public sealed class SyncActiveTournamentsHandler(
         return Result.Ok();
     }
 
-    private async Task<HashSet<int>> GetPendingHumanUserIdsAsync(CancellationToken cancellationToken)
-    {
-        var userIds = new HashSet<int>();
-
-        var rankedUsers = await context.PendingDuels
-            .OfType<RankedPendingDuel>()
-            .AsNoTracking()
-            .Where(d => !d.User.IsBot)
-            .Select(d => d.User.Id)
-            .ToListAsync(cancellationToken);
-        userIds.UnionWith(rankedUsers);
-
-        var friendlyUsers = await context.PendingDuels
-            .OfType<FriendlyPendingDuel>()
-            .AsNoTracking()
-            .Where(d => !d.User1.IsBot)
-            .Select(d => d.User1.Id)
-            .Concat(context.PendingDuels
-                .OfType<FriendlyPendingDuel>()
-                .AsNoTracking()
-                .Where(d => !d.User2.IsBot)
-                .Select(d => d.User2.Id))
-            .ToListAsync(cancellationToken);
-        userIds.UnionWith(friendlyUsers);
-
-        var groupUsers = await context.PendingDuels
-            .OfType<GroupPendingDuel>()
-            .AsNoTracking()
-            .Where(d => !d.User1.IsBot)
-            .Select(d => d.User1.Id)
-            .Concat(context.PendingDuels
-                .OfType<GroupPendingDuel>()
-                .AsNoTracking()
-                .Where(d => !d.User2.IsBot)
-                .Select(d => d.User2.Id))
-            .ToListAsync(cancellationToken);
-        userIds.UnionWith(groupUsers);
-
-        var tournamentUsers = await context.PendingDuels
-            .OfType<TournamentPendingDuel>()
-            .AsNoTracking()
-            .Where(d => !d.User1.IsBot)
-            .Select(d => d.User1.Id)
-            .Concat(context.PendingDuels
-                .OfType<TournamentPendingDuel>()
-                .AsNoTracking()
-                .Where(d => !d.User2.IsBot)
-                .Select(d => d.User2.Id))
-            .ToListAsync(cancellationToken);
-        userIds.UnionWith(tournamentUsers);
-
-        return userIds;
-    }
 }

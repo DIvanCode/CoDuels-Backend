@@ -230,7 +230,7 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task AlreadyExists_when_user1_has_active_duel()
+    public async Task Can_create_group_invitation_while_user1_has_active_duel()
     {
         var creator = EntityFactory.MakeUser(1, "creator");
         var user1 = EntityFactory.MakeUser(2, "u1");
@@ -272,12 +272,12 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
             User2Id = user2.Id
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityAlreadyExistsError);
+        res.IsSuccess.Should().BeTrue();
+        Context.PendingDuels.OfType<GroupPendingDuel>().Should().ContainSingle();
     }
 
     [Fact]
-    public async Task AlreadyExists_when_user2_has_active_duel()
+    public async Task Can_create_group_invitation_while_user2_has_active_duel()
     {
         var creator = EntityFactory.MakeUser(1, "creator");
         var user1 = EntityFactory.MakeUser(2, "u1");
@@ -319,8 +319,8 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
             User2Id = user2.Id
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityAlreadyExistsError);
+        res.IsSuccess.Should().BeTrue();
+        Context.PendingDuels.OfType<GroupPendingDuel>().Should().ContainSingle();
     }
 
     [Fact]

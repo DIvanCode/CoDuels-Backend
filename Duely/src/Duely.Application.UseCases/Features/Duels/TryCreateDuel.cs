@@ -120,22 +120,22 @@ public sealed class TryCreateDuelHandler(
                     continue;
                 }
 
-                // Tournament matches may run alongside a participant's other duels.
-                // Bots remain available for ranked matches while playing a tournament match.
-                var usersRequiringFreeSlot = pair.UsedPendingDuels[0].Type == PendingDuelType.Tournament
-                    ? Array.Empty<int>()
-                    : users.Where(user => !user.IsBot).Select(user => user.Id).ToArray();
-                var hasActiveDuel = usersRequiringFreeSlot.Length != 0 && await context.Duels
+                var configuration = ResolveDuelConfiguration(pair);
+                // User-row locks serialize rated starts across every pending type.
+                // Bots remain available even when another rated duel is active.
+                var humanUserIds = users.Where(user => !user.IsBot).Select(user => user.Id).ToArray();
+                var hasActiveRatedDuel = configuration.IsRated && humanUserIds.Length != 0 && await context.Duels
                     .AsNoTracking()
                     .AnyAsync(duel =>
                             duel.Status == DuelStatus.InProgress &&
-                            (usersRequiringFreeSlot.Contains(duel.User1.Id) ||
-                             usersRequiringFreeSlot.Contains(duel.User2.Id)),
+                            duel.Configuration.IsRated &&
+                            (humanUserIds.Contains(duel.User1.Id) ||
+                             humanUserIds.Contains(duel.User2.Id)),
                         cancellationToken);
-                if (hasActiveDuel)
+                if (hasActiveRatedDuel)
                 {
                     logger.LogInformation(
-                        "Duel pair was skipped because at least one user already has an active duel. User1Id = {User1Id}, User2Id = {User2Id}, PendingIds = {PendingIds}",
+                        "Rated duel pair was skipped because at least one human already has an active rated duel. User1Id = {User1Id}, User2Id = {User2Id}, PendingIds = {PendingIds}",
                         pair.User1.Id,
                         pair.User2.Id,
                         pendingIds);
@@ -156,7 +156,6 @@ public sealed class TryCreateDuelHandler(
                     continue;
                 }
 
-                var configuration = ResolveDuelConfiguration(pair);
                 var previouslyUsedTaskIds = await LoadPreviouslyUsedTaskIdsAsync(
                     users.Where(u => !u.IsBot).Select(u => u.Id).ToArray(), cancellationToken);
                 var tasksResult = ChooseTasks(

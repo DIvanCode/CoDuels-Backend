@@ -195,7 +195,7 @@ public sealed class AcceptTournamentDuelHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Cancels_ranked_pending_and_sends_no_message()
+    public async Task Accepting_preserves_human_ranked_pending_and_sends_no_message()
     {
         var creator = EntityFactory.MakeUser(1, "creator");
         var user1 = EntityFactory.MakeUser(2, "u1");
@@ -241,7 +241,7 @@ public sealed class AcceptTournamentDuelHandlerTests : ContextBasedTest
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        Context.PendingDuels.OfType<RankedPendingDuel>().Should().BeEmpty();
+        Context.PendingDuels.OfType<RankedPendingDuel>().Should().ContainSingle();
         (await Context.OutboxMessages.AsNoTracking().ToListAsync()).Should().BeEmpty();
     }
 
@@ -293,7 +293,7 @@ public sealed class AcceptTournamentDuelHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Cancels_outgoing_friendly_invitation_when_accepting()
+    public async Task Accepting_preserves_outgoing_friendly_invitation()
     {
         var creator = EntityFactory.MakeUser(1, "creator");
         var user1 = EntityFactory.MakeUser(2, "u1");
@@ -342,13 +342,8 @@ public sealed class AcceptTournamentDuelHandlerTests : ContextBasedTest
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        Context.PendingDuels.OfType<FriendlyPendingDuel>().Should().BeEmpty();
+        Context.PendingDuels.OfType<FriendlyPendingDuel>().Should().ContainSingle();
 
-        var outboxMessage = await Context.OutboxMessages.AsNoTracking().SingleAsync();
-        outboxMessage.Type.Should().Be(OutboxType.SendMessage);
-        var payload = (SendMessagePayload)outboxMessage.Payload;
-        payload.UserId.Should().Be(user1.Id);
-        payload.Message.Should().BeOfType<DuelInvitationCanceledMessage>()
-            .Which.OpponentNickname.Should().Be(other.Nickname);
+        (await Context.OutboxMessages.AsNoTracking().ToListAsync()).Should().BeEmpty();
     }
 }

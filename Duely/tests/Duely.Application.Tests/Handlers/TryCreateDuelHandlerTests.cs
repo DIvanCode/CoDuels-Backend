@@ -794,7 +794,7 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Keeps_pending_pair_when_a_user_already_has_an_active_duel()
+    public async Task Creates_unrated_friendly_duel_beside_active_rated_duel()
     {
         var user1 = EntityFactory.MakeUser(1, "u1");
         var user2 = EntityFactory.MakeUser(2, "u2");
@@ -818,9 +818,137 @@ public class TryCreateDuelHandlerTests : ContextBasedTest
         var result = await handler.Handle(new TryCreateDuelCommand(), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
+        (await Context.Duels.AsNoTracking().CountAsync()).Should().Be(2);
+        (await Context.PendingDuels.AsNoTracking().CountAsync()).Should().Be(0);
+        (await Context.OutboxMessages.AsNoTracking().CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Keeps_rated_friendly_pending_when_human_has_active_rated_duel()
+    {
+        var user1 = EntityFactory.MakeUser(1, "u1");
+        var user2 = EntityFactory.MakeUser(2, "u2");
+        Context.Users.AddRange(user1, user2);
+        Context.Duels.Add(EntityFactory.MakeDuel(10, user1, user2));
+        Context.PendingDuels.Add(new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = user1,
+            User2 = user2,
+            Configuration = new DuelConfiguration
+            {
+                IsRated = true,
+                MaxDurationMinutes = 30,
+                TasksCount = 1,
+                TasksOrder = DuelTasksOrder.Sequential,
+                TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+                {
+                    ['A'] = new() { Level = 1, Topics = [] }
+                }
+            },
+            IsAccepted = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await Context.SaveChangesAsync();
+
+        var result = await CreateHandler(Context, new TaskiClientSuccessFake(["TASK-2"]))
+            .Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
         (await Context.Duels.AsNoTracking().CountAsync()).Should().Be(1);
-        (await Context.PendingDuels.AsNoTracking().CountAsync()).Should().Be(1);
+        (await Context.PendingDuels.OfType<FriendlyPendingDuel>().CountAsync()).Should().Be(1);
         (await Context.OutboxMessages.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Creates_ranked_duel_beside_active_unrated_duel()
+    {
+        var user1 = EntityFactory.MakeUser(1, "u1");
+        var user2 = EntityFactory.MakeUser(2, "u2");
+        var activeDuel = EntityFactory.MakeDuel(10, user1, user2);
+        activeDuel.Configuration.IsRated = false;
+        Context.Users.AddRange(user1, user2);
+        Context.Duels.Add(activeDuel);
+        Context.PendingDuels.AddRange(
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = user1,
+                Rating = user1.Rating,
+                CreatedAt = DateTime.UtcNow.AddSeconds(-3)
+            },
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = user2,
+                Rating = user2.Rating,
+                CreatedAt = DateTime.UtcNow.AddSeconds(-3)
+            });
+        await Context.SaveChangesAsync();
+
+        var result = await CreateHandler(Context, new TaskiClientSuccessFake(["TASK-2"]))
+            .Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        (await Context.Duels.AsNoTracking().CountAsync()).Should().Be(2);
+        (await Context.PendingDuels.OfType<RankedPendingDuel>().CountAsync()).Should().Be(0);
+        (await Context.Duels.AsNoTracking().CountAsync(d => d.Configuration.IsRated)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Two_rated_invitations_for_one_human_start_in_separate_ticks()
+    {
+        var human = EntityFactory.MakeUser(1, "human");
+        var opponent1 = EntityFactory.MakeUser(2, "opponent1");
+        var opponent2 = EntityFactory.MakeUser(3, "opponent2");
+        var ratedConfiguration = new DuelConfiguration
+        {
+            IsRated = true,
+            MaxDurationMinutes = 30,
+            TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential,
+            TasksConfigurations = new Dictionary<char, DuelTaskConfiguration>
+            {
+                ['A'] = new() { Level = 1, Topics = [] }
+            }
+        };
+        Context.Users.AddRange(human, opponent1, opponent2);
+        Context.PendingDuels.AddRange(
+            new FriendlyPendingDuel
+            {
+                Type = PendingDuelType.Friendly, User1 = human, User2 = opponent1,
+                Configuration = ratedConfiguration, IsAccepted = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new FriendlyPendingDuel
+            {
+                Type = PendingDuelType.Friendly, User1 = human, User2 = opponent2,
+                Configuration = ratedConfiguration, IsAccepted = true,
+                CreatedAt = DateTime.UtcNow.AddSeconds(1)
+            });
+        await Context.SaveChangesAsync();
+
+        var firstTick = await CreateHandler(Context, new TaskiClientSuccessFake(["TASK-1"]))
+            .Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        firstTick.IsSuccess.Should().BeTrue();
+        (await Context.Duels.AsNoTracking().CountAsync()).Should().Be(1);
+        (await Context.PendingDuels.OfType<FriendlyPendingDuel>().CountAsync()).Should().Be(1);
+        (await Context.Duels.AsNoTracking().CountAsync(duel => duel.Configuration.IsRated)).Should().Be(1);
+
+        var firstDuel = await Context.Duels.SingleAsync();
+        firstDuel.Status = DuelStatus.Finished;
+        firstDuel.EndTime = DateTime.UtcNow;
+        await Context.SaveChangesAsync();
+
+        var secondTick = await CreateHandler(Context, new TaskiClientSuccessFake(["TASK-2"]))
+            .Handle(new TryCreateDuelCommand(), CancellationToken.None);
+
+        secondTick.IsSuccess.Should().BeTrue();
+        (await Context.Duels.AsNoTracking().CountAsync()).Should().Be(2);
+        (await Context.PendingDuels.OfType<FriendlyPendingDuel>().CountAsync()).Should().Be(0);
+        (await Context.Duels.AsNoTracking().CountAsync(duel => duel.Status == DuelStatus.InProgress && duel.Configuration.IsRated))
+            .Should().Be(1);
     }
 
     [Fact]

@@ -40,11 +40,12 @@ public sealed class CancelDuelInvitationHandler(Context context)
 
         var friendlyPendingDuel = await context.PendingDuels.OfType<FriendlyPendingDuel>()
             .Include(d => d.Configuration)
-            .SingleOrDefaultAsync(d =>
+            .Where(d =>
                     d.User1.Id == user.Id && d.User2.Id == opponent.Id &&
                     ((command.ConfigurationId == null && d.Configuration == null) ||
-                     (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)),
-                cancellationToken);
+                     (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)))
+            .OrderBy(d => d.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         if (friendlyPendingDuel is null)
         {
             return Result.Ok();

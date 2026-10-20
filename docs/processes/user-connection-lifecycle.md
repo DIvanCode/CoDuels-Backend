@@ -12,7 +12,7 @@ reconnect grace period expires.
 
 - Authenticated user/Frontend and `UsersController`.
 - Ticket and presence handlers, `UserWebSocketHandler`, and `WebSocketConnectionManager`.
-- `WebSocketMessageSender`, `CancelPendingDuelsHandler`, and all pending types.
+- `WebSocketMessageSender`, disconnect-only `CancelPendingDuelsHandler`, and all pending types.
 - ASP.NET request cancellation and the process-local in-memory connection map.
 
 ## 3. Triggers
@@ -98,6 +98,8 @@ local socket. That command:
 `LastSeenAt` is a durable timestamp, not a persistent online/offline property.
 Physical close, map removal, timestamp persistence, and business cleanup are
 distinct effects.
+The explicit `POST /duels/cancel` endpoint now uses `CancelDuelSearchHandler`
+and removes only Ranked search. It does not invoke this disconnect cleanup.
 
 If the current socket's `CloseAsync` throws in `finally`, the handler logs the
 failure and attempts `Abort`; map removal and the business-cleanup decision then

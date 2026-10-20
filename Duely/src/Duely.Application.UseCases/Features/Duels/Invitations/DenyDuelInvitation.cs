@@ -41,11 +41,12 @@ public sealed class DenyDuelInvitationHandler(Context context)
 
         var friendlyPendingDuel = await context.PendingDuels.OfType<FriendlyPendingDuel>()
             .Include(d => d.Configuration)
-            .SingleOrDefaultAsync(d =>
+            .Where(d =>
                     d.User1.Id == opponent.Id && d.User2.Id == user.Id &&
                     ((command.ConfigurationId == null && d.Configuration == null) ||
-                     (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)),
-                cancellationToken);
+                     (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)))
+            .OrderBy(d => d.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         if (friendlyPendingDuel is null)
         {
             return new EntityNotFoundError(nameof(FriendlyPendingDuel), nameof(User.Id), command.UserId);

@@ -1,4 +1,5 @@
 using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Tournaments;
 using Duely.Domain.Services.Duels;
 using FluentAssertions;
@@ -183,6 +184,102 @@ public sealed class DuelManagerTournamentTests
         };
 
         new DuelManager().GetPairs(pending).Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Unrated_pairs_can_share_a_human_with_a_rated_pair()
+    {
+        var human = MakeUser(1, "human");
+        var opponents = Enumerable.Range(2, 4).Select(id => MakeUser(id, $"u{id}")).ToArray();
+        var tournament = new GroupStageTournament
+        {
+            Id = 10,
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = new Duely.Domain.Models.Groups.Group { Id = 1, Name = "group" },
+            CreatedBy = human,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.GroupStage
+        };
+        var pending = new List<PendingDuel>
+        {
+            new FriendlyPendingDuel
+            {
+                Id = 1, Type = PendingDuelType.Friendly, User1 = human, User2 = opponents[0],
+                Configuration = null,
+                IsAccepted = true, CreatedAt = DateTime.UtcNow
+            },
+            new GroupPendingDuel
+            {
+                Id = 2, Type = PendingDuelType.Group, Group = tournament.Group,
+                CreatedBy = human, User1 = human, User2 = opponents[1],
+                Configuration = null,
+                IsAcceptedByUser1 = true, IsAcceptedByUser2 = true, CreatedAt = DateTime.UtcNow
+            },
+            new TournamentPendingDuel
+            {
+                Id = 3, Type = PendingDuelType.Tournament, Tournament = tournament,
+                User1 = human, User2 = opponents[2],
+                Configuration = new DuelConfiguration { IsRated = true },
+                IsAcceptedByUser1 = true, IsAcceptedByUser2 = true, CreatedAt = DateTime.UtcNow
+            },
+            new RankedPendingDuel
+            {
+                Id = 4, Type = PendingDuelType.Ranked, User = human,
+                Rating = human.Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-10)
+            },
+            new RankedPendingDuel
+            {
+                Id = 5, Type = PendingDuelType.Ranked, User = opponents[3],
+                Rating = opponents[3].Rating, CreatedAt = DateTime.UtcNow.AddSeconds(-10)
+            }
+        };
+
+        var pairs = new DuelManager().GetPairs(pending).ToList();
+
+        pairs.Should().HaveCount(3);
+        pairs.Select(pair => pair.IsRated).Should().Equal(false, false, true);
+        pairs.Should().NotContain(pair => pair.UsedPendingDuels.Any(duel => duel.Type == PendingDuelType.Ranked));
+    }
+
+    [Fact]
+    public void Only_one_rated_configuration_pair_is_selected_for_each_human()
+    {
+        var human = MakeUser(1, "human");
+        var opponents = Enumerable.Range(2, 3).Select(id => MakeUser(id, $"u{id}")).ToArray();
+        var tournament = new GroupStageTournament
+        {
+            Id = 10, Name = "Cup", Status = TournamentStatus.InProgress,
+            Group = new Duely.Domain.Models.Groups.Group { Id = 1, Name = "group" },
+            CreatedBy = human, CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.GroupStage
+        };
+        var ratedConfiguration = new DuelConfiguration { IsRated = true };
+        var pending = new List<PendingDuel>
+        {
+            new FriendlyPendingDuel
+            {
+                Id = 1, Type = PendingDuelType.Friendly, User1 = human, User2 = opponents[0],
+                Configuration = ratedConfiguration, IsAccepted = true, CreatedAt = DateTime.UtcNow
+            },
+            new GroupPendingDuel
+            {
+                Id = 2, Type = PendingDuelType.Group, Group = tournament.Group,
+                CreatedBy = human, User1 = human, User2 = opponents[1],
+                Configuration = ratedConfiguration,
+                IsAcceptedByUser1 = true, IsAcceptedByUser2 = true, CreatedAt = DateTime.UtcNow
+            },
+            new TournamentPendingDuel
+            {
+                Id = 3, Type = PendingDuelType.Tournament, Tournament = tournament,
+                User1 = human, User2 = opponents[2], Configuration = ratedConfiguration,
+                IsAcceptedByUser1 = true, IsAcceptedByUser2 = true, CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        var pairs = new DuelManager().GetPairs(pending).ToList();
+
+        pairs.Should().ContainSingle().Which.UsedPendingDuels.Should().ContainSingle().Which.Id.Should().Be(1);
     }
 
     private static TournamentPendingDuel MakeTournamentPending(

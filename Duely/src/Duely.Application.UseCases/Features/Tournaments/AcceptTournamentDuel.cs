@@ -1,9 +1,6 @@
 using Duely.Application.Services.Errors;
 using Duely.Domain.Models;
 using Duely.Domain.Models.Duels.Pending;
-using Duely.Domain.Models.Messages;
-using Duely.Domain.Models.Outbox;
-using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
 using MediatR;
@@ -28,40 +25,6 @@ public sealed class AcceptTournamentDuelHandler(Context context)
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
-        }
-
-        if (!user.IsBot)
-        {
-            var rankedPendingDuel = await context.PendingDuels.OfType<RankedPendingDuel>()
-                .SingleOrDefaultAsync(d => d.User.Id == command.UserId, cancellationToken);
-            if (rankedPendingDuel is not null)
-            {
-                context.PendingDuels.Remove(rankedPendingDuel);
-            }
-        }
-
-        var outgoingFriendlyPendingDuel = await context.PendingDuels.OfType<FriendlyPendingDuel>()
-            .Include(d => d.User2)
-            .Include(d => d.Configuration)
-            .SingleOrDefaultAsync(d => d.User1.Id == command.UserId, cancellationToken);
-        if (outgoingFriendlyPendingDuel is not null)
-        {
-            context.PendingDuels.Remove(outgoingFriendlyPendingDuel);
-
-            context.OutboxMessages.Add(new OutboxMessage
-            {
-                Type = OutboxType.SendMessage,
-                Payload = new SendMessagePayload
-                {
-                    UserId = user.Id,
-                    Message = new DuelInvitationCanceledMessage
-                    {
-                        OpponentNickname = outgoingFriendlyPendingDuel.User2.Nickname,
-                        ConfigurationId = outgoingFriendlyPendingDuel.Configuration?.Id
-                    }
-                },
-                RetryUntil = DateTime.UtcNow.AddMinutes(5)
-            });
         }
 
         var tournamentPendingDuel = await context.PendingDuels.OfType<TournamentPendingDuel>()

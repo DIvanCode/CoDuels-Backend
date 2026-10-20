@@ -142,7 +142,7 @@ public sealed class DuelsController(
     [HttpPost("cancel")]
     public async Task<ActionResult> CancelPendingAsync(CancellationToken cancellationToken)
     {
-        var command = new CancelPendingDuelsCommand
+        var command = new CancelDuelSearchCommand
         {
             UserId = userContext.UserId
         };

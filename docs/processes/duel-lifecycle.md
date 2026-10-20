@@ -29,17 +29,19 @@ notifications and anti-cheat work.
   configured key.
 - No database constraint enforces distinct users or one active duel per user.
   The maker locks both user rows in stable id order and re-checks persisted
-  state inside the pair transaction. An active duel blocks ordinary human
-  pairs, but tournament pairs and bots can start in parallel.
+  state inside the pair transaction. For humans, only another active rated duel
+  blocks a new rated duel. Unrated duels can run in parallel without a global
+  slot limit. Bots remain available even with active rated duels.
 
 ## 5. Current behavior
 
 ### Selection and task assignment
 
-One maker invocation selects every non-conflicting accepted Friendly pair, then
-Group, then Tournament, plus at most one Ranked pair. `usedUsers` prevents a human
-appearing twice in that in-memory selection; a bot can be selected for Tournament
-and Ranked pairs in one tick. For a pending row without a
+One maker invocation selects accepted Friendly pairs, then Group, then Tournament,
+plus at most one Ranked pair. In-memory selection allows a human in multiple
+unrated pairs and at most one rated pair. A bot can be selected for multiple
+pairs in one tick. A participant cannot be selected twice in the same tournament.
+For a pending row without a
 configuration, the maker creates a one-task sequential configuration: Ranked is
 rated, other types unrated, opponent solution visibility is enabled, duration is
 the configured default, and level derives from current average rating.
@@ -55,8 +57,10 @@ level proximity, guides selection.
 
 For each selected pair, the maker opens a transaction, locks both users and the
 selected pending rows, reloads the typed pending state, and re-runs readiness.
-For non-tournament pairs it rejects active human participants. Tournament pairs
-can start while either participant has another active duel. It then sets `StartTime`,
+For a rated pair it rejects a human participant with an active duel whose actual
+`Duel.Configuration.IsRated` is true. A ready unrated pair can start beside any
+other duel. Tournament pairs also require that neither participant has an active
+match in that tournament. It then sets `StartTime`,
 `DeadlineTime`, current initial ratings, empty solution dictionaries, and status
 `InProgress`. The selected pending deletion, duel, optional `GroupDuel` link or
 Tournament attachment, and both `DuelStarted` outbox rows commit together. Two
@@ -164,8 +168,8 @@ an offline socket or duplicated by outbox replay.
 
 - Multiple maker instances can select the same snapshot, but user and pending
   row locks serialize their transactional revalidation.
-- Surviving ordinary pending rows are skipped while a human participant has an
-  active duel. Tournament rows and bots remain eligible.
+- Surviving rated pending rows wait while a human participant has an active
+  rated duel. Other active duels and pending types do not reserve a global slot.
 - Cancellation/reset committed before the locked reload prevents creation;
   cancellation that needs the same rows waits for the current transaction.
 - Two finish handlers can load the same duel, but user-row and duel-row locks
@@ -221,8 +225,6 @@ invocation, and anti-cheat row/action creation. Finisher concurrency is not cove
 
 ## 15. Open questions
 
-- Should ordinary duel types eventually be allowed to start for humans already
-  in another active duel?
 - Should solution updates be allowed for finished or hidden tasks?
 - What timeout resolves permanently Running submissions?
 - Should an early partial Accepted candidate be excluded until it can finish?

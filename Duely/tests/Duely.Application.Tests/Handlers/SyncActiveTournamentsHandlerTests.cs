@@ -133,7 +133,7 @@ public sealed class SyncActiveTournamentsHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Schedules_human_with_active_duel_and_bot_with_ranked_search()
+    public async Task Schedules_human_with_active_duel_and_ranked_search_and_bot_with_ranked_search()
     {
         var creator = EntityFactory.MakeUser(1, "creator");
         var human = EntityFactory.MakeUser(2, "human");
@@ -159,13 +159,21 @@ public sealed class SyncActiveTournamentsHandlerTests : ContextBasedTest
         Context.Users.AddRange(creator, human, bot, other);
         Context.Tournaments.Add(tournament);
         Context.Duels.Add(EntityFactory.MakeDuel(10, human, other));
-        Context.PendingDuels.Add(new RankedPendingDuel
-        {
-            Type = PendingDuelType.Ranked,
-            User = bot,
-            Rating = bot.Rating,
-            CreatedAt = DateTime.UtcNow
-        });
+        Context.PendingDuels.AddRange(
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = bot,
+                Rating = bot.Rating,
+                CreatedAt = DateTime.UtcNow
+            },
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = human,
+                Rating = human.Rating,
+                CreatedAt = DateTime.UtcNow
+            });
         await Context.SaveChangesAsync();
 
         var handler = new SyncActiveTournamentsHandler(
@@ -179,6 +187,6 @@ public sealed class SyncActiveTournamentsHandlerTests : ContextBasedTest
 
         result.IsSuccess.Should().BeTrue();
         (await Context.PendingDuels.OfType<TournamentPendingDuel>().CountAsync()).Should().Be(1);
-        (await Context.PendingDuels.OfType<RankedPendingDuel>().CountAsync()).Should().Be(1);
+        (await Context.PendingDuels.OfType<RankedPendingDuel>().CountAsync()).Should().Be(2);
     }
 }

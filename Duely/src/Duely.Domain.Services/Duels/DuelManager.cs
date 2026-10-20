@@ -28,7 +28,7 @@ public sealed class DuelManager : IDuelManager
         }
 
         var pairs = new List<DuelPair>();
-        var usedUsers = new HashSet<int>();
+        var usedRatedUsers = new HashSet<int>();
         var usedTournamentUsers = new HashSet<(int TournamentId, int UserId)>();
 
         foreach (var duel in pendingDuels.OfType<FriendlyPendingDuel>().OrderBy(p => p.Id))
@@ -38,7 +38,10 @@ public sealed class DuelManager : IDuelManager
                 continue;
             }
 
-            if (usedUsers.Contains(duel.User1.Id) || usedUsers.Contains(duel.User2.Id))
+            var isRated = duel.Configuration?.IsRated ?? false;
+            if (isRated &&
+                ((!duel.User1.IsBot && usedRatedUsers.Contains(duel.User1.Id)) ||
+                 (!duel.User2.IsBot && usedRatedUsers.Contains(duel.User2.Id))))
             {
                 continue;
             }
@@ -47,11 +50,14 @@ public sealed class DuelManager : IDuelManager
                 duel.User1,
                 duel.User2,
                 duel.Configuration,
-                duel.Configuration?.IsRated ?? false,
+                isRated,
                 [duel]));
 
-            usedUsers.Add(duel.User1.Id);
-            usedUsers.Add(duel.User2.Id);
+            if (isRated)
+            {
+                if (!duel.User1.IsBot) usedRatedUsers.Add(duel.User1.Id);
+                if (!duel.User2.IsBot) usedRatedUsers.Add(duel.User2.Id);
+            }
         }
 
         foreach (var duel in pendingDuels.OfType<GroupPendingDuel>().OrderBy(p => p.Id))
@@ -61,7 +67,10 @@ public sealed class DuelManager : IDuelManager
                 continue;
             }
 
-            if (usedUsers.Contains(duel.User1.Id) || usedUsers.Contains(duel.User2.Id))
+            var isRated = duel.Configuration?.IsRated ?? false;
+            if (isRated &&
+                ((!duel.User1.IsBot && usedRatedUsers.Contains(duel.User1.Id)) ||
+                 (!duel.User2.IsBot && usedRatedUsers.Contains(duel.User2.Id))))
             {
                 continue;
             }
@@ -70,11 +79,14 @@ public sealed class DuelManager : IDuelManager
                 duel.User1,
                 duel.User2,
                 duel.Configuration,
-                duel.Configuration?.IsRated ?? false,
+                isRated,
                 [duel]));
 
-            usedUsers.Add(duel.User1.Id);
-            usedUsers.Add(duel.User2.Id);
+            if (isRated)
+            {
+                if (!duel.User1.IsBot) usedRatedUsers.Add(duel.User1.Id);
+                if (!duel.User2.IsBot) usedRatedUsers.Add(duel.User2.Id);
+            }
         }
 
         foreach (var duel in pendingDuels.OfType<TournamentPendingDuel>().OrderBy(p => p.Id))
@@ -84,8 +96,9 @@ public sealed class DuelManager : IDuelManager
                 continue;
             }
 
-            if ((!duel.User1.IsBot && usedUsers.Contains(duel.User1.Id)) ||
-                (!duel.User2.IsBot && usedUsers.Contains(duel.User2.Id)) ||
+            var isRated = duel.Configuration?.IsRated ?? false;
+            if ((isRated && !duel.User1.IsBot && usedRatedUsers.Contains(duel.User1.Id)) ||
+                (isRated && !duel.User2.IsBot && usedRatedUsers.Contains(duel.User2.Id)) ||
                 usedTournamentUsers.Contains((duel.Tournament.Id, duel.User1.Id)) ||
                 usedTournamentUsers.Contains((duel.Tournament.Id, duel.User2.Id)))
             {
@@ -96,18 +109,21 @@ public sealed class DuelManager : IDuelManager
                 duel.User1,
                 duel.User2,
                 duel.Configuration,
-                duel.Configuration?.IsRated ?? false,
+                isRated,
                 [duel]));
 
-            if (!duel.User1.IsBot) usedUsers.Add(duel.User1.Id);
-            if (!duel.User2.IsBot) usedUsers.Add(duel.User2.Id);
+            if (isRated)
+            {
+                if (!duel.User1.IsBot) usedRatedUsers.Add(duel.User1.Id);
+                if (!duel.User2.IsBot) usedRatedUsers.Add(duel.User2.Id);
+            }
             usedTournamentUsers.Add((duel.Tournament.Id, duel.User1.Id));
             usedTournamentUsers.Add((duel.Tournament.Id, duel.User2.Id));
         }
 
         var candidates = pendingDuels
             .OfType<RankedPendingDuel>()
-            .Where(p => p.User.IsBot || !usedUsers.Contains(p.User.Id))
+            .Where(p => p.User.IsBot || !usedRatedUsers.Contains(p.User.Id))
             .ToList();
         var lateCandidates = candidates
             .Where(p => !p.User.IsBot && (DateTime.UtcNow - p.CreatedAt).TotalSeconds > MaxWaitSeconds)
@@ -145,9 +161,6 @@ public sealed class DuelManager : IDuelManager
             null,
             true,
             [a, b]));
-
-        usedUsers.Add(a.User.Id);
-        usedUsers.Add(b.User.Id);
 
         return pairs;
     }
