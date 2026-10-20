@@ -25,9 +25,14 @@ const (
 )
 
 var aPlusBSolution = strings.TrimSpace(`
+#include <fstream>
 #include <iostream>
 
 int main() {
+    if (std::ifstream("/config/worker.yml").is_open()) {
+        std::cout << "worker configuration is visible\n";
+        return 0;
+    }
     long long a, b;
     std::cin >> a >> b;
     std::cout << a + b << '\n';

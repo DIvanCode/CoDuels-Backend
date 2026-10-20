@@ -2,7 +2,9 @@
 
 The test starts an isolated Taski/Exesh stack, submits a correct C++ A+B
 solution with a random solution ID, and polls Taski's REST API until the last
-stored message is `finish` with the `Accepted` verdict.
+stored message is `finish` with the `Accepted` verdict. The submitted program
+also checks that the worker's mounted configuration is inaccessible; if a run
+job executes outside isolate, the solution produces an incorrect answer.
 
 Coordinator and worker intentionally retain relative filestorage roots to
 exercise the path shape that caused the production failure. Production now

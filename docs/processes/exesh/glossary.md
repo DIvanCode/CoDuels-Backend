@@ -14,12 +14,6 @@ Expected time and memory computed from PostgreSQL histograms for a job's
 time to at least `100ms` and memory to at least `16MB`; without samples it uses
 the configured job limits.
 
-## Chain
-
-A process-local job synthesized by reducing a single-successor path within one
-stage. Its ID, success status, and output are those of the last inner job; time
-is summed and memory is the maximum. Inner jobs share one runtime.
-
 ## Completed result
 
 A worker result retained in the worker's `doneJobs` slice until the next
@@ -50,7 +44,7 @@ using `start_id` and `count`.
 ## Job
 
 An executable node. Submitted types are `compile_cpp`, `compile_go`,
-`run_cpp`, `run_go`, `run_py`, and `check_cpp`; `chain` is synthesized.
+`run_cpp`, `run_go`, `run_py`, and `check_cpp`.
 
 ## Outbox record
 

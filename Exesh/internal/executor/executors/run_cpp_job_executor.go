@@ -24,8 +24,6 @@ type RunCppJobExecutor struct {
 	runtime        runtime.Runtime
 
 	job jobs.Job
-
-	runtimeResourceRegistry *executor.RuntimeResourceRegistry
 }
 
 type RunCppExecutorFactory struct {
@@ -56,87 +54,42 @@ func (f *RunCppExecutorFactory) SupportsType(jobType job.Type) bool {
 }
 
 func (f *RunCppExecutorFactory) Create(jb jobs.Job) (executor.JobExecutor, error) {
-	return f.CreateWithRuntime(jb, nil, executor.NewRuntimeResourceRegistry(8))
-}
-
-func (f *RunCppExecutorFactory) CreateWithRuntime(
-	jb jobs.Job,
-	rt runtime.Runtime,
-	runtimeResourceRegistry *executor.RuntimeResourceRegistry,
-) (executor.JobExecutor, error) {
 	if jb.GetType() != job.RunCpp {
 		return nil, fmt.Errorf("unsupported job type %s for %s executor", jb.GetType(), job.RunCpp)
 	}
-	if runtimeResourceRegistry == nil {
-		runtimeResourceRegistry = executor.NewRuntimeResourceRegistry(8)
-	}
-
 	return &RunCppJobExecutor{
-		log:                     f.log,
-		sourceProvider:          f.sourceProvider,
-		outputProvider:          f.outputProvider,
-		runtimeFactory:          f.runtimeFactory,
-		runtime:                 rt,
-		runtimeResourceRegistry: runtimeResourceRegistry,
-
-		job: jb,
+		log:            f.log,
+		sourceProvider: f.sourceProvider,
+		outputProvider: f.outputProvider,
+		runtimeFactory: f.runtimeFactory,
+		job:            jb,
 	}, nil
 }
 
 func (e *RunCppJobExecutor) Init(ctx context.Context) error {
-	if e.runtime == nil {
-		rt, err := e.runtimeFactory.Create(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to init runtime: %w", err)
-		}
-		e.runtime = rt
+	rt, err := e.runtimeFactory.Create(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to init runtime: %w", err)
 	}
-
-	jb := e.job.AsRunCpp()
-	e.runtimeResourceRegistry.Set(jb.CompiledCode.SourceID, "a.out")
-	e.runtimeResourceRegistry.Set(jb.RunInput.SourceID, "input.txt")
+	e.runtime = rt
 	return nil
 }
 
 func (e *RunCppJobExecutor) PrepareInput(ctx context.Context) error {
 	jb := e.job.AsRunCpp()
 
-	compiledCodePath, unlock, err := e.sourceProvider.Locate(ctx, jb.CompiledCode.SourceID)
-	if err != nil {
-		return fmt.Errorf("failed to get compiled code: %w", err)
-	}
-	defer unlock()
-
-	runInputPath, unlock, err := e.sourceProvider.Locate(ctx, jb.RunInput.SourceID)
-	if err != nil {
-		return fmt.Errorf("failed to get run input: %w", err)
-	}
-	defer unlock()
-
-	compiledCodeRuntimePath, err := e.runtimeResourceRegistry.Get(jb.CompiledCode.SourceID)
-	if err != nil {
-		return fmt.Errorf("failed to get compiled code runtime path: %w", err)
-	}
-	runInputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.RunInput.SourceID)
-	if err != nil {
-		return fmt.Errorf("failed to get run input runtime path: %w", err)
+	if err := copyInputToRuntime(ctx, e.sourceProvider, e.runtime, jb.CompiledCode.SourceID, "a.out"); err != nil {
+		return fmt.Errorf("prepare compiled code: %w", err)
 	}
 
-	if err = e.runtime.CopyToRuntime(ctx, compiledCodePath, compiledCodeRuntimePath); err != nil {
-		return fmt.Errorf("failed to copy compiled code to runtime: %w", err)
-	}
-
-	if err = e.runtime.CopyToRuntime(ctx, runInputPath, runInputRuntimePath); err != nil {
-		return fmt.Errorf("failed to copy run input to runtime: %w", err)
+	if err := copyInputToRuntime(ctx, e.sourceProvider, e.runtime, jb.RunInput.SourceID, "input.txt"); err != nil {
+		return fmt.Errorf("prepare run input: %w", err)
 	}
 
 	return nil
 }
 
 func (e *RunCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
-	if e.runtimeResourceRegistry == nil {
-		return results.Error(e.job, fmt.Errorf("runtime resource registry is not set"))
-	}
 	jb := e.job.AsRunCpp()
 	jobID := jb.GetID()
 
@@ -151,14 +104,8 @@ func (e *RunCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 		}
 	)
 
-	compiledCodeRuntimePath, err := e.runtimeResourceRegistry.Get(jb.CompiledCode.SourceID)
-	if err != nil {
-		return errorResult(fmt.Errorf("failed to get compiled code runtime path: %w", err))
-	}
-	runInputRuntimePath, err := e.runtimeResourceRegistry.Get(jb.RunInput.SourceID)
-	if err != nil {
-		return errorResult(fmt.Errorf("failed to get run input runtime path: %w", err))
-	}
+	compiledCodeRuntimePath := "a.out"
+	runInputRuntimePath := "input.txt"
 
 	runOutputRuntimePath := "output.txt"
 	stderr := bytes.NewBuffer(nil)
@@ -195,8 +142,6 @@ func (e *RunCppJobExecutor) ExecuteCommand(ctx context.Context) results.Result {
 		}
 		return results.NewRunResultRE(jobID, false, usage.ElapsedTime, usage.UsedMemory)
 	}
-
-	executor.RegisterJobOutputRuntimePath(e.runtimeResourceRegistry, jobID, runOutputRuntimePath)
 
 	if !jb.ShowOutput {
 		return results.NewRunResultOK(jobID, true, elapsedTime, usedMemory)
@@ -247,10 +192,7 @@ func (e *RunCppJobExecutor) SaveOutput(ctx context.Context, res *results.Result)
 		_, _ = abortOutput()
 	}()
 
-	runOutputRuntimePath, err := executor.GetJobOutputRuntimePath(e.runtimeResourceRegistry, e.job.GetID())
-	if err != nil {
-		return fmt.Errorf("failed to get run_output runtimePath: %w", err)
-	}
+	runOutputRuntimePath := "output.txt"
 	if err = e.runtime.CopyFromRuntime(ctx, runOutputRuntimePath, runOutput); err != nil {
 		return fmt.Errorf("failed to copy run_output from runtime: %w", err)
 	}

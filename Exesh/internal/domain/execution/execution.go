@@ -48,9 +48,6 @@ func NewExecution(def Definition) *Execution {
 }
 
 func (ex *Execution) BuildGraph() {
-	for _, stage := range ex.Stages {
-		stage.Jobs = reduceStageJobs(stage.Jobs)
-	}
 	ex.graph = newGraph(ex.Stages)
 }
 

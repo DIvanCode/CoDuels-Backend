@@ -9,7 +9,6 @@ import (
 	"exesh/internal/domain/execution/job"
 	"exesh/internal/domain/execution/job/jobs"
 	"exesh/internal/domain/execution/message/messages"
-	"exesh/internal/domain/execution/result"
 	"exesh/internal/domain/execution/result/results"
 	"exesh/internal/domain/execution/source/sources"
 	"fmt"
@@ -256,14 +255,7 @@ func (s *ExecutionScheduler) scheduleJob(ex *Execution, jb jobs.Job) error {
 	}
 
 	jobID := jb.GetID()
-	logArgs := []any{
-		slog.String("job", jobID.String()),
-		slog.String("type", string(jb.GetType())),
-	}
-	if jb.GetType() == job.Chain {
-		logArgs = append(logArgs, slog.Int("chain_jobs", len(jb.AsChain().Jobs)))
-	}
-	s.log.Info("schedule job", logArgs...)
+	s.log.Info("schedule job", slog.String("job", jobID.String()), slog.String("type", string(jb.GetType())))
 
 	scheduledJob := &Job{Job: jb}
 	scheduledJob.Sources = func(ctx context.Context) ([]sources.Source, error) {
@@ -402,37 +394,30 @@ func (s *ExecutionScheduler) doneJob(ctx context.Context, ex *Execution, jb jobs
 			return fmt.Errorf("failed to get execution for update from storage: not found")
 		}
 
-		jobResults := []results.Result{res}
-		if res.GetType() == result.Chain {
-			jobResults = res.AsChain().Results
+		jobDef, ok := ex.JobDefinitionByID[res.GetJobID()]
+		if !ok {
+			resultJobID := res.GetJobID()
+			return fmt.Errorf("failed to find job definition by id: %s", resultJobID.String())
 		}
 
-		for _, jobRes := range jobResults {
-			jobDef, ok := ex.JobDefinitionByID[jobRes.GetJobID()]
-			if !ok {
-				jobResID := jobRes.GetJobID()
-				return fmt.Errorf("failed to find job definition by id: %s", jobResID.String())
+		if s.categoryStats != nil {
+			if err = s.categoryStats.UpdateCategoryHistogram(
+				ctx,
+				jobDef.GetCategoryName(),
+				res.GetElapsedTime(),
+				res.GetUsedMemory(),
+			); err != nil {
+				return fmt.Errorf("failed to update category histogram: %w", err)
 			}
+		}
 
-			if s.categoryStats != nil {
-				if err = s.categoryStats.UpdateCategoryHistogram(
-					ctx,
-					jobDef.GetCategoryName(),
-					jobRes.GetElapsedTime(),
-					jobRes.GetUsedMemory(),
-				); err != nil {
-					return fmt.Errorf("failed to update category histogram: %w", err)
-				}
-			}
+		msg, msgErr := s.messageFactory.CreateForJob(ex.ID, jobDef.GetName(), res)
+		if msgErr != nil {
+			return fmt.Errorf("failed to create message for job: %w", msgErr)
+		}
 
-			msg, msgErr := s.messageFactory.CreateForJob(ex.ID, jobDef.GetName(), jobRes)
-			if msgErr != nil {
-				return fmt.Errorf("failed to create message for job: %w", msgErr)
-			}
-
-			if err = s.messageDispatcher.Send(ctx, msg); err != nil {
-				return fmt.Errorf("failed to send message for step: %w", err)
-			}
+		if err = s.messageDispatcher.Send(ctx, msg); err != nil {
+			return fmt.Errorf("failed to send message for step: %w", err)
 		}
 
 		ex.DoneJob(jobID, res.GetStatus())

@@ -44,10 +44,8 @@ must still be registered with more than one minute remaining before trash time.
 6. Output reservation uses bucket ID equal to job ID and configured filename
    (`bin` or `output`) with a five-minute TTL. Commit records filestorage's
    trash timestamp in the result.
-7. On heartbeat, the coordinator records `jobID -> trashTime` under the
-   reporting worker. Chain inner results advertise only outputs still marked
-   `HasOutput`; non-last inner outputs are deliberately set false and stay only
-   inside the shared runtime.
+7. On heartbeat, the coordinator records each output-bearing result's
+   `jobID -> trashTime` under the reporting worker.
 8. A dependent job resolves its producer through all live worker artifact maps.
    Entries with less than one minute before expiry are removed; one remaining
    worker is chosen randomly. The descriptor uses the selected worker ID as its

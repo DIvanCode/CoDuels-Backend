@@ -21,7 +21,7 @@ execution failure callback.
 
 Coordinator memory must still contain the started job and execution object.
 For normal completion, result type/status must be supported by message factory,
-and chain inner result IDs must map to definitions. PostgreSQL must contain the
+and the result job ID must map to a definition. PostgreSQL must contain the
 execution row.
 
 ## Current behavior
@@ -32,14 +32,13 @@ execution row.
    calls `finishExecution(error)`. It does not update the graph, category
    histograms, or emit a job-type business message.
 3. A non-error result opens one transaction and locks the execution row `FOR
-   UPDATE`. Chain results expand to their executed inner results; normal results
-   form a one-element list.
-4. For every result, it increments both category histograms and creates a
-   type-specific history/outbox message. Compile supports OK/CE, run uses status
+   UPDATE`.
+4. It increments category histograms and creates a type-specific
+   history/outbox message. Compile supports OK/CE, run uses status
    and optional output, and check uses status. An unknown status/type is an
    internal error.
-5. Still inside the transaction, the process-local graph marks the outer job
-   done using the outer result status. It then calls `SetScheduled` on the
+5. Still inside the transaction, the process-local graph marks the job
+   done using the result status. It then calls `SetScheduled` on the
    separately loaded durable definition, incrementing `tries` and refreshing
    `scheduled_at`, saves it, and commits.
 6. After commit, graph-ready jobs enter scheduler FIFOs. If the graph is done,
@@ -121,8 +120,8 @@ job requeue or durable dead-letter status exists.
 | `check` | execution ID, job name, status | Each executed check result | History; optional outbox |
 | `finish` | execution ID, optional internal error | Terminal path | History; optional outbox |
 
-`start` is emitted by scheduling, not completion. A chain can emit several job
-messages in one transaction but only for inner results actually executed.
+`start` is emitted by scheduling, not completion. Each completed job emits
+its own type-specific message in its result transaction.
 
 ## Observability
 
@@ -150,8 +149,8 @@ computation or completion across failure/restart.
 ## Open questions
 
 Should histogram/history/storage failure change a verdict into execution error?
-Should a domain failure finish successfully? Which inner chain messages are
-contractually required? How is terminal idempotency defined? See
+Should a domain failure finish successfully? How is terminal idempotency
+defined? See
 [Open questions](open-questions.md).
 
 ## Proposed requirements
@@ -168,7 +167,7 @@ contractually required? How is terminal idempotency defined? See
 - **Existing tests / covered scenarios:** scheduler regressions in
   `Exesh/internal/scheduler/job_scheduler_test.go`; see
   [Dashboard retirement](dashboard-retirement.md#verification) for coverage.
-- **Missing scenarios:** graph unlock/cancel, chains, database atomicity,
+- **Missing scenarios:** graph unlock/cancel, database atomicity,
   duplicates across restart, concurrent finish, and status/message consistency.
 - **Required integration tests:** real PostgreSQL result batches and graph
   progress through every verdict and successful/error finish.

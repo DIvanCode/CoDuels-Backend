@@ -20,8 +20,6 @@ func Error(jb jobs.Job, err error) Result {
 		return NewCheckResultErr(jb.GetID(), err.Error(), 0, 0)
 	case job.RunCpp, job.RunGo, job.RunPy:
 		return NewRunResultErr(jb.GetID(), err.Error(), 0, 0)
-	case job.Chain:
-		return NewChainResultErr(jb.GetID(), err.Error(), nil)
 	default:
 		return NewUnknownResultErr(jb.GetID(), err.Error())
 	}
@@ -48,8 +46,6 @@ func (res *Result) UnmarshalJSON(data []byte) error {
 		res.IResult = &RunResult{}
 	case result.Check:
 		res.IResult = &CheckResult{}
-	case result.Chain:
-		res.IResult = &ChainResult{}
 	case result.Unknown:
 		res.IResult = &UnknownResult{}
 	default:
@@ -77,8 +73,4 @@ func (res *Result) AsCheck() *CheckResult {
 
 func (res *Result) AsUnknown() *UnknownResult {
 	return res.IResult.(*UnknownResult)
-}
-
-func (res *Result) AsChain() *ChainResult {
-	return res.IResult.(*ChainResult)
 }

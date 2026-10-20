@@ -38,7 +38,7 @@ minimum, so the estimate can exceed the submitted limit. Execution weight is
 the sum of `expectedTime * expectedMemory` over all submitted definitions.
 
 The scheduler wrapper computes total expected time by iterating `JobByName`;
-duplicate names across stages collapse in that map. After each outer job/chain
+duplicate names across stages collapse in that map. After each job
 completion it adds that job's expected time to done expected time. At a worker
 request time `now`, exact priority is:
 
