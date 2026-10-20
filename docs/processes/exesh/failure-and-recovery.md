@@ -92,7 +92,8 @@ distributed commit. Filesystem operations never share atomicity with PostgreSQL.
 
 ## Idempotency and duplicate handling
 
-Deterministic IDs and existing-file handling reduce some file duplication.
+Source IDs and existing-file handling reduce some file duplication; job IDs
+and output buckets are fresh for each factory materialization.
 Started-result removal ignores simple redelivery. No durable idempotency covers
 submission, execution attempts, job commands, samples, messages, finish, or
 Kafka. Recovery is replay and can duplicate all of them; consumer-side cursor or
@@ -101,7 +102,8 @@ Kafka-key dedupe is external.
 ## Concurrency and races
 
 Stale selection can overlap a live attempt on the same or another coordinator.
-Old callbacks and new attempts share deterministic job IDs without fencing.
+Old and new attempts have distinct job IDs, but callbacks are not fenced against
+shared durable execution state.
 Worker removal races result/artifact handling. Concurrent terminal callbacks can
 double finish/weight decrement. Multiple coordinators serialize short DB claims
 and outbox rows but have independent capacity/workers/graphs and can exceed
@@ -205,6 +207,6 @@ sequenceDiagram
     New-->>W: HTTP OK; result ignored
     New->>DB: after retry threshold, claim scheduled row
     New->>New: rebuild graph from zero
-    New-->>W: job attempt B with same deterministic job ID
-    Note over DB,W: history/samples/artifacts may repeat
+    New-->>W: job attempt B with fresh job ID and output bucket
+    Note over DB,W: history and samples may repeat; artifacts remain separate
 ```

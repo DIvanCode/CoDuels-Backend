@@ -41,7 +41,8 @@ must still be registered with more than one minute remaining before trash time.
    `SourceProvider` separately records source ID -> bucket/file in a heap map.
 5. Executors locate inputs through that map; filestorage extends the bucket TTL
    and holds read locks until copy completes.
-6. Output reservation uses bucket ID equal to job ID and configured filename
+6. Each factory materialization gives its jobs fresh IDs. Output reservation
+   uses bucket ID equal to that attempt's job ID and configured filename
    (`bin` or `output`) with a five-minute TTL. Commit records filestorage's
    trash timestamp in the result.
 7. On heartbeat, the coordinator records each output-bearing result's
@@ -88,12 +89,13 @@ artifact after coordinator restart.
 
 ## Idempotency and duplicate handling
 
-Deterministic IDs and filestorage existing-file behavior make repeated downloads
-and output saves partially reusable. For inline sources, if the file already
-exists, `SaveSource` returns before re-adding the source to the provider map;
+Source IDs and filestorage existing-file behavior make repeated downloads
+partially reusable. For inline sources, if the file already exists,
+`SaveSource` returns before re-adding the source to the provider map;
 after a worker-process restart with surviving files, the source can therefore
-still be unlocatable. Repeated artifact output can reuse a previous attempt's
-file. Repeated advertisements overwrite expiry for the same worker/job.
+still be unlocatable. A replay gets fresh job IDs and artifact buckets, so its
+downstream jobs cannot select an earlier attempt's output. Repeated
+advertisements within one attempt overwrite expiry for the same worker/job.
 
 ## Concurrency and races
 
@@ -143,16 +145,17 @@ does not distinguish artifact loss from other internal errors.
 ## Current guarantees
 
 While a filestorage read lock is held, its trasher cannot remove that bucket;
-successful locate extends TTL. A committed output has a deterministic bucket ID
-and configured file name. The coordinator refuses locations within one minute
+successful locate extends TTL. A committed output has a bucket ID derived from
+its attempt-specific job ID and a configured file name. The coordinator refuses
+locations within one minute
 of recorded expiry. There is no guarantee of a surviving copy or recoverable
 location across process/container failure.
 
 ## Open questions
 
 Who owns artifact durability through downstream completion? Is one replica
-acceptable? Should stale replay reuse prior artifacts? Are source endpoints
-trusted/allow-listed? What should happen on output commit uncertainty? See
+acceptable? Are source endpoints trusted/allow-listed? What should happen on
+output commit uncertainty? See
 [Open questions](open-questions.md).
 
 ## Proposed requirements
@@ -166,8 +169,9 @@ trusted/allow-listed? What should happen on output commit uncertainty? See
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** no Exesh tests; filestorage tests cover
-  its own locks, reserve/download, and eventual TTL deletion.
+- **Existing tests / covered scenarios:** Exesh verifies fresh job and artifact
+  IDs on replay; filestorage tests cover its own locks, reserve/download, and
+  eventual TTL deletion.
 - **Missing scenarios:** source construction/cache registration, artifact
   save/lookup/expiry, duplicate output, worker loss, and cross-worker download.
 - **Required integration tests:** coordinator plus two worker filestores through

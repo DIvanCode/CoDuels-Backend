@@ -38,9 +38,8 @@ execution row.
    and optional output, and check uses status. An unknown status/type is an
    internal error.
 5. Still inside the transaction, the process-local graph marks the job
-   done using the result status. It then calls `SetScheduled` on the
-   separately loaded durable definition, incrementing `tries` and refreshing
-   `scheduled_at`, saves it, and commits.
+   done using the result status. It refreshes `scheduled_at` on the separately
+   loaded durable definition without incrementing `tries`, saves it, and commits.
 6. After commit, graph-ready jobs enter scheduler FIFOs. If the graph is done,
    `finishExecution(nil)` is called. A non-success job status cancels dependent
    jobs/stages but is not an execution error; completion eventually emits a

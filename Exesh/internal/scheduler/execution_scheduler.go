@@ -422,7 +422,7 @@ func (s *ExecutionScheduler) doneJob(ctx context.Context, ex *Execution, jb jobs
 
 		ex.DoneJob(jobID, res.GetStatus())
 
-		e.SetScheduled(time.Now())
+		e.RefreshScheduledAt(time.Now())
 
 		if err = s.executionStorage.SaveExecution(ctx, *e); err != nil {
 			return err

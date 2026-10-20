@@ -51,6 +51,14 @@ func (def *Definition) SetScheduled(scheduledAt time.Time) {
 	def.ScheduledAt = &scheduledAt
 }
 
+func (def *Definition) RefreshScheduledAt(scheduledAt time.Time) {
+	if def.Status != StatusScheduled {
+		return
+	}
+
+	def.ScheduledAt = &scheduledAt
+}
+
 func (def *Definition) SetFinished(finishedAt time.Time) {
 	if def.Status == StatusFinished {
 		return

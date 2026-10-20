@@ -14,6 +14,7 @@ import (
 	"exesh/internal/domain/execution/source/sources"
 	"fmt"
 	"github.com/DIvanCode/filestorage/pkg/bucket"
+	"github.com/google/uuid"
 	"time"
 )
 
@@ -48,6 +49,10 @@ func NewExecutionFactory(
 }
 
 func (f *ExecutionFactory) Create(ctx context.Context, def execution.Definition) (*execution.Execution, error) {
+	attemptID, err := uuid.NewRandom()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create execution attempt id: %w", err)
+	}
 	ex := execution.NewExecution(def)
 
 	categoryStats, err := f.calc.LoadCategoryStats(ctx, def.Stages)
@@ -62,7 +67,7 @@ func (f *ExecutionFactory) Create(ctx context.Context, def execution.Definition)
 	}
 
 	for _, stageDef := range def.Stages {
-		stage, err := f.createStage(ex, stageDef, categoryStats)
+		stage, err := f.createStage(ex, stageDef, categoryStats, attemptID.String())
 		if err != nil {
 			return nil, fmt.Errorf("failed to create stage '%s': %w", stageDef.Name, err)
 		}
@@ -113,6 +118,7 @@ func (f *ExecutionFactory) createStage(
 	ex *execution.Execution,
 	def execution.StageDefinition,
 	categoryStats execution.CategoryStats,
+	attemptID string,
 ) (*execution.Stage, error) {
 	stage := execution.Stage{
 		Name: def.Name,
@@ -121,7 +127,7 @@ func (f *ExecutionFactory) createStage(
 	}
 
 	for _, jobDef := range def.Jobs {
-		jb, err := f.createJob(ex, jobDef, categoryStats)
+		jb, err := f.createJob(ex, jobDef, categoryStats, attemptID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create job '%s': %w", jobDef.GetName(), err)
 		}
@@ -137,10 +143,11 @@ func (f *ExecutionFactory) createJob(
 	ex *execution.Execution,
 	def jobs.Definition,
 	categoryStats execution.CategoryStats,
+	attemptID string,
 ) (jobs.Job, error) {
 	var jb jobs.Job
 
-	id, err := f.calculateJobID(ex.ID.String(), string(def.GetName()))
+	id, err := f.calculateJobID(ex.ID.String(), attemptID, string(def.GetName()))
 	if err != nil {
 		return jb, fmt.Errorf("failed to calculate job '%s' id: %w", def.GetName(), err)
 	}

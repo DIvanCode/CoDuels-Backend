@@ -49,16 +49,16 @@ where `alpha = 10.3174`, `gamma = 1.31`,
 `progress = (now - scheduledAt in milliseconds) / totalExpected`.
 
 Executions are sorted descending. The job scheduler considers only the FIFO
-head of each execution in that order. Despite the method name, `tries` in the
-live object is the value loaded plus the current schedule call; durable `tries`
-also increments on every recognized result, but those increments do not update
-the live wrapper. Zero total time produces division by zero/NaN behavior rather
+head of each execution in that order. `tries` counts scheduling attempts,
+including stale full replays; result processing refreshes `scheduled_at` without
+incrementing it. Zero total time produces division by zero/NaN behavior rather
 than a defined priority.
 
 ## State transitions
 
 Histogram samples accumulate on recognized job results. `tries` moves
-`0 -> 1 -> ...` on scheduling and durable completion refreshes. Progress moves
+`0 -> 1 -> ...` on scheduling; durable completion refreshes `scheduled_at`.
+Progress moves
 conceptually from `0` toward `1`, but can exceed `1` and is not persisted.
 Priority is a derived instantaneous value, not state.
 

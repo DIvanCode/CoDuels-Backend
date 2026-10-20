@@ -33,8 +33,9 @@ factory materialization must succeed.
    LOCKED`. Only one row is examined.
 3. If that row is too heavy, the tick ends without considering later lighter
    rows. A permanently oversized oldest row blocks all following rows.
-4. The factory rebuilds the entire execution. The scheduler stores it in an
-   in-memory map, calls `SetScheduled` (incrementing `tries`), increments
+4. The factory rebuilds the entire execution with fresh job IDs for this
+   attempt, so output bucket IDs cannot collide with a prior attempt. The
+   scheduler stores it in an in-memory map, calls `SetScheduled` (incrementing `tries`), increments
    `nowWeight`, inserts the durable history/outbox `start`, and enqueues graph
    roots.
 5. The updated definition is saved and the transaction commits. Start history,
@@ -42,9 +43,8 @@ factory materialization must succeed.
    and in-memory mutations are not.
 6. Each accepted job completion runs another transaction. It updates category
    histograms, inserts job messages, mutates the process-local graph, loads the
-   durable row `FOR UPDATE`, calls `SetScheduled` again, and saves it. This
-   increments durable `tries` for job completion as well as scheduling and
-   refreshes `scheduled_at`.
+   durable row `FOR UPDATE`, refreshes `scheduled_at` without incrementing
+   `tries`, and saves it.
 7. Ready successors are enqueued after commit. When the graph reports done, or
    an internal result/persistence error occurs, `finishExecution` removes the
    execution from memory and decrements weight before a transaction inserts a
@@ -60,8 +60,8 @@ entry; multiple coordinators have separate maps and capacity counters.
 
 Durable: `Execution: new -> scheduled -> finished`; stale replay performs
 `scheduled -> scheduled` and increments `tries`. Each recognized successful
-job-result transaction also performs `scheduled -> scheduled` and increments
-`tries`. In memory: `absent -> active -> removed`; a replay creates another
+job-result transaction refreshes `scheduled_at` without changing `tries`.
+In memory: `absent -> active -> removed`; a replay creates another
 active object even when earlier callbacks still reference the previous one.
 
 ## State ownership
@@ -89,9 +89,11 @@ job ledger, graph checkpoint, or capacity reservation.
 
 `FOR UPDATE SKIP LOCKED` prevents two transactions from claiming the same row at
 the same instant, not later stale overlap. Start/job/finish messages have no
-semantic deduplication key. Whole-execution replay reuses job IDs but creates new
-history IDs, may repeat computation, and may reuse/overwrite worker artifacts.
-Map overwrite and callbacks from overlapping runs are not fenced by attempt.
+semantic deduplication key. Whole-execution replay creates fresh job and
+history IDs and may repeat computation. Artifact buckets are scoped to the
+factory invocation, so previous attempts cannot supply inputs to a replay.
+Map overwrite and callbacks from overlapping runs are not fenced by a durable
+attempt token.
 
 ## Concurrency and races
 
@@ -153,14 +155,15 @@ Should a heavy head-of-line row block lighter work? See
 ## Proposed requirements
 
 - Persist an attempt/lease owner and fencing token with explicit renewal.
-- Separate scheduling-attempt count from job progress and activity timestamps.
+- Persist a distinct activity timestamp and clarify its lease semantics.
 - Skip oversized rows or give them a terminal/admission outcome.
 - Make finish claim atomic and idempotent per attempt.
 - Define global capacity behavior before allowing multiple coordinators.
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** none in Exesh.
+- **Existing tests / covered scenarios:** factory replay creates fresh job and
+  artifact IDs; domain scheduling timestamp refresh preserves `tries`.
 - **Missing scenarios:** claim SQL, stale overlap, capacity/head-of-line behavior,
   multi-coordinator scheduling, concurrent finish, restart, and weight accounting.
 - **Required integration tests:** real PostgreSQL row locks with two schedulers
