@@ -2,6 +2,7 @@ using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels;
 using Duely.Application.UseCases.Features.Duels.Invitations;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
 using Duely.Domain.Models.Outbox.Payloads;
@@ -79,12 +80,17 @@ public class DenyDuelInvitationHandlerTests : ContextBasedTest
         var u1 = EntityFactory.MakeUser(1, "u1");
         var u2 = EntityFactory.MakeUser(2, "u2");
         ctx.Users.AddRange(u1, u2);
+        var configuration = new DuelConfiguration
+        {
+            Id = 20, MaxDurationMinutes = 30, TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential, TasksConfigurations = []
+        };
         ctx.PendingDuels.Add(new FriendlyPendingDuel
         {
             Type = PendingDuelType.Friendly,
             User1 = u2,
             User2 = u1,
-            Configuration = null,
+            Configuration = configuration,
             IsAccepted = false,
             CreatedAt = DateTime.UtcNow
         });
@@ -95,7 +101,8 @@ public class DenyDuelInvitationHandlerTests : ContextBasedTest
         var res = await handler.Handle(new DenyDuelInvitationCommand
         {
             UserId = u1.Id,
-            OpponentNickname = u2.Nickname
+            OpponentNickname = u2.Nickname,
+            ConfigurationId = 999
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -107,5 +114,6 @@ public class DenyDuelInvitationHandlerTests : ContextBasedTest
         payload.UserId.Should().Be(u2.Id);
         payload.Message.Should().BeOfType<DuelInvitationDeniedMessage>()
             .Which.OpponentNickname.Should().Be(u1.Nickname);
+        ((DuelInvitationDeniedMessage)payload.Message).ConfigurationId.Should().Be(configuration.Id);
     }
 }

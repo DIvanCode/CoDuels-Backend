@@ -1,4 +1,3 @@
-using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Pending;
 using Duely.Infrastructure.DataAccess.EntityFramework;
 using FluentResults;
@@ -22,13 +21,8 @@ public sealed class AddInactiveBotsToRankedSearchHandler(Context context)
             .Where(p => p.User.IsBot)
             .Select(p => p.User.Id)
             .ToHashSetAsync(cancellationToken);
-        var activeBots = await context.Duels
-            .Where(d => d.Status != DuelStatus.Finished && (d.User1.IsBot || d.User2.IsBot))
-            .Select(d => d.User1.IsBot ? d.User1.Id : d.User2.Id)
-            .ToHashSetAsync(cancellationToken);
-        
         var inactiveBots = bots
-            .Where(b => !pendingBots.Contains(b.Id) && !activeBots.Contains(b.Id))
+            .Where(b => !pendingBots.Contains(b.Id))
             .ToList();
         foreach (var bot in inactiveBots)
         {

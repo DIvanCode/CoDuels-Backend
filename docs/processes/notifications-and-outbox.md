@@ -69,8 +69,7 @@ messages remains owned by its process document.
 | `DuelChanged` | Accepted submission | Both participants | Refresh tasks/score | Duel deadline | [Submission](submission-and-testing.md) |
 | `OpponentSolutionUpdated` | Visible live solution update | Opponent | Update live code | Now + 5 min | [Duel lifecycle](duel-lifecycle.md) |
 | `DuelInvitation` | New Friendly invitation | Invitee | Show invitation | Now + 5 min | [Friendly](friendly-duel-invitations.md) |
-| `DuelInvitationCanceled` | Friendly sender cancel, Ranked start, shared outgoing cleanup after final disconnect | Sender and invitee | Close both invitation views | Now + 5 min | Friendly/Ranked/connection |
-| `DuelInvitationCanceled` | Accept Friendly/Group/Tournament removes acceptor's separate outgoing invitation | Acceptor only | Close acceptor's outgoing view | Now + 5 min | Friendly/Group/Tournament |
+| `DuelInvitationCanceled` | Explicit Friendly sender cancel or outgoing cleanup after final disconnect | Sender and invitee | Close both invitation views | Now + 5 min | Friendly/connection |
 | `DuelInvitationDenied` | Friendly deny | Original sender | Report refusal | Now + 5 min | Friendly |
 | `SubmissionStatusUpdated` | First handling of submission event while not Done | Submitter | Update progress/verdict | 10 s nonterminal; 5 min with verdict | Submission |
 | `CodeRunStatusUpdated` | First handling of code-run event while not Done | Owner | Update status/error | Now + 10 s | Code run |

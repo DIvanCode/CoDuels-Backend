@@ -62,20 +62,18 @@ It does not imply that concurrent requests are serialized.
 
 | Trigger | Ranked | Outgoing Friendly | Incoming Friendly | Group | Tournament |
 | --- | --- | --- | --- | --- | --- |
-| Start ranked search | Preserve existing or create one | Delete one; notify both sides | Unchanged | Unchanged | Unchanged |
-| Create Friendly invitation | Delete actor's one Ranked | Preserve if same opponent; otherwise replace and notify both sides | Unchanged | Unchanged | Unchanged |
-| Accept Friendly/Group/Tournament invitation | Delete acceptor's one Ranked | Delete acceptor's one; notify only the acceptor | Target invitation is accepted | Only the target acceptance changes | Only the target acceptance changes |
-| `POST /duels/cancel` or WebSocket cleanup | Delete all for user | Delete all; notify both sides | Keep rows, reset invitee acceptance | Keep rows, reset this user's acceptance | Keep rows, reset this user's acceptance |
+| Start ranked search | Preserve existing or create one | Unchanged | Unchanged | Unchanged | Unchanged |
+| Create Friendly invitation | Unchanged | Preserve all; exact duplicate is idempotent | Unchanged | Unchanged | Unchanged |
+| Accept Friendly/Group/Tournament invitation | Unchanged | Unchanged | Only the target acceptance changes | Only the target acceptance changes | Only the target acceptance changes |
+| `POST /duels/cancel` | Delete caller's rows | Unchanged | Unchanged | Unchanged | Unchanged |
+| Final WebSocket disconnect cleanup | Delete all for user | Delete all; notify both sides | Keep rows, reset invitee acceptance | Keep rows, reset this user's acceptance | Keep rows, reset this user's acceptance |
 | Convert a selected pair to `Duel` | Delete only `UsedPendingDuels` | Other rows remain | Other rows remain | Other rows remain | Other rows remain |
 
-Two qualifications matter:
-
-1. If a ranked row already exists, `StartDuelSearchHandler` returns before
-   saving staged Friendly cleanup. In that combined state, the documented
-   cancellation does not reach the database.
-2. `TryCreateDuelHandler` does not remove other pending rows for the selected
-   users, but it locks both users and skips a pair when either already has an
-   active duel.
+`TryCreateDuelHandler` locks both users and checks for an active rated duel only
+when the new configuration is rated and the participant is human. An unrated
+duel can start alongside any number of active duels. The selected pending rows
+are the only ones removed during creation. Disconnect cleanup remains a
+separate legacy policy.
 
 ## Transaction vocabulary
 

@@ -1,6 +1,7 @@
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Tournaments;
 using Duely.Domain.Models.Duels.Pending;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Groups;
 using Duely.Domain.Models.Messages;
 using Duely.Domain.Models.Outbox;
@@ -129,5 +130,63 @@ public sealed class SyncActiveTournamentsHandlerTests : ContextBasedTest
 
         result.IsSuccess.Should().BeTrue();
         (await Context.PendingDuels.OfType<TournamentPendingDuel>().CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Schedules_human_with_active_duel_and_ranked_search_and_bot_with_ranked_search()
+    {
+        var creator = EntityFactory.MakeUser(1, "creator");
+        var human = EntityFactory.MakeUser(2, "human");
+        var bot = EntityFactory.MakeBot(3, "bot");
+        var other = EntityFactory.MakeUser(4, "other");
+        var tournament = new SingleEliminationBracketTournament
+        {
+            Name = "Cup",
+            Status = TournamentStatus.InProgress,
+            Group = EntityFactory.MakeGroup(1, "Alpha"),
+            CreatedBy = creator,
+            CreatedAt = DateTime.UtcNow,
+            MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket,
+            Nodes =
+            [
+                new SingleEliminationBracketNode(),
+                new SingleEliminationBracketNode { UserId = human.Id, WinnerUserId = human.Id },
+                new SingleEliminationBracketNode { UserId = bot.Id, WinnerUserId = bot.Id }
+            ]
+        };
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = human, Seed = 1 });
+        tournament.Participants.Add(new TournamentParticipant { Tournament = tournament, User = bot, Seed = 2 });
+        Context.Users.AddRange(creator, human, bot, other);
+        Context.Tournaments.Add(tournament);
+        Context.Duels.Add(EntityFactory.MakeDuel(10, human, other));
+        Context.PendingDuels.AddRange(
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = bot,
+                Rating = bot.Rating,
+                CreatedAt = DateTime.UtcNow
+            },
+            new RankedPendingDuel
+            {
+                Type = PendingDuelType.Ranked,
+                User = human,
+                Rating = human.Rating,
+                CreatedAt = DateTime.UtcNow
+            });
+        await Context.SaveChangesAsync();
+
+        var handler = new SyncActiveTournamentsHandler(
+            Context,
+            new TournamentMatchmakingStrategyResolver(new ITournamentMatchmakingStrategy[]
+            {
+                new SingleEliminationBracketMatchmakingStrategy()
+            }),
+            NullLogger<SyncActiveTournamentsHandler>.Instance);
+        var result = await handler.Handle(new SyncActiveTournamentsCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        (await Context.PendingDuels.OfType<TournamentPendingDuel>().CountAsync()).Should().Be(1);
+        (await Context.PendingDuels.OfType<RankedPendingDuel>().CountAsync()).Should().Be(2);
     }
 }

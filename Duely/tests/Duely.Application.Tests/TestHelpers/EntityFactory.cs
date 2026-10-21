@@ -22,6 +22,21 @@ public static class EntityFactory
         };
     }
 
+    public static User MakeBot(int id, string nickname = "bot")
+    {
+        var salt = Guid.NewGuid().ToString("N");
+        return new User
+        {
+            Id = id,
+            Nickname = nickname,
+            PasswordSalt = salt,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("pwd" + salt),
+            Rating = 1500,
+            CreatedAt = DateTime.UtcNow,
+            IsBot = true
+        };
+    }
+
     public static Group MakeGroup(int id, string name = "group")
     {
         return new Group

@@ -1,10 +1,6 @@
 using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
-using Duely.Application.UseCases.Features.Duels;
 using Duely.Application.UseCases.Features.Duels.Search;
-using Duely.Domain.Models.Messages;
-using Duely.Domain.Models.Outbox;
-using Duely.Domain.Models.Outbox.Payloads;
 using Duely.Domain.Models.Duels.Pending;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -13,9 +9,6 @@ namespace Duely.Application.Tests.Handlers;
 
 public class StartDuelSearchHandlerTests : ContextBasedTest
 {
-    private static SendMessagePayload ReadSendPayload(OutboxMessage message)
-        => (SendMessagePayload)message.Payload;
-
     [Fact]
     public async Task NotFound_when_user_missing()
     {
@@ -84,7 +77,7 @@ public class StartDuelSearchHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Success_cancels_friendly_invitation_and_adds_to_rated_search()
+    public async Task Starting_search_preserves_friendly_invitation()
     {
         var ctx = Context;
         var inviter = EntityFactory.MakeUser(1, "inviter");
@@ -110,24 +103,15 @@ public class StartDuelSearchHandlerTests : ContextBasedTest
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        ctx.PendingDuels.OfType<FriendlyPendingDuel>().Should().BeEmpty();
+        ctx.PendingDuels.OfType<FriendlyPendingDuel>().Should().ContainSingle();
         ctx.PendingDuels.OfType<RankedPendingDuel>().Should().ContainSingle(p => p.User.Id == inviter.Id);
 
         var outboxMessages = await ctx.OutboxMessages.AsNoTracking().ToListAsync();
-        outboxMessages.Should().HaveCount(2);
-        outboxMessages.Should().OnlyContain(m => m.Type == OutboxType.SendMessage);
-
-        var inviteePayload = ReadSendPayload(outboxMessages.Single(m => ReadSendPayload(m).UserId == invitee.Id));
-        inviteePayload.Message.Should().BeOfType<DuelInvitationCanceledMessage>()
-            .Which.OpponentNickname.Should().Be(inviter.Nickname);
-
-        var inviterPayload = ReadSendPayload(outboxMessages.Single(m => ReadSendPayload(m).UserId == inviter.Id));
-        inviterPayload.Message.Should().BeOfType<DuelInvitationCanceledMessage>()
-            .Which.OpponentNickname.Should().Be(invitee.Nickname);
+        outboxMessages.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task AlreadyExists_when_user_has_active_duel()
+    public async Task Starting_search_is_allowed_with_active_rated_duel()
     {
         var ctx = Context;
         var user = EntityFactory.MakeUser(1, "u1");
@@ -166,7 +150,7 @@ public class StartDuelSearchHandlerTests : ContextBasedTest
             UserId = user.Id
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityAlreadyExistsError);
+        res.IsSuccess.Should().BeTrue();
+        ctx.PendingDuels.OfType<RankedPendingDuel>().Should().ContainSingle();
     }
 }

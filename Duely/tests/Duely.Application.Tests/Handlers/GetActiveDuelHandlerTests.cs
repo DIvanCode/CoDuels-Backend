@@ -177,4 +177,32 @@ public class GetActiveDuelHandlerTests : ContextBasedTest
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
     }
+
+    [Fact]
+    public async Task Legacy_active_endpoint_returns_newest_when_user_has_parallel_duels()
+    {
+        var user = EntityFactory.MakeUser(1, "user");
+        var opponent1 = EntityFactory.MakeUser(2, "opponent1");
+        var opponent2 = EntityFactory.MakeUser(3, "opponent2");
+        var start = DateTime.UtcNow;
+        Context.Duels.AddRange(
+            EntityFactory.MakeDuel(10, user, opponent1, start: start.AddMinutes(-1)),
+            EntityFactory.MakeDuel(11, user, opponent2, start: start));
+        await Context.SaveChangesAsync();
+
+        var ratingManager = new Mock<IRatingManager>();
+        ratingManager.Setup(m => m.GetRatingChanges(It.IsAny<Duel>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(new Dictionary<DuelResult, int>
+            {
+                [DuelResult.Win] = 10,
+                [DuelResult.Draw] = 0,
+                [DuelResult.Lose] = -10
+            });
+
+        var result = await new GetActiveDuelHandler(Context, ratingManager.Object, new TaskService())
+            .Handle(new GetActiveDuelQuery { UserId = user.Id }, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Id.Should().Be(11);
+    }
 }

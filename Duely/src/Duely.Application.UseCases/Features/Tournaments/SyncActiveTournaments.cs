@@ -34,21 +34,6 @@ public sealed class SyncActiveTournamentsHandler(
             return Result.Ok();
         }
 
-        var activeDuelUserIds = await context.Duels
-            .AsNoTracking()
-            .Where(d => d.Status == Duely.Domain.Models.Duels.DuelStatus.InProgress)
-            .Select(d => d.User1.Id)
-            .Concat(context.Duels
-                .AsNoTracking()
-                .Where(d => d.Status == Duely.Domain.Models.Duels.DuelStatus.InProgress)
-                .Select(d => d.User2.Id))
-            .Distinct()
-            .ToListAsync(cancellationToken);
-        var busyUserIds = activeDuelUserIds.ToHashSet();
-
-        var pendingUsers = await GetPendingUserIdsAsync(cancellationToken);
-        busyUserIds.UnionWith(pendingUsers);
-
         var duelIds = tournaments
             .SelectMany(tournament => strategyResolver
                 .GetStrategy(tournament.MatchmakingType)
@@ -77,6 +62,14 @@ public sealed class SyncActiveTournamentsHandler(
             var tournamentPendingDuels = existingPendingDuels
                 .Where(d => d.Tournament.Id == tournament.Id)
                 .ToList();
+            var tournamentBusyUserIds = tournamentPendingDuels
+                .SelectMany(d => new[] { d.User1.Id, d.User2.Id })
+                .Concat(strategy.GetReferencedDuelIds(tournament)
+                    .Where(duelsById.ContainsKey)
+                    .Select(id => duelsById[id])
+                    .Where(d => d.Status == Duely.Domain.Models.Duels.DuelStatus.InProgress)
+                    .SelectMany(d => new[] { d.User1.Id, d.User2.Id }))
+                .ToHashSet();
 
             foreach (var candidate in strategy.GetPendingDuelCandidates(tournament, duelsById))
             {
@@ -91,7 +84,8 @@ public sealed class SyncActiveTournamentsHandler(
                     continue;
                 }
 
-                if (busyUserIds.Contains(user1.Id) || busyUserIds.Contains(user2.Id))
+                if (tournamentBusyUserIds.Contains(user1.Id) ||
+                    tournamentBusyUserIds.Contains(user2.Id))
                 {
                     continue;
                 }
@@ -149,9 +143,8 @@ public sealed class SyncActiveTournamentsHandler(
                     Configuration = tournament.DuelConfiguration,
                     CreatedAt = DateTime.UtcNow
                 });
-                busyUserIds.Add(user1.Id);
-                busyUserIds.Add(user2.Id);
-
+                tournamentBusyUserIds.Add(user1.Id);
+                tournamentBusyUserIds.Add(user2.Id);
                 logger.LogInformation(
                     "Tournament duel queued. TournamentId = {TournamentId}, Users = {User1}, {User2}",
                     tournament.Id,
@@ -164,50 +157,4 @@ public sealed class SyncActiveTournamentsHandler(
         return Result.Ok();
     }
 
-    private async Task<HashSet<int>> GetPendingUserIdsAsync(CancellationToken cancellationToken)
-    {
-        var userIds = new HashSet<int>();
-
-        var rankedUsers = await context.PendingDuels
-            .OfType<RankedPendingDuel>()
-            .AsNoTracking()
-            .Select(d => d.User.Id)
-            .ToListAsync(cancellationToken);
-        userIds.UnionWith(rankedUsers);
-
-        var friendlyUsers = await context.PendingDuels
-            .OfType<FriendlyPendingDuel>()
-            .AsNoTracking()
-            .Select(d => d.User1.Id)
-            .Concat(context.PendingDuels
-                .OfType<FriendlyPendingDuel>()
-                .AsNoTracking()
-                .Select(d => d.User2.Id))
-            .ToListAsync(cancellationToken);
-        userIds.UnionWith(friendlyUsers);
-
-        var groupUsers = await context.PendingDuels
-            .OfType<GroupPendingDuel>()
-            .AsNoTracking()
-            .Select(d => d.User1.Id)
-            .Concat(context.PendingDuels
-                .OfType<GroupPendingDuel>()
-                .AsNoTracking()
-                .Select(d => d.User2.Id))
-            .ToListAsync(cancellationToken);
-        userIds.UnionWith(groupUsers);
-
-        var tournamentUsers = await context.PendingDuels
-            .OfType<TournamentPendingDuel>()
-            .AsNoTracking()
-            .Select(d => d.User1.Id)
-            .Concat(context.PendingDuels
-                .OfType<TournamentPendingDuel>()
-                .AsNoTracking()
-                .Select(d => d.User2.Id))
-            .ToListAsync(cancellationToken);
-        userIds.UnionWith(tournamentUsers);
-
-        return userIds;
-    }
 }

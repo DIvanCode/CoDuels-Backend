@@ -102,6 +102,17 @@ public sealed class DuelsController(
         return Ok(result);
     }
 
+    [HttpGet("active/ids")]
+    [ProducesResponseType(typeof(ActiveDuelIdsDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ActiveDuelIdsDto>> GetActiveIdsAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new GetActiveDuelIdsQuery { UserId = userContext.UserId },
+            cancellationToken);
+        return Ok(result);
+    }
+
     [HttpGet]
     public async Task<ActionResult<List<DuelDto>>> GetHistoryAsync(
         [FromQuery] int userId,
@@ -131,7 +142,7 @@ public sealed class DuelsController(
     [HttpPost("cancel")]
     public async Task<ActionResult> CancelPendingAsync(CancellationToken cancellationToken)
     {
-        var command = new CancelPendingDuelsCommand
+        var command = new CancelDuelSearchCommand
         {
             UserId = userContext.UserId
         };

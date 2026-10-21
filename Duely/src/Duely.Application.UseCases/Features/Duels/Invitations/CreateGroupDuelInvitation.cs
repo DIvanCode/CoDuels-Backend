@@ -76,28 +76,6 @@ public sealed class CreateGroupDuelInvitationHandler(Context context, IGroupPerm
             return new EntityNotFoundError(nameof(GroupMembership), nameof(User.Id), user2.Id);
         }
 
-        var user1ActiveDuel = await context.Duels
-            .AsNoTracking()
-            .SingleOrDefaultAsync(d =>
-                    d.Status == DuelStatus.InProgress &&
-                    (d.User1.Id == user1.Id || d.User2.Id == user1.Id),
-                cancellationToken);
-        if (user1ActiveDuel is not null)
-        {
-            return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Id), user1.Id);
-        }
-        
-        var user2ActiveDuel = await context.Duels
-            .AsNoTracking()
-            .SingleOrDefaultAsync(d =>
-                    d.Status == DuelStatus.InProgress &&
-                    (d.User1.Id == user2.Id || d.User2.Id == user2.Id),
-                cancellationToken);
-        if (user2ActiveDuel is not null)
-        {
-            return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Id), user2.Id);
-        }
-        
         DuelConfiguration? configuration = null;
         if (command.ConfigurationId is not null)
         {
@@ -112,20 +90,18 @@ public sealed class CreateGroupDuelInvitationHandler(Context context, IGroupPerm
             }
         }
         
-        var groupPendingDuel = await context.PendingDuels.OfType<GroupPendingDuel>()
-            .SingleOrDefaultAsync(d =>
+        var alreadyInvited = await context.PendingDuels.OfType<GroupPendingDuel>()
+            .AnyAsync(d =>
                     d.Group.Id == command.GroupId &&
                     ((d.User1.Id == user1.Id && d.User2.Id == user2.Id) ||
-                     (d.User1.Id == user2.Id && d.User2.Id == user1.Id)) &&
-                    ((command.ConfigurationId == null && d.Configuration == null) ||
-                     (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)),
+                     (d.User1.Id == user2.Id && d.User2.Id == user1.Id)),
                 cancellationToken);
-        if (groupPendingDuel is not null)
+        if (alreadyInvited)
         {
             return Result.Ok();
         }
 
-        groupPendingDuel = new GroupPendingDuel
+        var groupPendingDuel = new GroupPendingDuel
         {
             Type = PendingDuelType.Group,
             Group = group,

@@ -37,8 +37,11 @@ public sealed class RatingManager(IOptions<DuelOptions> options) : IRatingManage
                 ? DuelResult.Win
                 : DuelResult.Lose;
 
-        var newRating1 = rating1 + ratingChanges1[result1];
-        var newRating2 = rating2 + ratingChanges2[result2];
+        // Changes are calculated from the ratings at duel start, while several
+        // rated duels may finish in a different order. Apply each change to the
+        // participant's current rating so no completed duel erases another.
+        var newRating1 = duel.User1.Rating + ratingChanges1[result1];
+        var newRating2 = duel.User2.Rating + ratingChanges2[result2];
         
         duel.User1FinalRating = newRating1;
         duel.User1.Rating = newRating1;

@@ -93,7 +93,7 @@ public class CancelDuelInvitationHandlerTests : ContextBasedTest
         {
             UserId = u1.Id,
             OpponentNickname = u2.Nickname,
-            ConfigurationId = 10
+            ConfigurationId = 999
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -129,7 +129,7 @@ public class CancelDuelInvitationHandlerTests : ContextBasedTest
         {
             UserId = u1.Id,
             OpponentNickname = u2.Nickname,
-            ConfigurationId = 10
+            ConfigurationId = 999
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();

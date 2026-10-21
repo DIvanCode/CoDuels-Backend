@@ -32,68 +32,6 @@ public sealed class CreateDuelInvitationHandler(Context context)
             return new EntityNotFoundError(nameof(User), nameof(User.Id), command.UserId);
         }
 
-        var activeDuel = await context.Duels
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                d => d.Status == DuelStatus.InProgress &&
-                     (d.User1.Id == command.UserId || d.User2.Id == command.UserId),
-                cancellationToken);
-        if (activeDuel is not null)
-        {
-            return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Id), command.UserId);
-        }
-        
-        var rankedPendingDuel = await context.PendingDuels.OfType<RankedPendingDuel>()
-            .SingleOrDefaultAsync(d => d.User.Id == command.UserId, cancellationToken);
-        if (rankedPendingDuel is not null)
-        {
-            context.PendingDuels.Remove(rankedPendingDuel);
-        }
-        
-        var outgoingFriendlyPendingDuel = await context.PendingDuels.OfType<FriendlyPendingDuel>()
-            .Include(d => d.User2)
-            .Include(d => d.Configuration)
-            .SingleOrDefaultAsync(d => d.User1.Id == command.UserId, cancellationToken);
-        if (outgoingFriendlyPendingDuel is not null)
-        {
-            if (outgoingFriendlyPendingDuel.User2.Nickname == command.OpponentNickname)
-            {
-                return Result.Ok();
-            }
-            
-            context.PendingDuels.Remove(outgoingFriendlyPendingDuel);
-            
-            context.OutboxMessages.Add(new OutboxMessage
-            {
-                Type = OutboxType.SendMessage,
-                Payload = new SendMessagePayload
-                {
-                    UserId = user.Id,
-                    Message = new DuelInvitationCanceledMessage
-                    {
-                        OpponentNickname = outgoingFriendlyPendingDuel.User2.Nickname,
-                        ConfigurationId = outgoingFriendlyPendingDuel.Configuration?.Id
-                    }
-                },
-                RetryUntil = DateTime.UtcNow.AddMinutes(5)
-            });
-            
-            context.OutboxMessages.Add(new OutboxMessage
-            {
-                Type = OutboxType.SendMessage,
-                Payload = new SendMessagePayload
-                {
-                    UserId = outgoingFriendlyPendingDuel.User2.Id,
-                    Message = new DuelInvitationCanceledMessage
-                    {
-                        OpponentNickname = user.Nickname,
-                        ConfigurationId = outgoingFriendlyPendingDuel.Configuration?.Id
-                    }
-                },
-                RetryUntil = DateTime.UtcNow.AddMinutes(5)
-            });
-        }
-
         var opponent = await context.Users
             .SingleOrDefaultAsync(u => u.Nickname == command.OpponentNickname, cancellationToken);
         if (opponent is null)
@@ -106,17 +44,6 @@ public sealed class CreateDuelInvitationHandler(Context context)
             return new ForbiddenError(nameof(User), Operation, nameof(User.Id), user.Id);
         }
         
-        var opponentActiveDuel = await context.Duels
-            .AsNoTracking()
-            .SingleOrDefaultAsync(d =>
-                    d.Status == DuelStatus.InProgress &&
-                    (d.User1.Nickname == command.OpponentNickname || d.User2.Nickname == command.OpponentNickname),
-                cancellationToken);
-        if (opponentActiveDuel is not null)
-        {
-            return new EntityAlreadyExistsError(nameof(Duel), nameof(User.Nickname), command.OpponentNickname);
-        }
-
         DuelConfiguration? configuration = null;
         if (command.ConfigurationId is not null)
         {
@@ -131,7 +58,16 @@ public sealed class CreateDuelInvitationHandler(Context context)
             }
         }
 
-        outgoingFriendlyPendingDuel = new FriendlyPendingDuel
+        var alreadyInvited = await context.PendingDuels.OfType<FriendlyPendingDuel>()
+            .AsNoTracking()
+            .AnyAsync(d => d.User1.Id == user.Id && d.User2.Id == opponent.Id,
+                cancellationToken);
+        if (alreadyInvited)
+        {
+            return Result.Ok();
+        }
+
+        var outgoingFriendlyPendingDuel = new FriendlyPendingDuel
         {
             Type = PendingDuelType.Friendly,
             User1 = user,

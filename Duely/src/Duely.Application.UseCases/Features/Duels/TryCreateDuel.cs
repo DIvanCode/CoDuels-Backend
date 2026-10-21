@@ -120,17 +120,22 @@ public sealed class TryCreateDuelHandler(
                     continue;
                 }
 
-                var hasActiveDuel = await context.Duels
+                var configuration = ResolveDuelConfiguration(pair);
+                // User-row locks serialize rated starts across every pending type.
+                // Bots remain available even when another rated duel is active.
+                var humanUserIds = users.Where(user => !user.IsBot).Select(user => user.Id).ToArray();
+                var hasActiveRatedDuel = configuration.IsRated && humanUserIds.Length != 0 && await context.Duels
                     .AsNoTracking()
                     .AnyAsync(duel =>
                             duel.Status == DuelStatus.InProgress &&
-                            (userIds.Contains(duel.User1.Id) ||
-                             userIds.Contains(duel.User2.Id)),
+                            duel.Configuration.IsRated &&
+                            (humanUserIds.Contains(duel.User1.Id) ||
+                             humanUserIds.Contains(duel.User2.Id)),
                         cancellationToken);
-                if (hasActiveDuel)
+                if (hasActiveRatedDuel)
                 {
                     logger.LogInformation(
-                        "Duel pair was skipped because at least one user already has an active duel. User1Id = {User1Id}, User2Id = {User2Id}, PendingIds = {PendingIds}",
+                        "Rated duel pair was skipped because at least one human already has an active rated duel. User1Id = {User1Id}, User2Id = {User2Id}, PendingIds = {PendingIds}",
                         pair.User1.Id,
                         pair.User2.Id,
                         pendingIds);
@@ -138,7 +143,19 @@ public sealed class TryCreateDuelHandler(
                     continue;
                 }
 
-                var configuration = ResolveDuelConfiguration(pair);
+                if (pair.UsedPendingDuels[0] is TournamentPendingDuel tournamentPending &&
+                    await HasActiveDuelInTournamentAsync(
+                        tournamentPending.Tournament.Id, userIds, cancellationToken))
+                {
+                    logger.LogInformation(
+                        "Tournament duel pair was skipped because a participant already has an active match in that tournament. TournamentId = {TournamentId}, User1Id = {User1Id}, User2Id = {User2Id}",
+                        tournamentPending.Tournament.Id,
+                        pair.User1.Id,
+                        pair.User2.Id);
+                    await transaction.RollbackAsync(cancellationToken);
+                    continue;
+                }
+
                 var previouslyUsedTaskIds = await LoadPreviouslyUsedTaskIdsAsync(
                     users.Where(u => !u.IsBot).Select(u => u.Id).ToArray(), cancellationToken);
                 var tasksResult = ChooseTasks(
@@ -345,6 +362,31 @@ public sealed class TryCreateDuelHandler(
             .SelectMany(tasks => tasks.Values)
             .Select(task => task.Id)
             .ToHashSet();
+    }
+
+    private async Task<bool> HasActiveDuelInTournamentAsync(
+        int tournamentId,
+        int[] userIds,
+        CancellationToken cancellationToken)
+    {
+        var tournament = await context.Tournaments
+            .AsNoTracking()
+            .SingleAsync(t => t.Id == tournamentId, cancellationToken);
+        var referencedIds = tournamentMatchmakingStrategyResolver
+            .GetStrategy(tournament.MatchmakingType)
+            .GetReferencedDuelIds(tournament)
+            .ToArray();
+        if (referencedIds.Length == 0)
+        {
+            return false;
+        }
+
+        return await context.Duels
+            .AsNoTracking()
+            .AnyAsync(duel => referencedIds.Contains(duel.Id) &&
+                    duel.Status == DuelStatus.InProgress &&
+                    (userIds.Contains(duel.User1.Id) || userIds.Contains(duel.User2.Id)),
+                cancellationToken);
     }
 
     private Result<Dictionary<char, DuelTask>> ChooseTasks(

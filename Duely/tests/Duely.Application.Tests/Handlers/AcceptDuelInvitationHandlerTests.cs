@@ -120,7 +120,7 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task NotFound_when_configuration_mismatch()
+    public async Task Accepts_pair_when_request_configuration_differs()
     {
         var ctx = Context;
         var inviter = EntityFactory.MakeUser(1, "inviter");
@@ -163,12 +163,13 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
             ConfigurationId = 999
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
+        res.IsSuccess.Should().BeTrue();
+        ctx.PendingDuels.OfType<FriendlyPendingDuel>()
+            .Should().ContainSingle(p => p.IsAccepted && p.Configuration!.Id == 10);
     }
 
     [Fact]
-    public async Task AlreadyExists_when_user_has_active_duel()
+    public async Task Can_accept_invitation_while_user_has_active_duel()
     {
         var ctx = Context;
         var user = EntityFactory.MakeUser(1, "u1");
@@ -198,6 +199,14 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
             User1Solutions = [],
             User2Solutions = []
         });
+        ctx.PendingDuels.Add(new FriendlyPendingDuel
+        {
+            Type = PendingDuelType.Friendly,
+            User1 = opponent,
+            User2 = user,
+            Configuration = null,
+            CreatedAt = DateTime.UtcNow
+        });
         await ctx.SaveChangesAsync();
 
         var handler = new AcceptDuelInvitationHandler(ctx);
@@ -208,12 +217,12 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
             OpponentNickname = opponent.Nickname
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityAlreadyExistsError);
+        res.IsSuccess.Should().BeTrue();
+        ctx.PendingDuels.OfType<FriendlyPendingDuel>().Should().ContainSingle(d => d.IsAccepted);
     }
 
     [Fact]
-    public async Task Cancels_ranked_pending_in_pending_duels()
+    public async Task Accepting_preserves_ranked_pending()
     {
         var ctx = Context;
         var inviter = EntityFactory.MakeUser(1, "inviter");
@@ -247,14 +256,14 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        ctx.PendingDuels.OfType<RankedPendingDuel>().Should().BeEmpty();
+        ctx.PendingDuels.OfType<RankedPendingDuel>().Should().ContainSingle();
 
         var outboxMessages = await ctx.OutboxMessages.AsNoTracking().ToListAsync();
         outboxMessages.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Cancels_outgoing_friendly_invitation_when_accepting()
+    public async Task Accepting_preserves_outgoing_friendly_invitation()
     {
         var ctx = Context;
         var inviter = EntityFactory.MakeUser(1, "inviter");
@@ -294,13 +303,8 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
         ctx.PendingDuels.OfType<FriendlyPendingDuel>()
             .Should().ContainSingle(p => p.User1.Id == inviter.Id && p.User2.Id == invitee.Id && p.IsAccepted);
         ctx.PendingDuels.OfType<FriendlyPendingDuel>()
-            .Should().NotContain(p => p.User1.Id == invitee.Id && p.User2.Id == other.Id);
+            .Should().ContainSingle(p => p.User1.Id == invitee.Id && p.User2.Id == other.Id);
 
-        var outboxMessage = await ctx.OutboxMessages.AsNoTracking().SingleAsync();
-        outboxMessage.Type.Should().Be(OutboxType.SendMessage);
-        var payload = (SendMessagePayload)outboxMessage.Payload;
-        payload.UserId.Should().Be(invitee.Id);
-        payload.Message.Should().BeOfType<DuelInvitationCanceledMessage>()
-            .Which.OpponentNickname.Should().Be(other.Nickname);
+        (await ctx.OutboxMessages.AsNoTracking().ToListAsync()).Should().BeEmpty();
     }
 }

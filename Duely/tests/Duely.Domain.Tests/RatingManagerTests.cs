@@ -115,6 +115,24 @@ public class RatingManagerTests
     }
 
     [Fact]
+    public void Parallel_rated_duel_applies_its_start_rating_change_to_current_rating()
+    {
+        var user1 = CreateUser(1, 1500);
+        var user2 = CreateUser(2, 1500);
+        var duel = CreateDuel(1, user1, user2);
+        duel.Winner = user1;
+        user1.Rating = 1530;
+        user2.Rating = 1490;
+
+        _ratingManager.UpdateRatings(duel);
+
+        user1.Rating.Should().Be(1550);
+        user2.Rating.Should().Be(1470);
+        duel.User1FinalRating.Should().Be(1550);
+        duel.User2FinalRating.Should().Be(1470);
+    }
+
+    [Fact]
     public void Draw_does_not_change_ratings_for_equal_ratings()
     {
         var user1 = CreateUser(1, 1500);

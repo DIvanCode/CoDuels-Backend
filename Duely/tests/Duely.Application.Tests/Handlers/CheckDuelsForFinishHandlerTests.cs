@@ -10,6 +10,7 @@ using Duely.Domain.Services.Duels;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace Duely.Application.Tests.Handlers;
@@ -18,6 +19,46 @@ public class CheckDuelsForFinishHandlerTests : ContextBasedTest
 {
     private static SendMessagePayload ReadSendPayload(OutboxMessage message)
         => (SendMessagePayload)message.Payload;
+
+    [Fact]
+    public async Task Finishing_two_parallel_rated_duels_accumulates_both_rating_changes()
+    {
+        var user = EntityFactory.MakeUser(1, "user");
+        var opponent1 = EntityFactory.MakeUser(2, "opponent1");
+        var opponent2 = EntityFactory.MakeUser(3, "opponent2");
+        var start = DateTime.UtcNow.AddMinutes(-40);
+        var first = EntityFactory.MakeDuel(10, user, opponent1, "TASK-10",
+            start: start, deadline: start.AddMinutes(30));
+        var second = EntityFactory.MakeDuel(11, user, opponent2, "TASK-11",
+            start: start, deadline: start.AddMinutes(31));
+        Context.Duels.AddRange(first, second);
+        Context.Submissions.AddRange(
+            EntityFactory.MakeSubmission(100, first, user,
+                time: start.AddMinutes(1), status: SubmissionStatus.Done, verdict: "Accepted"),
+            EntityFactory.MakeSubmission(101, second, user,
+                time: start.AddMinutes(1), status: SubmissionStatus.Done, verdict: "Accepted"));
+        await Context.SaveChangesAsync();
+        var ratingManager = new RatingManager(Options.Create(new DuelOptions
+        {
+            DefaultMaxDurationMinutes = 30,
+            RatingToTaskLevelMapping = []
+        }));
+        var handler = new CheckDuelsForFinishHandler(
+            Context, ratingManager, new TaskService(),
+            NullLogger<CheckDuelsForFinishHandler>.Instance);
+
+        (await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None))
+            .IsSuccess.Should().BeTrue();
+        (await handler.Handle(new CheckDuelsForFinishCommand(), CancellationToken.None))
+            .IsSuccess.Should().BeTrue();
+
+        user.Rating.Should().Be(1540);
+        opponent1.Rating.Should().Be(1480);
+        opponent2.Rating.Should().Be(1480);
+        first.User1FinalRating.Should().Be(1520);
+        second.User1FinalRating.Should().Be(1540);
+        (await Context.OutboxMessages.CountAsync()).Should().Be(4);
+    }
 
     [Fact]
     public async Task Finishes_by_time_as_draw()

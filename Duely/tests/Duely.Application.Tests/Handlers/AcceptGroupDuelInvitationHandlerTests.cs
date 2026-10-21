@@ -99,12 +99,24 @@ public class AcceptGroupDuelInvitationHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task AlreadyExists_when_user_has_active_duel()
+    public async Task Can_accept_group_invitation_while_user_has_active_duel()
     {
         var user1 = EntityFactory.MakeUser(1, "u1");
         var user2 = EntityFactory.MakeUser(2, "u2");
         Context.Users.AddRange(user1, user2);
         Context.Duels.Add(EntityFactory.MakeDuel(10, user1, user2));
+        var group = EntityFactory.MakeGroup(1, "g");
+        Context.Groups.Add(group);
+        Context.PendingDuels.Add(new GroupPendingDuel
+        {
+            Type = PendingDuelType.Group,
+            Group = group,
+            CreatedBy = user1,
+            User1 = user1,
+            User2 = user2,
+            Configuration = null,
+            CreatedAt = DateTime.UtcNow
+        });
         await Context.SaveChangesAsync();
 
         var handler = new AcceptGroupDuelInvitationHandler(Context);
@@ -116,8 +128,8 @@ public class AcceptGroupDuelInvitationHandlerTests : ContextBasedTest
             OpponentNickname = user2.Nickname
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityAlreadyExistsError);
+        res.IsSuccess.Should().BeTrue();
+        Context.PendingDuels.OfType<GroupPendingDuel>().Should().ContainSingle(d => d.IsAcceptedByUser1);
     }
 
     [Fact]
@@ -142,7 +154,7 @@ public class AcceptGroupDuelInvitationHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task NotFound_when_configuration_mismatch()
+    public async Task Accepts_pair_when_request_configuration_differs()
     {
         var user1 = EntityFactory.MakeUser(1, "u1");
         var user2 = EntityFactory.MakeUser(2, "u2");
@@ -171,12 +183,13 @@ public class AcceptGroupDuelInvitationHandlerTests : ContextBasedTest
             ConfigurationId = 999
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
+        res.IsSuccess.Should().BeTrue();
+        Context.PendingDuels.OfType<GroupPendingDuel>()
+            .Should().ContainSingle(p => p.IsAcceptedByUser1 && p.Configuration!.Id == 10);
     }
 
     [Fact]
-    public async Task Cancels_ranked_pending_and_sends_message()
+    public async Task Accepting_preserves_ranked_pending_and_sends_no_message()
     {
         var user1 = EntityFactory.MakeUser(1, "u1");
         var user2 = EntityFactory.MakeUser(2, "u2");
@@ -213,14 +226,14 @@ public class AcceptGroupDuelInvitationHandlerTests : ContextBasedTest
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        Context.PendingDuels.OfType<RankedPendingDuel>().Should().BeEmpty();
+        Context.PendingDuels.OfType<RankedPendingDuel>().Should().ContainSingle();
 
         var outboxMessages = await Context.OutboxMessages.AsNoTracking().ToListAsync();
         outboxMessages.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Cancels_outgoing_friendly_invitation_when_accepting()
+    public async Task Accepting_preserves_outgoing_friendly_invitation()
     {
         var user1 = EntityFactory.MakeUser(1, "u1");
         var user2 = EntityFactory.MakeUser(2, "u2");
@@ -261,13 +274,8 @@ public class AcceptGroupDuelInvitationHandlerTests : ContextBasedTest
 
         res.IsSuccess.Should().BeTrue();
         Context.PendingDuels.OfType<FriendlyPendingDuel>()
-            .Should().BeEmpty();
+            .Should().ContainSingle();
 
-        var outboxMessage = await Context.OutboxMessages.AsNoTracking().SingleAsync();
-        outboxMessage.Type.Should().Be(OutboxType.SendMessage);
-        var payload = (SendMessagePayload)outboxMessage.Payload;
-        payload.UserId.Should().Be(user1.Id);
-        payload.Message.Should().BeOfType<DuelInvitationCanceledMessage>()
-            .Which.OpponentNickname.Should().Be(other.Nickname);
+        (await Context.OutboxMessages.AsNoTracking().ToListAsync()).Should().BeEmpty();
     }
 }

@@ -28,23 +28,27 @@ notifications and anti-cheat work.
 - Taski must return tasks and `TaskService` must select a task for every
   configured key.
 - No database constraint enforces distinct users or one active duel per user.
-  The maker enforces the active-duel rule by locking both user rows in stable id
-  order and re-checking persisted state inside the pair transaction.
+  The maker locks both user rows in stable id order and re-checks persisted
+  state inside the pair transaction. For humans, only another active rated duel
+  blocks a new rated duel. Unrated duels can run in parallel without a global
+  slot limit. Bots remain available even with active rated duels.
 
 ## 5. Current behavior
 
 ### Selection and task assignment
 
-One maker invocation selects every non-conflicting accepted Friendly pair, then
-Group, then Tournament, plus at most one Ranked pair. `usedUsers` prevents a user
-appearing twice only in that in-memory selection. For a pending row without a
+One maker invocation selects accepted Friendly pairs, then Group, then Tournament,
+plus at most one Ranked pair. In-memory selection allows a human in multiple
+unrated pairs and at most one rated pair. A bot can be selected for multiple
+pairs in one tick. A participant cannot be selected twice in the same tournament.
+For a pending row without a
 configuration, the maker creates a one-task sequential configuration: Ranked is
 rated, other types unrated, opponent solution visibility is enabled, duration is
 the configured default, and level derives from current average rating.
 
 Taski's full task list is fetched once after pairing and is the immutable catalog
 snapshot for that maker tick; the next tick always fetches a fresh snapshot.
-Only the `Tasks` projection from either user's previous duels is loaded for
+Only the `Tasks` projection from either human user's previous duels is loaded for
 exclusion. Each pair selects independently from the same tick snapshot, so a
 task can be assigned to multiple duels created in that tick. Topic match, then
 level proximity, guides selection.
@@ -52,8 +56,11 @@ level proximity, guides selection.
 ### Creation and linkage
 
 For each selected pair, the maker opens a transaction, locks both users and the
-selected pending rows, reloads the typed pending state, re-runs readiness, and
-checks that neither user has an active duel. It then sets `StartTime`,
+selected pending rows, reloads the typed pending state, and re-runs readiness.
+For a rated pair it rejects a human participant with an active duel whose actual
+`Duel.Configuration.IsRated` is true. A ready unrated pair can start beside any
+other duel. Tournament pairs also require that neither participant has an active
+match in that tournament. It then sets `StartTime`,
 `DeadlineTime`, current initial ratings, empty solution dictionaries, and status
 `InProgress`. The selected pending deletion, duel, optional `GroupDuel` link or
 Tournament attachment, and both `DuelStarted` outbox rows commit together. Two
@@ -62,14 +69,19 @@ but neither save is externally visible before the transaction commits.
 
 ### Live solution state
 
+`GET /duels/active/ids` returns HTTP 200 with `{ "duel_ids": number[] }`
+for all of the authenticated user's `InProgress` duels, newest start first and
+then highest id first. The list is empty when there are none. Each entry can
+be opened through `GET /duels/{id}`. This is the recovery source after a
+reconnect or missed WebSocket message.
+
 `GET /duels/active/id` returns HTTP 200 with `{ "duel_id": number | null }`
 for the authenticated user. Only `InProgress` duels are active. The query
 projects the ID without loading submissions, tasks, configuration, or users.
-If inconsistent data contains several active rows for one user, it selects the
+If there are several active rows for one user, it selects the
 latest `StartTime`, then the highest ID. A user without an active duel receives
 `null`. The older `GET /duels/active` full-Duel response and its 404 remain
-temporarily available for existing clients. The regular `GET /duels/{id}`
-provides detail after the compact recovery query.
+temporarily available for existing clients; it selects the same newest duel.
 
 The WebSocket accepts `SolutionUpdated` with duel id, one-character task key,
 language, and solution. The solution may be empty when the editor is cleared.
@@ -89,7 +101,11 @@ early only when every task has a winner. At deadline it waits while any
 pre-deadline submission is not Done, then the user winning more tasks wins; an
 equal count is a draw.
 
-Finishing sets status/end/winner, updates ratings from stored initial ratings,
+Finishing sets status/end/winner, calculates each rated change from the duel's
+stored initial ratings, and applies that change to each participant's current
+rating. User rows are locked in stable id order and current ratings reloaded
+inside the finish transaction, so parallel rated duels accumulate their changes.
+The duel row is re-checked under lock to avoid a duplicate finish. Finishing
 records two `DuelFinished` rows, creates one null anti-cheat score for every
 distinct user/task with an accepted submission, and deletes actions for other
 user/task combinations. All finish changes commit in one explicit transaction.
@@ -97,7 +113,7 @@ user/task combinations. All finish changes commit in one explicit transaction.
 ## 6. State transitions
 
 - `Ready PendingDuel(s) -> deleted`.
-- `No active record -> Duel(InProgress)`.
+- `Ready pending pair -> Duel(InProgress)`, possibly alongside existing duels.
 - `No stored task solution -> DuelTaskSolution`; later events replace its values.
 - `InProgress -> Finished` when all tasks are solved or a non-blocked deadline passes.
 - `User.Rating -> final rating` for rated duels; unrated final rating equals initial.
@@ -134,8 +150,8 @@ an offline socket or duplicated by outbox replay.
 - Identical solution events overwrite with identical data and create another message.
 - Once a finish handler observes persisted `Finished`, it no longer selects that
   duel. Concurrent handlers can both load `InProgress` before either commits.
-- Rating calculation is deterministic from initial ratings and winner, but
-  finish notifications can duplicate under concurrent processing.
+- Rating change calculation is deterministic from initial ratings and winner;
+  the final rating also reflects changes from other duels completed earlier.
 
 ## 10. Transaction boundaries
 
@@ -152,12 +168,13 @@ an offline socket or duplicated by outbox replay.
 
 - Multiple maker instances can select the same snapshot, but user and pending
   row locks serialize their transactional revalidation.
-- Surviving pending rows are skipped while either participant has an active duel.
+- Surviving rated pending rows wait while a human participant has an active
+  rated duel. Other active duels and pending types do not reserve a global slot.
 - Cancellation/reset committed before the locked reload prevents creation;
   cancellation that needs the same rows waits for the current transaction.
-- Two finish handlers can process the same duel. With accepted tasks, the
-  composite anti-cheat score key may make one transaction fail; without scores,
-  duplicate finish messages can commit.
+- Two finish handlers can load the same duel, but user-row and duel-row locks
+  serialize them. The second handler observes `Finished` and leaves ratings,
+  scores, and messages unchanged.
 - A partial Accepted candidate can be repeatedly selected without finishing;
   later-deadline fully solved candidates can be delayed until the first candidate changes.
 - A pre-deadline submission stuck nonterminal blocks finish indefinitely.
@@ -181,7 +198,8 @@ an offline socket or duplicated by outbox replay.
 
 `DuelStarted`, `DuelChanged`, live opponent solution, and `DuelFinished` prompt
 the Frontend to update or fetch state. Recovery endpoints remain necessary
-because push delivery is not guaranteed. Sequential configuration hides future
+because push delivery is not guaranteed. `/active/ids` enumerates every open
+duel for recovery. Sequential configuration hides future
 task ids until earlier winners are known; spectators see all tasks and both
 solution dictionaries, while participant opponent solutions depend on configuration.
 
@@ -207,8 +225,6 @@ invocation, and anti-cheat row/action creation. Finisher concurrency is not cove
 
 ## 15. Open questions
 
-- Should one active duel per user also be represented by a database constraint,
-  rather than the maker's user-row locks?
 - Should solution updates be allowed for finished or hidden tasks?
 - What timeout resolves permanently Running submissions?
 - Should an early partial Accepted candidate be excluded until it can finish?
@@ -216,8 +232,8 @@ invocation, and anti-cheat row/action creation. Finisher concurrency is not cove
 
 ## 16. Proposed requirements
 
-- Consider a database active-user invariant in addition to transactional user
-  and pending-row locking.
+- Preserve pair-level pending claims and user-row serialization when further
+  expanding concurrent duel creation.
 - Reject/define live updates outside active visible tasks.
 - Add a terminal policy for lost testing status and a fair finish-job query.
 - Add concurrency tests against PostgreSQL for maker and finish jobs.

@@ -230,7 +230,7 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task AlreadyExists_when_user1_has_active_duel()
+    public async Task Can_create_group_invitation_while_user1_has_active_duel()
     {
         var creator = EntityFactory.MakeUser(1, "creator");
         var user1 = EntityFactory.MakeUser(2, "u1");
@@ -272,12 +272,12 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
             User2Id = user2.Id
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityAlreadyExistsError);
+        res.IsSuccess.Should().BeTrue();
+        Context.PendingDuels.OfType<GroupPendingDuel>().Should().ContainSingle();
     }
 
     [Fact]
-    public async Task AlreadyExists_when_user2_has_active_duel()
+    public async Task Can_create_group_invitation_while_user2_has_active_duel()
     {
         var creator = EntityFactory.MakeUser(1, "creator");
         var user1 = EntityFactory.MakeUser(2, "u1");
@@ -319,8 +319,8 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
             User2Id = user2.Id
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityAlreadyExistsError);
+        res.IsSuccess.Should().BeTrue();
+        Context.PendingDuels.OfType<GroupPendingDuel>().Should().ContainSingle();
     }
 
     [Fact]
@@ -449,6 +449,12 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
         });
         Context.Users.AddRange(creator, user1, user2);
         Context.Groups.Add(group);
+        var otherConfiguration = new DuelConfiguration
+        {
+            Id = 20, MaxDurationMinutes = 30, TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential, TasksConfigurations = []
+        };
+        Context.DuelConfigurations.Add(otherConfiguration);
         Context.PendingDuels.Add(new GroupPendingDuel
         {
             Type = PendingDuelType.Group,
@@ -468,7 +474,8 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
             UserId = creator.Id,
             GroupId = group.Id,
             User1Id = user1.Id,
-            User2Id = user2.Id
+            User2Id = user2.Id,
+            ConfigurationId = otherConfiguration.Id
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();

@@ -21,7 +21,8 @@ tournament, and mark the tournament finished.
 - Synchronization job every configured interval (1 second in production).
 - `GET /duels/tournament/invitations`: list caller's unaccepted matches.
 - `POST /tournaments/{id}/duels/accept`: accept the caller's pending match.
-- Shared `POST /duels/cancel` or WebSocket cleanup: reset caller acceptance.
+- Final WebSocket disconnect cleanup preserves caller acceptance. Explicit
+  `POST /duels/cancel` removes only Ranked search.
 - Duel-making and duel-finish jobs progress matches and results.
 
 ## 4. Preconditions
@@ -30,10 +31,11 @@ tournament, and mark the tournament finished.
 - At least two unique, nonempty nicknames are validated; each must be a
   non-pending group member at creation.
 - Optional duel configuration must exist; ownership is not checked.
-- Synchronization considers only `InProgress` tournaments and only candidates
-  whose users are absent from all active duels and all four pending types in its snapshot.
-- Accept requires an existing user, no observed active duel, and one Tournament
-  row for that user and tournament. It does not take opponent/configuration.
+- Synchronization considers only `InProgress` tournaments. Other active duels
+  and pending processes do not block candidates. A user with an active or
+  pending match in the same tournament is busy there, including bots.
+- Accept requires an existing user and one Tournament row for that user and
+  tournament. It does not take opponent/configuration or require a free duel slot.
 
 ## 5. Current behavior
 
@@ -49,7 +51,8 @@ the unchanged DTO.
 
 For every active tournament, the job loads referenced duels, calls strategy
 `Sync`, obtains candidate pairs, skips an already represented Tournament row,
-and skips any candidate whose participant is in the global busy-user snapshot.
+and skips a candidate if either participant already has an active or pending
+match in that tournament. Other pending processes and active duels are ignored.
 It creates a `TournamentPendingDuel(false, false)` and one
 `TournamentDuelInvitation` per participant, then marks both users busy in memory
 so this invocation will not schedule them again. All tournament updates, new
@@ -62,17 +65,18 @@ ids, and finishes when the expected `n*(n-1)/2` referenced duels all finish.
 
 ### Acceptance and duel creation
 
-Accept deletes the caller's one Ranked row and one outgoing Friendly row; only
-the caller gets a Friendly cancellation message. It then sets the caller's
-positional Tournament flag. Both flags are required by `DuelManager`.
+Accept sets only the caller's positional Tournament flag. Both flags are
+required by `DuelManager`. Ranked and Friendly pending rows remain for humans
+and bots. A bot may be selected for a tournament and Ranked pair in the same
+maker tick. For humans, only rated configurations compete for one rated slot.
 Selected Tournament rows are deleted with the active duel. A later save attaches
 the duel to its bracket node or group-stage id list and records `DuelStarted` for
 both users, but both saves are enclosed by one pair transaction and commit together.
 
-### Reset and subsequent rounds
+### Disconnect and subsequent rounds
 
-Shared cancel/disconnect keeps the Tournament row but resets only that user's
-flag, without a Tournament message. Finished duels are observed by later sync
+Disconnect cleanup keeps the Tournament row and both acceptance flags,
+without a Tournament message. Finished duels are observed by later sync
 runs, which advance the structure and enqueue newly available matches.
 
 ## 6. State transitions
@@ -81,32 +85,31 @@ runs, which advance the structure and enqueue newly available matches.
 - `New -> InProgress` on first start.
 - `InProgress + ready candidate -> TournamentPendingDuel(false, false)`.
 - `User1/User2 false -> true` on individual acceptance.
-- `This user's true -> false` on shared cancel/disconnect.
+- `This user's true -> true` on disconnect cleanup.
 - `TournamentPendingDuel(true, true) -> deleted; Duel(InProgress) created`.
 - `No referenced duel -> duel id attached` before the creation transaction commits.
 - `InProgress -> Finished` when the strategy's completion condition is met.
 
 ## 7. Conflicting state cleanup
 
-| State | Synchronization | Tournament accept | Shared cancel/disconnect | Tournament duel creation |
+| State | Synchronization | Tournament accept | Disconnect cleanup | Tournament duel creation |
 | --- | --- | --- | --- | --- |
-| Active duel | Candidate is skipped | Caller is rejected | Unchanged | Re-checked after locking both users |
-| Any existing pending type | Candidate is skipped | Ranked and caller's outgoing Friendly deleted; other rows unchanged | Type-specific shared cleanup | Only selected Tournament row deleted |
-| Other Tournament pair | Makes user busy for this run | Unchanged | Caller flag reset | Unchanged |
+| Active duel outside this tournament | Candidate remains eligible | Caller may accept | Unchanged | Rated match waits for a human's active rated duel; unrated match starts |
+| Active or pending match in this tournament | Candidate is skipped | Existing pending row may be accepted | Unchanged | Selected row consumed |
+| Other pending type | Candidate remains eligible | Unchanged | Type-specific disconnect cleanup | Only selected Tournament row deleted |
+| Other Tournament pair | Makes user busy for this run | Unchanged | Acceptance preserved | Unchanged |
 
-Tournament synchronization is the only creator that proactively treats all
-pending types as busy. That protection is a snapshot, not a reservation, and
-later HTTP handlers can create conflicting state.
+Tournament synchronization reserves participants only inside one tournament.
+Other pending types and other tournaments can proceed independently.
 
 ## 8. Emitted messages
 
 | Condition | Message type | Recipient | Main data | Reason |
 | --- | --- | --- | --- | --- |
 | New scheduled match | `TournamentDuelInvitation` | Each participant | Tournament id/name, opponent, configuration | Request acceptance |
-| Accept deletes caller's outgoing Friendly invitation | `DuelInvitationCanceled` | Caller only | Former invitee/configuration | Close separate outgoing invitation |
 | Accepted match becomes duel | `DuelStarted` | Both participants | Duel id | Enter match |
 
-There is no Tournament acceptance, reset, cancellation, round-advanced, or
+There is no Tournament acceptance, cancellation, round-advanced, or
 tournament-finished client message. Pending creation and two invitation outbox
 rows commit together. Tournament attachment and `DuelStarted` share the second
 duel-creation save; the first and second saves become visible together at commit.
@@ -127,7 +130,7 @@ duel-creation save; the first and second saves become visible together at commit
 - Tournament create and start each use one save.
 - A synchronization pass uses one final save for strategy state, every new
   Tournament row, and all invitation outbox rows.
-- Accept uses one save for acceptance plus Ranked/Friendly cleanup and message.
+- Accept uses one save for the selected pending row's acceptance flag.
 - Taski's catalog is fetched once per maker tick before pair transactions. Duel
   creation uses one pair transaction around pending deletion and active-duel
   insertion, followed by Tournament attachment and both `DuelStarted` rows.
@@ -136,12 +139,15 @@ duel-creation save; the first and second saves become visible together at commit
 
 - Concurrent sync jobs lack row claims/unique constraints and can duplicate
   Tournament rows and invitations.
-- Busy-user calculation can become stale before insertion.
-- Accept/reset/maker races serialize when the maker locks and reloads the selected
-  Tournament pending row; a committed reset prevents creation.
+- Busy-user calculation can become stale before insertion. Per-tournament
+  checks prevent a normal sequential pass from scheduling another match for an
+  already occupied participant in that tournament.
+- Accept/maker races serialize when the maker locks and reloads the selected
+  Tournament pending row.
 - `AcceptTournamentDuelHandler` uses `SingleOrDefault` by tournament and user;
   duplicate or multiple simultaneous matches for one user can throw.
-- The maker locks both users and re-checks active-duel state after sync/accept.
+- The maker locks both users and re-checks pair readiness after sync/accept;
+  an active rated duel delays another rated tournament match for a human.
 - Failure after active duel insertion but before strategy attachment rolls the
   pair transaction back, leaving the Tournament pending row available for retry.
 - Single-elimination draws leave a node without a winner, so the bracket cannot progress.
@@ -162,7 +168,7 @@ duel-creation save; the first and second saves become visible together at commit
 ## 13. User-visible result
 
 Creation/start return tournament DTOs. Participants receive invitations and can
-recover only their own unaccepted matches through GET. Acceptance/reset is
+recover only their own unaccepted matches through GET. Acceptance is
 silent. The tournament details endpoint is the recovery source for bracket or
 group-stage progression because no progress/finish messages exist. `DuelStarted`
 is the only push signal that an accepted match became active.
@@ -182,7 +188,7 @@ is the only push signal that an accepted match became active.
 - [GroupStageMatchmakingStrategyTests.cs](../../Duely/tests/Duely.Domain.Tests/GroupStageMatchmakingStrategyTests.cs)
 
 Tests cover sequential duplicate suppression, both acceptance positions,
-Ranked/Friendly cleanup, bracket attachment, acceptance gating, and strategy
+Ranked/Friendly preservation, bracket attachment, acceptance gating, and strategy
 progression. Maker tests inject a failure between creation saves and verify
 rollback; concurrent tournament synchronization remains uncovered.
 
@@ -190,9 +196,9 @@ rollback; concurrent tournament synchronization remains uncovered.
 
 - What is the required outcome of a drawn single-elimination duel?
 - Should start reject `Finished` instead of returning success?
-- Should a tournament match remain pending indefinitely after repeated disconnects?
+- Should an unaccepted tournament match remain pending indefinitely after repeated disconnects?
 - Should synchronization and pending creation use a durable candidate key?
-- Should progress/finish/reset have client messages?
+- Should progress/finish have client messages?
 - See [Open questions](open-questions.md).
 
 ## 16. Proposed requirements
