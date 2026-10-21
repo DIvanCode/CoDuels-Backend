@@ -4,7 +4,8 @@
 
 Create group tournaments, progress their bracket or round-robin schedule, ask
 available participants to accept each match, attach resulting duels to the
-tournament, and mark the tournament finished.
+tournament, and mark the tournament finished. Global Swiss tournaments have a
+separate registration period before their scheduled start.
 
 ## 2. Participants
 
@@ -17,6 +18,9 @@ tournament, and mark the tournament finished.
 ## 3. Triggers
 
 - `POST /tournaments`: create a `New` tournament.
+- `GET /tournaments/global`: list global tournaments, including those not started.
+- `POST /tournaments/{id}/register` and `/leave`: change the caller's global
+  tournament registration before its scheduled start.
 - `POST /tournaments/{id}/start`: move `New` to `InProgress`.
 - Synchronization job every configured interval (1 second in production).
 - `GET /duels/tournament/invitations`: list caller's unaccepted matches.
@@ -30,6 +34,12 @@ tournament, and mark the tournament finished.
 - At least two unique, nonempty nicknames are validated; each must be a
   non-pending group member at creation.
 - Optional duel configuration must exist; ownership is not checked.
+- A global tournament has no group. Only a system administrator may create it;
+  it requires a description, a future UTC `starts_at`, Swiss matchmaking, and
+  an initially empty participant list. Any existing duel configuration may be
+  selected, without restricting its task count or duration.
+- An authenticated user may register or leave only while the global tournament
+  is `New` and the current UTC time is strictly before `starts_at`.
 - Synchronization considers only `InProgress` tournaments and only candidates
   whose users are absent from all active duels and all four pending types in its snapshot.
 - Accept requires an existing user, no observed active duel, and one Tournament
@@ -44,6 +54,21 @@ participants, initializes bracket nodes or an empty group-stage duel-id list,
 and saves once with status `New`. Start changes only `New -> InProgress`; calling
 start for an already `InProgress` or `Finished` tournament returns success with
 the unchanged DTO.
+
+Global creation uses the same `POST /tournaments` payload with `group_id: null`,
+`matchmaking_type: Swiss`, `description`, and `starts_at`. The administrator
+creates a `New` tournament with no participants. Global tournaments are listed
+through `GET /tournaments/global` and may be opened by any authenticated user;
+their pre-start detail response contains all registered users with zero points.
+The group start endpoint rejects a global tournament. Scheduled start, zero
+participant completion, bot addition, rounds, and result scoring belong to the
+Swiss scheduling process, added in the following Backend task.
+
+Registration and leaving update `TournamentParticipants` and increment the
+tournament's concurrency token in one save. Repeating the same request has no
+side effect. A concurrent conflicting write returns `409`, so the caller can
+retry; the participant key and transaction prevent duplicate rows. The
+scheduled start transaction must update this token when it fixes the roster.
 
 ### Synchronization and pending creation
 
@@ -78,6 +103,10 @@ runs, which advance the structure and enqueue newly available matches.
 ## 6. State transitions
 
 - `No tournament -> Tournament(New, participants, initialized strategy state)`.
+- `No tournament -> SwissTournament(New, zero participants, scheduled start)`
+  when an administrator creates a global tournament.
+- `Global New + user absent -> user registered`; the inverse removes the user,
+  only before the scheduled start.
 - `New -> InProgress` on first start.
 - `InProgress + ready candidate -> TournamentPendingDuel(false, false)`.
 - `User1/User2 false -> true` on individual acceptance.
@@ -110,6 +139,8 @@ There is no Tournament acceptance, reset, cancellation, round-advanced, or
 tournament-finished client message. Pending creation and two invitation outbox
 rows commit together. Tournament attachment and `DuelStarted` share the second
 duel-creation save; the first and second saves become visible together at commit.
+Global creation, registration, and leaving do not emit WebSocket messages;
+clients recover the roster and status through GET endpoints.
 
 ## 9. Idempotency
 

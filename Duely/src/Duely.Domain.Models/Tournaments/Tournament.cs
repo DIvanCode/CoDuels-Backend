@@ -8,7 +8,10 @@ public abstract class Tournament
     public int Id { get; init; }
     public string Name { get; set; } = null!;
     public TournamentStatus Status { get; set; }
-    public Group Group { get; set; } = null!;
+    public Group? Group { get; set; }
+    public string? Description { get; set; }
+    public DateTime? StartsAt { get; set; }
+    public int RegistrationRevision { get; set; }
     public User CreatedBy { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public TournamentMatchmakingType MatchmakingType { get; set; }
@@ -27,5 +30,6 @@ public enum TournamentStatus
 public enum TournamentMatchmakingType
 {
     SingleEliminationBracket = 1,
-    GroupStage = 2
+    GroupStage = 2,
+    Swiss = 3
 }

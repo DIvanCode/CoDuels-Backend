@@ -7,7 +7,8 @@ Every Duely date-time field represents an absolute instant. Duels use
 `CompletedAt`; users, code runs, pending duels, and tournaments use `CreatedAt`;
 user actions use `Timestamp`; outbox messages use `RetryAt` and `RetryUntil`.
 Group duel and invitation DTOs expose the pending duel `CreatedAt`. Tournament
-group-stage DTOs expose the duel times. Ranked search DTOs expose the pending
+group-stage DTOs expose the duel times. Global tournaments expose their UTC
+`StartsAt` as `starts_at`. Ranked search DTOs expose the pending
 duel creation time as `search_started_at`. No current public field is a
 date-only value or a local wall-clock schedule.
 

@@ -13,6 +13,13 @@ namespace Duely.Infrastructure.Api.Http.Controllers;
 [Authorize]
 public sealed class TournamentsController(IMediator mediator, IUserContext userContext) : ControllerBase
 {
+    [HttpGet("global")]
+    public async Task<ActionResult<List<TournamentDto>>> GetGlobalAsync(CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetGlobalTournamentsQuery(), cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpGet("admin/active")]
     [Authorize(Policy = AuthorizationPolicies.OnlyAdmin)]
     public async Task<ActionResult<List<TournamentDto>>> GetActiveForAdminAsync(
@@ -61,7 +68,10 @@ public sealed class TournamentsController(IMediator mediator, IUserContext userC
             GroupId = request.GroupId,
             MatchmakingType = request.MatchmakingType,
             Participants = request.Participants,
-            DuelConfigurationId = request.DuelConfigurationId
+            DuelConfigurationId = request.DuelConfigurationId,
+            Description = request.Description,
+            StartsAt = request.StartsAt,
+            IsAdmin = userContext.IsAdmin()
         };
 
         var result = await mediator.Send(command, cancellationToken);
@@ -80,6 +90,34 @@ public sealed class TournamentsController(IMediator mediator, IUserContext userC
         };
 
         var result = await mediator.Send(command, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("{id:int}/register")]
+    public async Task<ActionResult<TournamentDto>> RegisterAsync(
+        [FromRoute] int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new ChangeGlobalTournamentRegistrationCommand
+        {
+            TournamentId = id,
+            UserId = userContext.UserId,
+            Join = true
+        }, cancellationToken);
+        return this.HandleResult(result);
+    }
+
+    [HttpPost("{id:int}/leave")]
+    public async Task<ActionResult<TournamentDto>> LeaveAsync(
+        [FromRoute] int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new ChangeGlobalTournamentRegistrationCommand
+        {
+            TournamentId = id,
+            UserId = userContext.UserId,
+            Join = false
+        }, cancellationToken);
         return this.HandleResult(result);
     }
 

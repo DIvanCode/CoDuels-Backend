@@ -31,7 +31,7 @@ public sealed class GetTournamentHandler(
         var tournament = await context.Tournaments
             .AsNoTracking()
             .Include(t => t.Group)
-            .ThenInclude(g => g.Users)
+            .ThenInclude(g => g!.Users)
             .ThenInclude(m => m.User)
             .Include(t => t.CreatedBy)
             .Include(t => t.DuelConfiguration)
@@ -43,8 +43,10 @@ public sealed class GetTournamentHandler(
             return new EntityNotFoundError(nameof(Tournament), nameof(Tournament.Id), query.TournamentId);
         }
 
-        var membership = tournament.Group.Users.SingleOrDefault(m => m.User.Id == query.UserId);
-        if (!query.IsAdmin && (membership is null || !groupPermissionsService.CanViewGroup(membership)))
+        var membership = tournament.Group?.Users.SingleOrDefault(m => m.User.Id == query.UserId);
+        if (tournament.Group is not null &&
+            !query.IsAdmin &&
+            (membership is null || !groupPermissionsService.CanViewGroup(membership)))
         {
             return new ForbiddenError(nameof(Group), Operation, nameof(Group.Id), tournament.Group.Id);
         }

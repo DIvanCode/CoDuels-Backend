@@ -58,4 +58,51 @@ public sealed class CreateTournamentCommandValidatorTests
 
         result.IsValid.Should().BeFalse();
     }
+
+    [Fact]
+    public void Accepts_global_tournament_with_future_utc_start()
+    {
+        var result = _validator.Validate(new CreateTournamentCommand
+        {
+            UserId = 1,
+            IsAdmin = true,
+            Name = "World Cup",
+            Description = "Open tournament",
+            StartsAt = DateTime.UtcNow.AddHours(1),
+            MatchmakingType = TournamentMatchmakingType.Swiss
+        });
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Rejects_global_tournament_without_description_or_future_start()
+    {
+        var result = _validator.Validate(new CreateTournamentCommand
+        {
+            UserId = 1,
+            IsAdmin = true,
+            Name = "World Cup",
+            StartsAt = DateTime.UtcNow.AddHours(-1),
+            MatchmakingType = TournamentMatchmakingType.Swiss
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Select(e => e.PropertyName).Should().Contain(["Description", "StartsAt"]);
+    }
+
+    [Fact]
+    public void Rejects_swiss_matchmaking_in_group_tournament()
+    {
+        var result = _validator.Validate(new CreateTournamentCommand
+        {
+            UserId = 1,
+            Name = "Cup",
+            GroupId = 10,
+            MatchmakingType = TournamentMatchmakingType.Swiss,
+            Participants = ["u1", "u2"]
+        });
+
+        result.IsValid.Should().BeFalse();
+    }
 }

@@ -46,7 +46,7 @@ public sealed class GetGroupTournamentsHandler(Context context, IGroupPermission
 
         var tournaments = await context.Tournaments
             .AsNoTracking()
-            .Where(t => t.Group.Id == query.GroupId)
+            .Where(t => t.Group != null && t.Group.Id == query.GroupId)
             .Include(t => t.Group)
             .Include(t => t.CreatedBy)
             .Include(t => t.DuelConfiguration)
