@@ -31,10 +31,7 @@ public sealed class CancelPendingDuelsHandler(Context context) : IRequestHandler
         var rankedPendingDuels = await context.PendingDuels.OfType<RankedPendingDuel>()
             .Where(d => d.User.Id == command.UserId)
             .ToListAsync(cancellationToken);
-        if (rankedPendingDuels.Count > 0)
-        {
-            context.PendingDuels.RemoveRange(rankedPendingDuels);
-        }
+        context.PendingDuels.RemoveRange(rankedPendingDuels);
 
         var outgoingFriendlyDuels = await context.PendingDuels.OfType<FriendlyPendingDuel>()
             .Include(d => d.User1)
@@ -75,49 +72,6 @@ public sealed class CancelPendingDuelsHandler(Context context) : IRequestHandler
                     },
                     RetryUntil = DateTime.UtcNow.AddMinutes(5)
                 });
-        }
-
-        var incomingFriendlyDuels = await context.PendingDuels.OfType<FriendlyPendingDuel>()
-            .Include(d => d.User2)
-            .Where(d => d.User2.Id == command.UserId)
-            .ToListAsync(cancellationToken);
-        foreach (var duel in incomingFriendlyDuels)
-        {
-            duel.IsAccepted = false;
-        }
-
-        var groupPendingDuels = await context.PendingDuels.OfType<GroupPendingDuel>()
-            .Include(d => d.User1)
-            .Include(d => d.User2)
-            .Where(d => d.User1.Id == command.UserId || d.User2.Id == command.UserId)
-            .ToListAsync(cancellationToken);
-        foreach (var duel in groupPendingDuels)
-        {
-            if (duel.User1.Id == command.UserId)
-            {
-                duel.IsAcceptedByUser1 = false;
-            }
-            else
-            {
-                duel.IsAcceptedByUser2 = false;
-            }
-        }
-
-        var tournamentPendingDuels = await context.PendingDuels.OfType<TournamentPendingDuel>()
-            .Include(d => d.User1)
-            .Include(d => d.User2)
-            .Where(d => d.User1.Id == command.UserId || d.User2.Id == command.UserId)
-            .ToListAsync(cancellationToken);
-        foreach (var duel in tournamentPendingDuels)
-        {
-            if (duel.User1.Id == command.UserId)
-            {
-                duel.IsAcceptedByUser1 = false;
-            }
-            else
-            {
-                duel.IsAcceptedByUser2 = false;
-            }
         }
 
         await context.SaveChangesAsync(cancellationToken);

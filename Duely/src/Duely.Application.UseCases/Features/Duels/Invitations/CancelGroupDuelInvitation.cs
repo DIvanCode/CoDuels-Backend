@@ -72,13 +72,13 @@ public sealed class CancelGroupDuelInvitationHandler(Context context, IGroupPerm
         }
         
         var groupPendingDuel = await context.PendingDuels.OfType<GroupPendingDuel>()
-            .SingleOrDefaultAsync(d =>
+            .Include(d => d.Configuration)
+            .Where(d =>
                     d.Group.Id == command.GroupId &&
                     ((d.User1.Id == user1.Id && d.User2.Id == user2.Id) ||
-                     (d.User1.Id == user2.Id && d.User2.Id == user1.Id)) &&
-                    ((command.ConfigurationId == null && d.Configuration == null) ||
-                     (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)),
-                cancellationToken);
+                     (d.User1.Id == user2.Id && d.User2.Id == user1.Id)))
+            .OrderBy(d => d.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         if (groupPendingDuel is null)
         {
             return Result.Ok();
@@ -96,7 +96,7 @@ public sealed class CancelGroupDuelInvitationHandler(Context context, IGroupPerm
                 {
                     GroupName = group.Name,
                     OpponentNickname = user2.Nickname,
-                    ConfigurationId = command.ConfigurationId
+                    ConfigurationId = groupPendingDuel.Configuration?.Id
                 }
             },
             RetryUntil = DateTime.UtcNow.AddMinutes(5)
@@ -112,7 +112,7 @@ public sealed class CancelGroupDuelInvitationHandler(Context context, IGroupPerm
                 {
                     GroupName = group.Name,
                     OpponentNickname = user1.Nickname,
-                    ConfigurationId = command.ConfigurationId
+                    ConfigurationId = groupPendingDuel.Configuration?.Id
                 }
             },
             RetryUntil = DateTime.UtcNow.AddMinutes(5)

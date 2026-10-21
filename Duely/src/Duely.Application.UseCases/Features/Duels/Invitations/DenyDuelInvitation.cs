@@ -41,10 +41,7 @@ public sealed class DenyDuelInvitationHandler(Context context)
 
         var friendlyPendingDuel = await context.PendingDuels.OfType<FriendlyPendingDuel>()
             .Include(d => d.Configuration)
-            .Where(d =>
-                    d.User1.Id == opponent.Id && d.User2.Id == user.Id &&
-                    ((command.ConfigurationId == null && d.Configuration == null) ||
-                     (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)))
+            .Where(d => d.User1.Id == opponent.Id && d.User2.Id == user.Id)
             .OrderBy(d => d.Id)
             .FirstOrDefaultAsync(cancellationToken);
         if (friendlyPendingDuel is null)
@@ -63,7 +60,7 @@ public sealed class DenyDuelInvitationHandler(Context context)
                 Message = new DuelInvitationDeniedMessage
                 {
                     OpponentNickname = user.Nickname,
-                    ConfigurationId = command.ConfigurationId
+                    ConfigurationId = friendlyPendingDuel.Configuration?.Id
                 }
             },
             RetryUntil = DateTime.UtcNow.AddMinutes(5)

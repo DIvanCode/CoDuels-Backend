@@ -60,9 +60,7 @@ public sealed class CreateDuelInvitationHandler(Context context)
 
         var alreadyInvited = await context.PendingDuels.OfType<FriendlyPendingDuel>()
             .AsNoTracking()
-            .AnyAsync(d => d.User1.Id == user.Id && d.User2.Id == opponent.Id &&
-                ((command.ConfigurationId == null && d.Configuration == null) ||
-                 (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)),
+            .AnyAsync(d => d.User1.Id == user.Id && d.User2.Id == opponent.Id,
                 cancellationToken);
         if (alreadyInvited)
         {

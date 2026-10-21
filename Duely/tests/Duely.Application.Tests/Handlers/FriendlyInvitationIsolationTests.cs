@@ -10,7 +10,7 @@ namespace Duely.Application.Tests.Handlers;
 public sealed class FriendlyInvitationIsolationTests : ContextBasedTest
 {
     [Fact]
-    public async Task Accept_cancel_and_deny_select_only_the_requested_outgoing_invitation()
+    public async Task Legacy_duplicate_pair_operations_select_oldest_and_preserve_other_rows()
     {
         var sender = EntityFactory.MakeUser(1, "sender");
         var invitee = EntityFactory.MakeUser(2, "invitee");
@@ -64,6 +64,6 @@ public sealed class FriendlyInvitationIsolationTests : ContextBasedTest
         remaining.User1.Id.Should().Be(sender.Id);
         remaining.User2.Id.Should().Be(invitee.Id);
         remaining.Configuration!.Id.Should().Be(configuration.Id);
-        remaining.IsAccepted.Should().BeTrue();
+        remaining.IsAccepted.Should().BeFalse();
     }
 }

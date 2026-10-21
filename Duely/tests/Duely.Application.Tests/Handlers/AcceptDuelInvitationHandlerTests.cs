@@ -120,7 +120,7 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task NotFound_when_configuration_mismatch()
+    public async Task Accepts_pair_when_request_configuration_differs()
     {
         var ctx = Context;
         var inviter = EntityFactory.MakeUser(1, "inviter");
@@ -163,8 +163,9 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
             ConfigurationId = 999
         }, CancellationToken.None);
 
-        res.IsFailed.Should().BeTrue();
-        res.Errors.Should().ContainSingle(e => e is EntityNotFoundError);
+        res.IsSuccess.Should().BeTrue();
+        ctx.PendingDuels.OfType<FriendlyPendingDuel>()
+            .Should().ContainSingle(p => p.IsAccepted && p.Configuration!.Id == 10);
     }
 
     [Fact]

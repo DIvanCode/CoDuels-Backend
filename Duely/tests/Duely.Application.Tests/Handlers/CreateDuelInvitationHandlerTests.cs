@@ -212,7 +212,7 @@ public class CreateDuelInvitationHandlerTests : ContextBasedTest
     }
 
     [Fact]
-    public async Task Same_opponent_can_receive_another_configuration_without_canceling_the_first()
+    public async Task Same_opponent_cannot_receive_another_configuration_while_invitation_is_pending()
     {
         var sender = EntityFactory.MakeUser(1, "sender");
         var opponent = EntityFactory.MakeUser(2, "opponent");
@@ -245,12 +245,12 @@ public class CreateDuelInvitationHandlerTests : ContextBasedTest
             }, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        (await Context.PendingDuels.OfType<FriendlyPendingDuel>().CountAsync()).Should().Be(2);
+        (await Context.PendingDuels.OfType<FriendlyPendingDuel>().CountAsync()).Should().Be(1);
         (await Context.PendingDuels.OfType<FriendlyPendingDuel>()
             .CountAsync(duel => duel.Configuration == null)).Should().Be(1);
         (await Context.PendingDuels.OfType<FriendlyPendingDuel>()
-            .CountAsync(duel => duel.Configuration != null && duel.Configuration.Id == configuration.Id)).Should().Be(1);
-        (await Context.OutboxMessages.CountAsync()).Should().Be(1);
+            .CountAsync(duel => duel.Configuration != null && duel.Configuration.Id == configuration.Id)).Should().Be(0);
+        (await Context.OutboxMessages.CountAsync()).Should().Be(0);
     }
 
     [Fact]

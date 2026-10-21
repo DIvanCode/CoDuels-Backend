@@ -449,6 +449,12 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
         });
         Context.Users.AddRange(creator, user1, user2);
         Context.Groups.Add(group);
+        var otherConfiguration = new DuelConfiguration
+        {
+            Id = 20, MaxDurationMinutes = 30, TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential, TasksConfigurations = []
+        };
+        Context.DuelConfigurations.Add(otherConfiguration);
         Context.PendingDuels.Add(new GroupPendingDuel
         {
             Type = PendingDuelType.Group,
@@ -468,7 +474,8 @@ public class CreateGroupDuelInvitationHandlerTests : ContextBasedTest
             UserId = creator.Id,
             GroupId = group.Id,
             User1Id = user1.Id,
-            User2Id = user2.Id
+            User2Id = user2.Id,
+            ConfigurationId = otherConfiguration.Id
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();

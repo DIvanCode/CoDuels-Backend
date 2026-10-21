@@ -32,13 +32,12 @@ public sealed class AcceptGroupDuelInvitationHandler(Context context)
         var groupPendingDuel = await context.PendingDuels.OfType<GroupPendingDuel>()
             .Include(d => d.User1)
             .Include(d => d.User2)
-            .SingleOrDefaultAsync(d =>
+            .Where(d =>
                 d.Group.Id == command.GroupId &&
                 ((d.User1.Id == command.UserId && d.User2.Nickname == command.OpponentNickname) ||
-                 (d.User2.Id == command.UserId && d.User1.Nickname == command.OpponentNickname)) &&
-                ((command.ConfigurationId == null && d.Configuration == null) ||
-                 (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)),
-                cancellationToken);
+                 (d.User2.Id == command.UserId && d.User1.Nickname == command.OpponentNickname)))
+            .OrderBy(d => d.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         if (groupPendingDuel is null)
         {
             return new EntityNotFoundError(nameof(GroupPendingDuel), nameof(User.Id), command.UserId);

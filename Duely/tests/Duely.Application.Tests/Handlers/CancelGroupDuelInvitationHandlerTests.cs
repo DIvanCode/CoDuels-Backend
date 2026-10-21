@@ -1,6 +1,7 @@
 using Duely.Application.Services.Errors;
 using Duely.Application.Tests.TestHelpers;
 using Duely.Application.UseCases.Features.Duels.Invitations;
+using Duely.Domain.Models.Duels;
 using Duely.Domain.Models.Duels.Pending;
 using Duely.Domain.Models.Groups;
 using Duely.Domain.Models.Messages;
@@ -227,6 +228,11 @@ public class CancelGroupDuelInvitationHandlerTests : ContextBasedTest
         });
         Context.Users.AddRange(creator, user1, user2);
         Context.Groups.Add(group);
+        var configuration = new DuelConfiguration
+        {
+            Id = 20, MaxDurationMinutes = 30, TasksCount = 1,
+            TasksOrder = DuelTasksOrder.Sequential, TasksConfigurations = []
+        };
         Context.PendingDuels.Add(new GroupPendingDuel
         {
             Type = PendingDuelType.Group,
@@ -234,7 +240,7 @@ public class CancelGroupDuelInvitationHandlerTests : ContextBasedTest
             CreatedBy = creator,
             User1 = user1,
             User2 = user2,
-            Configuration = null,
+            Configuration = configuration,
             CreatedAt = DateTime.UtcNow
         });
         await Context.SaveChangesAsync();
@@ -246,7 +252,8 @@ public class CancelGroupDuelInvitationHandlerTests : ContextBasedTest
             UserId = creator.Id,
             GroupId = group.Id,
             User1Id = user1.Id,
-            User2Id = user2.Id
+            User2Id = user2.Id,
+            ConfigurationId = 999
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -254,5 +261,6 @@ public class CancelGroupDuelInvitationHandlerTests : ContextBasedTest
         var outbox = await Context.OutboxMessages.AsNoTracking().ToListAsync();
         outbox.Should().HaveCount(2);
         outbox.Should().OnlyContain(m => ((SendMessagePayload)m.Payload).Message is GroupDuelInvitationCanceledMessage);
+        outbox.Should().OnlyContain(m => ((GroupDuelInvitationCanceledMessage)((SendMessagePayload)m.Payload).Message).ConfigurationId == configuration.Id);
     }
 }

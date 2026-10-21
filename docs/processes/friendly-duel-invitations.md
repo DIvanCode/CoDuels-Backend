@@ -3,7 +3,7 @@
 ## 1. Purpose
 
 Allow one user to invite another directly, optionally with a duel configuration,
-then accept, deny, cancel, or implicitly reset that invitation.
+then accept, deny, or cancel that invitation.
 
 ## 2. Participants
 
@@ -25,10 +25,11 @@ then accept, deny, cancel, or implicitly reset that invitation.
 
 - Create: sender and opponent exist and differ. Optional configuration must
   exist; ownership is not checked here. Active duels do not block invitation creation.
-- Accept: invitee and named sender exist, and a directional row with matching
-  configuration exists. Active duels do not block acceptance.
-- Deny/cancel: both users and the exact directional/configuration row must exist,
-  except cancel treats a missing row as success.
+- Accept: invitee and named sender exist, and a directional row for that pair
+  exists. Active duels do not block acceptance.
+- Deny/cancel: both users and the directional row for that pair must exist,
+  except cancel treats a missing row as success. The optional `configuration_id`
+  in these requests is accepted for compatibility but does not select a row.
 - There is no uniqueness constraint for sender, pair, or configuration.
 
 ## 5. Current behavior
@@ -36,7 +37,7 @@ then accept, deny, cancel, or implicitly reset that invitation.
 ### Create
 
 The handler validates sender, opponent, and optional configuration. An existing
-outgoing row for the same opponent and configuration returns success without a
+outgoing row for the same opponent returns success without a
 new message. Otherwise it creates a directional `IsAccepted = false` row and
 records one `DuelInvitation` for the invitee. Other invitations, Ranked search,
 and active duels remain unchanged.
@@ -46,7 +47,7 @@ both `A -> B` and `B -> A` rows.
 
 ### Accept
 
-The requested incoming row is marked `IsAccepted = true` and saved once. Other
+The incoming row for the pair is marked `IsAccepted = true` and saved once. Other
 pending rows and active duels remain unchanged.
 No acceptance message is emitted. The making job observes the flag later.
 
@@ -54,6 +55,8 @@ No acceptance message is emitted. The making job observes the flag later.
 
 - Deny deletes the incoming row and sends `DuelInvitationDenied` only to the sender.
 - Sender cancel deletes the row and sends `DuelInvitationCanceled` to both users.
+- Both notifications report the configuration stored on the deleted row, even
+  when the request contains a different `configuration_id`.
 - Sender cancel succeeds without messages when the row is already absent and
   also deletes an already accepted row if it has not yet been consumed.
 
@@ -62,7 +65,7 @@ No acceptance message is emitted. The making job observes the flag later.
 The incoming list returns only rows where the caller is `User2` and
 `IsAccepted == false`, ordered by id. Accepted invitations disappear from the
 list but remain pending. Shared cleanup deletes all outgoing rows with messages;
-incoming rows remain but their acceptance is reset without messages.
+incoming rows and their acceptance remain unchanged.
 
 ## 6. State transitions
 
@@ -71,19 +74,19 @@ incoming rows remain but their acceptance is reset without messages.
 - `Incoming Friendly(false) -> Friendly(true)` on accept.
 - `Incoming Friendly -> deleted` on deny.
 - `Outgoing Friendly -> deleted` on sender cancel or disconnect.
-- `Incoming Friendly(true) -> Friendly(false)` on invitee disconnect.
+- `Incoming Friendly(true) -> Friendly(true)` on invitee disconnect.
 - `Friendly(true) -> deleted; Duel(InProgress) created` when selected.
 
 ## 7. Conflicting state cleanup
 
 | Action | Ranked | Other outgoing Friendly | Incoming Friendly | Group | Tournament |
 | --- | --- | --- | --- | --- | --- |
-| Create | Unchanged | Preserve all; exact duplicate is idempotent | Unchanged | Unchanged | Unchanged |
+| Create | Unchanged | Preserve all; same directional pair is idempotent regardless of configuration | Unchanged | Unchanged | Unchanged |
 | Accept | Unchanged | Unchanged | Mark requested row accepted | Unchanged | Unchanged |
 | Deny | Unchanged | Unchanged | Delete requested row | Unchanged | Unchanged |
 | Sender cancel | Unchanged | Delete requested row | Unchanged | Unchanged | Unchanged |
 | Explicit search cancel | Delete caller Ranked | Unchanged | Unchanged | Unchanged | Unchanged |
-| Disconnect cleanup | Delete all caller Ranked | Delete all and notify both sides | Keep all; reset caller-as-invitee acceptance | Reset caller flag | Reset caller flag |
+| Disconnect cleanup | Delete all caller Ranked | Delete all and notify both sides | Keep all, including acceptance | Keep all, including acceptance | Keep all, including acceptance |
 | Duel creation | Unchanged except selected row | Delete only selected row | Delete only selected row | Unchanged | Unchanged |
 
 ## 8. Emitted messages
@@ -102,8 +105,9 @@ outbox retry, while offline delivery is treated as success and cannot retry.
 
 ## 9. Idempotency
 
-- Create to the same nickname and configuration returns success without a new
-  row or message; another configuration can have its own invitation.
+- Create to the same nickname returns success without a new row or message,
+  even when another configuration is requested. The first pending row retains
+  its configuration.
 - Sequential sender cancel is idempotent: later calls succeed silently.
 - Repeating accept before the row is consumed writes `true` again; after duel
   creation it returns not found.
@@ -121,15 +125,15 @@ outbox retry, while offline delivery is treated as success and cannot retry.
 
 ## 11. Concurrency and race conditions
 
-- Two concurrent creates can both observe no matching row and insert exact
-  duplicates. Accept/cancel/deny select the oldest exact row; duplicates may
+- Two concurrent creates can both observe no matching pair and insert
+  duplicates. Accept/cancel/deny select the oldest directional row; duplicates may
   remain until separately consumed or canceled.
 - Accept and sender cancel can race. Either the cancel commits first and accept
   finds nothing, or accept can set a row that cancel subsequently deletes.
 - The maker locks both users and checks the actual rated configuration of the
   proposed and active duels before insertion.
-- A maker reloads `IsAccepted` after locking the selected pending row, so a reset
-  committed before that reload prevents creation.
+- A maker reloads `IsAccepted` after locking the selected pending row; explicit
+  denial or cancellation of that row prevents creation.
 - Accepted Friendly has priority over Group/Tournament/Ranked for rated slot
   selection in one maker call. Unrated rows can be selected concurrently.
 - Mutual invitations are legal; accepting one preserves the opposite-direction row.
@@ -179,7 +183,8 @@ the assertions exercise `FriendlyPendingDuel`, so the names conflict with code.
 
 ## 16. Proposed requirements
 
-- Define a uniqueness key and explicit semantics for pair, direction, and configuration.
+- Add a uniqueness key for each directional pair so concurrent creates cannot
+  produce duplicate invitations with different configurations.
 - Add request idempotency for state-changing invitation endpoints.
 - Specify symmetric recipients for every cleanup path and test both participants.
 - Consider a durable invitation uniqueness key; duel conversion already locks

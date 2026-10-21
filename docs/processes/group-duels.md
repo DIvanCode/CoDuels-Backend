@@ -19,7 +19,8 @@ after the active duel is created.
 - `GET /duels/group/invitations`: list invitations not yet accepted by the caller.
 - `POST /duels/group/invitations/accept`: accept as one participant.
 - `POST /duels/group/invitations/cancel`: authorized deletion of the pending pair.
-- Final WebSocket disconnect: reset the caller's acceptance. Explicit
+- Final WebSocket disconnect: remove Ranked search and outgoing Friendly
+  invitations, while preserving Group acceptance. Explicit
   `POST /duels/cancel` removes only Ranked search.
 - `DuelMakingJob`: consume a row after both participants accept.
 
@@ -39,16 +40,17 @@ after the active duel is created.
 
 The handler loads the actor and a group with filtered memberships for the actor
 and both nominated users, verifies permissions/memberships and the
-configuration, then searches for the same group, unordered pair, and exact
-configuration. An existing row returns success without messages. Otherwise it
+configuration, then searches for the same group and unordered pair regardless
+of configuration. An existing row returns success without messages. Otherwise it
 creates `GroupPendingDuel` with both acceptance flags false and records one
 `GroupDuelInvitation` for each participant. The list returns rows where the
 caller's own flag is false, ordered by row id.
 
 ### Acceptance
 
-The matching Group row is located by group, caller/opponent pair, and
-configuration, then only the caller's positional flag is set true. No group
+The matching Group row is located by group and caller/opponent pair, then only
+the caller's positional flag is set true. The optional request
+`configuration_id` is accepted for compatibility but does not select a row. No group
 acceptance message is emitted. Ranked search, other invitations, and active
 duels remain unchanged.
 
@@ -56,8 +58,8 @@ duels remain unchanged.
 
 An authorized group actor can delete the whole row; both participants receive a
 `GroupDuelInvitationCanceled`. A missing row is successful. In contrast, shared
-disconnect cleanup keeps the row and sets only the disconnecting participant's
-flag false, without a group message.
+disconnect cleanup keeps the row and both acceptance flags, without a group
+message. Cancellation notifications use the stored row configuration.
 
 ### Duel creation
 
@@ -73,7 +75,7 @@ link, and two `DuelStarted` rows in one transaction.
 
 - `No matching row -> GroupPendingDuel(false, false)`.
 - `User1 false -> true` or `User2 false -> true` on acceptance.
-- `This user's true -> false` on disconnect cleanup.
+- `This user's true -> true` on disconnect cleanup.
 - `GroupPendingDuel -> deleted` on authorized cancel.
 - `GroupPendingDuel(true, true) -> deleted; Duel(InProgress) created`.
 - `No GroupDuel link -> GroupDuel created` before the creation transaction commits.
@@ -84,9 +86,9 @@ link, and two `DuelStarted` rows in one transaction.
 | --- | --- | --- | --- | --- |
 | Ranked | Unchanged for both nominees | Unchanged | Unchanged | Delete caller's all |
 | Outgoing Friendly | Unchanged | Unchanged | Unchanged | Delete caller's all; notify both sides |
-| Incoming Friendly | Unchanged | Unchanged | Unchanged | Keep and reset caller acceptance |
-| Other Group rows | Unchanged | Unchanged | Unchanged | Reset caller flag on every involving row |
-| Tournament rows | Unchanged | Unchanged | Unchanged | Reset caller flag on every involving row |
+| Incoming Friendly | Unchanged | Unchanged | Unchanged | Keep, including acceptance |
+| Other Group rows | Unchanged | Unchanged | Unchanged | Keep, including acceptance |
+| Tournament rows | Unchanged | Unchanged | Unchanged | Keep, including acceptance |
 
 Creating a Group row does not reserve participants against other pending types.
 Tournament synchronization also allows other pending processes to coexist.
@@ -107,13 +109,13 @@ after the active duel's first save but in the same transaction. General retry/du
 
 ## 9. Idempotency
 
-- Sequential duplicate create for the same unordered pair/configuration returns
+- Sequential duplicate create for the same unordered pair returns
   success with no extra row or message.
 - Repeating acceptance while the row exists writes the same flag; after
   consumption it returns not found.
 - Sequential authorized cancel is idempotent and silent after the first call.
-- Disconnect reset is convergent but may repeatedly generate Friendly
-  cancellation rows for unrelated outgoing invitations.
+- Disconnect cleanup can generate Friendly cancellation rows for unrelated
+  outgoing invitations; it does not change Group acceptance.
 - Concurrent duplicate create is not protected by a unique constraint.
 
 ## 10. Transaction boundaries
@@ -127,8 +129,8 @@ after the active duel's first save but in the same transaction. General retry/du
 ## 11. Concurrency and race conditions
 
 - Concurrent creates can insert duplicates and duplicate invitations.
-- Both acceptances can race with shared reset; the maker uses the values reloaded
-  after locking the Group pending row.
+- Both acceptances can race with authorized cancellation; the maker uses the values
+  reloaded after locking the Group pending row.
 - Authorized cancel and the maker serialize on the Group pending row.
 - `TryCreateDuelHandler` locks both users and re-checks active rated duels for a
   rated Group configuration. An unrated Group row may be consumed beside any duel.
@@ -153,7 +155,7 @@ Both nominees receive an invitation on creation and can recover unaccepted rows
 through GET. A user's accepted row disappears from their GET list while the
 other participant can still see it. There is no acceptance/reset event. Both
 participants are expected to learn activation through `DuelStarted`; authorized
-cancel has an explicit event, while disconnect reset is silent.
+cancel has an explicit event, while disconnect leaves acceptance intact.
 
 ## 14. Implementation references
 
@@ -173,14 +175,14 @@ extra cancellation messages.
 ## 15. Open questions
 
 - Must the two participants be distinct and still be group members at acceptance/start?
-- Should each acceptance/reset be visible to the other participant or group actor?
+- Should each acceptance be visible to the other participant or group actor?
 - Should Group membership also be re-checked during transactional duel creation?
 - See [Open questions](open-questions.md).
 
 ## 16. Proposed requirements
 
 - Validate distinct participants and add a database uniqueness rule for the
-  intended group/pair/configuration identity.
+  intended group/pair identity.
 - Re-check membership at acceptance or start; rated availability and acceptance
   are already re-checked in the transactional pair claim.
-- Specify symmetric cleanup recipients and acceptance/reset events.
+- Specify symmetric cleanup recipients and acceptance events.
