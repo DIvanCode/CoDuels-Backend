@@ -58,7 +58,7 @@ structures and disappear on owner restart.
 | Worker local job queue | worker | Heap queue | No | Worker process |
 | Worker free slots/available memory | worker | Heap counters | No | Worker counters; coordinator has a separate prediction |
 | Completed results before heartbeat | worker | `doneJobs` slice | No | Worker process |
-| Runtime/chain resource paths | executor/runtime | Heap + temp/isolate directory | No | Runtime object/files |
+| Runtime paths | executor/runtime | Heap + temp/isolate directory | No | Runtime object/files |
 | Source definitions | execution storage | PostgreSQL JSONB | Yes | PostgreSQL |
 | Materialized source/job/output maps | execution factory | Coordinator heap | No | Active execution object |
 | Coordinator cached sources | coordinator filestorage | Local filesystem/meta | Only if filesystem survives TTL/restart | Local filestorage |

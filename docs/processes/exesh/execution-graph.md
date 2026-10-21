@@ -3,14 +3,13 @@
 ## Purpose
 
 Turn the durable source/stage/job definitions into executable objects, derive
-job artifact dependencies, activate root stages, and optionally reduce linear
-paths into chain jobs.
+job artifact dependencies, and activate root stages.
 
 ## Participants
 
 Execution scheduler, execution factory, calculator, coordinator filestorage,
-execution/job/source domain types, graph, chain reducer, and worker pool lookup
-callbacks created for future artifact resolution.
+execution/job/source domain types, graph, and worker pool lookup callbacks
+created for future artifact resolution.
 
 ## Trigger
 
@@ -37,17 +36,14 @@ Downloaded external buckets/files must be reachable.
 4. Input definitions become inline/file source IDs or artifact source IDs equal
    to the producing job ID. An artifact reference can resolve only a job already
    placed in `JobByName`.
-5. Each stage's job path is reduced: while a job has exactly one still-alive
-   successor in that same stage, both are combined into a `chain`. A chain sums
-   time, takes maximum memory, uses the last job's ID/status/output, and removes
-   internal artifact inputs from its external input set.
-6. `newGraph` builds stage successors, artifact-derived job successors,
-   dependency counters, cancellation flags, per-stage queues, and active root
+5. `newGraph` preserves each job as a separate node and builds stage successors,
+   artifact-derived job successors, dependency counters, cancellation flags,
+   per-stage queues, and active root
    stages. Jobs without artifact dependencies enter their stage's `toPick`.
-7. `PickJobs` drains ready jobs only from active stages. On successful job
+6. `PickJobs` drains ready jobs only from active stages. On successful job
    status, successors count a completed dependency. On any other status,
    successors are marked canceled and cancellation propagates when picked.
-8. A stage finishes when its done count equals total jobs. Success activates
+7. A stage finishes when its done count equals total jobs. Success activates
    dependent stages; a failed stage does not.
 
 There is no validation or topological sort. A stage cycle or missing dependency
@@ -115,14 +111,13 @@ type-incompatible references use unchecked `As...` assertions and may panic.
 ## Observability
 
 Factory errors include source/stage/job names. No graph structure, root count,
-cycle, chain membership, or dependency counter is exposed as a metric/event.
-Scheduler job events later expose `job_type = chain` but not inner IDs.
+cycle, or dependency counter is exposed as a metric/event. Scheduler logs the
+job ID and type when it dispatches each job.
 
 ## Implementation references
 
 - `Exesh/internal/factory/execution_factory.go`
-- `Exesh/internal/domain/execution/{execution.go,graph.go,reduce_chain_jobs.go}`
-- `Exesh/internal/domain/execution/job/jobs/chain_job.go`
+- `Exesh/internal/domain/execution/{execution.go,graph.go}`
 - `Exesh/internal/domain/execution/input` and `source`
 - `Exesh/internal/provider/adapter/filestorage_adapter.go`
 
@@ -136,23 +131,23 @@ their predecessors completed with its configured success status.
 ## Open questions
 
 Should job names be unique execution-wide? Are forward artifact references and
-cross-stage references supported? Is chain reduction intended to cross runtime
-isolation classes? What is the required outcome for empty/cyclic graphs? See
+cross-stage references supported? What is the required outcome for empty/cyclic
+graphs? See
 [Open questions](open-questions.md).
 
 ## Proposed requirements
 
 - Validate and topologically order the entire graph before any source download.
 - Reject duplicate job IDs/names and empty or unreachable stages.
-- Make chain eligibility require a compatible isolation/runtime policy.
 - Persist or explicitly declare loss of job progress, and define replay safety.
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** no Exesh tests; filestorage tests cover
-  only its own download behavior.
-- **Missing scenarios:** graph construction, cycles, missing dependencies,
-  cancellation, activation, IDs, chains, and duplicate names.
+- **Existing tests / covered scenarios:** linear compile/run dependencies,
+  cancellation after compilation failure, and rejection of removed job/result
+  types.
+- **Missing scenarios:** cycles, missing dependencies, stage activation,
+  duplicate names, and restart recovery.
 - **Required integration tests:** materialize realistic Taski/Duely definitions
   with real coordinator filestorage and verify executable DAGs.
 - **Required failure-injection tests:** source download/type mismatch midway

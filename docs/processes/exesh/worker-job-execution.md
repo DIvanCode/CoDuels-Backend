@@ -8,7 +8,7 @@ and retain a result for heartbeat delivery.
 
 ## Participants
 
-Worker queue and slot goroutines, executor factory, compile/run/check/chain
+Worker queue and slot goroutines, executor factory, compile/run/check
 executors, source/output providers, local or isolate runtime, worker
 filestorage, and coordinator via the next heartbeat.
 
@@ -29,12 +29,13 @@ its privileged-container prerequisites must exist for untrusted run/check jobs.
    all jobs and adds their expected memory to queued-memory accounting.
 2. A slot goroutine dequeues a job, decreases free slots and available memory by
    expected memory, creates the matching executor, and always defers `Stop`.
-3. `Init` creates a runtime and registers fixed runtime paths. `PrepareInput`
-   locates cached sources with filestorage read locks and copies them into the
-   runtime.
-4. Standalone compile C++/Go uses `local.Runtime`, runs `g++` or `go build` in a
+3. `Init` creates a runtime. `PrepareInput` locates cached sources with
+   filestorage read locks and copies them to fixed paths in the runtime. Each
+   source lock is released before the next source is located, including when
+   several inputs share one bucket.
+4. Compile C++/Go uses `local.Runtime`, runs `g++` or `go build` in a
    temporary worker-container directory, and returns OK/CE or internal error.
-5. Standalone C++/Go/Python run and C++ check use `isolate.Runtime`. It limits
+5. C++/Go/Python run and C++ check use `isolate.Runtime`. It limits
    one process, time/wall-time, memory, per-file size, quota, file count, and
    total bytes. Run maps timeout/memory/other failures to TL/ML/RE. The checker
    interprets stderr beginning `ok` or `wrong` as OK/WA.
@@ -42,18 +43,10 @@ its privileged-container prerequisites must exist for untrusted run/check jobs.
    copies the runtime file, commits it with artifact TTL, and places its trash
    time in the result. `Worker.executeJob` only logs `SaveOutput` errors and
    returns the unchanged output-bearing result.
-7. A chain creates one runtime based only on its first inner job and passes that
-   runtime to every inner executor. It prepares only external inputs once,
-   executes inner jobs serially, stops after an internal error or a non-last
-   status different from that inner job's success status, and persists only the
-   last output. Non-last inner output paths are shared through an in-memory
-   runtime registry.
-8. Therefore a reduced `compile -> run -> check` chain starts with the local
-   compile runtime and executes the later user binary/checker through
-   `local.Runtime`, bypassing the isolate factory that their standalone types
-   normally use. The checked-in Duely C++/Go request is a linear compile/run
-   stage and is eligible for this reduction.
-9. The worker appends the result, frees predicted resources, and the heartbeat
+7. Each dispatched job creates its own runtime. Compile C++/Go executors use
+   local runtime; run and check executors use isolate. Downstream jobs receive
+   earlier outputs through worker artifacts.
+8. The worker appends the result, frees predicted resources, and the heartbeat
    loop later sends it.
 
 The worker config field `runtime: isolate` is loaded but not used in runtime
@@ -63,8 +56,7 @@ wiring; type factories determine runtime selection.
 
 Conceptual job transitions: `received -> queued -> running -> result pending ->
 reported`. Executor: `created -> initialized -> input prepared -> command done
--> output committed/failed -> stopped`. A chain additionally moves inner jobs
-serially. These states are not persisted.
+-> output committed/failed -> stopped`. These states are not persisted.
 
 ## State ownership
 
@@ -72,7 +64,7 @@ serially. These states are not persisted.
 | --- | --- | --- | --- | --- |
 | Local job queue and resource counters | worker | Heap | No | Worker mutex/queue |
 | Runtime directory/isolate box | runtime | Worker filesystem/process | No | Runtime object/files |
-| Runtime resource paths | executor registry | Heap | No | Registry map |
+| Runtime paths | executor/runtime | Fixed paths in job executor and runtime directory | No | Runtime files |
 | Cached sources | source provider/filestorage | Heap map + local files | Files maybe; map no | Both required |
 | Output artifact and expiry | output provider/filestorage | Local files/meta | Deployment-dependent | Filestorage bucket |
 | Completed result pending heartbeat | worker | Heap slice | No | `doneJobs` |
@@ -116,7 +108,7 @@ Output-save failure is logged but not converted to a result error or
 
 | Output | Condition | Durable | Notes |
 | --- | --- | --- | --- |
-| Typed result (`compile/run/check/chain`) | Command path completes | Worker heap only | Sent next heartbeat |
+| Typed result (`compile/run/check`) | Command path completes | Worker heap only | Sent next heartbeat |
 | Artifact file/meta | Output-bearing result save | Worker filesystem | TTL-bound |
 | Worker logs | Execute/save/stop | Log dependent | No custom result metric |
 | Business message | Not on worker | N/A | Coordinator creates after result |
@@ -139,22 +131,19 @@ queue, verdict, output-save, or sandbox violation metric.
 
 ## Current guarantees
 
-Standalone run/check types are wired to isolate, and the isolate runtime applies
-the limits listed above. Each normal worker goroutine executes one dequeued job
-at a time and defers runtime stop. These guarantees do not extend to a chain
-whose first inner job selects local runtime, nor to result/artifact durability.
+Run/check types are wired to isolate, and the isolate runtime applies the
+limits listed above. Each worker goroutine executes one dequeued job at a time
+and defers runtime stop. Result/artifact durability remains separate.
 
 ## Open questions
 
-May chain reduction ever weaken isolation? Are compilers trusted enough for
-local runtime? What should happen when output save fails? Are output contents
-bounded before `show_output` reads the whole file? See
+Are compilers trusted enough for local runtime? What should happen when output
+save fails? Are output contents bounded before `show_output` reads the whole
+file? See
 [Open questions](open-questions.md).
 
 ## Proposed requirements
 
-- Make runtime/isolation policy explicit per inner job and forbid a chain from
-  weakening any member's policy.
 - Treat output commit and artifact metadata failure as a result error.
 - Add queue/job deduplication by attempt and bounded graceful shutdown.
 - Define output size/display limits and runtime status mapping.
@@ -162,11 +151,13 @@ bounded before `show_output` reads the whole file? See
 
 ## Test coverage
 
-- **Existing tests / covered scenarios:** no Exesh tests; upstream isolate tests
-  do not prove Exesh runtime/chain wiring.
+- **Existing tests / covered scenarios:** graph tests prove separate compile/run
+  dispatch and rejection of removed wire types; the Taski-Exesh scenario runs a
+  C++ solution in the privileged worker image and checks that the worker config
+  is invisible to submitted code.
 - **Missing scenarios:** executor lifecycle, verdicts, runtime selection,
-  chain behavior/isolation, counters, duplicate jobs, output failure, shutdown.
-- **Required integration tests:** compile/run/check and chain workflows in the
-  actual privileged worker image, asserting sandbox and artifacts.
+  counters, duplicate jobs, output failure, shutdown, and sandbox edge cases.
+- **Required integration tests:** more compile/run/check workflows in the
+  privileged worker image, asserting sandbox limits and artifacts.
 - **Required failure-injection tests:** runtime init/copy/run/stop failure,
   timeout/OOM/quota, output commit failure, cancellation, and process kill.

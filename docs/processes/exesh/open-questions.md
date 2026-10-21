@@ -3,37 +3,7 @@
 These entries separate observed behavior from decisions. “Possible options” are
 not approved requirements.
 
-## OQ-01: Chain runtime can weaken isolation
-
-### Current behavior
-
-The chain runtime is selected from the first inner job and reused for every
-inner executor. A compile-first chain therefore uses local runtime for later
-run/check jobs that would use isolate when standalone.
-
-### Why this is a problem
-
-The current Duely C++/Go linear compile/run graph is chain-eligible, so an
-untrusted binary can execute in the worker container rather than isolate.
-
-### Affected files
-
-- `Exesh/internal/domain/execution/reduce_chain_jobs.go`
-- `Exesh/internal/executor/executors/chain_job_executor.go`
-- `Exesh/cmd/worker/main.go`
-
-### Questions
-
-- May jobs with different isolation classes ever share a chain/runtime?
-- Is compile-local itself an accepted trust boundary?
-
-### Possible options
-
-- Forbid cross-policy chains.
-- Create separate runtimes at policy boundaries.
-- Run every chain in the strongest required isolation.
-
-## OQ-02: Stale execution retry overlaps live work
+## OQ-01: Stale execution retry overlaps live work
 
 ### Current behavior
 
@@ -64,7 +34,7 @@ corrupt `nowWeight` accounting.
 - Persist job progress and retry only missing jobs.
 - Disallow multi-coordinator scheduling until ownership exists.
 
-## OQ-03: Worker removal does not recover started jobs
+## OQ-02: Worker removal does not recover started jobs
 
 ### Current behavior
 
@@ -92,7 +62,7 @@ Re-registration creates an empty pool entry without reconciling old work.
 - Persist dispatch leases and requeue after expiry.
 - Replicate artifacts before unlocking dependents.
 
-## OQ-04: Successful computation can become infrastructure failure
+## OQ-03: Successful computation can become infrastructure failure
 
 ### Current behavior
 
@@ -122,7 +92,7 @@ progress cannot roll back, and the result cannot be reapplied.
 - Make histogram collection asynchronous/non-fatal.
 - Separate domain verdict from infrastructure status.
 
-## OQ-05: Output failure can advertise a missing artifact
+## OQ-04: Output failure can advertise a missing artifact
 
 ### Current behavior
 
@@ -152,7 +122,7 @@ Coordinator processing can panic or later dispatch a non-existent artifact.
 - Validate non-null expiry before heartbeat mutation.
 - Make artifact commit idempotent by attempt and checksum.
 
-## OQ-06: Artifact has one volatile location
+## OQ-05: Artifact has one volatile location
 
 ### Current behavior
 
@@ -181,7 +151,7 @@ there is no replica, renewal, or discovery.
 - Persist replicated locations and pin until dependents finish.
 - Recompute upstream jobs under a fenced retry policy.
 
-## OQ-07: Heartbeat has no partial acknowledgement or dispatch ack
+## OQ-06: Heartbeat has no partial acknowledgement or dispatch ack
 
 ### Current behavior
 
@@ -211,7 +181,7 @@ directions. Worker/source/session identity is not fenced.
 - Separate dispatch leasing from heartbeat.
 - Cache/replay responses by worker session and sequence.
 
-## OQ-08: Oldest heavy execution blocks all lighter work
+## OQ-07: Oldest heavy execution blocks all lighter work
 
 ### Current behavior
 
@@ -238,7 +208,7 @@ One oversized execution can starve every later execution forever.
 - Admit a bounded over-capacity head.
 - Reject/dead-letter impossible definitions at submission.
 
-## OQ-09: Promises can become orphaned
+## OQ-08: Promises can become orphaned
 
 ### Current behavior
 
@@ -266,7 +236,7 @@ recovery; coordinator restart loses the reservation.
 - Add promise expiry/requeue.
 - Validate worker-class feasibility before admission.
 
-## OQ-10: Message and outbox delivery semantics are incomplete
+## OQ-09: Message and outbox delivery semantics are incomplete
 
 ### Current behavior
 
@@ -295,7 +265,7 @@ can stop the topic. Consumers need explicit deduplication rules.
 - Use `SKIP LOCKED` with per-stream ordering constraints.
 - Version schemas and require consumer dedupe by event/outbox ID.
 
-## OQ-11: Empty, cyclic, or invalid graphs have no terminal policy
+## OQ-10: Empty, cyclic, or invalid graphs have no terminal policy
 
 ### Current behavior
 
@@ -325,7 +295,7 @@ the scheduler.
 - Enforce global unique names and compatible sources.
 - Persist an invalid terminal status for legacy poison rows.
 
-## OQ-12: Resource models can diverge
+## OQ-11: Resource models can diverge
 
 ### Current behavior
 
@@ -356,7 +326,7 @@ capacity is independent.
 - Enforce both reported availability and predicted reservations.
 - Add cgroup/isolate measurements and adaptive safety margins.
 
-## OQ-13: Terminal and weight operations are race-prone
+## OQ-12: Terminal and weight operations are race-prone
 
 ### Current behavior
 
@@ -384,7 +354,7 @@ DB and heap can disagree.
 - Derive capacity from persisted active leases.
 - Centralize cleanup in a defer/compensation path.
 
-## OQ-14: Graceful shutdown does not drain work
+## OQ-13: Graceful shutdown does not drain work
 
 ### Current behavior
 

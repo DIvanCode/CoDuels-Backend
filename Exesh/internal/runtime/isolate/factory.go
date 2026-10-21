@@ -2,7 +2,6 @@ package isolate
 
 import (
 	"context"
-	"exesh/internal/domain/execution/job"
 	"exesh/internal/runtime"
 	"fmt"
 	"sync"
@@ -19,26 +18,14 @@ type RuntimeFactory struct {
 	boxIDCount int
 	nextBox    int
 	inUse      map[int]bool
-	jobTypes   map[job.Type]struct{}
 }
 
-func NewRuntimeFactory(jobTypes ...job.Type) *RuntimeFactory {
-	jobTypesSet := make(map[job.Type]struct{}, len(jobTypes))
-	for _, jobType := range jobTypes {
-		jobTypesSet[jobType] = struct{}{}
-	}
-
+func NewRuntimeFactory() *RuntimeFactory {
 	return &RuntimeFactory{
 		boxIDStart: defaultBoxIDStart,
 		boxIDCount: defaultBoxIDCount,
 		inUse:      make(map[int]bool),
-		jobTypes:   jobTypesSet,
 	}
-}
-
-func (f *RuntimeFactory) SupportsType(jobType job.Type) bool {
-	_, ok := f.jobTypes[jobType]
-	return ok
 }
 
 func (f *RuntimeFactory) Create(ctx context.Context) (runtime.Runtime, error) {

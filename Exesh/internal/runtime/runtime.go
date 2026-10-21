@@ -41,9 +41,7 @@ var (
 	ErrTimeout     LimitError = errors.New("timeout")
 )
 
-// Runtime is some place where we can execute some commands with constraints
-//
-// a Runtime may be shared or isolated, local or remote, generic or specific for some task, and so on
+// Runtime executes one job's commands and owns its temporary files and limits.
 type Runtime interface {
 	Init(context.Context) error
 	CopyToRuntime(context.Context, string, string) error

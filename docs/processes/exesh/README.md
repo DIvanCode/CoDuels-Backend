@@ -1,7 +1,6 @@
 # Exesh distributed execution processes
 
-This directory documents behavior observed at `CoDuels-Backend` revision
-`b0ca65fb91bc` and filestorage revision `f637043ca6a7`. Code, runtime wiring,
+This directory documents current Exesh behavior. Code, runtime wiring,
 PostgreSQL queries, Ansible configuration, and committed tests are the source of
 truth. The documents separate observed behavior from proposed requirements.
 
@@ -10,13 +9,13 @@ truth. The documents separate observed behavior from proposed requirements.
 | Process | Document | Main owner |
 | --- | --- | --- |
 | Accept and persist an execution definition | [Execution submission](execution-submission.md) | coordinator API and execute use case |
-| Materialize definitions, dependencies, and chains | [Execution graph](execution-graph.md) | execution factory and graph |
+| Materialize definitions and dependencies | [Execution graph](execution-graph.md) | execution factory and graph |
 | Claim, retry, and finish executions | [Execution scheduling](execution-scheduling.md) | execution scheduler |
 | Estimate weight and rank ready executions | [Execution priority](execution-priority.md) | calculator and scheduler execution wrapper |
 | Place jobs with reservations | [Job scheduling and promises](job-scheduling-and-promises.md) | job scheduler |
 | Register and expire workers | [Worker lifecycle](worker-lifecycle.md) | worker and worker pool |
 | Exchange results, work, and sources | [Heartbeat and job dispatch](heartbeat-and-job-dispatch.md) | heartbeat API/use case/client |
-| Prepare and execute one job or chain | [Worker job execution](worker-job-execution.md) | worker, executors, runtimes |
+| Prepare and execute one job | [Worker job execution](worker-job-execution.md) | worker, executors, runtimes |
 | Cache inputs and move outputs between workers | [Sources and artifacts](sources-and-artifacts.md) | providers and filestorage |
 | Apply results and close an execution | [Results and completion](results-and-completion.md) | both schedulers and dispatcher |
 | Persist history and optionally publish Kafka | [Messages, history, and outbox](messages-history-and-outbox.md) | dispatcher and PostgreSQL storages |
@@ -76,10 +75,9 @@ flowchart LR
     answer["correct output"] --> check
 ```
 
-Within a stage, the current reducer can collapse a single-successor path into
-one `chain` job. A chain shares one runtime selected from its first inner job;
-this materially changes isolation and artifact transfer and is described in
-[Worker job execution](worker-job-execution.md).
+Each job remains a separate graph node. Compile jobs use a local runtime;
+run and check jobs use isolate, with output artifacts transferred between jobs.
+See [Worker job execution](worker-job-execution.md).
 
 ## Runtime configuration snapshot
 
@@ -109,10 +107,10 @@ poll message history over REST.
 
 ## Evidence and test limitations
 
-No `*_test.go` files are committed in the Exesh module at this revision.
-Filestorage has its own tests for reserve/download/TTL behavior, but those do
-not test Exesh orchestration, PostgreSQL transaction composition, duplicate
-heartbeats, coordinator restart, worker death, or end-to-end isolation.
+Exesh tests cover selected scheduler, API, migration, and graph behavior.
+The Taski-Exesh scenario exercises one C++ compile/run/check flow in containers.
+These checks do not prove every PostgreSQL transaction failure, duplicate
+heartbeat, coordinator restart, worker death, or isolation edge case.
 
 ## Maintenance rule
 

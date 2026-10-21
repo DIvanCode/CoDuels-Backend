@@ -44,9 +44,8 @@ HTTP endpoints must be reachable by the receiving worker.
    the application error.
 6. The use case normalizes totals as `max(total, free/available)`, registers or
    refreshes the worker, and processes reported results in request order.
-7. For every output-bearing normal result, and every output-bearing inner chain
-   result, it dereferences `artifact_trash_time` and calls `PutArtifact` before
-   `DoneJob`. There is no validation or per-result error response.
+7. For every output-bearing result, it dereferences `artifact_trash_time`
+   and calls `PutArtifact` before `DoneJob`. There is no validation or per-result error response.
 8. `DoneJob` accepts only IDs found in the process-local `startedJobs`; unknown
    or duplicate results are silently ignored. A recognized result is removed
    before its execution callback performs database work.
@@ -122,7 +121,7 @@ already marked them started.
 
 | Output | Condition | Durable | Notes |
 | --- | --- | --- | --- |
-| Job business messages | Callback succeeds | Yes on transaction commit | One per normal/inner result |
+| Job business messages | Callback succeeds | Yes on transaction commit | One per completed result |
 | HTTP jobs/sources | Work available | No | No dispatch acknowledgement |
 | Logs | Batch has completions/errors | Log dependent | No per-result ack outcome |
 

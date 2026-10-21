@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"exesh/internal/config"
-	"exesh/internal/domain/execution/job"
 	"exesh/internal/executor"
 	"exesh/internal/executor/executors"
 	"exesh/internal/metrics"
 	"exesh/internal/provider"
 	"exesh/internal/provider/adapter"
-	"exesh/internal/runtime"
 	"exesh/internal/runtime/isolate"
 	"exesh/internal/runtime/local"
 	"exesh/internal/worker"
@@ -134,9 +132,8 @@ func setupExecutorFactory(
 	sourceProvider *provider.SourceProvider,
 	outputProvider *provider.OutputProvider,
 ) *executor.ExecutorFactory {
-	localRuntimeFactory := local.NewRuntimeFactory(job.CompileCpp, job.CompileGo)
-	isolateRuntimeFactory := isolate.NewRuntimeFactory(job.RunCpp, job.RunPy, job.RunGo, job.CheckCpp)
-	runtimeFactory := runtime.NewJobRuntimeFactory(localRuntimeFactory, isolateRuntimeFactory)
+	localRuntimeFactory := local.NewRuntimeFactory()
+	isolateRuntimeFactory := isolate.NewRuntimeFactory()
 
 	compileCppExecutorFactory := executors.NewCompileCppExecutorFactory(log, sourceProvider, outputProvider, localRuntimeFactory)
 	compileGoExecutorFactory := executors.NewCompileGoExecutorFactory(log, sourceProvider, outputProvider, localRuntimeFactory)
@@ -145,7 +142,7 @@ func setupExecutorFactory(
 	runGoExecutorFactory := executors.NewRunGoExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
 	checkCppExecutorFactory := executors.NewCheckCppExecutorFactory(log, sourceProvider, outputProvider, isolateRuntimeFactory)
 
-	baseExecutorFactory := executor.NewExecutorFactory(
+	return executor.NewExecutorFactory(
 		compileCppExecutorFactory,
 		compileGoExecutorFactory,
 		runCppExecutorFactory,
@@ -153,17 +150,4 @@ func setupExecutorFactory(
 		runGoExecutorFactory,
 		checkCppExecutorFactory,
 	)
-	chainExecutorFactory := executors.NewChainExecutorFactory(log, sourceProvider, runtimeFactory, baseExecutorFactory)
-
-	executorFactory := executor.NewExecutorFactory(
-		compileCppExecutorFactory,
-		compileGoExecutorFactory,
-		runCppExecutorFactory,
-		runPyExecutorFactory,
-		runGoExecutorFactory,
-		checkCppExecutorFactory,
-		chainExecutorFactory,
-	)
-
-	return executorFactory
 }
