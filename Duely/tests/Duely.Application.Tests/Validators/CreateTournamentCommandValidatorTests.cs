@@ -51,7 +51,7 @@ public sealed class CreateTournamentCommandValidatorTests
             Name = "Cup",
             GroupId = 10,
             MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket,
-            Participants = ["u1", "u1"]
+            Participants = ["User1", "user1"]
         };
 
         var result = _validator.Validate(command);

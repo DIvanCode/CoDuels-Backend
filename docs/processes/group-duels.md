@@ -31,6 +31,7 @@ after the active duel is created.
 - Optional configuration exists. Configuration ownership is not checked.
 - Create does not reject `User1Id == User2Id`.
 - Accept checks only the caller's active duel and does not re-check membership.
+- Accept resolves the opponent nickname without regard to letter case.
 
 ## 5. Current behavior
 

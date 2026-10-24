@@ -21,7 +21,8 @@ public sealed class RegisterHandler(Context context, ILogger<RegisterHandler> lo
 {
     public async Task<Result> Handle(RegisterCommand command, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Nickname == command.Nickname, cancellationToken);
+        var nicknameLower = User.NormalizeNickname(command.Nickname);
+        var user = await context.Users.SingleOrDefaultAsync(u => u.NicknameLower == nicknameLower, cancellationToken);
         if (user is not null)
         {
             return new EntityAlreadyExistsError(nameof(User), nameof(User.Nickname), command.Nickname);

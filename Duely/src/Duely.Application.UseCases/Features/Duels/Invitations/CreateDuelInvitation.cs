@@ -26,6 +26,7 @@ public sealed class CreateDuelInvitationHandler(Context context)
     
     public async Task<Result> Handle(CreateDuelInvitationCommand command, CancellationToken cancellationToken)
     {
+        var opponentNicknameLower = User.NormalizeNickname(command.OpponentNickname);
         var user = await context.Users.SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
         if (user is null)
         {
@@ -56,7 +57,7 @@ public sealed class CreateDuelInvitationHandler(Context context)
             .SingleOrDefaultAsync(d => d.User1.Id == command.UserId, cancellationToken);
         if (outgoingFriendlyPendingDuel is not null)
         {
-            if (outgoingFriendlyPendingDuel.User2.Nickname == command.OpponentNickname)
+            if (outgoingFriendlyPendingDuel.User2.NicknameLower == opponentNicknameLower)
             {
                 return Result.Ok();
             }
@@ -95,7 +96,7 @@ public sealed class CreateDuelInvitationHandler(Context context)
         }
 
         var opponent = await context.Users
-            .SingleOrDefaultAsync(u => u.Nickname == command.OpponentNickname, cancellationToken);
+            .SingleOrDefaultAsync(u => u.NicknameLower == opponentNicknameLower, cancellationToken);
         if (opponent is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Nickname), command.OpponentNickname);
@@ -110,7 +111,7 @@ public sealed class CreateDuelInvitationHandler(Context context)
             .AsNoTracking()
             .SingleOrDefaultAsync(d =>
                     d.Status == DuelStatus.InProgress &&
-                    (d.User1.Nickname == command.OpponentNickname || d.User2.Nickname == command.OpponentNickname),
+                    (d.User1.Id == opponent.Id || d.User2.Id == opponent.Id),
                 cancellationToken);
         if (opponentActiveDuel is not null)
         {

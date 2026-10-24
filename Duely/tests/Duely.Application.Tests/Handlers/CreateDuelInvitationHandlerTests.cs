@@ -144,7 +144,7 @@ public class CreateDuelInvitationHandlerTests : ContextBasedTest
         var ctx = Context;
         var u1 = EntityFactory.MakeUser(1, "u1");
         u1.Rating = 1200;
-        var u2 = EntityFactory.MakeUser(2, "u2");
+        var u2 = EntityFactory.MakeUser(2, "U2");
         ctx.Users.AddRange(u1, u2);
         ctx.PendingDuels.Add(new RankedPendingDuel
         {
@@ -160,7 +160,7 @@ public class CreateDuelInvitationHandlerTests : ContextBasedTest
         var res = await handler.Handle(new CreateDuelInvitationCommand
         {
             UserId = u1.Id,
-            OpponentNickname = u2.Nickname
+            OpponentNickname = "u2"
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
@@ -182,7 +182,7 @@ public class CreateDuelInvitationHandlerTests : ContextBasedTest
     {
         var ctx = Context;
         var u1 = EntityFactory.MakeUser(1, "u1");
-        var u2 = EntityFactory.MakeUser(2, "u2");
+        var u2 = EntityFactory.MakeUser(2, "U2");
         ctx.Users.AddRange(u1, u2);
         ctx.PendingDuels.Add(new FriendlyPendingDuel
         {
@@ -200,7 +200,7 @@ public class CreateDuelInvitationHandlerTests : ContextBasedTest
         var res = await handler.Handle(new CreateDuelInvitationCommand
         {
             UserId = u1.Id,
-            OpponentNickname = u2.Nickname
+            OpponentNickname = "u2"
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();

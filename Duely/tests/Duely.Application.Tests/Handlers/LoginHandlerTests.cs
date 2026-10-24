@@ -75,7 +75,7 @@ public class LoginHandlerTests : IAsyncLifetime
     {
         var ctx = Context;
         var (salt, hash) = Make("secret");
-        ctx.Users.Add(new User { Id = 2, Nickname = "trinity", PasswordSalt = salt, PasswordHash = hash, Rating = 0, CreatedAt = DateTime.UtcNow });
+        ctx.Users.Add(new User { Id = 2, Nickname = "Trinity", PasswordSalt = salt, PasswordHash = hash, Rating = 0, CreatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
         var tokenSvc = new Mock<ITokenService>();
@@ -84,7 +84,7 @@ public class LoginHandlerTests : IAsyncLifetime
 
         var handler = new LoginHandler(ctx, tokenSvc.Object, NullLogger<LoginHandler>.Instance);
         var beforeLogin = DateTime.UtcNow;
-        var res = await handler.Handle(new LoginCommand { Nickname = "trinity", Password = "secret" }, CancellationToken.None);
+        var res = await handler.Handle(new LoginCommand { Nickname = "TRINITY", Password = "secret" }, CancellationToken.None);
         var afterLogin = DateTime.UtcNow;
 
         res.IsSuccess.Should().BeTrue();
@@ -93,6 +93,7 @@ public class LoginHandlerTests : IAsyncLifetime
         tokenSvc.Verify();
 
         var user = await ctx.Users.AsNoTracking().SingleAsync(u => u.Id == 2);
+        user.Nickname.Should().Be("Trinity");
         user.RefreshToken.Should().Be("REFRESH");
         user.LastSeenAt.Should().BeOnOrAfter(beforeLogin).And.BeOnOrBefore(afterLogin);
     }

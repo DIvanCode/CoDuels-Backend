@@ -17,7 +17,8 @@ public sealed class GetByNicknameHandler(Context context) : IRequestHandler<GetU
 {
     public async Task<Result<UserDto>> Handle(GetUserByNicknameQuery query, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Nickname == query.Nickname, cancellationToken);
+        var nicknameLower = User.NormalizeNickname(query.Nickname);
+        var user = await context.Users.SingleOrDefaultAsync(u => u.NicknameLower == nicknameLower, cancellationToken);
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Nickname), query.Nickname);

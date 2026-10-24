@@ -34,7 +34,7 @@ public class AcceptGroupDuelInvitationHandlerTests : ContextBasedTest
     public async Task Accepts_when_group_pending_in_pending_duels()
     {
         var user1 = EntityFactory.MakeUser(1, "u1");
-        var user2 = EntityFactory.MakeUser(2, "u2");
+        var user2 = EntityFactory.MakeUser(2, "U2");
         var group = EntityFactory.MakeGroup(1, "g");
         Context.Users.AddRange(user1, user2);
         Context.Groups.Add(group);
@@ -56,7 +56,7 @@ public class AcceptGroupDuelInvitationHandlerTests : ContextBasedTest
         {
             UserId = user1.Id,
             GroupId = group.Id,
-            OpponentNickname = user2.Nickname
+            OpponentNickname = "u2"
         }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();

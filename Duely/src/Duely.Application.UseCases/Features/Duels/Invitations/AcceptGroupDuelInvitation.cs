@@ -25,6 +25,7 @@ public sealed class AcceptGroupDuelInvitationHandler(Context context)
 {
     public async Task<Result> Handle(AcceptGroupDuelInvitationCommand command, CancellationToken cancellationToken)
     {
+        var opponentNicknameLower = User.NormalizeNickname(command.OpponentNickname);
         var user = await context.Users
             .AsNoTracking()
             .SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
@@ -80,8 +81,8 @@ public sealed class AcceptGroupDuelInvitationHandler(Context context)
             .Include(d => d.User2)
             .SingleOrDefaultAsync(d =>
                 d.Group.Id == command.GroupId &&
-                ((d.User1.Id == command.UserId && d.User2.Nickname == command.OpponentNickname) ||
-                 (d.User2.Id == command.UserId && d.User1.Nickname == command.OpponentNickname)) &&
+                ((d.User1.Id == command.UserId && d.User2.NicknameLower == opponentNicknameLower) ||
+                 (d.User2.Id == command.UserId && d.User1.NicknameLower == opponentNicknameLower)) &&
                 ((command.ConfigurationId == null && d.Configuration == null) ||
                  (d.Configuration != null && d.Configuration.Id == command.ConfigurationId)),
                 cancellationToken);

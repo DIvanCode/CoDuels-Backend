@@ -27,8 +27,8 @@ tournament, and mark the tournament finished.
 ## 4. Preconditions
 
 - Create/start require the group permission checked by `GroupPermissionsService`.
-- At least two unique, nonempty nicknames are validated; each must be a
-  non-pending group member at creation.
+- At least two unique, nonempty nicknames are validated without regard to
+  letter case; each resolves to a non-pending group member at creation.
 - Optional duel configuration must exist; ownership is not checked.
 - Synchronization considers only `InProgress` tournaments and only candidates
   whose users are absent from all active duels and all four pending types in its snapshot.

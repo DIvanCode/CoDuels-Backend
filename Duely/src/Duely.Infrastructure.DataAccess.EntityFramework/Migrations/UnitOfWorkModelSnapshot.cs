@@ -571,6 +571,13 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnType("text")
                         .HasColumnName("Nickname");
 
+                    b.Property<string>("NicknameLower")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("text")
+                        .HasColumnName("NicknameLower")
+                        .HasComputedColumnSql("lower(\"Nickname\")", true);
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text")
@@ -590,6 +597,9 @@ namespace Duely.Infrastructure.DataAccess.EntityFramework.Migrations
                         .HasColumnName("RefreshToken");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("NicknameLower")
+                        .IsUnique();
 
                     b.ToTable("Users", (string)null);
                 });

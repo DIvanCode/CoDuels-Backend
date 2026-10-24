@@ -21,7 +21,8 @@ public sealed class LoginHandler(Context context, ITokenService tokenService, IL
 {
     public async Task<Result<TokenDto>> Handle(LoginCommand command, CancellationToken cancellationToken)
     {
-        var user = await context.Users.SingleOrDefaultAsync(u => u.Nickname == command.Nickname, cancellationToken);
+        var nicknameLower = User.NormalizeNickname(command.Nickname);
+        var user = await context.Users.SingleOrDefaultAsync(u => u.NicknameLower == nicknameLower, cancellationToken);
         if (user is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Nickname), command.Nickname);

@@ -74,7 +74,7 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
     public async Task Success_accepts_invitation()
     {
         var ctx = Context;
-        var inviter = EntityFactory.MakeUser(1, "inviter");
+        var inviter = EntityFactory.MakeUser(1, "Inviter");
         var invitee = EntityFactory.MakeUser(2, "invitee");
         ctx.Users.AddRange(inviter, invitee);
         ctx.PendingDuels.Add(new FriendlyPendingDuel
@@ -110,7 +110,7 @@ public class AcceptDuelInvitationHandlerTests : ContextBasedTest
         var res = await handler.Handle(new AcceptDuelInvitationCommand
         {
             UserId = invitee.Id,
-            OpponentNickname = inviter.Nickname,
+            OpponentNickname = "inviter",
             ConfigurationId = 10
         }, CancellationToken.None);
 
