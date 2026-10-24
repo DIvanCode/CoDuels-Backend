@@ -15,7 +15,7 @@ public class RegisterHandlerTests : ContextBasedTest
     {
         var ctx = Context;
 
-        ctx.Users.Add(new User { Id = 1, Nickname = "alice", PasswordHash = "h", PasswordSalt = "s", Rating = 0, CreatedAt = DateTime.UtcNow });
+        ctx.Users.Add(new User { Id = 1, Nickname = "Alice", PasswordHash = "h", PasswordSalt = "s", Rating = 0, CreatedAt = DateTime.UtcNow });
         await ctx.SaveChangesAsync();
 
         var handler = new RegisterHandler(ctx, NullLogger<RegisterHandler>.Instance);
@@ -24,12 +24,13 @@ public class RegisterHandlerTests : ContextBasedTest
 
         var res = await handler.Handle(new RegisterCommand
         {
-            Nickname = "alice",
+            Nickname = "ALICE",
             Password = password
         }, CancellationToken.None);
 
         res.IsFailed.Should().BeTrue();
         res.Errors.Should().ContainSingle(e => e is EntityAlreadyExistsError);
+        ctx.Users.Should().ContainSingle();
     }
 
     [Fact]
@@ -52,6 +53,7 @@ public class RegisterHandlerTests : ContextBasedTest
         var user = await ctx.Users.SingleAsync(u => u.Nickname == "bob");
         user.PasswordSalt.Should().NotBeNullOrWhiteSpace();
         user.PasswordHash.Should().NotBeNullOrWhiteSpace();
+        user.NicknameLower.Should().Be("bob");
 
         BCrypt.Net.BCrypt.Verify(password + user.PasswordSalt, user.PasswordHash).Should().BeTrue();
     }

@@ -11,15 +11,15 @@ public sealed class GetUserByNicknameHandlerTests : ContextBasedTest
     public async Task Returns_user_when_exists()
     {
         var ctx = Context;
-        ctx.Users.Add(EntityFactory.MakeUser(7, "alice"));
+        ctx.Users.Add(EntityFactory.MakeUser(7, "Alice"));
         await ctx.SaveChangesAsync();
 
         var handler = new GetByNicknameHandler(ctx);
-        var res = await handler.Handle(new GetUserByNicknameQuery { Nickname = "alice" }, CancellationToken.None);
+        var res = await handler.Handle(new GetUserByNicknameQuery { Nickname = "ALICE" }, CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         res.Value.Id.Should().Be(7);
-        res.Value.Nickname.Should().Be("alice");
+        res.Value.Nickname.Should().Be("Alice");
         res.Value.LastSeenAt.Should().BeNull();
     }
 

@@ -7,7 +7,21 @@ namespace Duely.Domain.Models;
 public sealed class User
 {
     public int Id { get; init; }
-    public required string Nickname { get; init; }
+    private string _nickname = null!;
+
+    public required string Nickname
+    {
+        get => _nickname;
+        init
+        {
+            _nickname = value;
+            NicknameLower = NormalizeNickname(value);
+        }
+    }
+
+    public string NicknameLower { get; private set; } = null!;
+
+    public static string NormalizeNickname(string nickname) => nickname.ToLowerInvariant();
     public required string PasswordHash { get; init; }
     public required string PasswordSalt { get; init; }
     public string? RefreshToken { get; set; }

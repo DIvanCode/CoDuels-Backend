@@ -22,6 +22,14 @@ public sealed class UsersConfiguration : IEntityTypeConfiguration<User>
             .HasColumnType("text")
             .IsRequired();
 
+        builder.Property(u => u.NicknameLower)
+            .HasColumnName("NicknameLower")
+            .HasColumnType("text")
+            .HasComputedColumnSql("lower(\"Nickname\")", stored: true)
+            .IsRequired();
+
+        builder.HasIndex(u => u.NicknameLower).IsUnique();
+
         builder.Property(u => u.PasswordHash)
             .HasColumnName("PasswordHash")
             .HasColumnType("text")

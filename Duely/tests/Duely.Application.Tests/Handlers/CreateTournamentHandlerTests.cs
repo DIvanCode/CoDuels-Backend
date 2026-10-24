@@ -17,7 +17,7 @@ public sealed class CreateTournamentHandlerTests : ContextBasedTest
     public async Task Creates_tournament_for_group_members()
     {
         var creator = EntityFactory.MakeUser(1, "creator");
-        var user1 = EntityFactory.MakeUser(2, "u1");
+        var user1 = EntityFactory.MakeUser(2, "U1");
         var user2 = EntityFactory.MakeUser(3, "u2");
         var group = EntityFactory.MakeGroup(1, "Alpha");
         group.Users.Add(new GroupMembership { User = creator, Group = group, Role = GroupRole.Creator });
@@ -58,7 +58,7 @@ public sealed class CreateTournamentHandlerTests : ContextBasedTest
             Name = "Spring Cup",
             GroupId = group.Id,
             MatchmakingType = TournamentMatchmakingType.SingleEliminationBracket,
-            Participants = new List<string> { user1.Nickname, user2.Nickname },
+            Participants = new List<string> { "u1", user2.Nickname },
             DuelConfigurationId = configuration.Id
         }, CancellationToken.None);
 

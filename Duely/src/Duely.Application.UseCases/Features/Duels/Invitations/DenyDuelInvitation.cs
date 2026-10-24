@@ -23,6 +23,7 @@ public sealed class DenyDuelInvitationHandler(Context context)
 {
     public async Task<Result> Handle(DenyDuelInvitationCommand command, CancellationToken cancellationToken)
     {
+        var opponentNicknameLower = User.NormalizeNickname(command.OpponentNickname);
         var user = await context.Users
             .AsNoTracking()
             .SingleOrDefaultAsync(u => u.Id == command.UserId, cancellationToken);
@@ -33,7 +34,7 @@ public sealed class DenyDuelInvitationHandler(Context context)
 
         var opponent = await context.Users
             .AsNoTracking()
-            .SingleOrDefaultAsync(u => u.Nickname == command.OpponentNickname, cancellationToken);
+            .SingleOrDefaultAsync(u => u.NicknameLower == opponentNicknameLower, cancellationToken);
         if (opponent is null)
         {
             return new EntityNotFoundError(nameof(User), nameof(User.Nickname), command.OpponentNickname);

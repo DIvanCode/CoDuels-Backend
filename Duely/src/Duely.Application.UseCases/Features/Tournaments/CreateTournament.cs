@@ -67,8 +67,9 @@ public sealed class CreateTournamentHandler(
         var participantUsers = new List<User>();
         foreach (var nickname in command.Participants)
         {
+            var nicknameLower = User.NormalizeNickname(nickname);
             var membership = group.Users
-                .SingleOrDefault(m => !m.InvitationPending && m.User.Nickname == nickname);
+                .SingleOrDefault(m => !m.InvitationPending && m.User.NicknameLower == nicknameLower);
             if (membership is null)
             {
                 return new EntityNotFoundError(nameof(GroupMembership), nameof(User.Nickname), nickname);
@@ -105,7 +106,7 @@ public sealed class CreateTournamentCommandValidator : AbstractValidator<CreateT
 
         RuleFor(r => r.Participants)
             .Must(p => p is not null && p.Count >= 2).WithMessage("at least two participants are required")
-            .Must(p => p is not null && p.Distinct(StringComparer.Ordinal).Count() == p.Count)
+            .Must(p => p is not null && p.Distinct(StringComparer.OrdinalIgnoreCase).Count() == p.Count)
             .WithMessage("participants must be unique");
 
         RuleForEach(r => r.Participants)

@@ -37,9 +37,9 @@ then accept, deny, cancel, replace, or implicitly reset that invitation.
 
 1. The handler rejects an active sender duel and stages deletion of one sender
    Ranked row if present.
-2. It loads one outgoing Friendly row. If its `User2.Nickname` equals the new
-   nickname, it returns success immediately. Configuration is not compared and
-   staged Ranked deletion is not saved.
+2. It loads one outgoing Friendly row. If its `User2.NicknameLower` equals the
+   new nickname after lowercase normalization, it returns success immediately.
+   Configuration is not compared and staged Ranked deletion is not saved.
 3. For a different opponent, it stages deletion of the old row and two
    cancellation messages, then validates the new opponent and configuration.
 4. It creates a new directional row with `IsAccepted = false` and records one
@@ -47,6 +47,8 @@ then accept, deny, cancel, replace, or implicitly reset that invitation.
 
 The opposite-direction invitation is not a duplicate: tests explicitly preserve
 both `A -> B` and `B -> A` rows.
+All opponent nickname inputs resolve case insensitively; emitted messages keep
+the user's registered spelling.
 
 ### Accept
 
@@ -109,8 +111,8 @@ outbox retry, while offline delivery is treated as success and cannot retry.
 
 ## 9. Idempotency
 
-- Create to the same nickname returns success without a new row or message, but
-  it also ignores a requested configuration change.
+- Create to the same nickname, ignoring letter case, returns success without a
+  new row or message, but it also ignores a requested configuration change.
 - Sequential sender cancel is idempotent: later calls succeed silently.
 - Repeating accept before the row is consumed writes `true` again; after duel
   creation it returns not found.
