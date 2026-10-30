@@ -36,4 +36,5 @@ message_dispatcher:
   sasl_password: "" # kafka_enabled: true, sasl_auth: true
 metrics_collector:
   collect_interval: 5s
-task_topics: []
+task_topics:
+  - Maria
