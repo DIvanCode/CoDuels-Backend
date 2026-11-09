@@ -83,6 +83,20 @@ public sealed class TournamentsController(IMediator mediator, IUserContext userC
         return this.HandleResult(result);
     }
 
+    [HttpPost("{id:int}/finish")]
+    public async Task<ActionResult<TournamentDto>> FinishAsync(
+        [FromRoute] int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new FinishTournamentCommand
+        {
+            UserId = userContext.UserId,
+            TournamentId = id,
+            IsAdmin = userContext.IsAdmin()
+        }, cancellationToken);
+        return this.HandleResult(result);
+    }
+
     [HttpPost("{id:int}/duels/accept")]
     public async Task<ActionResult> AcceptDuelAsync(
         [FromRoute] int id,
