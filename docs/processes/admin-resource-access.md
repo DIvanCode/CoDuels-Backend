@@ -35,7 +35,10 @@ client from treating the administrator as an owner or manager.
 
 ## 4. Mutation boundary
 
-The admin claim does not bypass checks for creating, updating, starting,
+The admin claim can force-finish tournaments through `POST /tournaments/{id}/finish`
+without group membership. This is the sole mutation permission exception.
+
+For all other mutations, the admin claim does not bypass checks for creating, updating, starting,
 accepting, inviting, changing roles, excluding users, or leaving groups. Those
 operations keep their existing participant, membership, and role rules.
 
