@@ -16,6 +16,8 @@ tournament, and mark the tournament finished.
 
 ## 3. Triggers
 
+- `POST /tournaments/{id}/finish`: force the tournament to `Finished` and delete its pending matches.
+
 - `POST /tournaments`: create a `New` tournament.
 - `POST /tournaments/{id}/start`: move `New` to `InProgress`.
 - Synchronization job every configured interval (1 second in production).
@@ -25,6 +27,8 @@ tournament, and mark the tournament finished.
 - Duel-making and duel-finish jobs progress matches and results.
 
 ## 4. Preconditions
+
+- Force finish requires active Creator/Manager group membership or the system admin claim.
 
 - Create/start require the group permission checked by `GroupPermissionsService`.
 - At least two unique, nonempty nicknames are validated; each must be a
@@ -44,6 +48,25 @@ participants, initializes bracket nodes or an empty group-stage duel-id list,
 and saves once with status `New`. Start changes only `New -> InProgress`; calling
 start for an already `InProgress` or `Finished` tournament returns success with
 the unchanged DTO.
+
+### Forced finish
+
+The `POST /tournaments/{id}/finish` endpoint locks the tournament row,
+checks Creator/Manager or admin permissions, sets `Status = Finished`, and
+deletes all `TournamentPendingDuel` rows for that tournament in **one
+transaction**. Calling it again is idempotent and cleans up any leftovers.
+It can also finish a `New` tournament if called directly.
+
+Already created duels (including `InProgress`) remain unchanged, along
+with their submissions, ratings and tournament references. They finish
+through the normal duel lifecycle. The synchronization pass now locks active
+tournament rows through pending creation and commit; the duel maker locks and
+rechecks the tournament's `InProgress` status before consuming a tournament
+pending row. This serializes all three paths with force finish.
+
+No tournament-finished or invitation-canceled WebSocket message is emitted.
+Other clients may display stale invitations until an HTTP refetch or reconnect.
+Tournament details and invitations GET endpoints remain authoritative.
 
 ### Synchronization and pending creation
 
@@ -79,6 +102,7 @@ runs, which advance the structure and enqueue newly available matches.
 
 - `No tournament -> Tournament(New, participants, initialized strategy state)`.
 - `New -> InProgress` on first start.
+- `New/InProgress -> Finished` on force finish, with pending tournament matches deleted.
 - `InProgress + ready candidate -> TournamentPendingDuel(false, false)`.
 - `User1/User2 false -> true` on individual acceptance.
 - `This user's true -> false` on shared cancel/disconnect.
@@ -125,6 +149,7 @@ duel-creation save; the first and second saves become visible together at commit
 ## 10. Transaction boundaries
 
 - Tournament create and start each use one save.
+- Force finish commits status update and pending deletion in one explicit transaction.
 - A synchronization pass uses one final save for strategy state, every new
   Tournament row, and all invitation outbox rows.
 - Accept uses one save for acceptance plus Ranked/Friendly cleanup and message.
@@ -134,8 +159,8 @@ duel-creation save; the first and second saves become visible together at commit
 
 ## 11. Concurrency and race conditions
 
-- Concurrent sync jobs lack row claims/unique constraints and can duplicate
-  Tournament rows and invitations.
+- Synchronization now locks tournament rows through its pass, serializing competing
+  sync runs and forced finish. Global busy-user checks remain only snapshots.
 - Busy-user calculation can become stale before insertion.
 - Accept/reset/maker races serialize when the maker locks and reloads the selected
   Tournament pending row; a committed reset prevents creation.
