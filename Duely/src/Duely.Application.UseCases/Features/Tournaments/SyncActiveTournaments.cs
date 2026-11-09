@@ -22,8 +22,22 @@ public sealed class SyncActiveTournamentsHandler(
 {
     public async Task<Result> Handle(SyncActiveTournamentsCommand request, CancellationToken cancellationToken)
     {
-        var tournaments = await context.Tournaments
+        // Hold tournament-row locks until scheduled pending rows are committed.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        var activeIds = await context.Tournaments
             .Where(t => t.Status == TournamentStatus.InProgress)
+            .OrderBy(t => t.Id)
+            .Select(t => t.Id)
+            .ToListAsync(cancellationToken);
+        var lockedIds = await context.Tournaments
+            .Where(t => activeIds.Contains(t.Id))
+            .OrderBy(t => t.Id)
+            .Select(t => t.Id)
+            .ForUpdate()
+            .ToListAsync(cancellationToken);
+
+        var tournaments = await context.Tournaments
+            .Where(t => lockedIds.Contains(t.Id) && t.Status == TournamentStatus.InProgress)
             .Include(t => t.DuelConfiguration)
             .Include(t => t.Participants)
             .ThenInclude(p => p.User)
@@ -73,6 +87,11 @@ public sealed class SyncActiveTournamentsHandler(
         {
             var strategy = strategyResolver.GetStrategy(tournament.MatchmakingType);
             strategy.Sync(tournament, duelsById);
+            if (tournament.Status != TournamentStatus.InProgress)
+            {
+                continue;
+            }
+
             var participantsById = tournament.Participants.ToDictionary(p => p.User.Id, p => p.User);
             var tournamentPendingDuels = existingPendingDuels
                 .Where(d => d.Tournament.Id == tournament.Id)
@@ -161,6 +180,7 @@ public sealed class SyncActiveTournamentsHandler(
         }
 
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return Result.Ok();
     }
 

@@ -82,6 +82,27 @@ public sealed class TryCreateDuelHandler(
                     continue;
                 }
 
+                // Lock tournament before pending rows, as in forced finish/sync.
+                // Reject candidates observed before the tournament finished.
+                var tournamentPending = candidate.UsedPendingDuels
+                    .OfType<TournamentPendingDuel>()
+                    .SingleOrDefault();
+                if (tournamentPending is not null)
+                {
+                    var activeTournamentId = await context.Tournaments
+                        .AsNoTracking()
+                        .Where(t => t.Id == tournamentPending.Tournament.Id &&
+                                    t.Status == Duely.Domain.Models.Tournaments.TournamentStatus.InProgress)
+                        .Select(t => t.Id)
+                        .ForUpdate()
+                        .SingleOrDefaultAsync(cancellationToken);
+                    if (activeTournamentId == 0)
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        continue;
+                    }
+                }
+
                 var pendingIds = candidate.UsedPendingDuels
                     .Select(pending => pending.Id)
                     .OrderBy(id => id)

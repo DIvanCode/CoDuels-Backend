@@ -16,6 +16,7 @@ public interface IGroupPermissionsService
     bool CanCancelDuel(GroupMembership membership);
     bool CanCreateTournament(GroupMembership membership);
     bool CanStartTournament(GroupMembership membership);
+    bool CanFinishTournament(GroupMembership membership);
 }
 
 public sealed class GroupPermissionsService : IGroupPermissionsService
@@ -103,6 +104,11 @@ public sealed class GroupPermissionsService : IGroupPermissionsService
     }
 
     public bool CanStartTournament(GroupMembership membership)
+    {
+        return CanManageCompetitiveActivities(membership);
+    }
+
+    public bool CanFinishTournament(GroupMembership membership)
     {
         return CanManageCompetitiveActivities(membership);
     }
